@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PlayerMaterials } from '../PlayerMaterials';
+import { PlayerMaterials } from './PlayerMaterials';
 import { TorsoBuilder } from './mesh/TorsoBuilder';
 import { HeadBuilder } from './mesh/HeadBuilder';
 import { HandBuilder } from './mesh/HandBuilder';
@@ -81,25 +81,35 @@ export class PlayerMeshBuilder {
 
         const buildArm = () => {
             const armGroup = new THREE.Group();
-            const deltRadius = 0.13;
-            const deltGeo = new THREE.SphereGeometry(deltRadius, 16, 16);
-            deltGeo.scale(1.0, 0.85, 0.95); 
+
+            // Shoulder cap shaped like a flattened capsule to mimic a rounded deltoid.
+            const shoulderRadius = 0.11;
+            const shoulderLength = 0.3;
+            const deltGeo = new THREE.CapsuleGeometry(
+                shoulderRadius,
+                Math.max(0.01, shoulderLength - shoulderRadius * 2),
+                6,
+                16
+            );
+            deltGeo.scale(1.08, 0.6, 1.2);
             const delt = new THREE.Mesh(deltGeo, materials.shirt);
-            delt.position.y = 0.02; 
+            delt.position.y = 0.03;
+            delt.rotation.z = 0.12;
             delt.castShadow = true;
             armGroup.add(delt);
 
             const upperTopR = 0.095;
-            const upperBotR = 0.07; 
-            const upperGeo = new THREE.CylinderGeometry(upperTopR, upperBotR, upperArmLen, 12);
-            upperGeo.translate(0, -upperArmLen/2, 0);
+            const upperBotR = 0.07;
+            const upperGeo = new THREE.CylinderGeometry(upperTopR, upperBotR, upperArmLen, 20, 1, true);
+            upperGeo.translate(0, -upperArmLen / 2, 0);
             const upperMesh = new THREE.Mesh(upperGeo, materials.shirt);
-            upperMesh.position.y = 0.03; 
+            upperMesh.position.y = 0.03;
             upperMesh.castShadow = true;
+            upperMesh.scale.set(1.02, 1, 0.9);
             armGroup.add(upperMesh);
 
-            const elbowPosY = -upperArmLen + 0.03; 
-            const elbowRadius = 0.07; 
+            const elbowPosY = -upperArmLen + 0.045;
+            const elbowRadius = 0.075;
             const foreArmGroup = new THREE.Group();
             foreArmGroup.position.y = elbowPosY;
             armGroup.add(foreArmGroup);
@@ -110,16 +120,18 @@ export class PlayerMeshBuilder {
             elbow.castShadow = true;
             foreArmGroup.add(elbow);
 
-            const lowerTopR = 0.07; 
-            const lowerBotR = 0.055; 
-            const lowerGeo = new THREE.CylinderGeometry(lowerTopR, lowerBotR, lowerArmLen, 12);
-            lowerGeo.translate(0, -lowerArmLen/2, 0);
+            const lowerTopR = 0.072;
+            const wristRadius = 0.033;
+            const lowerBotR = wristRadius;
+            const lowerGeo = new THREE.CylinderGeometry(lowerTopR, lowerBotR, lowerArmLen, 20, 1, true);
+            lowerGeo.translate(0, -lowerArmLen / 2, 0);
             const lowerMesh = new THREE.Mesh(lowerGeo, materials.shirt);
             lowerMesh.castShadow = true;
-            lowerMesh.scale.set(1.1, 1, 0.95); 
+            lowerMesh.scale.set(1.12, 1, 0.9);
             foreArmGroup.add(lowerMesh);
 
-            const wristGeo = new THREE.SphereGeometry(lowerBotR, 12, 12);
+            const wristGeo = new THREE.SphereGeometry(wristRadius, 18, 18);
+            wristGeo.scale(1.05, 0.85, 1.2);
             const wrist = new THREE.Mesh(wristGeo, materials.skin);
             wrist.position.y = -lowerArmLen;
             wrist.castShadow = true;

@@ -86,6 +86,7 @@ export class PlayerModel {
         this.lastShirtConfigHash = hash;
 
         // Cleanup old shirt
+        if (this.parts.shirt) this.parts.shirt = null;
         this.shirtMeshes.forEach(m => {
             if (m.parent) m.parent.remove(m);
             // Dispose geometries/materials if necessary for heavy usage
@@ -94,9 +95,10 @@ export class PlayerModel {
         this.shirtMeshes = [];
 
         // Build new shirt
-        const newMeshes = ShirtBuilder.build(this.parts, config);
-        if (newMeshes) {
-            this.shirtMeshes = newMeshes;
+        const built = ShirtBuilder.build(this.parts, config);
+        if (built) {
+            this.shirtMeshes = built.meshes;
+            this.parts.shirt = built.refs;
         }
     }
     
@@ -224,6 +226,15 @@ export class PlayerModel {
         this.parts.jaw.position.y = -0.05 + config.chinHeight;
         this.parts.jawMesh.scale.y = 0.45 * config.chinLength;
         this.parts.jawMesh.position.z = 0.09 + config.chinForward;
+
+        if (this.parts.nose?.userData.basePosition) {
+            const base = this.parts.nose.userData.basePosition as THREE.Vector3;
+            this.parts.nose.position.set(
+                base.x,
+                base.y + config.noseHeight,
+                base.z + config.noseForward
+            );
+        }
         
         this.irises.forEach(i => i.scale.setScalar(config.irisScale));
         this.pupils.forEach(p => p.scale.setScalar(config.pupilScale));

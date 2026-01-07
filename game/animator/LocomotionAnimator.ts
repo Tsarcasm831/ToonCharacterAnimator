@@ -303,30 +303,78 @@ export class LocomotionAnimator {
         // Expansion Factor
         // Range: 1.0 +/- (0.04 * intensity)
         const chestExpansion = 1.0 + (breathPhase * 0.04 * intensity);
+        const torsoBreath = 1.0 + (breathPhase * 0.03 * intensity);
+
+        // Torso Expansion (red) to sync with chest/shoulders.
+        if (parts.torso) {
+            const baseScale = parts.torso.userData.baseScale || parts.torso.scale.clone();
+            parts.torso.userData.baseScale = baseScale;
+            parts.torso.scale.set(baseScale.x * torsoBreath, baseScale.y, baseScale.z * torsoBreath);
+        }
+
+        // Shirt follow breathing
+        const shirt = parts.shirt;
+        if (shirt?.torso) {
+            const baseScale = shirt.torso.userData.baseScale || shirt.torso.scale.clone();
+            shirt.torso.userData.baseScale = baseScale;
+            // Torso shirt follows torso expansion
+            shirt.torso.scale.set(baseScale.x * torsoBreath, baseScale.y, baseScale.z * torsoBreath);
+        }
+        if (shirt?.shoulders) {
+            shirt.shoulders.forEach((s: any) => {
+                const b = s.userData.baseScale || s.scale.clone();
+                s.userData.baseScale = b;
+                // Topcap does NOT breathe (static scale)
+                s.scale.copy(b);
+            });
+        }
+        if (shirt?.delts) {
+            shirt.delts.forEach((d: any) => {
+                const b = d.userData.baseScale || d.scale.clone();
+                d.userData.baseScale = b;
+                // Delts do NOT breathe (static scale)
+                d.scale.copy(b);
+            });
+        }
+        if (shirt?.sleeves) {
+            shirt.sleeves.forEach((sl: any) => {
+                const b = sl.userData.baseScale || sl.scale.clone();
+                sl.userData.baseScale = b;
+                // Sleeves do NOT breathe (static scale)
+                sl.scale.copy(b);
+            });
+        }
         
         // Female Chest Expansion
         if (parts.chest) {
             parts.chest.scale.setScalar(chestExpansion);
         }
 
-        // Male Chest Expansion (Pecs/Abs)
+        // Male chest follows torso breath via parent scaling to stay glued.
         if (parts.maleChest) {
-            // Expand Z more (forward) for abs/pecs
-            parts.maleChest.scale.set(chestExpansion, chestExpansion, 1.0 + (breathPhase * 0.06 * intensity));
+            parts.maleChest.scale.setScalar(1);
         }
         
-        // Shoulders (TopCap) Rise & Expand
+        // Shoulders (TopCap) alignment
         if (parts.topCap) {
-             // Since TopCap scale is reset every frame in PlayerModel.sync, 
-             // we can safely multiply to apply the breathing effect on top of the configured body proportion.
-             const shoulderBreath = 1.0 + (breathPhase * 0.015 * intensity);
-             parts.topCap.scale.multiplyScalar(shoulderBreath);
-             
-             // Vertical rise (Shrug effect)
-             // Base Y from TorsoBuilder is 0.28 (torsoLen=0.56 / 2)
-             const baseTopCapY = 0.28;
-             const rise = breathPhase * 0.005 * intensity;
-             parts.topCap.position.y = baseTopCapY + rise;
+             // Keep the shoulder cap welded to the torso to prevent visible separation.
+             const baseTopCapY = parts.topCap.userData.baseY ?? parts.topCap.position.y;
+             parts.topCap.position.y = baseTopCapY;
+        }
+
+        // Shirt TopCap alignment (if separate from parenting)
+        if (shirt?.shoulders) {
+            shirt.shoulders.forEach((s: any) => {
+                if (s.parent === shirt.torso) {
+                    // If parented to shirt.torso, position should be static relative to parent
+                    const baseTopCapY = s.userData.baseY ?? (0.52 / 2); // shirtLen / 2
+                    s.position.y = baseTopCapY;
+                } else {
+                    // If not parented, it needs to follow the same logic as the body topCap
+                    const baseTopCapY = s.userData.baseY ?? (parts.torsoLen ?? 0.56) / 2;
+                    s.position.y = baseTopCapY;
+                }
+            });
         }
     }
 }

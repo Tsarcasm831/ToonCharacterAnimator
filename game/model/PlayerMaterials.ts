@@ -6,12 +6,13 @@ export class PlayerMaterials {
     shirt: THREE.MeshToonMaterial;
     pants: THREE.MeshToonMaterial;
     boots: THREE.MeshToonMaterial;
-    iris: THREE.MeshToonMaterial;
     sclera: THREE.MeshToonMaterial;
-    pupil: THREE.MeshToonMaterial;
     lip: THREE.MeshToonMaterial;
     underwear: THREE.MeshToonMaterial;
     hair: THREE.MeshToonMaterial;
+    private eyeCanvas: HTMLCanvasElement;
+    private eyeCtx: CanvasRenderingContext2D | null;
+    private eyeTexture: THREE.CanvasTexture;
 
     constructor(config: PlayerConfig) {
         this.skin = new THREE.MeshToonMaterial({ color: config.skinColor });
@@ -19,20 +20,48 @@ export class PlayerMaterials {
         this.pants = new THREE.MeshToonMaterial({ color: 0x444444 });
         this.boots = new THREE.MeshToonMaterial({ color: 0x222222 });
         this.lip = new THREE.MeshToonMaterial({ color: config.lipColor });
-        this.sclera = new THREE.MeshToonMaterial({ color: config.scleraColor });
-        this.iris = new THREE.MeshToonMaterial({ color: config.eyeColor });
-        this.pupil = new THREE.MeshToonMaterial({ color: config.pupilColor });
+        this.eyeCanvas = document.createElement('canvas');
+        this.eyeCanvas.width = 256;
+        this.eyeCanvas.height = 256;
+        this.eyeCtx = this.eyeCanvas.getContext('2d');
+        this.eyeTexture = new THREE.CanvasTexture(this.eyeCanvas);
+        this.sclera = new THREE.MeshToonMaterial({ color: 0xffffff, map: this.eyeTexture });
         this.underwear = new THREE.MeshToonMaterial({ color: 0xeaeaea });
         this.hair = new THREE.MeshToonMaterial({ color: config.hairColor });
+        this.updateEyeTexture(config);
     }
 
     sync(config: PlayerConfig) {
         this.skin.color.set(config.skinColor);
-        this.sclera.color.set(config.scleraColor);
-        this.iris.color.set(config.eyeColor);
-        this.pupil.color.set(config.pupilColor);
+        this.sclera.color.set(0xffffff);
+        this.updateEyeTexture(config);
         this.lip.color.set(config.lipColor);
         this.hair.color.set(config.hairColor);
+    }
+
+    private updateEyeTexture(config: PlayerConfig) {
+        if (!this.eyeCtx) return;
+        const ctx = this.eyeCtx;
+        const size = this.eyeCanvas.width;
+        const center = size * 0.5;
+        const irisRadius = size * 0.22 * config.irisScale;
+        const pupilRadius = size * 0.08 * config.pupilScale;
+
+        ctx.clearRect(0, 0, size, size);
+        ctx.fillStyle = config.scleraColor;
+        ctx.fillRect(0, 0, size, size);
+
+        ctx.fillStyle = config.eyeColor;
+        ctx.beginPath();
+        ctx.arc(center, center, irisRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = config.pupilColor;
+        ctx.beginPath();
+        ctx.arc(center, center, pupilRadius, 0, Math.PI * 2);
+        ctx.fill();
+
+        this.eyeTexture.needsUpdate = true;
     }
 
     applyOutfit(outfit: OutfitType, skinColor: string) {
