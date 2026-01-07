@@ -88,19 +88,87 @@ export class ShirtBuilder {
 
         const createdMeshes: THREE.Object3D[] = [];
 
+        const shirtRefs: any = {
+            torso: null,
+            shoulders: [] as THREE.Mesh[],
+            delts: [] as THREE.Mesh[],
+            sleeves: [] as THREE.Mesh[],
+            details: [] as THREE.Mesh[]
+        };
+
         // 1. Torso Shirt
-        const torsoRadiusTop = 0.31;
-        const torsoRadiusBottom = 0.25;
-        const shirtLen = 0.42; 
+        const torsoRadiusTop = 0.30; // Slightly reduced from 0.33 to fix bloat while covering skin
+        const torsoRadiusBottom = 0.24; // Slightly reduced from 0.27
+        const shirtLen = 0.52; 
+        const torsoDepthScale = 0.68; // Slightly reduced from 0.72 to look less bloated
         
         const shirtTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, shirtLen, 16);
+        shirtTorsoGeo.scale(1, 1, torsoDepthScale); // Make it oval to match torso
         const shirtTorso = new THREE.Mesh(shirtTorsoGeo, shirtMat);
-        shirtTorso.position.y = shirtLen/2 + 0.12;
-        shirtTorso.scale.set(1, 1, 0.7); 
+        const torsoCenterY = parts.torso?.position?.y ?? (0.56 / 2 + 0.1);
+        shirtTorso.position.y = torsoCenterY; 
         shirtTorso.castShadow = true;
+        shirtTorso.userData.baseScale = shirtTorso.scale.clone();
         
-        parts.torso.add(shirtTorso);
+        parts.torsoContainer.add(shirtTorso);
         createdMeshes.push(shirtTorso);
+        shirtRefs.torso = shirtTorso;
+
+        // Shoulder cap to cover traps/shoulders (stays welded to torso)
+        // Match torsoRadiusTop + minimal padding for outer shell
+        const shirtShoulderRadius = torsoRadiusTop * 1.01; 
+        const shoulderGeo = new THREE.SphereGeometry(shirtShoulderRadius, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+        // Match torso top cap slope/height so seams line up
+        shoulderGeo.scale(1, 0.45, torsoDepthScale); // Flattened slightly more
+        const shoulderCap = new THREE.Mesh(shoulderGeo, shirtMat);
+        
+        // Align with the top edge of the shirtTorso
+        shoulderCap.position.y = shirtLen / 2; 
+        
+        shoulderCap.castShadow = true;
+        shoulderCap.userData.baseScale = shoulderCap.scale.clone();
+        shirtTorso.add(shoulderCap); 
+        createdMeshes.push(shoulderCap);
+        shirtRefs.shoulders.push(shoulderCap);
+        
+        // 1.1 Male Chest/Abs Coverage Details
+        if (config.bodyType === 'male' && parts.maleChest) {
+            const torsoRadiusTop = 0.28;
+            const torsoDepthScale = 0.65;
+            const chestSurfaceZ = torsoRadiusTop * torsoDepthScale;
+
+            // Nipple Covers (Slightly larger spheres/disks to cover)
+            const nipCoverGeo = new THREE.SphereGeometry(0.02, 8, 8);
+            [-1, 1].forEach(side => {
+                const nipCover = new THREE.Mesh(nipCoverGeo, shirtMat);
+                nipCover.position.set(side * 0.12, 0.17, chestSurfaceZ + 0.006);
+                nipCover.rotation.y = side * 0.4;
+                nipCover.scale.set(1.1, 1.1, 0.3);
+                shirtTorso.add(nipCover);
+                createdMeshes.push(nipCover);
+                shirtRefs.details.push(nipCover);
+            });
+
+            // Abs Covers (Overlapping the 6-pack spheres)
+            const abCoverGeo = new THREE.SphereGeometry(0.055, 8, 8);
+            const abRows = [
+                { y: 0.02, z: chestSurfaceZ - 0.008 },
+                { y: -0.07, z: chestSurfaceZ - 0.017 },
+                { y: -0.16, z: chestSurfaceZ - 0.024 }
+            ];
+
+            abRows.forEach((row) => {
+                for(let side of [-1, 1]) {
+                    const abCover = new THREE.Mesh(abCoverGeo, shirtMat);
+                    abCover.scale.set(1.25, 0.85, 0.35);
+                    abCover.position.set(side * 0.055, row.y, row.z + 0.005);
+                    abCover.rotation.y = side * 0.15;
+                    shirtTorso.add(abCover);
+                    createdMeshes.push(abCover);
+                    shirtRefs.details.push(abCover);
+                }
+            });
+        }
         
         // Female Breast Coverage
         if (config.bodyType === 'female' && parts.chest) {
@@ -121,7 +189,7 @@ export class ShirtBuilder {
             }
         }
 
-        // 2. Sleeves
+        // 2. Sleeves (short, cover shoulder & upper half only)
         const armPairs = [
             { arm: parts.rightArm, forearm: parts.rightForeArm },
             { arm: parts.leftArm, forearm: parts.leftForeArm }
@@ -130,43 +198,38 @@ export class ShirtBuilder {
         armPairs.forEach(({ arm, forearm }) => {
             if (!arm || !forearm) return;
 
-            // Updated for Slimmer Arms to match new shoulders
-            const deltRadius = 0.075;
-            const deltGeo = new THREE.SphereGeometry(deltRadius, 16, 16);
-            deltGeo.scale(1.0, 1.0, 0.95);
+            const deltRadius = 0.115; // Slightly larger than 0.11 base
+            const shoulderLength = 0.3;
+            const deltGeo = new THREE.CapsuleGeometry(
+                deltRadius,
+                Math.max(0.01, shoulderLength - deltRadius * 2),
+                6,
+                16
+            );
+            deltGeo.scale(1.1, 0.65, 1.25); // Matches PlayerMeshBuilder proportions but slightly larger
             const delt = new THREE.Mesh(deltGeo, shirtMat);
-            delt.position.y = 0.0; 
+            delt.position.set(0, 0.03, 0); // Matches PlayerMeshBuilder Y
+            delt.rotation.z = 0.12; // Matches PlayerMeshBuilder Z rotation
+            delt.castShadow = true;
+            delt.userData.baseScale = delt.scale.clone();
             arm.add(delt);
             createdMeshes.push(delt);
+            shirtRefs.delts.push(delt);
 
             const upperArmLen = 0.32;
-            const uTop = 0.075;
-            const uBot = 0.065;
-            const upperGeo = new THREE.CylinderGeometry(uTop, uBot, upperArmLen * 0.9, 12);
-            upperGeo.translate(0, -upperArmLen/2 + 0.02, 0); 
+            const uTop = 0.11;
+            const uBot = 0.085;
+            const upperGeo = new THREE.CylinderGeometry(uTop, uBot, upperArmLen * 0.7, 14);
+            upperGeo.translate(0, -upperArmLen * 0.3, 0); 
             const upperSleeve = new THREE.Mesh(upperGeo, shirtMat);
-            upperSleeve.position.y = 0.02;
+            upperSleeve.position.y = 0.03; // Align with delt position y
+            upperSleeve.castShadow = true;
+            upperSleeve.userData.baseScale = upperSleeve.scale.clone();
             arm.add(upperSleeve);
             createdMeshes.push(upperSleeve);
-            
-            // Elbow
-            const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.065, 12, 12), shirtMat);
-            elbow.position.y = -upperArmLen + 0.02;
-            arm.add(elbow);
-            createdMeshes.push(elbow);
-
-            const lowerArmLen = 0.22;
-            const fTop = 0.065;
-            const fBot = 0.045; 
-            const lowerGeo = new THREE.CylinderGeometry(fTop, fBot, lowerArmLen, 12);
-            lowerGeo.translate(0, -lowerArmLen/2, 0);
-            
-            const lowerSleeve = new THREE.Mesh(lowerGeo, shirtMat);
-            lowerSleeve.scale.set(1.0, 1, 0.85); 
-            forearm.add(lowerSleeve);
-            createdMeshes.push(lowerSleeve);
+            shirtRefs.sleeves.push(upperSleeve);
         });
 
-        return createdMeshes;
+        return { meshes: createdMeshes, refs: shirtRefs };
     }
 }

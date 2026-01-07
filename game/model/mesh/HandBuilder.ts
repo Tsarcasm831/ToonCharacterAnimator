@@ -5,25 +5,8 @@ export class HandBuilder {
     static create(materials: PlayerMaterials, isLeft: boolean, arrays: any) {
         const hand = new THREE.Group();
         
-        let handMat: THREE.Material = materials.skin;
-        let palmMat: THREE.Material | THREE.Material[] = materials.skin;
-
-        // Debug: Color right hand blue, with top palm red and bottom palm purple
-        if (!isLeft) {
-            handMat = new THREE.MeshToonMaterial({ color: 0x0000ff }); 
-            const red = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-            const purple = new THREE.MeshBasicMaterial({ color: 0x800080 });
-            
-            // BoxGeometry faces: +x, -x, +y (Top), -y (Bottom), +z, -z
-            palmMat = [
-                handMat, 
-                handMat, 
-                red, 
-                purple, 
-                handMat, 
-                handMat
-            ];
-        }
+        const handMat: THREE.Material = materials.skin;
+        const palmMat: THREE.Material | THREE.Material[] = materials.skin;
         
         // --- COORDINATE SYSTEM ---
         // Local Y- is DOWN (Fingertips direction).

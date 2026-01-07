@@ -46,6 +46,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         }));
     };
 
+    const handleHairToggle = () => {
+        setConfig(prev => ({
+            ...prev,
+            hairStyle: prev.hairStyle === 'bald' ? 'crew' : 'bald'
+        }));
+    };
+
     const toggleInput = (key: keyof PlayerInput) => {
         setManualInput(prev => ({ ...prev, [key]: !prev[key] }));
     };
@@ -155,6 +162,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                 <button onClick={() => handleEquipmentChange('shoulders')} className={`py-2 text-xs font-bold rounded-lg border ${config.equipment.shoulders ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Shoulders</button>
                                 <button onClick={() => handleEquipmentChange('shield')} className={`py-2 text-xs font-bold rounded-lg border ${config.equipment.shield ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Shield</button>
                                 <button onClick={() => handleEquipmentChange('shirt')} className={`py-2 text-xs font-bold rounded-lg border ${config.equipment.shirt ? 'bg-red-100 border-red-500 text-red-800' : 'bg-white border-gray-200 text-gray-400'}`}>Shirt</button>
+                                <button onClick={handleHairToggle} className={`py-2 text-xs font-bold rounded-lg border ${config.hairStyle !== 'bald' ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : 'bg-white border-gray-200 text-gray-400'}`}>Hair</button>
                             </div>
                         </div>
 
@@ -165,6 +173,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                             <ColorPicker label="Eyes" value={config.eyeColor} onChange={(v) => handleConfigChange('eyeColor', v)} />
                             <ColorPicker label="Lips" value={config.lipColor} onChange={(v) => handleConfigChange('lipColor', v)} />
                             <Slider label="Iris Size" value={config.irisScale} min={0.5} max={1.5} step={0.05} onChange={(v) => handleConfigChange('irisScale', v)} />
+                            <Slider label="Pupil Size" value={config.pupilScale} min={0.5} max={1.5} step={0.05} onChange={(v) => handleConfigChange('pupilScale', v)} />
+                            <Slider label="Nose Height" value={config.noseHeight} min={-0.05} max={0.05} step={0.005} onChange={(v) => handleConfigChange('noseHeight', v)} />
+                            <Slider label="Nose Forward" value={config.noseForward} min={-0.05} max={0.05} step={0.005} onChange={(v) => handleConfigChange('noseForward', v)} />
                         </div>
 
                         <div className="flex items-center justify-between p-1 bg-gray-100 rounded-xl mt-2">

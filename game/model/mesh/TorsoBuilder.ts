@@ -3,14 +3,12 @@ import { PlayerMaterials } from '../PlayerMaterials';
 
 export class TorsoBuilder {
     static build(materials: PlayerMaterials, arrays: any) {
-        // DEBUG COLORS for identifying sections
-        const matTorso = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Red (Main Body)
-        const matShoulder = new THREE.MeshStandardMaterial({ color: 0x00ff00 }); // Green (Shoulder Cap)
-        const matNeckBase = new THREE.MeshStandardMaterial({ color: 0x0000ff }); // Blue (Neck Base)
-        const matTraps = new THREE.MeshStandardMaterial({ color: 0xffff00 }); // Yellow (Traps)
-        const matPelvis = new THREE.MeshStandardMaterial({ color: 0x00ffff }); // Cyan (Pelvis)
-        const matCrotch = new THREE.MeshStandardMaterial({ color: 0xff00ff }); // Magenta (Crotch)
-        const matNeck = new THREE.MeshStandardMaterial({ color: 0x800080 }); // Purple (Neck)
+        const matTorso = materials.shirt;
+        const matShoulder = materials.shirt;
+        const matNeckBase = materials.shirt;
+        const matPelvis = materials.skin;
+        const matCrotch = materials.skin;
+        const matNeck = materials.skin;
 
         const hips = new THREE.Group();
         hips.position.y = 1.0;
@@ -20,21 +18,24 @@ export class TorsoBuilder {
         hips.add(torsoContainer);
 
         const torsoRadiusTop = 0.28, torsoRadiusBottom = 0.22;
+        const torsoDepthScale = 0.65;
         
         // Flatten the torso geometry
         const torsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, torsoLen, 16);
-        torsoGeo.scale(1, 1, 0.65); // Make it oval
+        torsoGeo.scale(1, 1, torsoDepthScale); // Make it oval
         const torso = new THREE.Mesh(torsoGeo, matTorso); 
         torso.position.y = torsoLen / 2 + 0.1; 
         torso.castShadow = true;
+        torso.userData.baseScale = torso.scale.clone();
         torsoContainer.add(torso);
 
         // TOP SECTION: Shoulders & Traps (Unified Slope)
         // We use a wider, flatter sphere to cap the torso, providing a base for the traps
-        const shoulderGeo = new THREE.SphereGeometry(torsoRadiusTop * 1.05, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-        shoulderGeo.scale(1, 0.5, 0.65); 
+        const shoulderGeo = new THREE.SphereGeometry(torsoRadiusTop, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+        shoulderGeo.scale(1, 0.5, torsoDepthScale); 
         const topCap = new THREE.Mesh(shoulderGeo, matShoulder);
         topCap.position.y = torsoLen / 2;
+        topCap.userData.baseY = topCap.position.y;
         torso.add(topCap);
 
         // Neck Base (Connecting shoulders to neck)
@@ -42,30 +43,6 @@ export class TorsoBuilder {
         neckBase.position.y = torsoLen/2 + 0.06;
         neckBase.scale.set(1, 1, 0.8);
         torso.add(neckBase);
-
-        // Traps (Muscles) - Smoothed Connection
-        // Using rotated cones/cylinders to bridge the gap between Neck Base and Shoulder Deltoid
-        const trapHeight = 0.18;
-        const trapGeo = new THREE.CylinderGeometry(0.06, 0.12, trapHeight, 8);
-        trapGeo.translate(0, -trapHeight/2, 0); // Pivot at top (Neck side)
-        
-        const createTrap = (isLeft: boolean) => {
-            const side = isLeft ? 1 : -1;
-            const trap = new THREE.Mesh(trapGeo, matTraps);
-            // Position near base of neck
-            trap.position.set(side * 0.06, torsoLen/2 + 0.08, 0.02); 
-            // Rotate to slope down towards the shoulder
-            trap.rotation.z = side * -1.1; 
-            trap.rotation.x = 0.1; // Slight lean back
-            trap.scale.set(1, 1, 0.7); // Flatten front-to-back
-            return trap;
-        };
-
-        const trapL = createTrap(true);
-        torso.add(trapL);
-
-        const trapR = createTrap(false);
-        torso.add(trapR);
 
         // BOTTOM SECTION: Pelvis (More realistic than simple dome)
         const pelvis = new THREE.Group();
@@ -185,12 +162,14 @@ export class TorsoBuilder {
 
         // MALE CHEST (Nipples & Abs)
         const maleChest = new THREE.Group();
-        maleChest.visible = true;
+        maleChest.visible = false;
         torso.add(maleChest);
+
+        const chestSurfaceZ = torsoRadiusTop * torsoDepthScale;
 
         // Nipples
         const nippleGeo = new THREE.CircleGeometry(0.012, 8);
-        const maleNippleZ = 0.16;
+        const maleNippleZ = chestSurfaceZ + 0.004;
         [-1, 1].forEach(side => {
             const n = new THREE.Mesh(nippleGeo, materials.lip);
             n.position.set(side * 0.12, 0.17, maleNippleZ); 
@@ -202,9 +181,9 @@ export class TorsoBuilder {
         // Abs (6-pack)
         const abGeo = new THREE.SphereGeometry(0.05, 8, 8);
         const abRows = [
-            { y: 0.02, z: 0.160 },
-            { y: -0.07, z: 0.151 },
-            { y: -0.16, z: 0.144 }
+            { y: 0.02, z: chestSurfaceZ - 0.008 },
+            { y: -0.07, z: chestSurfaceZ - 0.017 },
+            { y: -0.16, z: chestSurfaceZ - 0.024 }
         ];
 
         abRows.forEach((row, i) => {

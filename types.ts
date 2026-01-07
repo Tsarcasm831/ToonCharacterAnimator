@@ -53,6 +53,8 @@ export interface PlayerConfig {
   chinLength: number;
   chinForward: number;
   chinHeight: number;
+  noseHeight: number;
+  noseForward: number;
   irisScale: number;
   pupilScale: number;
 }
@@ -90,10 +92,10 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   lipColor: '#e0b094', // Slightly darker/redder than default skin
   shirtColor: '#cc0000',
   hairColor: '#3e2723',
-  hairStyle: 'crew',
+  hairStyle: 'bald',
   
   headScale: 1.0,
-  neckHeight: 0.6,
+  neckHeight: 0.75,
   neckThickness: 0.7,
   torsoWidth: 1.0,
   torsoHeight: 1.0,
@@ -110,6 +112,8 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   chinLength: 1.0,
   chinForward: 0.03,
   chinHeight: -0.04,
-  irisScale: 1.0,
+  noseHeight: 0.0,
+  noseForward: -0.01,
+  irisScale: 0.75,
   pupilScale: 1.0,
 };
