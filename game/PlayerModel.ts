@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, OutfitType } from '../types';
 import { PlayerMaterials } from './model/PlayerMaterials';
 import { PlayerEquipment } from './model/PlayerEquipment';
 import { PlayerMeshBuilder } from './model/PlayerMeshBuilder';
 import { ShirtBuilder } from './model/mesh/ShirtBuilder';
+import { PantsBuilder } from './model/mesh/PantsBuilder';
 import { HairBuilder } from './model/mesh/HairBuilder';
 
 export class PlayerModel {
@@ -18,6 +20,7 @@ export class PlayerModel {
     private toeUnits: THREE.Group[] = [];
     private irises: THREE.Mesh[] = [];
     private pupils: THREE.Mesh[] = [];
+    eyes: THREE.Mesh[] = []; // Sclera meshes for rotation
     private eyelids: THREE.Group[] = [];
     private rightFingers: THREE.Group[] = [];
     private rightThumb: THREE.Group | null = null;
@@ -25,12 +28,35 @@ export class PlayerModel {
     private leftThumb: THREE.Group | null = null;
     private buttockCheeks: THREE.Mesh[] = [];
 
-    // Track dynamic shirt meshes to clean up on updates
+    // Lip References (Object3D because they are Groups now)
+    private upperLip: THREE.Object3D | null = null;
+    private lowerLip: THREE.Object3D | null = null;
+
+    // Track dynamic meshes to clean up on updates
     private shirtMeshes: THREE.Object3D[] = [];
+    private pantsMeshes: THREE.Object3D[] = [];
     private lastShirtConfigHash: string = '';
+    private lastPantsConfigHash: string = '';
     
     // Track hair state
     private lastHairHash: string = '';
+
+    // Hair Physics State
+    private hairInertia = new THREE.Vector3();
+    private hairTargetInertia = new THREE.Vector3();
+
+    // Track Debug State
+    private lastDebugHead: boolean = false;
+    private debugHeadMaterials: Record<string, THREE.Material> = {
+        'HeadTop': new THREE.MeshStandardMaterial({ color: 0xff5555, roughness: 0.5, name: 'DebugTop' }), // Red
+        'HeadFront': new THREE.MeshStandardMaterial({ color: 0x55ffff, roughness: 0.5, name: 'DebugFront' }), // Cyan
+        'HeadCheeksBottom': new THREE.MeshStandardMaterial({ color: 0x800080, roughness: 0.5, name: 'DebugCheeksBottom' }), // Purple
+        'HeadBackTop': new THREE.MeshStandardMaterial({ color: 0x8888ff, roughness: 0.5, name: 'DebugBackTop' }), // Light Blue
+        'HeadBackMiddle': new THREE.MeshStandardMaterial({ color: 0x4444ff, roughness: 0.5, name: 'DebugBackMiddle' }), // Medium Blue
+        'HeadBackBottom': new THREE.MeshStandardMaterial({ color: 0x000088, roughness: 0.5, name: 'DebugBackBottom' }), // Dark Blue
+        'MaxillaMesh': new THREE.MeshStandardMaterial({ color: 0xeab308, roughness: 0.5, name: 'DebugMaxilla' }), // Yellow
+        'JawMesh': new THREE.MeshStandardMaterial({ color: 0x22c55e, roughness: 0.5, name: 'DebugJaw' }), // Green
+    };
 
     equippedMeshes: {
         helm?: THREE.Object3D;
@@ -55,12 +81,49 @@ export class PlayerModel {
         this.toeUnits = build.arrays.toeUnits;
         this.irises = build.arrays.irises;
         this.pupils = build.arrays.pupils;
+        this.eyes = build.arrays.eyes;
         this.eyelids = build.arrays.eyelids;
         this.rightFingers = build.arrays.rightFingers;
         this.rightThumb = build.arrays.rightThumb;
         this.leftFingers = build.arrays.leftFingers;
         this.leftThumb = build.arrays.leftThumb;
         this.buttockCheeks = build.arrays.buttockCheeks;
+
+        // Cache Lips directly from builder output
+        this.upperLip = this.parts.upperLip || null;
+        this.lowerLip = this.parts.lowerLip || null;
+    }
+
+    // --- GAME LOOP UPDATE ---
+    update(dt: number, velocity: THREE.Vector3) {
+        // Physics for Hair
+        // 1. Calculate Target Inertia (Opposite to movement)
+        // Convert world velocity to head local space for correct deformation relative to head rotation
+        if (this.parts.head) {
+             // Basic approximation: World velocity damped
+             this.hairTargetInertia.copy(velocity).multiplyScalar(-0.06);
+             
+             // Clamp max bend to avoid looking broken
+             this.hairTargetInertia.clampLength(0, 0.15);
+             
+             // Transform world inertia vector into head's local space
+             // This ensures hair bends "back" regardless of which way head is turned
+             const invHeadRot = new THREE.Quaternion();
+             this.parts.head.getWorldQuaternion(invHeadRot);
+             invHeadRot.invert();
+             
+             this.hairTargetInertia.applyQuaternion(invHeadRot);
+        }
+
+        // 2. Spring/Damp towards target
+        const spring = 8.0 * dt;
+        this.hairInertia.lerp(this.hairTargetInertia, spring);
+
+        // 3. Apply to Shader Uniform
+        const hairMesh = this.parts.head?.getObjectByName('HairInstanced');
+        if (hairMesh && hairMesh.userData.uInertia) {
+            hairMesh.userData.uInertia.value.copy(this.hairInertia);
+        }
     }
 
     applyOutfit(outfit: OutfitType, skinColor: string) {
@@ -87,6 +150,7 @@ export class PlayerModel {
 
         // Cleanup old shirt
         if (this.parts.shirt) this.parts.shirt = null;
+
         this.shirtMeshes.forEach(m => {
             if (m.parent) m.parent.remove(m);
             // Dispose geometries/materials if necessary for heavy usage
@@ -95,10 +159,29 @@ export class PlayerModel {
         this.shirtMeshes = [];
 
         // Build new shirt
-        const built = ShirtBuilder.build(this.parts, config);
-        if (built) {
-            this.shirtMeshes = built.meshes;
-            this.parts.shirt = built.refs;
+        const result = ShirtBuilder.build(this.parts, config);
+        if (result) {
+            this.shirtMeshes = result.meshes;
+            this.parts.shirt = result.refs;
+        }
+    }
+
+    private updatePants(config: PlayerConfig) {
+        const hash = `${config.outfit}_${config.equipment.pants}`;
+        if (hash === this.lastPantsConfigHash) return;
+        this.lastPantsConfigHash = hash;
+
+        // Cleanup old pants
+        this.pantsMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if ((m as THREE.Mesh).geometry) (m as THREE.Mesh).geometry.dispose();
+        });
+        this.pantsMeshes = [];
+
+        // Build new pants
+        const meshes = PantsBuilder.build(this.parts, config);
+        if (meshes) {
+            this.pantsMeshes = meshes;
         }
     }
     
@@ -109,6 +192,19 @@ export class PlayerModel {
         
         HairBuilder.build(this.parts, config, this.materials.hair);
     }
+    
+    private updateHeadDebug(enabled: boolean) {
+        const headGroup = this.parts.head as THREE.Group;
+        if (!headGroup) return;
+
+        headGroup.traverse((obj) => {
+             if (obj instanceof THREE.Mesh) {
+                 if (this.debugHeadMaterials[obj.name]) {
+                     obj.material = enabled ? this.debugHeadMaterials[obj.name] : this.materials.skin;
+                 }
+             }
+        });
+    }
 
     sync(config: PlayerConfig, isCombatStance: boolean = false) {
         const lerp = THREE.MathUtils.lerp;
@@ -116,6 +212,12 @@ export class PlayerModel {
 
         this.materials.sync(config);
         this.applyOutfit(config.outfit, config.skinColor);
+        
+        // --- Debug Head Toggle ---
+        if (config.debugHead !== this.lastDebugHead) {
+            this.updateHeadDebug(config.debugHead);
+            this.lastDebugHead = config.debugHead;
+        }
         
         const isFemale = config.bodyType === 'female';
         const isNaked = config.outfit === 'naked';
@@ -198,6 +300,13 @@ export class PlayerModel {
 
         this.parts.head.scale.set(hS / safePX, hS / safePY, hS / safePX);
 
+        // Brain
+        if (this.parts.brain) {
+            this.parts.brain.visible = config.showBrain;
+            const bS = config.brainSize;
+            this.parts.brain.scale.set(bS, bS, bS);
+        }
+
         // Buttocks Material & Underwear Visibility
         if (this.parts.buttocks && this.buttockCheeks.length > 0) {
             this.parts.buttocks.children.forEach((container: THREE.Group, i: number) => {
@@ -222,10 +331,32 @@ export class PlayerModel {
         if (this.parts.braCups) this.parts.braCups.forEach((c: THREE.Mesh) => c.visible = showBra);
 
         // Face & Feet details
+        // Mandible
         this.parts.jaw.scale.setScalar(config.chinSize);
         this.parts.jaw.position.y = -0.05 + config.chinHeight;
         this.parts.jawMesh.scale.y = 0.45 * config.chinLength;
         this.parts.jawMesh.position.z = 0.09 + config.chinForward;
+
+        // Maxilla (Upper Jaw)
+        if (this.parts.maxilla) {
+            this.parts.maxilla.scale.set(config.maxillaScaleX, config.maxillaScaleY, config.maxillaScaleZ);
+            this.parts.maxilla.position.set(0, -0.075 + config.maxillaOffsetY, 0.18 + config.maxillaOffsetZ);
+        }
+
+        // Lips
+        if (this.upperLip) {
+            this.upperLip.scale.set(config.upperLipWidth, config.upperLipHeight, 0.5 * config.upperLipThick);
+            // Position relative to Maxilla
+            this.upperLip.position.y = -0.028 + config.upperLipOffsetY;
+            this.upperLip.position.z = 0.025 + config.upperLipOffsetZ;
+        }
+        if (this.lowerLip) {
+            this.lowerLip.scale.set(config.lowerLipWidth, config.lowerLipHeight, 0.5 * config.lowerLipThick);
+            // Position relative to Jaw (which rotates and moves)
+            // Updated base positions to match HeadBuilder logic (0.02, 0.12) to ensure offsets behave predictably
+            this.lowerLip.position.y = 0.02 + config.lowerLipOffsetY;
+            this.lowerLip.position.z = 0.12 + config.lowerLipOffsetZ;
+        }
 
         if (this.parts.nose?.userData.basePosition) {
             const base = this.parts.nose.userData.basePosition as THREE.Vector3;
@@ -240,7 +371,13 @@ export class PlayerModel {
         this.pupils.forEach(p => p.scale.setScalar(config.pupilScale));
         this.heelGroups.forEach(hg => { hg.scale.setScalar(config.heelScale); hg.scale.y *= config.heelHeight; });
         this.forefootGroups.forEach(fg => fg.scale.set(config.footWidth, 1, config.footLength));
-        this.toeUnits.forEach((u, i) => u.position.x = ((i % 5) - 2) * 0.035 * config.toeSpread);
+        
+        // Correctly apply toe spread using initial positions from builder
+        this.toeUnits.forEach(u => {
+            if (u.userData.initialX !== undefined) {
+                u.position.x = u.userData.initialX * config.toeSpread;
+            }
+        });
 
         // Update Hand Pose (Fist formation)
         const isHolding = !!config.selectedItem;
@@ -289,10 +426,17 @@ export class PlayerModel {
         this.updateEquipment(config.equipment);
         this.updateHeldItem(config.selectedItem);
         
-        // Procedural Shirt
+        // Procedural Clothing
+        this.updatePants(config);
         this.updateShirt(config);
         
         // Procedural Hair
         this.updateHair(config);
+        
+        // Manual Color Sync for Hair InstancedMesh because it uses a cloned material
+        const hairMesh = this.parts.head?.getObjectByName('HairInstanced') as THREE.InstancedMesh;
+        if (hairMesh && hairMesh.material) {
+             (hairMesh.material as THREE.MeshToonMaterial).color.set(config.hairColor);
+        }
     }
 }

@@ -1,10 +1,14 @@
+
 import * as THREE from 'three';
 
 export class WeaponAction {
-    static animate(player: any, parts: any, dt: number, damp: number) {
+    static animate(player: any, parts: any, dt: number, damp: number, isMoving: boolean) {
         const item = player.config.selectedItem;
         const isSword = item === 'Sword';
         const isKnife = item === 'Knife';
+        const isAxe = item === 'Axe';
+        const isPick = item === 'Pickaxe';
+        const isPole = item === 'Fishing Pole';
         
         let duration = 0.9;
         if (isSword) duration = 0.6;
@@ -15,6 +19,10 @@ export class WeaponAction {
         
         const actionDamp = 20 * dt; 
 
+        // Offset to align torso forward if hips are twisted in combat stance idle
+        // Hips are at -0.7, so we add 0.7 to torso to face world 0 (Forward)
+        const torsoOffset = (player.isCombatStance && !isMoving && !player.isJumping) ? 0.7 : 0;
+
         if (isSword || isKnife) {
             // SWORD SLASH: FOREHAND (Right -> Left)
             
@@ -22,7 +30,7 @@ export class WeaponAction {
                 // PHASE 1: WINDUP (Rotate Right)
                 
                 // Torso Twist Right (Increased twist)
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -1.2, actionDamp);
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -1.2 + torsoOffset, actionDamp);
                 
                 // Arm Back & Out to Side
                 // Increased X (0.8 -> 1.5) to pull elbow way back
@@ -46,7 +54,7 @@ export class WeaponAction {
                 const swingDamp = actionDamp * 2.5; 
                 
                 // Torso Twist Left (drives the swing)
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 1.0, swingDamp);
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 1.0 + torsoOffset, swingDamp);
                 
                 // Arm Swing:
                 // x goes to -1.5 (Horizontal Forward)
@@ -67,7 +75,7 @@ export class WeaponAction {
 
             } else {
                 // PHASE 3: RECOVERY
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0, actionDamp);
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0 + torsoOffset, actionDamp);
                 parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0, actionDamp);
                 
                 parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.2, actionDamp);
@@ -80,7 +88,7 @@ export class WeaponAction {
                 parts.neck.rotation.y = lerp(parts.neck.rotation.y, 0, actionDamp);
             }
         } else {
-            // AXE/PICKAXE (Overhead Vertical)
+            // AXE/PICKAXE/POLE (Overhead Vertical)
             if (p < 0.45) {
                 // PHASE 1: WINDUP
                 const wd = actionDamp * 0.8; 
@@ -89,7 +97,7 @@ export class WeaponAction {
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -2.1, wd); 
                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2, wd);
 
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.2, wd);
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.2 + torsoOffset, wd);
                 parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, -0.2, wd); 
                 parts.neck.rotation.x = lerp(parts.neck.rotation.x, -0.3, wd); 
 
@@ -101,7 +109,7 @@ export class WeaponAction {
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.5, sd); 
                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2, sd);
 
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.4, sd);
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.4 + torsoOffset, sd);
                 parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.5, sd); 
                 parts.neck.rotation.x = lerp(parts.neck.rotation.x, 0.2, sd);
 
@@ -112,7 +120,7 @@ export class WeaponAction {
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.5, rd);
                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2, rd);
 
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0, rd);
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0 + torsoOffset, rd);
                 parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0, rd);
                 parts.neck.rotation.x = lerp(parts.neck.rotation.x, 0, rd);
             }

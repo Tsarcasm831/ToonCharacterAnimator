@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerMaterials } from '../PlayerMaterials';
 
@@ -65,8 +66,8 @@ export class FootBuilder {
         mainGeo.computeVertexNormals();
         
         const mainMesh = new THREE.Mesh(mainGeo, footMat);
-        // Lowered slightly (-0.05) to sit closer to ground
-        mainMesh.position.set(0, -0.05, 0.03); 
+        // Raised to align bottom with ground relative to ankle (ankle is ~0.07m up)
+        mainMesh.position.set(0, -0.03, 0.03); 
         mainMesh.castShadow = true;
         heelGroup.add(mainMesh);
         arrays.heelGroups.push(heelGroup);
@@ -75,28 +76,35 @@ export class FootBuilder {
         const forefootGroup = new THREE.Group();
         forefootGroup.name = (isLeft ? 'left' : 'right') + '_forefoot';
         
-        // Lowered position (-0.065) to touch ground
-        forefootGroup.position.set(0, -0.065, 0.098); 
+        // Raised position to align with main foot body
+        forefootGroup.position.set(0, -0.042, 0.098); 
         footGroup.add(forefootGroup);
 
         const toeCount = 5;
         // Medial -> Lateral
         const tLengths = [0.06, 0.052, 0.048, 0.044, 0.04];
-        const tWidths  = [0.034, 0.026, 0.024, 0.022, 0.021];
+        // Reduced widths slightly to fit better
+        const tWidths  = [0.032, 0.024, 0.022, 0.020, 0.018];
         const tHeights = [0.030, 0.026, 0.024, 0.022, 0.021];
         
         let currentCenter = 0;
         let stepDir = 0;
+        
+        // Start further Medial (Inward) to prevent pinky overhang
+        // Left Foot: Medial is -X. Lateral is +X.
+        // Right Foot: Medial is +X. Lateral is -X.
+        const medialStart = 0.042; 
 
         if (isLeft) {
-            currentCenter = -0.030; // Start Medial (Negative)
+            currentCenter = -medialStart; // Start Medial (Negative)
             stepDir = 1; // Move Lateral (Positive)
         } else {
-            currentCenter = 0.030; // Start Medial (Positive)
+            currentCenter = medialStart; // Start Medial (Positive)
             stepDir = -1; // Move Lateral (Negative)
         }
         
         const splayDir = isLeft ? 1 : -1;
+        const spacing = 0.001; // Tighter spacing
 
         for(let i=0; i<toeCount; i++) {
             const tLen = tLengths[i];
@@ -117,8 +125,6 @@ export class FootBuilder {
             toeGeo.translate(0, 0, tLen/2); // Pivot at base
 
             const toeUnit = new THREE.Group();
-            
-            const spacing = 0.002;
             
             if (i > 0) {
                  const prevW = tWidths[i-1];

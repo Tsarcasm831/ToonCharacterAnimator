@@ -1,7 +1,14 @@
+
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
 
 export class PlayerUtils {
+    // Matching constants from Environment.ts to calculate pond depth mathematically
+    static POND_X = 8;
+    static POND_Z = 6;
+    static POND_RADIUS = 4.5;
+    static POND_DEPTH = 1.8;
+
     static getHitboxBounds(position: THREE.Vector3, config: PlayerConfig): THREE.Box3 {
         const { legScale, torsoHeight, torsoWidth, headScale } = config;
         
@@ -38,11 +45,26 @@ export class PlayerUtils {
         return false;
     }
 
+    static getTerrainHeight(x: number, z: number): number {
+        const dx = x - this.POND_X;
+        const dz = z - this.POND_Z;
+        const dist = Math.sqrt(dx*dx + dz*dz);
+        
+        if (dist < this.POND_RADIUS) {
+            const normDist = dist / this.POND_RADIUS;
+            return -this.POND_DEPTH * (1 - normDist * normDist);
+        }
+        return 0;
+    }
+
     static getGroundHeight(pos: THREE.Vector3, config: PlayerConfig, obstacles: THREE.Object3D[]): number {
-        let highest = 0;
+        // Base ground height comes from terrain math (supports negative/pond)
+        let highest = this.getTerrainHeight(pos.x, pos.z);
+        
         const width = 0.6 * config.torsoWidth;
         const depth = width * 0.7;
         
+        // Cast check from high up
         const pBox = new THREE.Box3().setFromCenterAndSize(
             new THREE.Vector3(pos.x, 5, pos.z), // Start high
             new THREE.Vector3(width, 10, depth)
@@ -54,6 +76,7 @@ export class PlayerUtils {
             const obsBox = new THREE.Box3().setFromObject(obs);
             if (pBox.min.x < obsBox.max.x && pBox.max.x > obsBox.min.x &&
                 pBox.min.z < obsBox.max.z && pBox.max.z > obsBox.min.z) {
+                // If we hit an obstacle, use its top surface
                 highest = Math.max(highest, obsBox.max.y);
             }
         }

@@ -1,5 +1,6 @@
+
 import * as THREE from 'three';
-import { PlayerMaterials } from '../PlayerMaterials';
+import { PlayerMaterials } from './PlayerMaterials';
 import { TorsoBuilder } from './mesh/TorsoBuilder';
 import { HeadBuilder } from './mesh/HeadBuilder';
 import { HandBuilder } from './mesh/HandBuilder';
@@ -17,6 +18,7 @@ export class PlayerMeshBuilder {
             toeUnits: [] as THREE.Group[],
             irises: [] as THREE.Mesh[],
             pupils: [] as THREE.Mesh[],
+            eyes: [] as THREE.Mesh[],
             eyelids: [] as THREE.Group[],
             rightFingers: [] as THREE.Group[],
             rightThumb: null as THREE.Group | null,
@@ -158,7 +160,9 @@ export class PlayerMeshBuilder {
 
         // 7. Mounts
         const rightHandMount = new THREE.Group();
-        rightHandMount.position.set(0, -0.075, -0.4);
+        // Position: center width, slightly below knuckles, slight forward into palm
+        // Matches mesh/PlayerMeshBuilder hand mount to keep weapons in palm
+        rightHandMount.position.set(0, -0.08, 0.04);
         rightHandMount.rotation.set(0, 0, 0); 
         rightHand.add(rightHandMount);
 

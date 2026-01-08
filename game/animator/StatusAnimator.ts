@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { playerModelResetFeet } from './AnimationUtils';
 
@@ -135,6 +136,22 @@ export class StatusAnimator {
             const headTarget = isImpacted ? 0.6 : -0.4; 
             parts.neck.rotation.x = lerp(parts.neck.rotation.x, headTarget, damp * (isImpacted ? 3 : 1));
             parts.head.rotation.z = lerp(parts.head.rotation.z, -localG.x * 0.5, damp);
+        }
+
+        // Close Eyes
+        const eyelids = player.model.eyelids;
+        if (eyelids && eyelids.length === 4) {
+            // Quickly close eyes during fall
+            const closeAlpha = Math.min(t / 0.3, 1.0); 
+            const closedTop = -0.1;
+            const closedBot = 0.1;
+            const openTop = -0.7;
+            const openBot = 0.61;
+
+            eyelids[0].rotation.x = lerp(openTop, closedTop, closeAlpha);
+            eyelids[1].rotation.x = lerp(openBot, closedBot, closeAlpha);
+            eyelids[2].rotation.x = lerp(openTop, closedTop, closeAlpha);
+            eyelids[3].rotation.x = lerp(openBot, closedBot, closeAlpha);
         }
 
         playerModelResetFeet(parts, damp);

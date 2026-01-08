@@ -9,9 +9,10 @@ interface SceneProps {
   onInventoryUpdate?: (items: string[]) => void;
   onSlotSelect?: (slotIndex: number) => void;
   onInteractionUpdate?: (text: string | null, progress: number | null) => void;
+  onGameReady?: (game: Game) => void;
 }
 
-const Scene: React.FC<SceneProps> = ({ config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate }) => {
+const Scene: React.FC<SceneProps> = ({ config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onGameReady }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
 
@@ -21,6 +22,8 @@ const Scene: React.FC<SceneProps> = ({ config, manualInput, initialInventory, on
     // Initialize Game
     const game = new Game(containerRef.current, config, manualInput, initialInventory);
     gameRef.current = game;
+    
+    if (onGameReady) onGameReady(game);
 
     // Hook up callbacks
     game.onInventoryUpdate = onInventoryUpdate;
