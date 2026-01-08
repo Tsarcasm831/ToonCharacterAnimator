@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerMaterials } from './PlayerMaterials';
 import { TorsoBuilder } from './mesh/TorsoBuilder';
@@ -17,6 +18,7 @@ export class PlayerMeshBuilder {
             toeUnits: [] as THREE.Group[],
             irises: [] as THREE.Mesh[],
             pupils: [] as THREE.Mesh[],
+            eyes: [] as THREE.Mesh[],
             eyelids: [] as THREE.Group[],
             rightFingers: [] as THREE.Group[],
             rightThumb: null as THREE.Group | null,
@@ -81,57 +83,51 @@ export class PlayerMeshBuilder {
 
         const buildArm = () => {
             const armGroup = new THREE.Group();
-
-            // Shoulder cap shaped like a flattened capsule to mimic a rounded deltoid.
-            const shoulderRadius = 0.11;
-            const shoulderLength = 0.3;
-            const deltGeo = new THREE.CapsuleGeometry(
-                shoulderRadius,
-                Math.max(0.01, shoulderLength - shoulderRadius * 2),
-                6,
-                16
-            );
-            deltGeo.scale(1.08, 0.6, 1.2);
+            
+            // 1. Deltoid (Shoulder Joint) - Reduced size by ~2x per request
+            const deltRadius = 0.065; 
+            const deltGeo = new THREE.SphereGeometry(deltRadius, 16, 16);
+            deltGeo.scale(1.0, 1.0, 0.95); 
             const delt = new THREE.Mesh(deltGeo, materials.shirt);
-            delt.position.y = 0.03;
-            delt.rotation.z = 0.12;
+            delt.position.y = 0.0; 
             delt.castShadow = true;
             armGroup.add(delt);
 
-            const upperTopR = 0.095;
-            const upperBotR = 0.07;
-            const upperGeo = new THREE.CylinderGeometry(upperTopR, upperBotR, upperArmLen, 20, 1, true);
-            upperGeo.translate(0, -upperArmLen / 2, 0);
+            // 2. Upper Arm - Scaled down top to match new shoulder size
+            const upperTopR = 0.065; 
+            const upperBotR = 0.055; 
+            const upperGeo = new THREE.CylinderGeometry(upperTopR, upperBotR, upperArmLen, 12);
+            upperGeo.translate(0, -upperArmLen/2, 0);
             const upperMesh = new THREE.Mesh(upperGeo, materials.shirt);
-            upperMesh.position.y = 0.03;
+            upperMesh.position.y = 0.02; 
             upperMesh.castShadow = true;
-            upperMesh.scale.set(1.02, 1, 0.9);
             armGroup.add(upperMesh);
 
-            const elbowPosY = -upperArmLen + 0.045;
-            const elbowRadius = 0.075;
+            const elbowPosY = -upperArmLen + 0.02; 
             const foreArmGroup = new THREE.Group();
             foreArmGroup.position.y = elbowPosY;
             armGroup.add(foreArmGroup);
 
+            // 3. Elbow Joint - Matches connection width
+            const elbowRadius = 0.055; 
             const elbowGeo = new THREE.SphereGeometry(elbowRadius, 16, 16);
-            elbowGeo.scale(1, 1, 0.95);
             const elbow = new THREE.Mesh(elbowGeo, materials.shirt);
             elbow.castShadow = true;
             foreArmGroup.add(elbow);
 
-            const lowerTopR = 0.072;
-            const wristRadius = 0.033;
-            const lowerBotR = wristRadius;
-            const lowerGeo = new THREE.CylinderGeometry(lowerTopR, lowerBotR, lowerArmLen, 20, 1, true);
-            lowerGeo.translate(0, -lowerArmLen / 2, 0);
+            // 4. Forearm - Tapered from elbow width to small wrist
+            const lowerTopR = 0.055; 
+            const lowerBotR = 0.035; 
+            const lowerGeo = new THREE.CylinderGeometry(lowerTopR, lowerBotR, lowerArmLen, 12);
+            lowerGeo.translate(0, -lowerArmLen/2, 0);
             const lowerMesh = new THREE.Mesh(lowerGeo, materials.shirt);
             lowerMesh.castShadow = true;
-            lowerMesh.scale.set(1.12, 1, 0.9);
+            lowerMesh.scale.set(1.0, 1, 0.85); 
             foreArmGroup.add(lowerMesh);
 
-            const wristGeo = new THREE.SphereGeometry(wristRadius, 18, 18);
-            wristGeo.scale(1.05, 0.85, 1.2);
+            // 5. Wrist Joint
+            const wristGeo = new THREE.SphereGeometry(lowerBotR, 12, 12);
+            wristGeo.scale(1.0, 0.6, 0.8);
             const wrist = new THREE.Mesh(wristGeo, materials.skin);
             wrist.position.y = -lowerArmLen;
             wrist.castShadow = true;
@@ -164,11 +160,8 @@ export class PlayerMeshBuilder {
 
         // 7. Mounts
         const rightHandMount = new THREE.Group();
-        // Updated Position:
-        // Y -0.075: Center of the palm height
-        // Z 0.035: Inside the curl of the fingers
-        // X 0.04: Lateral offset towards Thumb (to center grip in fist width)
-        rightHandMount.position.set(0.04, -0.075, 0.035);
+        // Position: 0,0,0 binds directly to the wrist joint (Hand Origin)
+        rightHandMount.position.set(0, 0, 0);
         rightHandMount.rotation.set(0, 0, 0); 
         rightHand.add(rightHandMount);
 

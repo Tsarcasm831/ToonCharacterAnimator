@@ -9,6 +9,7 @@ export interface EquipmentState {
   shoulders: boolean;
   shield: boolean;
   shirt: boolean;
+  pants: boolean;
 }
 
 export interface PlayerConfig {
@@ -57,6 +58,33 @@ export interface PlayerConfig {
   noseForward: number;
   irisScale: number;
   pupilScale: number;
+  
+  // Maxilla (Upper Jaw)
+  maxillaScaleX: number;
+  maxillaScaleY: number;
+  maxillaScaleZ: number;
+  maxillaOffsetY: number;
+  maxillaOffsetZ: number;
+
+  // Lips
+  upperLipWidth: number;
+  upperLipHeight: number;
+  upperLipThick: number;
+  upperLipOffsetY: number;
+  upperLipOffsetZ: number;
+  
+  lowerLipWidth: number;
+  lowerLipHeight: number;
+  lowerLipThick: number;
+  lowerLipOffsetY: number;
+  lowerLipOffsetZ: number;
+
+  // Brain
+  showBrain: boolean;
+  brainSize: number;
+  
+  // Debug
+  debugHead: boolean;
 }
 
 export interface PlayerInput {
@@ -70,6 +98,7 @@ export interface PlayerInput {
   attack1?: boolean; // Punch
   attack2?: boolean; // Axe Swing
   combat?: boolean; // Toggle Combat Stance
+  resetView?: boolean; // Reset head/eye tracking to forward
 }
 
 export const DEFAULT_CONFIG: PlayerConfig = {
@@ -81,6 +110,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     shoulders: false,
     shield: false,
     shirt: true,
+    pants: true,
   },
   selectedItem: null,
   weaponStance: 'side',
@@ -108,12 +138,38 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   footLength: 1.0,
   footWidth: 1.0,
   toeSpread: 1.0,
-  chinSize: 0.7,
-  chinLength: 1.0,
-  chinForward: 0.03,
-  chinHeight: -0.04,
+  
+  // Jaw Options
+  chinSize: 0.65,
+  chinLength: 0.95,
+  chinForward: 0.01,
+  chinHeight: -0.03,
+  
   noseHeight: 0.0,
-  noseForward: -0.01,
-  irisScale: 0.75,
-  pupilScale: 1.0,
+  noseForward: -0.02,
+  irisScale: 0.50,
+  pupilScale: 0.40,
+  
+  // Maxilla (Upper Jaw)
+  maxillaScaleX: 0.95,
+  maxillaScaleY: 1.25,
+  maxillaScaleZ: 1.5,
+  maxillaOffsetY: -0.03,
+  maxillaOffsetZ: -0.05,
+
+  upperLipWidth: 0.75,
+  upperLipHeight: 0.75,
+  upperLipThick: 1.0,
+  upperLipOffsetY: 0.023,
+  upperLipOffsetZ: 0.006,
+  
+  lowerLipWidth: 1.0,
+  lowerLipHeight: 1.0,
+  lowerLipThick: 1.0,
+  lowerLipOffsetY: -0.1,
+  lowerLipOffsetZ: 0.112,
+
+  showBrain: false,
+  brainSize: 1.0,
+  debugHead: false,
 };

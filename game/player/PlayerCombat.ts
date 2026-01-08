@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import type { Player } from '../Player';
 import { PlayerInput } from '../../types';
@@ -8,19 +9,63 @@ import { Environment } from '../Environment';
 export class PlayerCombat {
     static update(player: Player, dt: number, input: PlayerInput, environment: Environment, particleManager: ParticleManager) {
         
-        // Handle Trigger Inputs
-        if (input.attack1) {
-            if (player.config.selectedItem) {
-                this.playAxeSwing(player);
-            } else {
-                this.playPunch(player);
+        const attack1Triggered = input.attack1 && !player.wasAttack1Pressed;
+        const attack2Triggered = input.attack2 && !player.wasAttack2Pressed;
+
+        // Handle Inputs
+        if (player.config.selectedItem === 'Fishing Pole') {
+            // Fishing requires precise toggle (Rising Edge)
+            if (attack1Triggered || attack2Triggered) {
+                this.handleFishingInput(player);
+            }
+        } else {
+            // Other weapons support continuous hold (Auto-attack)
+            if (input.attack1) {
+                if (player.config.selectedItem) {
+                    this.playAxeSwing(player);
+                } else {
+                    this.playPunch(player);
+                }
+            }
+            if (input.attack2) {
+                if (player.config.selectedItem) {
+                    this.playAxeSwing(player);
+                }
             }
         }
-        if (input.attack2) this.playAxeSwing(player);
+
+        // Update Input History
+        player.wasAttack1Pressed = !!input.attack1;
+        player.wasAttack2Pressed = !!input.attack2;
 
         // Update Timers & Logic
         this.updateAxeSwing(player, dt, environment, particleManager);
+        this.updateFishing(player, dt);
         this.updatePunchCombo(player, dt, input, environment.obstacles);
+    }
+
+    private static handleFishingInput(player: Player) {
+        if (!player.isFishing) {
+            // Start Cast
+            player.isFishing = true;
+            player.fishingTimer = 0;
+        } else {
+            // If already fishing and cast is complete (in hold phase), retract
+            // Cast duration is roughly 0.8s
+            if (player.fishingTimer > 0.8) {
+                player.isFishing = false;
+                player.fishingTimer = 0;
+                // Transition back to idle is handled by the animator blending out of FishingAction
+            }
+        }
+    }
+
+    private static updateFishing(player: Player, dt: number) {
+        if (player.isFishing) {
+            player.fishingTimer += dt;
+        } else {
+            player.fishingTimer = 0;
+        }
     }
 
     private static playPunch(player: Player) {
@@ -90,14 +135,11 @@ export class PlayerCombat {
                 const obsPos = new THREE.Vector3();
                 obs.getWorldPosition(obsPos);
                 
-                // Ignore height difference for general proximity, but maybe clamp for tree trunks?
-                // Just 3D distance is fine for now if player is on ground.
+                // Ignore height difference for general proximity
                 const dist = playerPos.distanceTo(obsPos);
 
-                if (dist < hitRange + 1.0) { // Broad phase check (radius of tree + hit range)
+                if (dist < hitRange + 1.2) { // Broad phase check (radius of obstacle + hit range)
                     // Precise check to surface roughly
-                    // Assume objects are roughly centered. 
-                    // Let's get direction to object
                     const dirToObs = new THREE.Vector3().subVectors(obsPos, playerPos).normalize();
                     const dot = playerForward.dot(dirToObs);
 
@@ -112,14 +154,12 @@ export class PlayerCombat {
             }
         }
 
-        if (closest && minDist <= hitRange + 1.0) { // +1.0 accounts for object radius approx
+        if (closest && minDist <= hitRange + 1.2) { 
              // Determine impact point (roughly between player and object)
              const obsPos = new THREE.Vector3();
              closest.getWorldPosition(obsPos);
              
-             // IMPACT POSITION FIX:
-             // Previously 0.7 lerp put the point inside the tree mesh (radius 0.35).
-             // Use 0.4 lerp to keep it visible in front of player.
+             // Hit point calculation
              const impactPos = playerPos.clone().lerp(obsPos, 0.4);
              impactPos.y += 1.0; // Hit at chest height
 
@@ -129,7 +169,8 @@ export class PlayerCombat {
              if (materialType === 'wood') {
                  particleManager.emit(impactPos, 12, 'wood');
              } else if (materialType === 'stone') {
-                 particleManager.emit(impactPos, 8, 'stone');
+                 // Stone hits create sparks
+                 particleManager.emit(impactPos, 20, 'spark');
              }
         }
     }

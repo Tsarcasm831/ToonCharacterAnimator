@@ -1,3 +1,4 @@
+
 import { PlayerInput } from '../types';
 
 export class InputManager {
@@ -8,6 +9,8 @@ export class InputManager {
     // Callbacks for specific actions
     onSlotSelect?: (slotIndex: number) => void;
     onToggleHitbox?: () => void;
+    onToggleCamera?: () => void;
+    onToggleHands?: () => void;
 
     constructor() {
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -32,6 +35,21 @@ export class InputManager {
         
         if (e.code === 'KeyG') {
             this.onToggleHitbox?.();
+        }
+
+        if (e.code === 'KeyX') {
+            this.onToggleCamera?.();
+        }
+
+        if (e.code === 'KeyH') {
+            this.onToggleHands?.();
+        }
+
+        // V for View Reset (Gaze)
+        if (e.code === 'KeyV') {
+            this.manualInput.resetView = true;
+            // Auto-clear after a short frame to act as a trigger
+            setTimeout(() => { this.manualInput.resetView = false; }, 100);
         }
 
         if (e.code.startsWith('Digit')) {
@@ -67,7 +85,8 @@ export class InputManager {
             attack1: !!(this.manualInput.attack1 || this.isMouseDown),
             attack2: !!(this.manualInput.attack2),
             interact: !!(this.manualInput.interact),
-            combat: !!(this.keys['KeyC'] || this.manualInput.combat)
+            combat: !!(this.keys['KeyC'] || this.manualInput.combat),
+            resetView: !!(this.manualInput.resetView)
         };
     }
 

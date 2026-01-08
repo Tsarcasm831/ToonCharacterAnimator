@@ -1,5 +1,6 @@
+
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Player } from './Player';
 import { Environment } from './Environment';
 import { InputManager } from './InputManager';
@@ -23,6 +24,9 @@ export class Game {
 
     private animationId: number = 0;
     private prevTargetPos = new THREE.Vector3();
+    
+    // 0 = Head, 1 = Torso, 2 = Feet
+    private cameraFocusMode: number = 0;
 
     // Callbacks provided by React
     onInventoryUpdate?: (items: string[]) => void;
@@ -42,7 +46,8 @@ export class Game {
         this.scene.fog = new THREE.Fog(0xf0f5ff, 10, 40);
 
         this.camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 100);
-        this.camera.position.set(0, 3, 6);
+        // Adjusted camera position to better frame the head view
+        this.camera.position.set(0, 3.2, 5.0);
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(container.clientWidth, container.clientHeight);
@@ -53,7 +58,8 @@ export class Game {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.target.set(0, 1, 0);
+        // Target head height approx 1.7m
+        this.controls.target.set(0, 1.7, 0);
         this.controls.mouseButtons = {
             LEFT: undefined as any,
             MIDDLE: THREE.MOUSE.DOLLY,
@@ -93,8 +99,10 @@ export class Game {
 
         this.clock = new THREE.Clock();
 
-        // Bind Input Callbacks to Player
+        // Bind Input Callbacks
         this.inputManager.onToggleHitbox = () => this.player.toggleHitbox();
+        this.inputManager.onToggleCamera = () => this.toggleCameraFocus();
+        this.inputManager.onToggleHands = () => this.player.toggleHandsDebug();
         
         this.animate = this.animate.bind(this);
     }
@@ -124,6 +132,10 @@ export class Game {
         this.inputManager.onSlotSelect = cb;
     }
 
+    private toggleCameraFocus() {
+        this.cameraFocusMode = (this.cameraFocusMode + 1) % 3;
+    }
+
     resize() {
         this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
         this.camera.updateProjectionMatrix();
@@ -146,12 +158,19 @@ export class Game {
         // Update Systems
         this.environment.update(delta);
         this.particleManager.update(delta);
-        this.player.update(delta, input, cameraRotation, this.environment, this.particleManager);
+        this.player.update(delta, input, this.camera.position, cameraRotation, this.environment, this.particleManager);
         this.soundManager.update(this.player, delta);
 
         // Camera Follow Logic
         const targetPos = this.player.mesh.position.clone();
-        targetPos.y += 1.0; 
+        
+        // Determine offset based on mode (Head -> Torso -> Feet)
+        let heightOffset = 1.7; // Head
+        if (this.cameraFocusMode === 1) heightOffset = 1.0; // Torso
+        if (this.cameraFocusMode === 2) heightOffset = 0.4; // Feet
+
+        targetPos.y += heightOffset; 
+        
         this.controls.target.lerp(targetPos, 0.1);
   
         const targetDelta = new THREE.Vector3().subVectors(this.controls.target, this.prevTargetPos);

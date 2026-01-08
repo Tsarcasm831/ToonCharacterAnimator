@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, PlayerInput, OutfitType, DEFAULT_CONFIG } from '../types';
 import { PlayerModel } from './PlayerModel';
@@ -8,6 +9,7 @@ import { PlayerInteraction } from './player/PlayerInteraction';
 import { PlayerDebug } from './player/PlayerDebug';
 import { ParticleManager } from './ParticleManager';
 import { Environment } from './Environment';
+import { CreepySmileAction } from './animator/actions/CreepySmileAction';
 
 export class Player {
     scene: THREE.Scene;
@@ -27,6 +29,10 @@ export class Player {
     gravity: number = -30;
     jumpPower: number = 11;
 
+    // Velocity Tracking for Physics
+    previousPosition = new THREE.Vector3();
+    velocity = new THREE.Vector3();
+
     // Status
     isDead: boolean = false;
     deathTime: number = 0;
@@ -36,6 +42,10 @@ export class Player {
     // Combat / Stance
     isCombatStance: boolean = false;
     private wasCombatKeyPressed: boolean = false;
+    
+    // Input History for Edge Detection
+    wasAttack1Pressed: boolean = false;
+    wasAttack2Pressed: boolean = false;
     
     // Climbing
     isLedgeGrabbing: boolean = false;
@@ -64,9 +74,24 @@ export class Player {
     punchTimer: number = 0;
     comboChain: number = 0; 
 
+    // Fishing
+    isFishing: boolean = false;
+    fishingTimer: number = 0;
+
     // Facial
     blinkTimer: number = 0;
     isBlinking: boolean = false;
+    // Eye Movement (Gaze)
+    eyeLookTarget: THREE.Vector2 = new THREE.Vector2(); // x=yaw, y=pitch
+    eyeLookCurrent: THREE.Vector2 = new THREE.Vector2();
+    eyeMoveTimer: number = 0;
+    
+    // Camera Awareness / Creepy Smile
+    lookAtCameraTimer: number = 0;
+    cameraGazeTimer: number = 0; // Tracks cumulative time camera has stared at player
+    isLookingAtCamera: boolean = false;
+    headLookWeight: number = 0; // 0 = Animation Control, 1 = Camera Control
+    cameraWorldPosition: THREE.Vector3 = new THREE.Vector3();
     
     // Ragdoll Dragging
     isDragged: boolean = false;
@@ -80,6 +105,7 @@ export class Player {
 
     // Debug
     isDebugHitbox: boolean = false;
+    isDebugHands: boolean = false;
     private lastOutfit: OutfitType | null = null;
     private wasDeadKeyPressed: boolean = false;
 
@@ -112,8 +138,22 @@ export class Player {
         PlayerDebug.updateHitboxVisuals(this);
     }
 
-    update(dt: number, input: PlayerInput, cameraAngle: number, environment: Environment, particleManager: ParticleManager) {
+    toggleHandsDebug() {
+        this.isDebugHands = !this.isDebugHands;
+        PlayerDebug.toggleHandDebugMode(this);
+    }
+
+    update(dt: number, input: PlayerInput, cameraPosition: THREE.Vector3, cameraAngle: number, environment: Environment, particleManager: ParticleManager) {
         this.syncConfig();
+        
+        // Calculate Velocity for effects (Hair Physics)
+        if (dt > 0) {
+            this.velocity.subVectors(this.mesh.position, this.previousPosition).divideScalar(dt);
+        }
+        this.previousPosition.copy(this.mesh.position);
+
+        // Update Model Physics (e.g. Hair)
+        this.model.update(dt, this.velocity);
         
         // Handle Death Toggle
         if (input.isDead && !this.wasDeadKeyPressed) {
@@ -126,6 +166,15 @@ export class Player {
             this.isCombatStance = !this.isCombatStance;
         }
         this.wasCombatKeyPressed = !!input.combat;
+
+        // Reset View Action (V)
+        if (input.resetView) {
+            this.resetGaze();
+        }
+
+        // Camera Look / Creepy Smile Logic
+        this.cameraWorldPosition.copy(cameraPosition);
+        CreepySmileAction.update(this, dt, cameraPosition);
         
         // Update Dead State Timer
         if (this.isDead) {
@@ -145,6 +194,18 @@ export class Player {
         if (this.isDebugHitbox) {
             PlayerDebug.updateHitboxVisuals(this);
         }
+    }
+
+    private resetGaze() {
+        this.eyeLookTarget.set(0, 0);
+        // Do not force eyeLookCurrent to 0 instantly, let it animate back via Animator
+        this.eyeMoveTimer = 2.0; // Pause random eye movement for 2 seconds
+        
+        // Cancel Creepy Smile / Camera Look
+        this.isLookingAtCamera = false;
+        this.lookAtCameraTimer = 0;
+        this.cameraGazeTimer = 0; // Reset accumulation
+        this.headLookWeight = 0; // Snap head back to animation control
     }
 
     private toggleDeath() {
@@ -168,6 +229,12 @@ export class Player {
             this.model.applyOutfit(this.config.outfit, this.config.skinColor);
             this.lastOutfit = this.config.outfit;
         }
+        
+        // Force Shoulder Stance if holding Fishing Pole
+        if (this.config.selectedItem === 'Fishing Pole' && this.config.weaponStance !== 'shoulder') {
+            this.config.weaponStance = 'shoulder';
+        }
+
         this.model.sync(this.config, this.isCombatStance);
     }
 }

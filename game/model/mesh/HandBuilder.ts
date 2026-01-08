@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerMaterials } from '../PlayerMaterials';
 
@@ -79,6 +80,11 @@ export class HandBuilder {
             const k2 = new THREE.Mesh(new THREE.SphereGeometry(fWidth*0.5, 8, 8), handMat);
             dist.add(k2);
 
+            // Fingertip Mesh
+            const k3 = new THREE.Mesh(new THREE.SphereGeometry(fWidth*0.42, 8, 8), handMat);
+            k3.position.y = -dLen;
+            dist.add(k3);
+
             prox.add(dist);
             fGroup.add(prox);
             hand.add(fGroup);
@@ -125,6 +131,11 @@ export class HandBuilder {
         
         const tk2 = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 8), handMat);
         tDist.add(tk2);
+
+        // Thumb Tip
+        const tk3 = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), handMat);
+        tk3.position.y = -tLen2;
+        tDist.add(tk3);
 
         tProx.add(tDist);
         thumbGroup.add(tProx);

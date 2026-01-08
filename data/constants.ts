@@ -1,3 +1,4 @@
+
 import { BodyVariant, PlayerConfig } from '../types';
 
 export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
@@ -51,5 +52,6 @@ export const ITEM_ICONS: Record<string, string> = {
   'Axe': '🪓',
   'Sword': '⚔️',
   'Pickaxe': '⛏️',
-  'Knife': '🔪'
+  'Knife': '🔪',
+  'Fishing Pole': '🎣'
 };

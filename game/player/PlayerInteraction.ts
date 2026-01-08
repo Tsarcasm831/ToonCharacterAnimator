@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import type { Player } from '../Player';
 import { PlayerInput } from '../../types';
@@ -73,12 +74,39 @@ export class PlayerInteraction {
 
     private static updateClimb(player: Player, dt: number) {
         player.ledgeGrabTime += dt;
-        const climbDuration = 0.8;
+        const climbDuration = 1.2; // Slowed down from 0.8
         const progress = Math.min(player.ledgeGrabTime / climbDuration, 1.0);
         
-        if (progress > 0.3) {
-            const climbFactor = (progress - 0.3) / 0.7;
-            player.mesh.position.lerpVectors(player.ledgeStartPos, player.ledgeTargetPos, climbFactor);
+        // L-Shaped Movement Logic to respect collision geometry
+        // 1. Hang (0 - 0.15)
+        // 2. Pull Up Vertical (0.15 - 0.65)
+        // 3. Mantle Forward (0.65 - 1.0)
+
+        if (progress < 0.15) {
+            // Static Hang
+            player.mesh.position.copy(player.ledgeStartPos);
+        } else if (progress < 0.65) {
+            // Vertical Pull
+            const t = (progress - 0.15) / 0.5; // Normalized 0-1 for this phase
+            const ease = 1 - Math.pow(1 - t, 3); // Cubic Ease Out
+            
+            player.mesh.position.x = player.ledgeStartPos.x;
+            player.mesh.position.z = player.ledgeStartPos.z;
+            player.mesh.position.y = THREE.MathUtils.lerp(player.ledgeStartPos.y, player.ledgeTargetPos.y, ease);
+        } else {
+            // Forward Mantle
+            const t = (progress - 0.65) / 0.35; // Normalized 0-1
+            const ease = 1 - Math.pow(1 - t, 2); // Quad Ease Out
+            
+            player.mesh.position.y = player.ledgeTargetPos.y;
+            
+            // Interpolate X/Z from Start to Target
+            const startVec = new THREE.Vector3(player.ledgeStartPos.x, 0, player.ledgeStartPos.z);
+            const targetVec = new THREE.Vector3(player.ledgeTargetPos.x, 0, player.ledgeTargetPos.z);
+            const currentVec = new THREE.Vector3().lerpVectors(startVec, targetVec, ease);
+            
+            player.mesh.position.x = currentVec.x;
+            player.mesh.position.z = currentVec.z;
         }
 
         if (progress >= 1.0) {

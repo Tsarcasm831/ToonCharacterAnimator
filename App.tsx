@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import Scene from './components/Scene';
 import { PlayerConfig, PlayerInput, DEFAULT_CONFIG } from './types';
 import { Header } from './components/ui/Header';
 import { InteractionOverlay } from './components/ui/InteractionOverlay';
 import { Hotbar } from './components/ui/Hotbar';
 import { ControlPanel } from './components/ui/ControlPanel';
+import { ModelExporter } from './game/ModelExporter';
+import { Game } from './game/Game';
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<PlayerConfig>(DEFAULT_CONFIG);
@@ -18,13 +21,14 @@ const App: React.FC = () => {
     attack2: false
   });
   
-  // Initialize inventory with items in specific slots (1-indexed 2, 3, 4 -> 0-indexed 1, 2, 3)
+  // Initialize inventory with items in specific slots (1-indexed 2, 3, 4, 5, 6 -> 0-indexed 1, 2, 3, 4, 5)
   const [inventory, setInventory] = useState<string[]>(() => {
     const inv = Array(8).fill('');
     inv[1] = 'Axe';
     inv[2] = 'Sword';
     inv[3] = 'Pickaxe';
     inv[4] = 'Knife';
+    inv[5] = 'Fishing Pole';
     return inv;
   });
   
@@ -34,6 +38,14 @@ const App: React.FC = () => {
   // Interaction UI
   const [interactionText, setInteractionText] = useState<string | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
+
+  const gameRef = useRef<Game | null>(null);
+
+  const handleExport = () => {
+      if (gameRef.current) {
+          ModelExporter.exportAndDownloadZip(gameRef.current['player']);
+      }
+  };
 
   // Sync selected item to config for the model to render
   useEffect(() => {
@@ -69,6 +81,7 @@ const App: React.FC = () => {
           onInventoryUpdate={setInventory} 
           onSlotSelect={setSelectedSlot} 
           onInteractionUpdate={handleInteractionUpdate}
+          onGameReady={(g) => gameRef.current = g}
         />
       </div>
 
@@ -93,6 +106,7 @@ const App: React.FC = () => {
         setManualInput={setManualInput}
         handleDeathToggle={handleDeathToggle}
         triggerAction={triggerAction}
+        onExport={handleExport}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export const Header: React.FC = () => (
@@ -6,7 +7,7 @@ export const Header: React.FC = () => (
           ANIMATOR<span className="text-blue-600">3D</span>
         </h1>
         <p className="text-gray-600 font-medium text-sm mt-1 max-w-md">
-          W/A/S/D to move, SHIFT to run, SPACE jump, 1-8 to select slots.
+          W/A/S/D move, SHIFT run, SPACE jump, X change view, 1-8 items.
         </p>
     </div>
 );
