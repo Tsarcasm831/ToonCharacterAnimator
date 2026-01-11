@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerMaterials } from '../PlayerMaterials';
 
@@ -77,6 +78,21 @@ export class TorsoBuilder {
         uCrotch.scale.set(1.02, 1.02, 1.02);
         uCrotch.position.y = -pelvisHeight;
         underwearBottom.add(uCrotch);
+
+        // Male Bulge (Underwear)
+        // Use CapsuleGeometry for a more realistic, elongated shape
+        const bulgeRadius = 0.042;
+        const bulgeLength = 0.04;
+        const bulgeGeo = new THREE.CapsuleGeometry(bulgeRadius, bulgeLength, 4, 8);
+        
+        const maleBulge = new THREE.Mesh(bulgeGeo, materials.underwear);
+        // Positioned higher up on the pelvis front face
+        // Default position, will be overridden by Scaler
+        maleBulge.position.set(0, -0.075, 0.13); 
+        maleBulge.rotation.x = -0.15;
+        maleBulge.castShadow = true;
+        maleBulge.visible = false;
+        underwearBottom.add(maleBulge);
 
         // BUTTOCKS
         const buttocks = new THREE.Group();
@@ -169,10 +185,26 @@ export class TorsoBuilder {
 
         // Nipples
         const nippleGeo = new THREE.CircleGeometry(0.012, 8);
-        const maleNippleZ = chestSurfaceZ + 0.004;
+        
         [-1, 1].forEach(side => {
+            const nx = side * 0.12;
+            const ny = 0.17;
+            
+            // Calculate exact surface Z on the cylinder/ellipse at this height
+            const t = (ny + torsoLen/2) / torsoLen;
+            const rAtY = THREE.MathUtils.lerp(torsoRadiusBottom, torsoRadiusTop, t);
+            
+            // Ellipse equation: (x/rx)^2 + (z/rz)^2 = 1
+            const rx = rAtY;
+            const rz = rAtY * torsoDepthScale;
+            let nz = 0;
+            // Solve for z
+            if (Math.abs(nx) < rx) {
+                nz = rz * Math.sqrt(1 - (nx*nx)/(rx*rx));
+            }
+
             const n = new THREE.Mesh(nippleGeo, materials.lip);
-            n.position.set(side * 0.12, 0.17, maleNippleZ); 
+            n.position.set(nx, ny, nz + 0.005); // +0.005 offset for z-fighting
             n.rotation.y = side * 0.4;
             n.rotation.x = -0.05; 
             maleChest.add(n);
@@ -193,6 +225,10 @@ export class TorsoBuilder {
                 ab.position.set(side * 0.055, row.y, row.z);
                 ab.rotation.y = side * 0.15; 
                 ab.rotation.x = -0.05;
+                
+                // Store base position for scaler adjustments
+                ab.userData.basePos = ab.position.clone();
+                
                 maleChest.add(ab);
             }
         });
@@ -212,6 +248,7 @@ export class TorsoBuilder {
             neckBase,
             pelvis,
             underwearBottom,
+            maleBulge,
             buttocks,
             chest,
             braCups,

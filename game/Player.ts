@@ -9,7 +9,12 @@ import { PlayerInteraction } from './player/PlayerInteraction';
 import { PlayerDebug } from './player/PlayerDebug';
 import { ParticleManager } from './ParticleManager';
 import { Environment } from './Environment';
-import { CreepySmileAction } from './animator/actions/CreepySmileAction';
+import { ChakraNetwork } from './vfx/ChakraNetwork';
+
+// Sub-Handlers
+import { PlayerInventory } from './player/PlayerInventory';
+import { PlayerStatusHandler } from './player/PlayerStatusHandler';
+import { PlayerCameraHandler } from './player/PlayerCameraHandler';
 
 export class Player {
     scene: THREE.Scene;
@@ -17,9 +22,13 @@ export class Player {
     animator: PlayerAnimator;
     config: PlayerConfig;
 
-    // --- State Properties ---
-    
-    // Movement
+    // Sub-Systems
+    inventory: PlayerInventory;
+    status: PlayerStatusHandler;
+    cameraHandler: PlayerCameraHandler;
+    chakra: ChakraNetwork;
+
+    // --- Core Locomotion State ---
     moveSpeed: number = 5;
     turnSpeed: number = 10;
     walkTime: number = 0;
@@ -28,36 +37,47 @@ export class Player {
     jumpTimer: number = 0;
     gravity: number = -30;
     jumpPower: number = 11;
-
-    // Velocity Tracking for Physics
+    
     previousPosition = new THREE.Vector3();
     velocity = new THREE.Vector3();
+    
+    lastStepCount: number = 0;
+    didStep: boolean = false;
 
-    // Status
-    isDead: boolean = false;
-    deathTime: number = 0;
-    deathVariation = { side: 1, twist: 0, fallDir: 1, stumbleDir: 0 };
-    recoverTimer: number = 0;
-    
-    // Combat / Stance
+    // --- Action State ---
+    // Combat
     isCombatStance: boolean = false;
-    private wasCombatKeyPressed: boolean = false;
-    
-    // Input History for Edge Detection
+    wasCombatKeyPressed: boolean = false;
     wasAttack1Pressed: boolean = false;
     wasAttack2Pressed: boolean = false;
     
+    // Attacks
+    isAxeSwing: boolean = false;
+    axeSwingTimer: number = 0;
+    hasHit: boolean = false;
+    isPunch: boolean = false;
+    punchTimer: number = 0;
+    comboChain: number = 0; 
+
     // Climbing
     isLedgeGrabbing: boolean = false;
     ledgeGrabTime: number = 0;
     ledgeStartPos: THREE.Vector3 = new THREE.Vector3();
     ledgeTargetPos: THREE.Vector3 = new THREE.Vector3();
     
-    // Actions
+    // Interactions
     isPickingUp: boolean = false;
     pickUpTime: number = 0;
     isInteracting: boolean = false;
     interactTimer: number = 0;
+    
+    // Emotes
+    isWaving: boolean = false;
+    waveTimer: number = 0;
+
+    // Summoning
+    isSummoning: boolean = false;
+    summonTimer: number = 0;
     
     // Skinning
     isSkinning: boolean = false;
@@ -65,47 +85,31 @@ export class Player {
     skinningTimer: number = 0;
     maxSkinningTime: number = 3.0;
     skinningProgress: number = 0;
-    
-    // Combat Actions
-    isAxeSwing: boolean = false;
-    axeSwingTimer: number = 0;
-    hasHit: boolean = false; // Tracks if the current swing has processed an impact
-    isPunch: boolean = false;
-    punchTimer: number = 0;
-    comboChain: number = 0; 
 
+    // Dialogue
+    canTalk: boolean = false;
+    talkingTarget: any = null;
+    isTalking: boolean = false;
+    
     // Fishing
     isFishing: boolean = false;
+    isReeling: boolean = false;
     fishingTimer: number = 0;
+    isChargingFishing: boolean = false;
+    fishingCharge: number = 0;
+    fishingChargeTime: number = 0;
+    needsReclick: boolean = false;
 
-    // Facial
-    blinkTimer: number = 0;
-    isBlinking: boolean = false;
-    // Eye Movement (Gaze)
-    eyeLookTarget: THREE.Vector2 = new THREE.Vector2(); // x=yaw, y=pitch
-    eyeLookCurrent: THREE.Vector2 = new THREE.Vector2();
-    eyeMoveTimer: number = 0;
-    
-    // Camera Awareness / Creepy Smile
-    lookAtCameraTimer: number = 0;
-    cameraGazeTimer: number = 0; // Tracks cumulative time camera has stared at player
-    isLookingAtCamera: boolean = false;
-    headLookWeight: number = 0; // 0 = Animation Control, 1 = Camera Control
-    cameraWorldPosition: THREE.Vector3 = new THREE.Vector3();
-    
-    // Ragdoll Dragging
+    // Ragdoll
     isDragged: boolean = false;
     draggedPartName: string = 'hips';
     dragVelocity: THREE.Vector3 = new THREE.Vector3();
     
-    // Inventory
-    inventory: string[] = Array(8).fill('');
-    inventoryCapacity: number = 8;
-    inventoryDirty: boolean = false;
-
     // Debug
     isDebugHitbox: boolean = false;
     isDebugHands: boolean = false;
+    isSkeletonMode: boolean = false;
+
     private lastOutfit: OutfitType | null = null;
     private wasDeadKeyPressed: boolean = false;
 
@@ -116,25 +120,34 @@ export class Player {
         this.animator = new PlayerAnimator();
         this.scene.add(this.model.group);
         this.model.group.rotation.y = Math.PI;
+
+        // Initialize Handlers
+        this.inventory = new PlayerInventory();
+        this.status = new PlayerStatusHandler();
+        this.cameraHandler = new PlayerCameraHandler();
+        this.chakra = new ChakraNetwork(scene);
     }
 
     get mesh() { return this.model.group; }
 
-    addItem(itemName: string): boolean {
-        const emptySlot = this.inventory.findIndex(s => s === '');
-        if (emptySlot === -1) return false;
-        
-        // Create a new array reference to ensure React detects change if passed directly (though we use dirty flag)
-        const newInv = [...this.inventory];
-        newInv[emptySlot] = itemName;
-        this.inventory = newInv;
-        
-        this.inventoryDirty = true;
-        return true;
-    }
-
+    // Helpers exposed for Interaction/Game
+    addItem(itemName: string) { return this.inventory.addItem(itemName); }
+    
     toggleHitbox() {
         this.isDebugHitbox = !this.isDebugHitbox;
+        PlayerDebug.updateHitboxVisuals(this);
+    }
+
+    toggleSkeletonMode() {
+        this.isSkeletonMode = !this.isSkeletonMode;
+        // Hide the model skin/mesh
+        this.model.group.visible = !this.isSkeletonMode;
+        
+        // If entering skeleton mode, ensure the skeleton debug draw is active
+        if (this.isSkeletonMode) {
+            this.isDebugHitbox = true;
+        }
+        
         PlayerDebug.updateHitboxVisuals(this);
     }
 
@@ -143,94 +156,110 @@ export class Player {
         PlayerDebug.toggleHandDebugMode(this);
     }
 
-    update(dt: number, input: PlayerInput, cameraPosition: THREE.Vector3, cameraAngle: number, environment: Environment, particleManager: ParticleManager) {
+    update(dt: number, input: PlayerInput, cameraPosition: THREE.Vector3, cameraAngle: number, environment: Environment, particleManager: ParticleManager, entities: any[] = []) {
         this.syncConfig();
         
-        // Calculate Velocity for effects (Hair Physics)
+        // 1. Physics & Model Update
         if (dt > 0) {
             this.velocity.subVectors(this.mesh.position, this.previousPosition).divideScalar(dt);
         }
         this.previousPosition.copy(this.mesh.position);
-
-        // Update Model Physics (e.g. Hair)
         this.model.update(dt, this.velocity);
         
-        // Handle Death Toggle
+        // 2. State Logic
+        this.status.update(dt);
+        this.cameraHandler.update(this, dt, cameraPosition);
+
+        // 3. Input Handlers
         if (input.isDead && !this.wasDeadKeyPressed) {
-            this.toggleDeath();
+            this.status.toggleDeath(this.mesh);
         }
         this.wasDeadKeyPressed = !!input.isDead;
         
-        // Handle Combat Stance Toggle
         if (input.combat && !this.wasCombatKeyPressed) {
             this.isCombatStance = !this.isCombatStance;
         }
         this.wasCombatKeyPressed = !!input.combat;
-
-        // Reset View Action (V)
-        if (input.resetView) {
-            this.resetGaze();
-        }
-
-        // Camera Look / Creepy Smile Logic
-        this.cameraWorldPosition.copy(cameraPosition);
-        CreepySmileAction.update(this, dt, cameraPosition);
         
-        // Update Dead State Timer
-        if (this.isDead) {
-            this.deathTime += dt;
-        } else {
-            if (this.recoverTimer > 0) this.recoverTimer -= dt;
-            
-            // Sub-System Updates
-            PlayerInteraction.update(this, dt, input, environment.obstacles);
-            PlayerCombat.update(this, dt, input, environment, particleManager);
-            PlayerPhysics.update(this, dt, input, cameraAngle, environment.obstacles);
+        // Wave Handler
+        if (input.wave && !this.isWaving && !this.isCombatStance && !this.isJumping) {
+            this.isWaving = true;
+            this.waveTimer = 0;
+        }
+        
+        if (this.isWaving) {
+            if (input.x !== 0 || input.y !== 0 || input.jump || input.isPickingUp || input.attack1) {
+                this.isWaving = false;
+                this.waveTimer = 0;
+            } else {
+                this.waveTimer += dt;
+                if (this.waveTimer > 2.0) {
+                    this.isWaving = false;
+                    this.waveTimer = 0;
+                }
+            }
         }
 
-        // Run Animation System
-        this.animator.animate(this, dt, (input.x !== 0 || input.y !== 0), input);
+        // Summoning Handler
+        if (input.summon && !this.isSummoning && !this.config.selectedItem && !this.isJumping) {
+            this.isSummoning = true;
+            this.summonTimer = 0;
+        }
 
+        if (this.isSummoning) {
+            if (input.x !== 0 || input.y !== 0 || input.jump) {
+                this.isSummoning = false;
+                this.summonTimer = 0;
+            } else {
+                this.summonTimer += dt;
+                if (this.summonTimer > 2.5) { // Total duration of the animation
+                    this.isSummoning = false;
+                    this.summonTimer = 0;
+                    // Potential trigger for skill effects
+                }
+            }
+        }
+
+        // 4. Sub-Systems
+        if (this.status.isDead) {
+            // No physics or actions when dead
+        } else {
+            // While recovering, we still disable most inputs but physics might settle
+            if (this.status.recoverTimer <= 0) {
+                PlayerInteraction.update(this, dt, input, environment.obstacles, entities);
+                PlayerCombat.update(this, dt, input, environment, particleManager);
+                PlayerPhysics.update(this, dt, input, cameraAngle, environment.obstacles);
+            }
+        }
+
+        // 5. Animation
+        // Determine "isMoving" for animator
+        const isMoving = (input.x !== 0 || input.y !== 0) && !this.status.isDead;
+        this.animator.animate(this, dt, isMoving, input, environment.obstacles);
+
+        // 6. Visual Effects
+        // Update Chakra Network - Only visible in Skeleton Mode (J)
+        this.chakra.setVisible(this.isSkeletonMode);
+        if (this.isSkeletonMode) {
+            this.chakra.update(dt, this.model);
+        }
+
+        // 7. Debug Visuals
         if (this.isDebugHitbox) {
+            // Important: If mesh is hidden (Skeleton Mode), we must manually update matrices
+            // so the skeleton bones are in the correct world position.
+            if (this.isSkeletonMode) {
+                this.model.group.updateMatrixWorld(true);
+            }
             PlayerDebug.updateHitboxVisuals(this);
-        }
-    }
-
-    private resetGaze() {
-        this.eyeLookTarget.set(0, 0);
-        // Do not force eyeLookCurrent to 0 instantly, let it animate back via Animator
-        this.eyeMoveTimer = 2.0; // Pause random eye movement for 2 seconds
-        
-        // Cancel Creepy Smile / Camera Look
-        this.isLookingAtCamera = false;
-        this.lookAtCameraTimer = 0;
-        this.cameraGazeTimer = 0; // Reset accumulation
-        this.headLookWeight = 0; // Snap head back to animation control
-    }
-
-    private toggleDeath() {
-        this.isDead = !this.isDead;
-        this.deathTime = 0;
-        if (this.isDead) {
-            this.deathVariation = {
-                side: Math.random() > 0.5 ? 1 : -1,
-                twist: (Math.random() - 0.5) * 0.5,
-                fallDir: Math.random() > 0.5 ? 1 : -1,
-                stumbleDir: (Math.random() - 0.5) * 0.5
-            };
-        } else {
-            this.recoverTimer = 0.5;
-            this.mesh.rotation.set(0, this.mesh.rotation.y, 0);
         }
     }
 
     private syncConfig() {
         if (this.lastOutfit !== this.config.outfit) {
-            this.model.applyOutfit(this.config.outfit, this.config.skinColor);
             this.lastOutfit = this.config.outfit;
         }
         
-        // Force Shoulder Stance if holding Fishing Pole
         if (this.config.selectedItem === 'Fishing Pole' && this.config.weaponStance !== 'shoulder') {
             this.config.weaponStance = 'shoulder';
         }

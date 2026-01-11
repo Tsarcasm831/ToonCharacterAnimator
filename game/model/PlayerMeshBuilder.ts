@@ -5,10 +5,12 @@ import { TorsoBuilder } from './mesh/TorsoBuilder';
 import { HeadBuilder } from './mesh/HeadBuilder';
 import { HandBuilder } from './mesh/HandBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
+import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { createSegment } from './mesh/MeshUtils';
+import { PlayerConfig } from '../../types';
 
 export class PlayerMeshBuilder {
-    static build(materials: PlayerMaterials) {
+    static build(materials: PlayerMaterials, config: PlayerConfig) {
         const group = new THREE.Group();
         group.castShadow = true;
         
@@ -24,7 +26,8 @@ export class PlayerMeshBuilder {
             rightThumb: null as THREE.Group | null,
             leftFingers: [] as THREE.Group[],
             leftThumb: null as THREE.Group | null,
-            buttockCheeks: [] as THREE.Mesh[]
+            buttockCheeks: [] as THREE.Mesh[],
+            thenars: [] as THREE.Mesh[]
         };
 
         // 1. Torso & Hips
@@ -60,21 +63,31 @@ export class PlayerMeshBuilder {
         const ankleRadius = 0.068;
         const ankleGeo = new THREE.SphereGeometry(ankleRadius, 16, 16);
         
-        const rightAnkle = new THREE.Mesh(ankleGeo, materials.boots);
+        // Use Skin Material for Ankle Joints (matches bare feet)
+        const rightAnkle = new THREE.Mesh(ankleGeo, materials.skin);
         rightAnkle.position.y = footOffsetY;
         rightAnkle.castShadow = true;
         rightShin.add(rightAnkle);
 
-        const leftAnkle = new THREE.Mesh(ankleGeo, materials.boots);
+        const leftAnkle = new THREE.Mesh(ankleGeo, materials.skin);
         leftAnkle.position.y = footOffsetY;
         leftAnkle.castShadow = true;
         leftShin.add(leftAnkle);
         
-        const rFoot = FootBuilder.create(materials, false, arrays);
+        // Determine Footwear: Respect explicit equipment setting
+        const useShoes = config.equipment.shoes;
+
+        const rFoot = useShoes 
+            ? ShoeBuilder.create(materials, false, arrays)
+            : FootBuilder.create(materials, false, arrays);
+            
         rFoot.heelGroup.position.y = footOffsetY; 
         rightShin.add(rFoot.heelGroup); 
 
-        const lFoot = FootBuilder.create(materials, true, arrays);
+        const lFoot = useShoes
+            ? ShoeBuilder.create(materials, true, arrays)
+            : FootBuilder.create(materials, true, arrays);
+            
         lFoot.heelGroup.position.y = footOffsetY;
         leftShin.add(lFoot.heelGroup); 
 
@@ -160,14 +173,20 @@ export class PlayerMeshBuilder {
 
         // 7. Mounts
         const rightHandMount = new THREE.Group();
-        // Position: 0,0,0 binds directly to the wrist joint (Hand Origin)
-        rightHandMount.position.set(0, 0, 0);
+        // Position: centered vertically on palm, slight forward into palm side
+        // Pinned to the "Gold" section (Outside/Back of hand = Z-) but higher up (Y towards 0)
+        rightHandMount.position.set(0, -0.04, -0.04); 
         rightHandMount.rotation.set(0, 0, 0); 
         rightHand.add(rightHandMount);
 
         const rightShoulderMount = new THREE.Group(); rightShoulderMount.position.y = 0.05; rightArm.add(rightShoulderMount);
         const leftShoulderMount = new THREE.Group(); leftShoulderMount.position.y = 0.05; leftArm.add(leftShoulderMount);
-        const leftShieldMount = new THREE.Group(); leftShieldMount.position.set(0.06, -0.09, 0); leftShieldMount.rotation.y = Math.PI/2; leftForeArm.add(leftShieldMount);
+        
+        // Shield Mount: Positioned near wrist (y=-0.24) and offset outward (x=0.07)
+        const leftShieldMount = new THREE.Group(); 
+        leftShieldMount.position.set(0.07, -0.24, 0); 
+        leftShieldMount.rotation.y = Math.PI/2; 
+        leftForeArm.add(leftShieldMount);
 
         const parts = {
             ...torsoParts,

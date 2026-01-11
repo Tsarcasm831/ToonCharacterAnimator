@@ -1,5 +1,5 @@
 
-import { BodyVariant, PlayerConfig } from '../types';
+import { BodyVariant, PlayerConfig, OutfitType } from '../types';
 
 export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
   average: {
@@ -8,7 +8,7 @@ export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
     headScale: 1.0, footWidth: 1.0, 
     neckHeight: 0.6, neckThickness: 0.7,
     chinSize: 0.7, chinLength: 1.0,
-    buttScale: 1.0,
+    buttScale: 0.75,
     shirtColor: '#cc0000',
     hairStyle: 'crew',
     hairColor: '#3e2723'
@@ -48,10 +48,55 @@ export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
   }
 };
 
+export const OUTFIT_PRESETS: Record<OutfitType, Partial<PlayerConfig>> = {
+  nude: {
+    outfit: 'nude',
+    equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false },
+    shirtColor: '#ffdbac',
+    pantsColor: '#ffdbac'
+  },
+  naked: {
+    outfit: 'naked',
+    equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false },
+    shirtColor: '#ffdbac',
+    pantsColor: '#3182ce' 
+  },
+  peasant: {
+    outfit: 'peasant',
+    equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false },
+    shirtColor: '#8d6e63',
+    pantsColor: '#5d4037'
+  },
+  warrior: {
+    outfit: 'warrior',
+    equipment: { helm: true, shoulders: true, shield: true, shirt: true, pants: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false },
+    shirtColor: '#607d8b',
+    pantsColor: '#37474f'
+  },
+  noble: {
+    outfit: 'noble',
+    equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false },
+    shirtColor: '#3f51b5',
+    pantsColor: '#1a237e'
+  }
+};
+
 export const ITEM_ICONS: Record<string, string> = {
   'Axe': '🪓',
   'Sword': '⚔️',
   'Pickaxe': '⛏️',
   'Knife': '🔪',
-  'Fishing Pole': '🎣'
+  'Halberd': '🔱',
+  'Fishing Pole': '🎣',
+  'Bow': '🏹',
+  'Shirt': '👕',
+  'Quilted Armor': '🧥',
+  'Leather Armor': '🥋',
+  'Heavy Leather Armor': '🛡️',
+  'RingMail': '⛓️',
+  'Plate Mail': '🎖️',
+  'Pants': '👖',
+  'Shoes': '👢',
+  'Mask': '😷',
+  'Hood': '🧥'
 };

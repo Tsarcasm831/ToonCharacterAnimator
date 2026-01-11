@@ -11,6 +11,14 @@ export class PlayerDebug {
         opacity: 0.3
     });
 
+    private static obstacleMaterial = new THREE.MeshBasicMaterial({
+        color: 0x00ff00,
+        wireframe: true,
+        depthTest: false,
+        transparent: true,
+        opacity: 0.5
+    });
+
     private static boneMaterial = new THREE.LineBasicMaterial({
         color: 0xffff00,
         depthTest: false,
@@ -20,7 +28,17 @@ export class PlayerDebug {
     private static skeletonGroup: THREE.Group | null = null;
 
     private static handDebugMaterials = {
-        palm: new THREE.MeshBasicMaterial({ color: 0xFFFFFF }), // White
+        // Multi-material for BoxGeometry Palm: 0=Right, 1=Left, 2=Top, 3=Bottom, 4=Front(Palm), 5=Back
+        palmArray: [
+            new THREE.MeshBasicMaterial({ color: 0xFFD700 }), // Right - Gold
+            new THREE.MeshBasicMaterial({ color: 0xFFD700 }), // Left - Gold
+            new THREE.MeshBasicMaterial({ color: 0xFFD700 }), // Top - Gold
+            new THREE.MeshBasicMaterial({ color: 0xFFD700 }), // Bottom - Gold
+            new THREE.MeshBasicMaterial({ color: 0x000000 }), // Front (Inside/Palm) - Black
+            new THREE.MeshBasicMaterial({ color: 0xFFD700 })  // Back (Outside) - Gold
+        ],
+        palmDefault: new THREE.MeshBasicMaterial({ color: 0xFFFFFF }), // Fallback (white)
+        
         thumb: [
             new THREE.MeshBasicMaterial({ color: 0xFF0000 }), // Red (Prox)
             new THREE.MeshBasicMaterial({ color: 0xFF8800 }), // Orange (Dist)
@@ -72,13 +90,41 @@ export class PlayerDebug {
         }
     }
 
+    static updateObstacleHitboxVisuals(obstacles: THREE.Object3D[], show: boolean) {
+        obstacles.forEach((obs) => {
+            // Traverse to handle both single meshes and groups
+            obs.traverse((child) => {
+                if (child.name === 'ObstacleHitboxOverlay') return;
+                
+                if (child instanceof THREE.Mesh) {
+                    const overlay = child.children.find(c => c.name === 'ObstacleHitboxOverlay');
+                    
+                    if (show) {
+                        if (!overlay && child.parent) {
+                            const m = new THREE.Mesh(child.geometry, this.obstacleMaterial);
+                            m.name = 'ObstacleHitboxOverlay';
+                            child.add(m);
+                        }
+                    } else {
+                        if (overlay) {
+                            child.remove(overlay);
+                            if (overlay instanceof THREE.Mesh) {
+                                overlay.geometry = undefined as any;
+                            }
+                        }
+                    }
+                }
+            });
+        });
+    }
+
     private static updateSkeleton(player: Player) {
         if (!this.skeletonGroup) {
             this.skeletonGroup = new THREE.Group();
             player.scene.add(this.skeletonGroup);
         }
 
-        // Clear previous lines
+        // Clear previous lines/spheres
         while(this.skeletonGroup.children.length > 0){ 
             this.skeletonGroup.remove(this.skeletonGroup.children[0]); 
         }
@@ -116,22 +162,16 @@ export class PlayerDebug {
             { part: parts.rightHand, color: 0xFF00FF },      // Magenta
         ];
 
-        // 2. Draw Spheres for Joints
+        // 2. Draw Main Spheres
         const worldPos = new THREE.Vector3();
         
         jointConfig.forEach(joint => {
             if (joint.part) {
-                joint.part.getWorldPosition(worldPos);
-                
-                const geo = new THREE.SphereGeometry(0.035, 8, 8);
-                const mat = new THREE.MeshBasicMaterial({ color: joint.color, depthTest: false });
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.copy(worldPos);
-                this.skeletonGroup!.add(mesh);
+                this.drawSphere(joint.part, joint.color, 0.035);
             }
         });
 
-        // 3. Draw Lines for Bones
+        // 3. Draw Main Lines
         const connections: [THREE.Object3D, THREE.Object3D][] = [
             [parts.hips, parts.torsoContainer],
             [parts.torsoContainer, parts.topCap],
@@ -155,26 +195,141 @@ export class PlayerDebug {
             [parts.rightForeArm, parts.rightHand],
         ];
 
-        const worldPos2 = new THREE.Vector3();
-
         connections.forEach(([start, end]) => {
             if (start && end) {
-                start.getWorldPosition(worldPos);
-                end.getWorldPosition(worldPos2);
-                
-                const geometry = new THREE.BufferGeometry().setFromPoints([worldPos, worldPos2]);
-                const line = new THREE.Line(geometry, this.boneMaterial);
-                this.skeletonGroup!.add(line);
+                this.drawLine(start, end);
             }
         });
+
+        // 4. Detailed Hands & Feet
+        // Left Hand (Gold Fingers)
+        this.drawHandSkeleton(player.model.leftFingers, player.model.leftThumb, parts.leftHand, 0xFFD700);
+        // Right Hand (Hot Pink Fingers)
+        this.drawHandSkeleton(player.model.rightFingers, player.model.rightThumb, parts.rightHand, 0xFF1493);
+
+        // Left Foot (Spring Green Toes)
+        this.drawFootSkeleton(parts.leftShin, 0x00FA9A);
+        // Right Foot (Dodger Blue Toes)
+        this.drawFootSkeleton(parts.rightShin, 0x1E90FF);
+    }
+
+    private static drawHandSkeleton(fingers: THREE.Group[], thumb: THREE.Group | null, hand: THREE.Object3D, color: number) {
+        if (!hand) return;
+        const wristPos = new THREE.Vector3();
+        hand.getWorldPosition(wristPos);
+
+        const drawChain = (group: THREE.Object3D) => {
+            const prox = group.children.find(c => c.name === 'proximal');
+            if (prox) {
+                // Line Wrist -> Prox
+                this.drawLinePoints(wristPos, this.getWorldPos(prox), 0xaaaaaa);
+                this.drawSphere(prox, color, 0.015);
+
+                const dist = prox.children.find(c => c.name === 'distal');
+                if (dist) {
+                    this.drawLine(prox, dist, color);
+                    this.drawSphere(dist, color, 0.012);
+
+                    // Tip is usually a sphere geom child with y offset
+                    const tip = dist.children.find(c => c.type === 'Mesh' && c.position.y < -0.001);
+                    if (tip) {
+                        this.drawLine(dist, tip, color);
+                        this.drawSphere(tip, color, 0.01);
+                    }
+                }
+            }
+        };
+
+        fingers.forEach(f => drawChain(f));
+        if (thumb) drawChain(thumb);
+    }
+
+    private static drawFootSkeleton(shin: THREE.Object3D, color: number) {
+        if (!shin) return;
+        
+        // Find Foot Anchor
+        const footAnchor = shin.children.find(c => c.name.includes('foot_anchor'));
+        if (!footAnchor) return;
+
+        // Find Forefoot
+        const forefoot = footAnchor.children.find(c => c.name.includes('forefoot'));
+        if (!forefoot) return;
+
+        // Iterate Toes (toeUnits are children of forefoot)
+        // ToeUnit -> ToeMesh
+        forefoot.children.forEach(toeUnit => {
+            if (toeUnit.type === 'Group') {
+                // Base of Toe
+                this.drawLine(footAnchor, toeUnit, color); // Line Ankle -> ToeBase
+                this.drawSphere(toeUnit, color, 0.015);
+
+                // Tip of Toe (ToeMesh is translated locally, or we can just find the mesh)
+                const toeMesh = toeUnit.children.find(c => c.type === 'Mesh');
+                if (toeMesh && toeMesh instanceof THREE.Mesh) {
+                    // Calculate Tip Position based on geometry box
+                    // ToeMesh is translated by length/2 in builder.
+                    // We can just use the mesh world position as center, then extend? 
+                    // Or simpler: Just draw to the mesh origin which is center of toe.
+                    
+                    // Actually, toeMesh in FootBuilder is translated Z+ length/2 relative to Unit.
+                    // Unit is at base. Mesh pivot is at base. 
+                    // Wait, FootBuilder: toeGeo.translate(0,0,tLen/2). Mesh is at 0,0,0 inside Unit.
+                    // So Mesh World Pos == Unit World Pos.
+                    // To find tip, we need to transform a vector (0,0,tLen) by Mesh Matrix.
+                    
+                    if (toeMesh.geometry.boundingBox) {
+                        const len = toeMesh.geometry.boundingBox.max.z - toeMesh.geometry.boundingBox.min.z;
+                        const tipLocal = new THREE.Vector3(0, 0, len);
+                        const tipWorld = tipLocal.applyMatrix4(toeMesh.matrixWorld);
+                        
+                        this.drawLinePoints(this.getWorldPos(toeUnit), tipWorld, color);
+                        this.drawSphereAt(tipWorld, color, 0.01);
+                    }
+                }
+            }
+        });
+    }
+
+    private static getWorldPos(obj: THREE.Object3D): THREE.Vector3 {
+        const v = new THREE.Vector3();
+        obj.getWorldPosition(v);
+        return v;
+    }
+
+    private static drawSphere(obj: THREE.Object3D, color: number, size: number) {
+        const pos = this.getWorldPos(obj);
+        this.drawSphereAt(pos, color, size);
+    }
+
+    private static drawSphereAt(pos: THREE.Vector3, color: number, size: number) {
+        if (!this.skeletonGroup) return;
+        const geo = new THREE.SphereGeometry(size, 6, 6);
+        const mat = new THREE.MeshBasicMaterial({ color: color, depthTest: false });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(pos);
+        this.skeletonGroup.add(mesh);
+    }
+
+    private static drawLine(startObj: THREE.Object3D, endObj: THREE.Object3D, color?: number) {
+        const p1 = this.getWorldPos(startObj);
+        const p2 = this.getWorldPos(endObj);
+        this.drawLinePoints(p1, p2, color);
+    }
+
+    private static drawLinePoints(p1: THREE.Vector3, p2: THREE.Vector3, color: number = 0xffff00) {
+        if (!this.skeletonGroup) return;
+        const geometry = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+        // Clone material to allow custom color per line if needed, or use single mat if perf issues arise (unlikely here)
+        const mat = this.boneMaterial.clone();
+        mat.color.setHex(color);
+        const line = new THREE.Line(geometry, mat);
+        this.skeletonGroup.add(line);
     }
 
     static toggleHandDebugMode(player: Player) {
         const enabled = player.isDebugHands;
         const parts = player.model.parts;
-        const modelAny = player.model as any;
-
-        // Collect all hand meshes for easy checking
+        
         const handMeshes = new Set<THREE.Object3D>();
         const registerHand = (handGroup: THREE.Group) => {
             handGroup.traverse(c => {
@@ -186,13 +341,9 @@ export class PlayerDebug {
 
         player.model.group.traverse((obj) => {
             if (obj instanceof THREE.Mesh) {
-                // Ignore overlay meshes (hitbox debug)
-                if (obj.name === 'HitboxOverlay') return;
+                if (obj.name === 'HitboxOverlay' || obj.name === 'ObstacleHitboxOverlay') return;
 
                 if (enabled) {
-                    // --- ENABLING DEBUG ---
-                    
-                    // Save Original State if not already saved
                     if (obj.userData.originalVisibility === undefined) {
                         obj.userData.originalVisibility = obj.visible;
                     }
@@ -202,22 +353,16 @@ export class PlayerDebug {
 
                     if (handMeshes.has(obj)) {
                         obj.visible = true;
-                        // Apply Debug Color
                         obj.material = this.getColorForHandPart(obj);
                     } else {
                         obj.visible = false;
                     }
 
                 } else {
-                    // --- DISABLING DEBUG ---
-                    
-                    // Restore Visibility
                     if (obj.userData.originalVisibility !== undefined) {
                         obj.visible = obj.userData.originalVisibility;
                         delete obj.userData.originalVisibility;
                     }
-                    
-                    // Restore Material
                     if (obj.userData.originalMaterial) {
                         obj.material = obj.userData.originalMaterial;
                         delete obj.userData.originalMaterial;
@@ -227,103 +372,49 @@ export class PlayerDebug {
         });
     }
 
-    private static getColorForHandPart(mesh: THREE.Mesh): THREE.Material {
-        const pName = mesh.parent?.name;
-        
-        // 1. Palm (Direct child of Hand Group, usually unnamed or just geometry)
-        // HandBuilder adds "palm" mesh directly to group.
-        // It's the only direct Mesh child of the Hand Group usually.
-        // But hierarchy is complex. Let's check naming conventions from HandBuilder.
-        
+    private static getColorForHandPart(mesh: THREE.Mesh): THREE.Material | THREE.Material[] {
         if (mesh.name === 'proximal') {
-            // It's a proximal phalanx. Which finger?
-            // Need to find index in parent array.
             const fingerGroup = mesh.parent;
-            // Check against stored arrays in PlayerModel via some messy traversal or assume based on siblings?
-            // Actually, we can just use the color arrays and cycle? No, needs to be consistent.
-            
-            // Hacky check: Parent is a Group. Grandparent is Hand Group.
-            // Hand Group children are [Palm, Finger0, Finger1, Finger2, Finger3, Thumb]
             if (fingerGroup && fingerGroup.parent) {
                 const siblings = fingerGroup.parent.children;
                 const idx = siblings.indexOf(fingerGroup);
-                // Child 0 is Palm.
-                // Child 1-4 are Fingers.
-                // Child 5 is Thumb (or Muscle then Thumb)
-                
-                // HandBuilder:
-                // 1. Palm
-                // 2. F0, F1, F2, F3
-                // 3. ThumbGroup
-                // 4. Muscle
-                
-                if (idx >= 1 && idx <= 4) {
-                    const fingerIdx = idx - 1;
-                    return this.handDebugMaterials.fingers[fingerIdx][0];
-                }
-                if (idx === 5) {
-                    // Thumb Group
-                    return this.handDebugMaterials.thumb[0];
-                }
+                if (idx >= 1 && idx <= 4) return this.handDebugMaterials.fingers[idx - 1][0];
+                if (idx === 5) return this.handDebugMaterials.thumb[0];
             }
         }
-
         if (mesh.name === 'distal') {
-            // Parent is Proximal Mesh
             const proxMesh = mesh.parent;
             const fingerGroup = proxMesh?.parent;
             if (fingerGroup && fingerGroup.parent) {
                 const siblings = fingerGroup.parent.children;
                 const idx = siblings.indexOf(fingerGroup);
-                
                 if (idx >= 1 && idx <= 4) return this.handDebugMaterials.fingers[idx-1][1];
                 if (idx === 5) return this.handDebugMaterials.thumb[1];
             }
         }
-
-        // Spheres (Joints/Tips/Knuckles)
-        // They are unnamed usually in HandBuilder, just added to Proximal or Distal meshes.
         if (mesh.geometry instanceof THREE.SphereGeometry) {
-            // Check parent
             const parent = mesh.parent;
             if (parent?.name === 'proximal') {
-                // Knuckle inside proximal
-                // Treat as Proximal Color (0)
                 const fingerGroup = parent.parent;
                 const idx = fingerGroup?.parent?.children.indexOf(fingerGroup!) ?? -1;
                 if (idx >= 1 && idx <= 4) return this.handDebugMaterials.fingers[idx-1][0];
                 if (idx === 5) return this.handDebugMaterials.thumb[0];
             }
             if (parent?.name === 'distal') {
-                // Could be joint (k2) or tip (k3)
-                // Tip is lower in Y? HandBuilder: k3.y = -dLen.
+                const fingerGroup = parent.parent?.parent;
+                const idx = fingerGroup?.parent?.children.indexOf(fingerGroup!) ?? -1;
                 if (mesh.position.y < -0.01) {
-                    // Tip
-                    const fingerGroup = parent.parent?.parent;
-                    const idx = fingerGroup?.parent?.children.indexOf(fingerGroup!) ?? -1;
                     if (idx >= 1 && idx <= 4) return this.handDebugMaterials.fingers[idx-1][2];
                     if (idx === 5) return this.handDebugMaterials.thumb[2];
                 } else {
-                    // Joint
-                    const fingerGroup = parent.parent?.parent;
-                    const idx = fingerGroup?.parent?.children.indexOf(fingerGroup!) ?? -1;
                     if (idx >= 1 && idx <= 4) return this.handDebugMaterials.fingers[idx-1][1];
                     if (idx === 5) return this.handDebugMaterials.thumb[1];
                 }
             }
-            
-            // Muscle (Thenar)
-            if (parent?.type === 'Group' && parent.children.indexOf(mesh) > 5) {
-                 return this.handDebugMaterials.palm;
-            }
         }
-        
-        // Palm
-        // It's a BoxGeometry child of the Hand Group
         if (mesh.parent?.type === 'Group' && mesh.geometry instanceof THREE.BoxGeometry) {
-             return this.handDebugMaterials.palm;
+             return this.handDebugMaterials.palmArray;
         }
-
-        return this.handDebugMaterials.palm; // Fallback
+        return this.handDebugMaterials.palmDefault;
     }
 }

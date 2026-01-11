@@ -5,6 +5,7 @@ import { playerModelResetFeet, animateBreathing, applyFootRot } from '../Animati
 export class IdleAction {
     static animate(player: any, parts: any, damp: number, skipRightArm: boolean = false) {
         const t = Date.now() * 0.002;
+        const isMale = player.config.bodyType === 'male';
         
         // Breathing Effect
         animateBreathing(player, parts, t, 1.0);
@@ -31,14 +32,14 @@ export class IdleAction {
         parts.head.rotation.x = 0.1 + Math.sin(t - 1) * 0.02;
         
         // Leg Splay
-        const spread = 0.12;
+        const spread = isMale ? 0.15 : 0.12;
         parts.leftThigh.rotation.set(0, 0, spread);
         parts.rightThigh.rotation.set(0, 0, -spread);
         
         parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0, damp);
         parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0, damp);
         
-        // Feet Compensation: Rotate Z opposite to thigh spread to stay flat
+        // Feet Compensation
         applyFootRot(parts.leftShin, 0, -spread);
         applyFootRot(parts.rightShin, 0, spread);
         
@@ -96,18 +97,36 @@ export class IdleAction {
 
     private static animateArmsIdle(player: any, parts: any, damp: number, t: number, skipRightArm: boolean) {
         const lerp = THREE.MathUtils.lerp;
-        const isHolding = !!player.config.selectedItem;
+        const holdingItem = player.config.selectedItem;
+        const isBow = holdingItem === 'Bow';
         const stance = player.config.weaponStance;
 
-        parts.leftArm.rotation.set(Math.sin(t)*0.03, 0, 0.15);
-        parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.15, damp);
-        parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI / 2, damp);
-        parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, 0, damp);
+        // LEFT ARM LOGIC
+        if (isBow) {
+            // Bow Hold (Left Arm Extended Down-ish)
+            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.3, damp);
+            parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0.5, damp);
+            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.2, damp);
+            parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.4, damp);
+            parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, damp);
+        } else {
+            parts.leftArm.rotation.set(Math.sin(t)*0.03, 0, 0.15);
+            parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.15, damp);
+            parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI / 2, damp);
+            parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, 0, damp);
+        }
 
         if (skipRightArm) return;
 
-        if (isHolding) {
-             if (stance === 'shoulder') {
+        // RIGHT ARM LOGIC
+        if (holdingItem) {
+             if (isBow) {
+                 // Free Right Hand (Near hip/quiver)
+                 parts.rightArm.rotation.set(Math.sin(t+1)*0.03, 0, -0.15);
+                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.15, damp);
+                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI / 2, damp);
+                 parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, 0, damp);
+             } else if (stance === 'shoulder') {
                 parts.rightArm.rotation.set(-0.5 + Math.sin(t)*0.03, 0, -0.1);
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -2.2, damp);
                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI / 2, damp);

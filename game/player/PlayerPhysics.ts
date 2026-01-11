@@ -13,15 +13,33 @@ export class PlayerPhysics {
         nextPos.x += worldDir.x * dist;
         nextPos.z += worldDir.z * dist;
         
-        if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles)) {
+        if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
             player.mesh.position.copy(nextPos);
         }
     }
 
     static update(player: Player, dt: number, input: PlayerInput, cameraAngle: number, obstacles: THREE.Object3D[]) {
         // 1. Handle Ground & Gravity
-        const groundHeight = PlayerUtils.getGroundHeight(player.mesh.position, player.config, obstacles);
+        const pos = player.mesh.position;
+        let groundHeight = PlayerUtils.getGroundHeight(pos, player.config, obstacles);
+        const waterDepth = PlayerUtils.getTerrainHeight(pos.x, pos.z);
+        const isInWater = waterDepth < -0.05;
         
+        // Lift character slightly if wearing shoes to accommodate sole thickness
+        if (player.config.equipment.shoes) {
+            groundHeight += 0.015;
+        }
+
+        // Calculate Water Resistance Multiplier (1.0 = normal, 0.3 = very slow)
+        let waterResistance = 1.0;
+        if (isInWater) {
+            // max depth is -1.8. normalize current depth (0 to 1)
+            const d = Math.abs(waterDepth);
+            // Map depth to speed multiplier: 0.1m depth = 0.8x speed, 1.8m depth = 0.3x speed
+            waterResistance = THREE.MathUtils.mapLinear(d, 0, 1.8, 0.8, 0.3);
+            waterResistance = THREE.MathUtils.clamp(waterResistance, 0.3, 0.8);
+        }
+
         if (player.isJumping) {
             player.jumpVelocity += player.gravity * dt;
             player.mesh.position.y += player.jumpVelocity * dt;
@@ -47,10 +65,13 @@ export class PlayerPhysics {
                     player.mesh.position.y = groundHeight;
                     player.jumpVelocity = 0;
                 }
-            } else if (input.jump && !player.isPickingUp && !player.isSkinning && !player.isDead) {
+            } else if (input.jump && !player.isPickingUp && !player.isSkinning && !player.status.isDead) {
                 // Initiate Jump
                 player.isJumping = true;
-                player.jumpVelocity = player.jumpPower;
+                
+                // Reduce jump power if in deep water (harder to push off)
+                const jumpPowerMod = isInWater ? Math.max(0.4, 1.0 - (Math.abs(waterDepth) * 0.5)) : 1.0;
+                player.jumpVelocity = player.jumpPower * jumpPowerMod;
                 player.jumpTimer = 0;
             } else {
                 player.mesh.position.y = groundHeight;
@@ -58,14 +79,14 @@ export class PlayerPhysics {
         }
 
         // 2. Handle Movement (if not dead/climbing)
-        if (player.isDead || player.isLedgeGrabbing) return;
+        if (player.status.isDead || player.isLedgeGrabbing) return;
 
         const isMoving = input.x !== 0 || input.y !== 0;
         
-        // Calculate Speed with Foliage Penalty
         const baseSpeed = input.isRunning ? player.moveSpeed * 1.8 : player.moveSpeed;
         let speedModifier = 1.0;
         
+        // Environment Resistance (Bushes/Soft obstacles)
         const playerBox = PlayerUtils.getHitboxBounds(player.mesh.position, player.config);
         for (const obs of obstacles) {
             if (obs.userData.type === 'soft') {
@@ -77,7 +98,9 @@ export class PlayerPhysics {
             }
         }
         
-        const finalSpeed = baseSpeed * speedModifier;
+        // Combine soft-obstacle resistance with water resistance (take the harshest)
+        const finalSpeedModifier = Math.min(speedModifier, waterResistance);
+        const finalSpeed = baseSpeed * finalSpeedModifier;
 
         if (isMoving && !player.isPickingUp && !player.isSkinning) {
             const targetRotation = cameraAngle + Math.PI;
@@ -100,7 +123,7 @@ export class PlayerPhysics {
             nextPos.x += dx;
             nextPos.z += dz;
 
-            if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles)) {
+            if (!PlayerUtils.checkCollision(nextPos, player.config, obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
                 player.mesh.position.copy(nextPos);
             }
         }
@@ -113,7 +136,6 @@ export class PlayerPhysics {
         
         const bounds = PlayerUtils.getHitboxBounds(player.mesh.position, player.config);
         const boundsHeight = bounds.max.y - bounds.min.y;
-        // Cast ray from near top
         const rayY = bounds.min.y + boundsHeight * 0.85; 
 
         const rayOrigin = player.mesh.position.clone();
@@ -139,7 +161,6 @@ export class PlayerPhysics {
                     ledgeTopY, 
                     player.mesh.position.z + forward.z * 0.7
                 );
-                // Adjust hang position
                 const hangOffset = boundsHeight + 0.05;
                 player.mesh.position.y = ledgeTopY - hangOffset;
                 player.ledgeStartPos.y = player.mesh.position.y;

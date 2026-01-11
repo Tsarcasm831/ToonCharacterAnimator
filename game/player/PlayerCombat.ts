@@ -9,15 +9,9 @@ import { Environment } from '../Environment';
 export class PlayerCombat {
     static update(player: Player, dt: number, input: PlayerInput, environment: Environment, particleManager: ParticleManager) {
         
-        const attack1Triggered = input.attack1 && !player.wasAttack1Pressed;
-        const attack2Triggered = input.attack2 && !player.wasAttack2Pressed;
-
         // Handle Inputs
         if (player.config.selectedItem === 'Fishing Pole') {
-            // Fishing requires precise toggle (Rising Edge)
-            if (attack1Triggered || attack2Triggered) {
-                this.handleFishingInput(player);
-            }
+            this.handleFishingInput(player, dt, input);
         } else {
             // Other weapons support continuous hold (Auto-attack)
             if (input.attack1) {
@@ -44,18 +38,42 @@ export class PlayerCombat {
         this.updatePunchCombo(player, dt, input, environment.obstacles);
     }
 
-    private static handleFishingInput(player: Player) {
-        if (!player.isFishing) {
-            // Start Cast
-            player.isFishing = true;
-            player.fishingTimer = 0;
+    private static handleFishingInput(player: Player, dt: number, input: PlayerInput) {
+        if (!input.attack1) {
+            player.needsReclick = false;
+        }
+        
+        if (player.needsReclick) return;
+
+        if (player.isFishing) {
+            if (input.attack1) {
+                player.isReeling = true;
+            } else {
+                player.isReeling = false;
+            }
+            return;
+        }
+
+        if (input.attack1) {
+            if (!player.isChargingFishing) {
+                player.isChargingFishing = true;
+                player.fishingChargeTime = 0;
+            }
+            player.fishingChargeTime += dt * 3.0;
+            player.fishingCharge = (Math.sin(player.fishingChargeTime - Math.PI/2) + 1) / 2;
         } else {
-            // If already fishing and cast is complete (in hold phase), retract
-            // Cast duration is roughly 0.8s
-            if (player.fishingTimer > 0.8) {
-                player.isFishing = false;
-                player.fishingTimer = 0;
-                // Transition back to idle is handled by the animator blending out of FishingAction
+            if (player.isChargingFishing) {
+                player.isChargingFishing = false;
+                player.isFishing = true; 
+                player.isReeling = false;
+                player.fishingTimer = 0.3; 
+                const weapon = player.model.equippedMeshes.heldItem;
+                if (weapon) {
+                    const minStr = 0.2; 
+                    const str = minStr + player.fishingCharge * (1.0 - minStr);
+                    weapon.userData.castStrength = str;
+                }
+                player.fishingCharge = 0;
             }
         }
     }
@@ -80,7 +98,7 @@ export class PlayerCombat {
         if (!player.isAxeSwing) {
             player.isAxeSwing = true;
             player.axeSwingTimer = 0;
-            player.hasHit = false; // Reset hit flag at start of swing
+            player.hasHit = false;
         }
     }
 
@@ -88,22 +106,16 @@ export class PlayerCombat {
         if (player.isAxeSwing) {
             player.axeSwingTimer += dt;
             const item = player.config.selectedItem;
-            const isSword = item === 'Sword';
-            const isKnife = item === 'Knife';
-            const isAxe = item === 'Axe';
+            const isAxe = item === 'Axe' || item === 'Halberd';
             const isPick = item === 'Pickaxe';
             
             let duration = 0.9;
-            if (isSword) duration = 0.6;
-            if (isKnife) duration = 0.4;
+            if (item === 'Sword') duration = 0.6;
+            if (item === 'Knife') duration = 0.4;
             
-            // IMPACT LOGIC
-            // Typically impact happens midway through. For default swing (Axe/Pick), it's around 0.5 progress.
-            // Duration for axe is 0.9. Impact ~0.45s.
-            const impactTime = duration * 0.5;
+            const impactTime = duration * 0.45; // Slightly earlier impact
             
             if (!player.hasHit && player.axeSwingTimer > impactTime) {
-                // Check for tree collision to spawn particles
                 if (isAxe || isPick) {
                     this.checkChoppingImpact(player, environment, particleManager);
                 }
@@ -119,34 +131,36 @@ export class PlayerCombat {
     }
 
     private static checkChoppingImpact(player: Player, environment: Environment, particleManager: ParticleManager) {
-        const hitRange = 1.0; // 1 meter
+        // Generous hit range for tree trunks (includes reach + trunk radius)
+        const hitRange = 2.0; 
         const playerPos = player.mesh.position;
-        const playerForward = new THREE.Vector3();
-        player.mesh.getWorldDirection(playerForward);
+        
+        // Character is rotated by PI in local space, so forward is +Z in its local space.
+        // We use applyQuaternion to find world forward.
+        const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion).normalize();
+        playerForward.y = 0; 
 
-        // Find closest obstacle in front
         let closest: THREE.Object3D | null = null;
         let minDist = Infinity;
 
-        // Iterate through environment obstacles
         for (const obs of environment.obstacles) {
-            // Only care about trees (wood) or potentially rocks (stone)
             if (obs.userData.type === 'hard') {
                 const obsPos = new THREE.Vector3();
                 obs.getWorldPosition(obsPos);
                 
-                // Ignore height difference for general proximity
-                const dist = playerPos.distanceTo(obsPos);
+                // Calculate horizontal distance to center of obstacle
+                const dx = obsPos.x - playerPos.x;
+                const dz = obsPos.z - playerPos.z;
+                const distXZ = Math.sqrt(dx * dx + dz * dz);
 
-                if (dist < hitRange + 1.2) { // Broad phase check (radius of obstacle + hit range)
-                    // Precise check to surface roughly
-                    const dirToObs = new THREE.Vector3().subVectors(obsPos, playerPos).normalize();
+                if (distXZ < hitRange) {
+                    const dirToObs = new THREE.Vector3(dx, 0, dz).normalize();
                     const dot = playerForward.dot(dirToObs);
 
-                    // Must be in front (dot > 0.5 is ~60 degree cone)
-                    if (dot > 0.5) {
-                        if (dist < minDist) {
-                            minDist = dist;
+                    // Impact in a ~140 degree front cone
+                    if (dot > 0.35) {
+                        if (distXZ < minDist) {
+                            minDist = distXZ;
                             closest = obs;
                         }
                     }
@@ -154,23 +168,20 @@ export class PlayerCombat {
             }
         }
 
-        if (closest && minDist <= hitRange + 1.2) { 
-             // Determine impact point (roughly between player and object)
+        if (closest) { 
              const obsPos = new THREE.Vector3();
              closest.getWorldPosition(obsPos);
              
-             // Hit point calculation
-             const impactPos = playerPos.clone().lerp(obsPos, 0.4);
-             impactPos.y += 1.0; // Hit at chest height
+             // Visual hit point roughly at weapon tip height
+             const impactPos = playerPos.clone().lerp(obsPos, 0.5);
+             impactPos.y += 1.1; 
 
-             // Call Environment to handle logic (health, felling)
              const materialType = environment.damageObstacle(closest, 1);
              
              if (materialType === 'wood') {
                  particleManager.emit(impactPos, 12, 'wood');
              } else if (materialType === 'stone') {
-                 // Stone hits create sparks
-                 particleManager.emit(impactPos, 20, 'spark');
+                 particleManager.emit(impactPos, 15, 'spark');
              }
         }
     }
@@ -181,36 +192,27 @@ export class PlayerCombat {
         player.punchTimer += dt;
         const t = player.punchTimer;
         
-        // Movement Impulses
-        if (t > 0.15 && t < 0.3) {
+        if (t > 0.2 && t < 0.4) {
             PlayerPhysics.applyForwardImpulse(player, dt, 2.0, obstacles);
         }
-        if (player.comboChain >= 2 && t > 0.6 && t < 0.75) {
+        if (player.comboChain >= 2 && t > 0.8 && t < 1.0) {
             PlayerPhysics.applyForwardImpulse(player, dt, 2.0, obstacles);
         }
-        if (player.comboChain >= 3 && t > 1.05 && t < 1.20) {
+        if (player.comboChain >= 3 && t > 1.4 && t < 1.6) {
             PlayerPhysics.applyForwardImpulse(player, dt, 2.5, obstacles);
         }
 
-        const punch1Dur = 0.45;
-        const punch2Dur = 0.90;
-        const punch3Dur = 1.35;
+        const punch1Dur = 0.6;
+        const punch2Dur = 1.2;
+        const punch3Dur = 1.8;
         const isHolding = input.attack1 || false;
 
         if (player.comboChain === 1 && t > punch1Dur) {
-            if (isHolding) {
-                player.comboChain = 2;
-            } else {
-                player.isPunch = false;
-                player.punchTimer = 0;
-            }
+            if (isHolding) player.comboChain = 2;
+            else { player.isPunch = false; player.punchTimer = 0; }
         } else if (player.comboChain === 2 && t > punch2Dur) {
-            if (isHolding) {
-                player.comboChain = 3;
-            } else {
-                player.isPunch = false;
-                player.punchTimer = 0;
-            }
+            if (isHolding) player.comboChain = 3;
+            else { player.isPunch = false; player.punchTimer = 0; }
         } else if (player.comboChain === 3 && t > punch3Dur) {
             player.isPunch = false;
             player.comboChain = 1;

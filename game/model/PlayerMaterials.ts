@@ -94,25 +94,45 @@ export class PlayerMaterials {
             bumpMap: brainTex || undefined,
             bumpScale: 0.015,
         });
+        
+        this.sync(config);
     }
 
     sync(config: PlayerConfig) {
-        this.skin.color.set(config.skinColor);
-        this.sclera.color.set(config.scleraColor);
-        this.iris.color.set(config.eyeColor);
-        this.pupil.color.set(config.pupilColor);
-        this.lip.color.set(config.lipColor);
-        this.hair.color.set(config.hairColor);
-    }
+        const applyColor = (mat: THREE.MeshToonMaterial, color: string | number) => {
+            const base = new THREE.Color(color);
+            if (config.tintColor) {
+                const tint = new THREE.Color(config.tintColor);
+                base.multiply(tint);
+            }
+            mat.color.copy(base);
+        };
 
-    applyOutfit(outfit: OutfitType, skinColor: string) {
-        let sc = 0x888888, pc = 0x444444, bc = 0x222222;
-        if(outfit === 'peasant') { sc = 0x8d6e63; pc = 0x5d4037; bc = 0x3e2723; }
-        else if(outfit === 'warrior') { sc = 0x607d8b; pc = 0x37474f; bc = 0x263238; }
-        else if(outfit === 'noble') { sc = 0x3f51b5; pc = 0x1a237e; bc = 0x111111; }
-        else if(outfit === 'naked' || outfit === 'nude') { sc = pc = bc = new THREE.Color(skinColor).getHex(); }
-        this.shirt.color.setHex(sc);
-        this.pants.color.setHex(pc);
-        this.boots.color.setHex(bc);
+        applyColor(this.skin, config.skinColor);
+        applyColor(this.sclera, config.scleraColor);
+        applyColor(this.iris, config.eyeColor);
+        applyColor(this.pupil, config.pupilColor);
+        applyColor(this.lip, config.lipColor);
+        applyColor(this.hair, config.hairColor);
+
+        if (config.equipment.shirt) {
+            applyColor(this.shirt, config.shirtColor);
+        } else {
+            applyColor(this.shirt, config.skinColor);
+        }
+
+        if (config.equipment.pants) {
+            applyColor(this.pants, config.pantsColor);
+        } else {
+            applyColor(this.pants, config.skinColor);
+        }
+
+        if (config.equipment.shoes) {
+            applyColor(this.boots, config.bootsColor || '#3e2723');
+        } else {
+            applyColor(this.boots, config.skinColor);
+        }
     }
+    
+    applyOutfit(outfit: OutfitType, skinColor: string) {}
 }

@@ -2,14 +2,14 @@
 import * as THREE from 'three';
 import type { Player } from '../Player';
 import { PlayerInput } from '../../types';
+import { LowLevelCityGuard } from '../LowLevelCityGuard';
 
 export class PlayerInteraction {
 
-    static update(player: Player, dt: number, input: PlayerInput, obstacles: THREE.Object3D[]) {
+    static update(player: Player, dt: number, input: PlayerInput, obstacles: THREE.Object3D[], entities: any[] = []) {
         // Ledge Climbing
         if (player.isLedgeGrabbing) {
             this.updateClimb(player, dt);
-            // Return early if climbing to prevent other actions
             return; 
         }
 
@@ -41,6 +41,9 @@ export class PlayerInteraction {
         const nearSkinnable = this.checkSkinnablesNearby(player, obstacles);
         player.canSkin = nearSkinnable && hasKnife;
 
+        // Dialogue Check (Guard Interaction)
+        this.checkGuardsNearby(player, entities);
+
         if (input.isPickingUp) {
             if (player.canSkin && !player.isSkinning && !player.isPickingUp) {
                 player.isSkinning = true;
@@ -63,7 +66,6 @@ export class PlayerInteraction {
                 if (player.skinningTimer >= player.maxSkinningTime) {
                     player.isSkinning = false;
                     player.skinningTimer = 0;
-                    // Trigger completion event (e.g. add item) here if needed
                     player.addItem('Fur'); 
                 }
             }
@@ -74,33 +76,24 @@ export class PlayerInteraction {
 
     private static updateClimb(player: Player, dt: number) {
         player.ledgeGrabTime += dt;
-        const climbDuration = 1.2; // Slowed down from 0.8
+        const climbDuration = 1.2; 
         const progress = Math.min(player.ledgeGrabTime / climbDuration, 1.0);
         
-        // L-Shaped Movement Logic to respect collision geometry
-        // 1. Hang (0 - 0.15)
-        // 2. Pull Up Vertical (0.15 - 0.65)
-        // 3. Mantle Forward (0.65 - 1.0)
-
         if (progress < 0.15) {
-            // Static Hang
             player.mesh.position.copy(player.ledgeStartPos);
         } else if (progress < 0.65) {
-            // Vertical Pull
-            const t = (progress - 0.15) / 0.5; // Normalized 0-1 for this phase
-            const ease = 1 - Math.pow(1 - t, 3); // Cubic Ease Out
+            const t = (progress - 0.15) / 0.5; 
+            const ease = 1 - Math.pow(1 - t, 3); 
             
             player.mesh.position.x = player.ledgeStartPos.x;
             player.mesh.position.z = player.ledgeStartPos.z;
             player.mesh.position.y = THREE.MathUtils.lerp(player.ledgeStartPos.y, player.ledgeTargetPos.y, ease);
         } else {
-            // Forward Mantle
-            const t = (progress - 0.65) / 0.35; // Normalized 0-1
-            const ease = 1 - Math.pow(1 - t, 2); // Quad Ease Out
+            const t = (progress - 0.65) / 0.35; 
+            const ease = 1 - Math.pow(1 - t, 2); 
             
             player.mesh.position.y = player.ledgeTargetPos.y;
             
-            // Interpolate X/Z from Start to Target
             const startVec = new THREE.Vector3(player.ledgeStartPos.x, 0, player.ledgeStartPos.z);
             const targetVec = new THREE.Vector3(player.ledgeTargetPos.x, 0, player.ledgeTargetPos.z);
             const currentVec = new THREE.Vector3().lerpVectors(startVec, targetVec, ease);
@@ -129,5 +122,24 @@ export class PlayerInteraction {
             }
         }
         return false;
+    }
+
+    private static checkGuardsNearby(player: Player, entities: any[]) {
+        player.canTalk = false;
+        player.talkingTarget = null;
+
+        for (const entity of entities) {
+            if (entity instanceof LowLevelCityGuard) {
+                // Ignore guards in combat
+                if (entity.isInCombat()) continue;
+
+                const dist = player.mesh.position.distanceTo(entity.position);
+                if (dist < 2.0) {
+                    player.canTalk = true;
+                    player.talkingTarget = entity;
+                    break;
+                }
+            }
+        }
     }
 }

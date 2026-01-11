@@ -192,10 +192,13 @@ const applyEffects = (group: THREE.Group, cfg: WeaponConfig, mats: WeaponMateria
 
 function createWeapon(): THREE.Group {
     const group = new THREE.Group();
+    // Inner container for rotation independent of attachment point
+    const inner = new THREE.Group();
+    group.add(inner);
+
     const cfg = weaponConfig;
     const mats = getMaterials(cfg);
     // Adjusted scale factor to match game character size.
-    // 1.8m rod length * 1.0 = 1.8m (Realistic). 5.0 would be 9m.
     const s = 1.0; 
 
     // Config mapping
@@ -211,7 +214,7 @@ function createWeapon(): THREE.Group {
     const handleGeo = new THREE.CylinderGeometry(handleR, handleR, handleH, 16);
     const handle = new THREE.Mesh(handleGeo, mats.handleMat);
     handle.position.y = handleH / 2;
-    group.add(handle);
+    inner.add(handle);
 
     // 2. Reel Seat & Mechanism
     const reelGroup = new THREE.Group();
@@ -232,32 +235,66 @@ function createWeapon(): THREE.Group {
     crank.position.set(reelSize * 0.5, 0, handleR + reelSize * 0.8);
     reelGroup.add(crank);
     
-    group.add(reelGroup);
+    inner.add(reelGroup);
 
     // 3. Rod Shaft (Tapered)
     const rodGeo = new THREE.CylinderGeometry(handleR * 0.2, handleR * 0.8, rodL, 8);
     const rod = new THREE.Mesh(rodGeo, mats.metalMat);
     rod.position.y = handleH + rodL / 2;
-    group.add(rod);
+    inner.add(rod);
 
-    // 4. Eyelets (Rings along the rod)
+    // 4. Eyelets (Rings) & Static Line
+    const linePoints: THREE.Vector3[] = [];
+    
+    // Start at Spool
+    // Spool is offset in ReelGroup (Z = handleR*1.2 + handleR + reelSize*0.4) relative to inner
+    const spoolZ = (handleR * 1.2) + (handleR + reelSize * 0.4);
+    // Line comes off top of spool
+    linePoints.push(new THREE.Vector3(0, handleH * 0.8 + reelSize * 0.9, spoolZ));
+
     const numEyes = 4;
     for(let i = 0; i < numEyes; i++) {
         const t = (i + 1) / (numEyes + 1);
         const yPos = handleH + rodL * t;
         const r = (handleR * 0.5) * (1 - t) + 0.02; 
+        const zPos = (handleR * 0.8 * (1-t) + handleR * 0.2 * t);
         
         const eye = new THREE.Mesh(new THREE.TorusGeometry(r, r*0.2, 4, 12), mats.metalMat);
-        eye.position.set(0, yPos, (handleR * 0.8 * (1-t) + handleR * 0.2 * t)); 
-        eye.rotation.y = Math.PI / 2;
-        group.add(eye);
+        eye.position.set(0, yPos, zPos); 
+        // Rotation X 90 degrees to align ring hole with Y-axis (Rod axis)
+        eye.rotation.x = Math.PI / 2;
+        inner.add(eye);
+        
+        // Line passes through center
+        linePoints.push(new THREE.Vector3(0, yPos, zPos));
     }
-
-    // --- Dynamic Parts for Animation ---
+    
+    // Tip
     const tipY = handleH + rodL;
     const tipOffsetZ = handleR * 0.2; 
-    const tipPosition = new THREE.Vector3(0, tipY, tipOffsetZ);
-    group.userData.tipPosition = tipPosition;
+    linePoints.push(new THREE.Vector3(0, tipY, tipOffsetZ));
+    
+    // Create Static Line Mesh
+    const lineCurve = new THREE.CatmullRomCurve3(linePoints);
+    lineCurve.curveType = 'catmullrom';
+    lineCurve.tension = 0.2; // Low tension for straighter line
+    const tubeGeo = new THREE.TubeGeometry(lineCurve, 12, lineThick, 4, false);
+    const staticLine = new THREE.Mesh(tubeGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
+    inner.add(staticLine);
+
+    // --- Rotate Internal Parts ---
+    // This rotates the rod features (reel, guides) 90 degrees around the Rod Axis.
+    inner.rotation.y = Math.PI / 2;
+
+    // --- Dynamic Parts for Animation ---
+    
+    // Calculate Tip Position in World Space relative to Group (transformed by inner rotation)
+    // Original local pos in inner: (0, tipY, tipOffsetZ)
+    const tipPosLocal = new THREE.Vector3(0, tipY, tipOffsetZ);
+    // Apply rotation
+    tipPosLocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+    
+    group.userData.tipPosition = tipPosLocal;
 
     // 5. Fishing Line (Reconstructed for Animation)
     // Cylinder pivot at start (0,0,0) and points along +Z local axis for easy LookAt/Scaling
@@ -267,9 +304,17 @@ function createWeapon(): THREE.Group {
     
     const line = new THREE.Mesh(lineGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
     line.name = 'fishingLine';
-    line.position.copy(tipPosition);
+    
+    // Add dynamic parts to group (not inner) so they animate independently in world space easier
+    // but anchored at calculated tip position
+    line.position.copy(tipPosLocal);
     line.scale.set(1, 1, lineL); // Initial length
-    line.lookAt(0, tipY - lineL, tipOffsetZ); // Point down initially
+    
+    // Calculate initial hanging position based on rotation
+    const bobberInitialPos = tipPosLocal.clone();
+    bobberInitialPos.y -= lineL;
+    
+    line.lookAt(bobberInitialPos); 
     group.add(line);
 
     // 6. Bobber
@@ -278,7 +323,7 @@ function createWeapon(): THREE.Group {
     bobber.name = 'bobber'; 
     bobber.userData.isRing = false;
     // Initial position hanging down
-    bobber.position.set(0, tipY - lineL, tipOffsetZ);
+    bobber.position.copy(bobberInitialPos);
     
     // Add "damagePart" name to a sub-object or handling if needed for effects, 
     // but effects system looks for 'damagePart'. Let's add a dummy or alias.
@@ -301,7 +346,9 @@ export class FishingPoleBuilder {
     static build(woodMat: THREE.Material, metalMat: THREE.Material): THREE.Group {
         const group = createWeapon();
         
-        // Align to hand coordinate system (Hand holds X-axis)
+        // Align to hand coordinate system (Hand holds X-axis, provided rod is Y-axis)
+        // Lay flat (Length along X). 
+        // With inner rotation y=90, Reel is at +X (Top relative to hand due to lay flat Z=-90)
         group.rotation.z = -Math.PI / 2;
         
         return group;
