@@ -9,140 +9,169 @@ export class StatusAnimator {
     private _localDown = new THREE.Vector3(0, -1, 0);
 
     animateDeath(player: any, parts: any, dt: number, damp: number) {
-        const dv = player.deathVariation;
+        const dv = player.status.deathVariation;
         const lerp = THREE.MathUtils.lerp;
-        const t = player.deathTime;
+        const t = player.status.deathTime;
         
-        // Physics constants
-        const impactTime = 0.4;
-        const isImpacted = t > impactTime;
+        // Physics Phases
+        const buckleDuration = 0.15;
+        const fallDuration = 0.45;
+        const impactTime = buckleDuration + fallDuration; // ~0.6s
         
-        // Settle factor: 0 -> 1 after impact. Used to relax limbs due to gravity.
-        const settleTime = Math.max(0, t - impactTime);
-        const settleAlpha = Math.min(settleTime / 0.8, 1.0); 
-        const easeSettle = settleAlpha * (2 - settleAlpha); // Ease out
-        
-        // 1. GRAVITY & DROP (Accelerate into the ground)
-        const dropProgress = Math.min(t / impactTime, 1.0);
-        const gravityCurve = dropProgress * dropProgress; // Ease In Quad
-        
+        const isBuckling = t < buckleDuration;
+        const isFalling = t >= buckleDuration && t < impactTime;
+        const isImpacted = t >= impactTime;
+        const timeSinceImpact = Math.max(0, t - impactTime);
+
+        // 1. HEIGHT & Y-POSITION
         const baseHeight = 0.89 * player.config.legScale;
-        const groundHeight = 0.22 * player.config.legScale; // Hips radius distance from ground
+        const groundHeight = 0.22 * player.config.legScale;
         
-        // Calculate target Y. If impacted, add a tiny bounce/settle
-        let targetY = lerp(baseHeight, groundHeight, gravityCurve);
-        if (isImpacted) {
-            // Subtle bounce on impact
-            const bounce = Math.max(0, Math.sin((t - impactTime) * 15) * 0.05 * Math.exp(-(t - impactTime) * 5));
-            targetY += bounce;
+        let targetY = baseHeight;
+        
+        if (isBuckling) {
+            // Knees give way - slight drop
+            const p = t / buckleDuration;
+            targetY = lerp(baseHeight, baseHeight - 0.2, p);
+        } else if (isFalling) {
+            // Gravity acceleration
+            const p = (t - buckleDuration) / fallDuration;
+            const easeIn = p * p * p; // Cubic for gravity
+            targetY = lerp(baseHeight - 0.2, groundHeight, easeIn);
+        } else {
+            // Impact Bounce
+            targetY = groundHeight;
+            // Damped cosine bounce
+            const bounce = Math.exp(-timeSinceImpact * 6.0) * Math.cos(timeSinceImpact * 15.0) * 0.08;
+            targetY += Math.abs(bounce); // Bounce UP only
         }
-
-        parts.hips.position.y = lerp(parts.hips.position.y, targetY, damp * 3.0);
         
-        // 2. ROTATION (Buckle -> Twist -> Slam)
-        const fallDirection = dv.fallDir; // 1 = Forward, -1 = Backward
-        const targetRotX = (Math.PI / 2.1) * fallDirection; 
+        // Hips Position
+        parts.hips.position.y = lerp(parts.hips.position.y, targetY, damp * 8); // Tight tracking for physics feel
+
+        // 2. MAIN BODY ROTATION
+        const fallDir = dv.fallDir; // 1 = Forward, -1 = Backward
         
-        const rotSpeed = isImpacted ? damp * 2.0 : damp * 0.8 + (gravityCurve * 0.5); 
-        parts.hips.rotation.x = lerp(parts.hips.rotation.x, targetRotX, rotSpeed);
-        parts.hips.rotation.z = lerp(parts.hips.rotation.z, dv.stumbleDir * 0.5, rotSpeed);
-        parts.hips.rotation.y = lerp(parts.hips.rotation.y, dv.twist, rotSpeed);
-
-        parts.torsoContainer.rotation.set(0, 0, 0);
-
-        // --- GRAVITY CALCULATION ---
-        // Calculate local gravity vector to bias limbs
-        this._tempQuat.setFromEuler(parts.hips.rotation);
-        const invHipQ = this._tempQuat.invert();
-        const localG = this._localDown.clone().applyQuaternion(invHipQ);
-
-        // Collision Avoidance:
-        // If hips are near ground, reduce the "Swing" gravity bias. 
-        // This prevents limbs from rotating purely downwards into the floor.
-        const distToGround = Math.max(0, parts.hips.position.y - groundHeight);
-        const groundBlend = Math.min(distToGround / 0.3, 1.0); // 0 = On Ground, 1 = In Air
-        const floorDamp = 0.1 + (0.9 * groundBlend); // Dampen to 10% when on ground
-
-        // Bias factors
-        // As time progresses, limbs succumb more to gravity
-        const looseness = lerp(0.3, 1.0, easeSettle);
+        let targetRotX = 0;
         
-        // Gravity components mapped to rotations
-        // localG.z is Forward/Back pull -> Affects X rotation (Swing)
-        const gravBiasSwing = -localG.z * looseness * 1.5 * floorDamp; 
-        const gravBiasSpread = localG.x * looseness * 1.5;
+        if (isBuckling) {
+            // Hunch/Anticipate
+            targetRotX = fallDir * 0.15;
+        } else if (isFalling) {
+            // Fall over
+            const p = (t - buckleDuration) / fallDuration;
+            // Rotate to 90 degrees (PI/2)
+            targetRotX = lerp(fallDir * 0.15, fallDir * (Math.PI / 2), p);
+        } else {
+            // Flat on ground
+            targetRotX = fallDir * (Math.PI / 2);
+            // Slight recoil
+            const recoil = Math.exp(-timeSinceImpact * 4.0) * Math.sin(timeSinceImpact * 10.0) * 0.05;
+            targetRotX += recoil * fallDir;
+        }
+        
+        parts.hips.rotation.x = lerp(parts.hips.rotation.x, targetRotX, damp * 5);
+        parts.hips.rotation.y = lerp(parts.hips.rotation.y, dv.twist, damp);
+        parts.hips.rotation.z = lerp(parts.hips.rotation.z, dv.stumbleDir * 0.3, damp);
 
-        // 3. LIMBS & WHIPLASH
-        if (fallDirection > 0) { 
+        parts.torsoContainer.rotation.set(0, 0, 0); // Reset local torso, drive everything from hips/limbs
+
+        // 3. LIMB ANIMATION
+        if (fallDir > 0) {
             // === FORWARD FALL ===
-            
-            // Legs
-            const legBend = lerp(0.2, 0.0, easeSettle); 
-            
-            parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, legBend + gravBiasSwing, damp * 2);
-            parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, -legBend + gravBiasSwing, damp * 2);
-            
-            // Gravity Sideways
-            parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, -gravBiasSpread + 0.1, damp);
-            parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -gravBiasSpread - 0.1, damp);
+            if (isBuckling) {
+                // Arms: Reach out to catch
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.2, damp * 5);
+                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -1.2, damp * 5);
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.3, damp * 5);
+                parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.3, damp * 5);
+                
+                // Legs: Buckle
+                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, -0.5, damp * 5);
+                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.8, damp * 5);
+                parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 1.2, damp * 5);
+                parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 1.5, damp * 5);
+                
+                parts.neck.rotation.x = lerp(parts.neck.rotation.x, -0.4, damp * 5); // Head up looking at ground
 
-            parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.1, damp * 2);
-            parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.1, damp * 2);
-            
-            // Arms
-            const armLag = Math.max(0, 1.0 - dropProgress); 
-            const armTargetX = lerp(-2.8, -3.0, easeSettle);
-            const armTargetZ = lerp(0.8, 1.2, easeSettle); 
+            } else {
+                // Impact / Settle
+                const settleDamp = isImpacted ? damp * 3 : damp;
+                
+                // Arms: Splay out above head or to sides on impact
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -2.8, settleDamp);
+                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -2.6, settleDamp);
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -1.2, settleDamp);
+                parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 1.2, settleDamp);
+                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.2, settleDamp);
+                parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.2, settleDamp);
 
-            // Bias Arms
-            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, armTargetX + (armLag * 1.5) + gravBiasSwing, damp * 2);
-            parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, armTargetX + (armLag * 1.5) + gravBiasSwing, damp * 2);
-            
-            // Arm Spread: Opposite signs for Left/Right due to mirroring
-            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, armTargetZ - gravBiasSpread, damp);
-            parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -armTargetZ - gravBiasSpread, damp);
+                // Legs: Straighten somewhat but loose
+                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.1, settleDamp);
+                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, 0.1, settleDamp);
+                parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.1, settleDamp);
+                parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.1, settleDamp);
+                
+                // Splay legs
+                parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -0.2, settleDamp);
+                parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, 0.3, settleDamp);
 
-            // Head Whiplash + Gravity Tilt
-            const headTarget = isImpacted ? -0.4 : 0.5; 
-            parts.neck.rotation.x = lerp(parts.neck.rotation.x, headTarget, damp * (isImpacted ? 4 : 1));
-            parts.head.rotation.y = lerp(parts.head.rotation.y, dv.stumbleDir, damp);
-            parts.head.rotation.z = lerp(parts.head.rotation.z, -localG.x * 0.5, damp);
-
+                // Head: Turn to side
+                parts.neck.rotation.x = lerp(parts.neck.rotation.x, -0.2, settleDamp);
+                parts.head.rotation.y = lerp(parts.head.rotation.y, 0.7 * dv.side, settleDamp);
+            }
         } else {
             // === BACKWARD FALL ===
-            const legKick = Math.max(0, Math.sin(dropProgress * Math.PI)) * 0.5;
-            const legBase = lerp(-0.5, 0.1, easeSettle); 
-            
-            parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, legBase - legKick + gravBiasSwing, damp * 2);
-            parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, legBase - legKick - 0.1 + gravBiasSwing, damp * 2);
-            
-            parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, -gravBiasSpread + 0.1, damp);
-            parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -gravBiasSpread - 0.1, damp);
+            if (isBuckling) {
+                // Arms: Flail Up
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -2.8, damp * 8);
+                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -2.9, damp * 8);
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, 0.5, damp * 8);
+                parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, -0.5, damp * 8);
 
-            const shinTarget = lerp(1.5, 0.2, easeSettle);
-            parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, shinTarget, damp); 
-            parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, shinTarget * 0.3, damp); 
+                // Torso: Arch back
+                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, -0.3, damp * 5);
+                
+                // One leg kicks up
+                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, -1.2, damp * 5);
+                parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.2, damp * 5);
+                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.2, damp * 5);
 
-            // Arms
-            const armTargetX = lerp(-0.5, -0.05, easeSettle);
-            const armTargetZ = lerp(1.2, 1.5, easeSettle); 
+                parts.neck.rotation.x = lerp(parts.neck.rotation.x, 0.5, damp * 5); // Chin tucked in fear
 
-            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, armTargetX + gravBiasSwing, damp);
-            parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, armTargetX + gravBiasSwing, damp);
-            
-            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, armTargetZ - gravBiasSpread, damp);
-            parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -armTargetZ - gravBiasSpread, damp);
-            
-            const headTarget = isImpacted ? 0.6 : -0.4; 
-            parts.neck.rotation.x = lerp(parts.neck.rotation.x, headTarget, damp * (isImpacted ? 3 : 1));
-            parts.head.rotation.z = lerp(parts.head.rotation.z, -localG.x * 0.5, damp);
+            } else {
+                // Impact / Settle
+                const settleDamp = isImpacted ? damp * 3 : damp;
+
+                // Arms: Drop to floor
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.3, settleDamp);
+                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.4, settleDamp);
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -1.3, settleDamp); // Wide
+                parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 1.4, settleDamp);
+                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.1, settleDamp);
+                parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.1, settleDamp);
+
+                // Legs: Relax
+                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.2, settleDamp);
+                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, 0.1, settleDamp);
+                parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.1, settleDamp);
+                parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.1, settleDamp);
+                
+                // Splay
+                parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -0.4, settleDamp);
+                parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, 0.4, settleDamp);
+
+                // Head
+                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.1, settleDamp);
+                parts.neck.rotation.x = lerp(parts.neck.rotation.x, 0.3, settleDamp);
+                parts.head.rotation.y = lerp(parts.head.rotation.y, 0.4 * dv.side, settleDamp);
+            }
         }
 
-        // Close Eyes
+        // Eyes Closed
         const eyelids = player.model.eyelids;
         if (eyelids && eyelids.length === 4) {
-            // Quickly close eyes during fall
-            const closeAlpha = Math.min(t / 0.3, 1.0); 
+            const closeAlpha = Math.min(t / 0.2, 1.0); 
             const closedTop = -0.1;
             const closedBot = 0.1;
             const openTop = -0.7;
@@ -154,11 +183,12 @@ export class StatusAnimator {
             eyelids[3].rotation.x = lerp(openBot, closedBot, closeAlpha);
         }
 
+        // Loose Feet
         playerModelResetFeet(parts, damp);
     }
 
     animateRagdoll(player: any, parts: any, dt: number) {
-        const recoveryAlpha = player.isDragged ? 1.0 : (player.recoverTimer / 2.0);
+        const recoveryAlpha = player.isDragged ? 1.0 : (player.status.recoverTimer / 2.0);
         const dragVel = this._tempVec1.copy(player.dragVelocity);
         if (!player.isDragged) dragVel.multiplyScalar(recoveryAlpha);
         
@@ -167,11 +197,14 @@ export class StatusAnimator {
         const localDown = this._tempVec2.copy(this._localDown).applyQuaternion(invQuat);
         
         const gravStr = 1.2 * recoveryAlpha;
-        const damp = 5 * dt;
+        const damp = 8 * dt; // Increased damp for more responsive dragging
         const lerp = THREE.MathUtils.lerp;
         const baseHeight = 0.89 * player.config.legScale;
 
-        // Hips orient to drag/gravity
+        // Add some noise/swing to limbs based on drag speed
+        const speed = dragVel.length();
+        const noise = Math.sin(Date.now() * 0.01) * speed * 0.1;
+
         parts.hips.rotation.x = lerp(parts.hips.rotation.x, -localDrag.z * 1.5 + (localDown.z * gravStr * 0.5), damp);
         parts.hips.rotation.z = lerp(parts.hips.rotation.z, localDrag.x * 1.5 - (localDown.x * gravStr * 0.5), damp);
         
@@ -180,28 +213,23 @@ export class StatusAnimator {
         parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, -parts.hips.rotation.x * 0.5, damp);
         parts.neck.rotation.set(0,0,0);
 
-        // Legs - Loose Trail
-        // Clamp to avoid floor clipping if hips are low
         const groundHeight = 0.22 * player.config.legScale;
         const dist = Math.max(0, parts.hips.position.y - groundHeight);
-        const airAlpha = Math.min(dist / 0.5, 1.0); // 0 on ground, 1 in air
+        const airAlpha = Math.min(dist / 0.5, 1.0);
 
-        // If dragging forward (+Z), trail back (-X rot).
         const legDragX = -localDrag.z * 2.0;
         const legSpreadZ = localDrag.x * 0.5;
-
-        // When on ground (airAlpha=0), force legs flatter (near 0) instead of dragging down/up
-        const legTargetX = legDragX * airAlpha; 
+        const legTargetX = legDragX * airAlpha + noise; 
 
         parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, legTargetX, damp);
         parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, legTargetX, damp);
-        
-        parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, -legSpreadZ, damp);
-        parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, legSpreadZ, damp);
+        parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, -legSpreadZ - 0.1, damp); // Loose spread
+        parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, legSpreadZ + 0.1, damp);
 
-        // Loose Arms
-        parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, legDragX, damp);
-        parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, legDragX, damp);
+        parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, legDragX - 0.5, damp); // Drag behind
+        parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, legDragX - 0.5, damp);
+        parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.5, damp);
+        parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.5, damp);
 
         playerModelResetFeet(parts, damp);
     }

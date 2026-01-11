@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
 
@@ -8,6 +7,9 @@ export class PlayerUtils {
     static POND_Z = 6;
     static POND_RADIUS = 4.5;
     static POND_DEPTH = 1.8;
+
+    // World size is based on 3x3 grid of 40x40 patches centered at -40, 0, 40
+    static WORLD_LIMIT = 60;
 
     static getHitboxBounds(position: THREE.Vector3, config: PlayerConfig): THREE.Box3 {
         const { legScale, torsoHeight, torsoWidth, headScale } = config;
@@ -43,6 +45,11 @@ export class PlayerUtils {
             if (obsBox.intersectsBox(playerBox)) return true;
         }
         return false;
+    }
+
+    static isWithinBounds(pos: THREE.Vector3, margin: number = 0.5): boolean {
+        const limit = this.WORLD_LIMIT - margin;
+        return pos.x >= -limit && pos.x <= limit && pos.z >= -limit && pos.z <= limit;
     }
 
     static getTerrainHeight(x: number, z: number): number {

@@ -4,13 +4,27 @@ import { PlayerInput } from '../types';
 export class InputManager {
     keys: { [key: string]: boolean } = {};
     isMouseDown: boolean = false;
-    manualInput: Partial<PlayerInput> = {};
+    manualInput: PlayerInput = {
+        x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false,
+        attack1: false, attack2: false, interact: false, combat: false,
+        toggleFirstPerson: false, wave: false, summon: false, toggleBuilder: false, rotateGhost: false
+    };
+    isBlocked: boolean = false;
     
+    // Joystick State
+    private joystickMove = { x: 0, y: 0 };
+    private joystickLook = { x: 0, y: 0 };
+
     // Callbacks for specific actions
     onSlotSelect?: (slotIndex: number) => void;
     onToggleHitbox?: () => void;
+    onToggleObstacleHitboxes?: () => void;
     onToggleCamera?: () => void;
     onToggleHands?: () => void;
+    onToggleSkeletonMode?: () => void;
+    onToggleInventory?: () => void;
+    onToggleFirstPerson?: () => void;
+    onToggleBuilder?: () => void;
 
     constructor() {
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -19,38 +33,57 @@ export class InputManager {
         this.handleMouseUp = this.handleMouseUp.bind(this);
         
         if (typeof window !== 'undefined') {
-            window.addEventListener('keydown', this.handleKeyDown);
-            window.addEventListener('keyup', this.handleKeyUp);
-            window.addEventListener('mousedown', this.handleMouseDown);
-            window.addEventListener('mouseup', this.handleMouseUp);
+            window.addEventListener('keydown', this.handleKeyDown, { passive: false });
+            window.addEventListener('keyup', this.handleKeyUp, { passive: false });
+            window.addEventListener('mousedown', this.handleMouseDown, { passive: false });
+            window.addEventListener('mouseup', this.handleMouseUp, { passive: false });
         }
+    }
+
+    setJoystickMove(x: number, y: number) {
+        this.joystickMove.x = x;
+        this.joystickMove.y = y;
+    }
+
+    setJoystickLook(x: number, y: number) {
+        this.joystickLook.x = x;
+        this.joystickLook.y = y;
+    }
+
+    getJoystickLook() {
+        return this.joystickLook;
     }
 
     setManualInput(input: Partial<PlayerInput>) {
-        this.manualInput = input;
+        Object.assign(this.manualInput, input);
+    }
+
+    setBlocked(blocked: boolean) {
+        this.isBlocked = blocked;
+        if (blocked) {
+            this.isMouseDown = false;
+            this.keys = {}; 
+            this.joystickMove = { x: 0, y: 0 };
+            this.joystickLook = { x: 0, y: 0 };
+        }
     }
 
     private handleKeyDown(e: KeyboardEvent) { 
+        if (e.code === 'KeyI') {
+            this.onToggleInventory?.();
+        }
+
+        if (this.isBlocked) return;
+
         this.keys[e.code] = true; 
         
-        if (e.code === 'KeyG') {
-            this.onToggleHitbox?.();
-        }
-
-        if (e.code === 'KeyX') {
-            this.onToggleCamera?.();
-        }
-
-        if (e.code === 'KeyH') {
-            this.onToggleHands?.();
-        }
-
-        // V for View Reset (Gaze)
-        if (e.code === 'KeyV') {
-            this.manualInput.resetView = true;
-            // Auto-clear after a short frame to act as a trigger
-            setTimeout(() => { this.manualInput.resetView = false; }, 100);
-        }
+        if (e.code === 'KeyG') this.onToggleHitbox?.();
+        if (e.code === 'KeyR') this.onToggleObstacleHitboxes?.();
+        if (e.code === 'KeyX') this.onToggleCamera?.();
+        if (e.code === 'KeyH') this.onToggleHands?.();
+        if (e.code === 'KeyJ') this.onToggleSkeletonMode?.();
+        if (e.code === 'KeyV') this.onToggleFirstPerson?.();
+        if (e.code === 'KeyB') this.onToggleBuilder?.();
 
         if (e.code.startsWith('Digit')) {
             const num = parseInt(e.code.replace('Digit', ''));
@@ -60,9 +93,13 @@ export class InputManager {
         }
     }
     
-    private handleKeyUp(e: KeyboardEvent) { this.keys[e.code] = false; }
+    private handleKeyUp(e: KeyboardEvent) { 
+        if (this.isBlocked) return;
+        this.keys[e.code] = false; 
+    }
     
     private handleMouseDown(e: MouseEvent) {
+        if (this.isBlocked) return;
         if ((e.target as HTMLElement).closest('button, input, select, .no-capture')) return;
         if (e.button === 0) this.isMouseDown = true;
     }
@@ -72,9 +109,22 @@ export class InputManager {
     }
 
     getInput(): PlayerInput {
-        const xInput = (this.keys['KeyD'] || this.keys['ArrowRight'] ? 1 : 0) - (this.keys['KeyA'] || this.keys['ArrowLeft'] ? 1 : 0);
-        const yInput = (this.keys['KeyS'] || this.keys['ArrowDown'] ? 1 : 0) - (this.keys['KeyW'] || this.keys['ArrowUp'] ? 1 : 0);
+        if (this.isBlocked) {
+            return {
+                x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false,
+                attack1: false, attack2: false, interact: false, combat: false,
+                toggleFirstPerson: false, wave: false, summon: false, toggleBuilder: false, rotateGhost: false
+            };
+        }
+
+        let xInput = (this.keys['KeyD'] || this.keys['ArrowRight'] ? 1 : 0) - (this.keys['KeyA'] || this.keys['ArrowLeft'] ? 1 : 0);
+        let yInput = (this.keys['KeyS'] || this.keys['ArrowDown'] ? 1 : 0) - (this.keys['KeyW'] || this.keys['ArrowUp'] ? 1 : 0);
         
+        if (xInput === 0 && yInput === 0) {
+            xInput = this.joystickMove.x;
+            yInput = -this.joystickMove.y; 
+        }
+
         return {
             x: xInput,
             y: yInput,
@@ -84,9 +134,13 @@ export class InputManager {
             isPickingUp: !!(this.keys['KeyP'] || this.keys['KeyF'] || this.manualInput.isPickingUp),
             attack1: !!(this.manualInput.attack1 || this.isMouseDown),
             attack2: !!(this.manualInput.attack2),
-            interact: !!(this.manualInput.interact),
+            interact: !!(this.keys['KeyE'] || this.manualInput.interact),
             combat: !!(this.keys['KeyC'] || this.manualInput.combat),
-            resetView: !!(this.manualInput.resetView)
+            toggleFirstPerson: !!(this.manualInput.toggleFirstPerson),
+            wave: !!(this.manualInput.wave),
+            summon: !!(this.keys['KeyL'] || this.manualInput.summon),
+            toggleBuilder: !!(this.keys['KeyB']),
+            rotateGhost: !!(this.keys['KeyT']) // Changed from KeyR to KeyT
         };
     }
 

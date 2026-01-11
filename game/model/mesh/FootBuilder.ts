@@ -4,14 +4,14 @@ import { PlayerMaterials } from '../PlayerMaterials';
 
 export class FootBuilder {
     static create(materials: PlayerMaterials, isLeft: boolean, arrays: any) {
-        // Ensure material is correct
-        const footMat = materials.boots;
+        // Use Skin material for bare feet
+        const footMat = materials.skin;
 
         // --- Dimensions ---
         const footWidth = 0.095;
         const footHeight = 0.055;
         const totalLength = 0.24; 
-        const rearLen = 0.15; // Main foot block length
+        const rearLen = 0.16; // Increased slightly from 0.15 to bridge gap
         
         const footGroup = new THREE.Group();
         footGroup.name = (isLeft ? 'left' : 'right') + '_foot_anchor';
@@ -65,9 +65,15 @@ export class FootBuilder {
         }
         mainGeo.computeVertexNormals();
         
+        // Calculate main foot bottom position for alignment
+        // Main Mesh Y is -0.03. Height is 0.055. Bottom is -0.03 - 0.0275 = -0.0575
+        const mainMeshY = -0.03;
+        const footBottomY = mainMeshY - (footHeight / 2);
+
         const mainMesh = new THREE.Mesh(mainGeo, footMat);
         // Raised to align bottom with ground relative to ankle (ankle is ~0.07m up)
-        mainMesh.position.set(0, -0.03, 0.03); 
+        // Moved Z forward (0.03 -> 0.035) to accommodate longer rearLen and meet toes
+        mainMesh.position.set(0, mainMeshY, 0.035); 
         mainMesh.castShadow = true;
         heelGroup.add(mainMesh);
         arrays.heelGroups.push(heelGroup);
@@ -77,7 +83,9 @@ export class FootBuilder {
         forefootGroup.name = (isLeft ? 'left' : 'right') + '_forefoot';
         
         // Raised position to align with main foot body
-        forefootGroup.position.set(0, -0.042, 0.098); 
+        // Moved Z forward (0.098 -> 0.115) to extend toes beyond foot mass
+        const forefootY = -0.042;
+        forefootGroup.position.set(0, forefootY, 0.115); 
         footGroup.add(forefootGroup);
 
         const toeCount = 5;
@@ -134,8 +142,12 @@ export class FootBuilder {
 
             const zOffset = -Math.pow(i, 1.5) * 0.004;
 
-            toeUnit.position.set(currentCenter, 0.0, zOffset);
-            toeUnit.userData = { initialX: currentCenter }; // Store for scaling in PlayerModel
+            // Calculate Y position to align bottom with main foot bottom
+            // Target Y in ForefootGroup local space = (FootBottom - ForefootGroupY) + HalfHeight
+            const yPos = (footBottomY - forefootY) + (tH / 2);
+
+            toeUnit.position.set(currentCenter, yPos, zOffset);
+            toeUnit.userData = { initialX: currentCenter, index: i }; // Store for scaling in PlayerModel
             
             const toeMesh = new THREE.Mesh(toeGeo, footMat);
             toeMesh.castShadow = true;

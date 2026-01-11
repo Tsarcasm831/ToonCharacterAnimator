@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import { Game } from '../game/Game';
 import { PlayerConfig, PlayerInput } from '../types';
@@ -10,9 +11,19 @@ interface SceneProps {
   onSlotSelect?: (slotIndex: number) => void;
   onInteractionUpdate?: (text: string | null, progress: number | null) => void;
   onGameReady?: (game: Game) => void;
+  controlsDisabled?: boolean;
 }
 
-const Scene: React.FC<SceneProps> = ({ config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onGameReady }) => {
+const Scene: React.FC<SceneProps> = ({ 
+    config, 
+    manualInput, 
+    initialInventory, 
+    onInventoryUpdate, 
+    onSlotSelect, 
+    onInteractionUpdate, 
+    onGameReady,
+    controlsDisabled = false
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
 
@@ -50,12 +61,18 @@ const Scene: React.FC<SceneProps> = ({ config, manualInput, initialInventory, on
       game.setConfig(config);
       game.setManualInput(manualInput);
       
-      // Update callbacks if they change (though usually they are stable)
+      // Update inventory from React state if it changes (e.g. drag & drop)
+      game.setInventory(initialInventory);
+      
+      // Update callbacks
       game.onInventoryUpdate = onInventoryUpdate;
       game.onInteractionUpdate = onInteractionUpdate;
       if (onSlotSelect) game.setSlotSelectCallback(onSlotSelect);
+      
+      // Sync Control State
+      game.setControlsActive(!controlsDisabled);
 
-  }, [config, manualInput, onInventoryUpdate, onSlotSelect, onInteractionUpdate]);
+  }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, controlsDisabled]);
 
   return <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />;
 };

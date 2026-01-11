@@ -6,7 +6,7 @@ export class PunchAction {
     static animate(player: any, parts: any, dt: number, damp: number, isMoving: boolean) {
         const t = player.punchTimer;
         const lerp = THREE.MathUtils.lerp;
-        const punchDamp = 25 * dt;
+        const punchDamp = 18 * dt; // Snappier punches
         const baseHeight = 0.89 * player.config.legScale;
         
         // Offset to align torso forward if hips are twisted in combat stance idle
@@ -33,13 +33,7 @@ export class PunchAction {
                  const prox = thumb.children.find((c: any) => c.name === 'proximal');
                  if(prox) {
                      prox.rotation.x = lerp(prox.rotation.x, curlAmount * 0.6, damp * 2); // Flex into palm
-                     // Opposition logic
                      const sideMult = isRight ? 1 : -1;
-                     // Right hand opposition is -Z, Left is +Z (relative to local axes set up in builder)
-                     // Actually, HandBuilder sets oppositionAngle = -0.5 * sideMult.
-                     // Here we want to increase opposition.
-                     
-                     // Simply curl inwards on Z
                      const oppDir = isRight ? -1 : 1; 
                      prox.rotation.z = lerp(prox.rotation.z, 0.3 * oppDir * (curlAmount/1.8) - (0.2 * oppDir), damp * 2);
 
@@ -53,170 +47,166 @@ export class PunchAction {
         const stepLength2 = 0.45;
         const stepLength3 = 0.5;
 
-        if (t < 0.45) {
-            // === PUNCH 1: RIGHT HAND, LEFT STEP ===
-            const p = t / 0.45;
+        // Durations
+        const dur1 = 0.6;
+        const dur2 = 1.2;
+        const dur3 = 1.8;
+
+        if (t < dur1) {
+            // === PUNCH 1: RIGHT CROSS (Direct Center) ===
+            const p = t / dur1;
             
-            if (p < 0.3) {
-                // WINDUP
-                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.6, punchDamp);
-                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.4, punchDamp);
-                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -2.3, punchDamp);
-                // Wrist slightly open
-                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0.5, punchDamp); 
+            if (p < 0.25) {
+                // WINDUP (Compact)
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.8, punchDamp); 
+                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0.8, punchDamp); // Elbow back
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.4, punchDamp); 
                 
+                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -2.3, punchDamp); // Cocked
+                parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2, punchDamp); 
+
                 parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.8 + torsoOffset, punchDamp);
 
                 parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - 0.05, punchDamp);
-                // Start stepping forward slightly in windup
                 parts.hips.position.z = lerp(parts.hips.position.z, stepLength1 * 0.3, punchDamp);
-                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.3, punchDamp); // Lift Left
                 
-                applyFist(true, 1.2); // Closing
+                applyFist(true, 1.4); 
 
             } else if (p < 0.8 || player.comboChain > 1) {
-                // STRIKE & HOLD
-                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.5, punchDamp);
-                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, 0.1, punchDamp);
+                // STRIKE (Straight & Center)
+                // -1.55 is roughly horizontal.
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.55, punchDamp);
+                
+                // Angle slightly inward (-0.1) to converge on center from right shoulder
+                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, -0.15, punchDamp);
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, 0.0, punchDamp);
+                
+                // Fully Extend
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.1, punchDamp);
                 
-                // WRIST ROTATION (Pronation - Palm Down)
-                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, -1.4, punchDamp);
+                // Pronate Wrist (Thumb Down) for impact
+                parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI, punchDamp);
 
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.8 + torsoOffset, punchDamp);
-                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.2, punchDamp);
+                // Drive Torso Left
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.6 + torsoOffset, punchDamp);
+                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.15, punchDamp);
 
-                // Legs - Left Step Forward (Full Length)
+                // Legs
                 parts.hips.position.z = lerp(parts.hips.position.z, stepLength1, punchDamp);
-                parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - 0.12, punchDamp);
-
-                // Deep lunge pose
-                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.6, punchDamp); 
+                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.5, punchDamp); 
                 parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.4, punchDamp);
-
-                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.6, punchDamp);
-                parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.1, punchDamp);
-
-                applyFist(true, 1.8); // Tight Fist
+                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.5, punchDamp);
+                
+                applyFist(true, 1.8);
 
             } else {
                 // RECOVERY
                 this.recoverToIdle(parts, punchDamp, baseHeight, lerp, torsoOffset);
-                applyFist(true, 0.1); // Open
+                applyFist(true, 0.1); 
             }
 
-        } else if (t < 0.90) {
-            // === PUNCH 2: LEFT HAND, RIGHT STEP ===
-            const p = (t - 0.45) / 0.45;
+        } else if (t < dur2) {
+            // === PUNCH 2: LEFT CROSS (Direct Center) ===
+            const p = (t - dur1) / (dur2 - dur1);
 
-            if (p < 0.3) {
+            if (p < 0.25) {
                 // WINDUP LEFT / RETRACT RIGHT
+                // Retract Right
                 parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.2, punchDamp); 
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -2.0, punchDamp);
-                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0, punchDamp); // Reset wrist
+                parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2, punchDamp);
                 
-                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, 0.6, punchDamp); 
+                // Cock Left
+                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -1.8, punchDamp); 
+                parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, -0.8, punchDamp); // Elbow back
                 parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -2.3, punchDamp);
 
+                // Twist Right
                 parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.8 + torsoOffset, punchDamp); 
                 
-                applyFist(true, 0.5); // Relax right
-                applyFist(false, 1.2); // Curl Left
+                applyFist(true, 0.5); 
+                applyFist(false, 1.4); 
 
-                // Maintain forward stance during transition!
                 parts.hips.position.z = lerp(parts.hips.position.z, stepLength1, punchDamp);
-                parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - 0.08, punchDamp);
-
-                // Prepare Right Leg Step (Lift)
-                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, -0.3, punchDamp); 
-                parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 1.0, punchDamp); 
-                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, 0.2, punchDamp); 
 
             } else if (p < 0.8 || player.comboChain > 2) {
                 // STRIKE LEFT
-                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -1.6, punchDamp); 
-                parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, -0.1, punchDamp);
-                parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, 0.0, punchDamp); 
-                parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 1.4, punchDamp);
+                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -1.55, punchDamp); 
                 
-                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.2, punchDamp); 
-
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.9 + torsoOffset, punchDamp); 
-                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.2, punchDamp);
+                // Angle Inward (+0.15)
+                parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0.15, punchDamp);
+                parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.0, punchDamp);
                 
-                applyFist(false, 1.8); // Tight Fist Left
+                // Extend
+                parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.1, punchDamp); 
+                
+                // Pronate Left Wrist
+                parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI, punchDamp);
 
-                // Legs - Right Step Forward (Full Length)
+                // Drive Torso Right
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.6 + torsoOffset, punchDamp); 
+                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.15, punchDamp);
+                
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.5, punchDamp); // Guarding
+
+                applyFist(false, 1.8); 
+
                 parts.hips.position.z = lerp(parts.hips.position.z, stepLength2, punchDamp);
-                parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - 0.12, punchDamp);
-                
-                // Switch Legs: Right forward, Left back
                 parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, -0.6, punchDamp); 
-                parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.4, punchDamp);
                 parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, 0.6, punchDamp); 
-                parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.1, punchDamp);
 
             } else {
                 this.recoverToIdle(parts, punchDamp, baseHeight, lerp, torsoOffset);
-                applyFist(false, 0.1); // Open Left
+                applyFist(false, 0.1); 
             }
         
         } else {
-            // === PUNCH 3: RIGHT UPPERCUT, LEFT STEP ===
-            const p = (t - 0.90) / 0.45;
+            // === PUNCH 3: RIGHT UPPERCUT (Vertical Center) ===
+            const p = (t - dur2) / (dur3 - dur2);
 
-            if (p < 0.3) {
-                // WINDUP (Drop low, load right side)
+            if (p < 0.25) {
+                // WINDUP (Drop & Load)
                 parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.5, punchDamp); // Guard
                 parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -2.2, punchDamp);
-                parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0, punchDamp);
                 
-                // Right Arm Scoop
-                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.8, punchDamp); 
-                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.5, punchDamp);
-                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -1.5, punchDamp);
+                // Scoop Right Arm Low
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.5, punchDamp); 
+                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0.5, punchDamp); 
+                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -1.8, punchDamp);
 
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.5 + torsoOffset, punchDamp); 
-                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.3, punchDamp); // Lean fwd
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.4 + torsoOffset, punchDamp); 
+                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.4, punchDamp); // Lean fwd
                 
                 applyFist(true, 1.5);
-                applyFist(false, 1.0); // Keep left guard semi-closed
-
-                // Maintain stance
-                parts.hips.position.z = lerp(parts.hips.position.z, stepLength2, punchDamp);
-                parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - 0.18, punchDamp); // Crouch Deeper
-
-                // Lift Left Knee for step
-                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.5, punchDamp);
-                parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 1.2, punchDamp);
-                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.5, punchDamp); // Plant Right
+                
+                parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - 0.20, punchDamp); // Deep dip
 
             } else {
                 // STRIKE UPPERCUT
-                // Body Thrust Up & Left
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.8 + torsoOffset, punchDamp); 
-                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, -0.2, punchDamp); 
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.5 + torsoOffset, punchDamp); 
+                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, -0.3, punchDamp); // Arch back
 
-                // Right Arm Skyward
-                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.9, punchDamp); 
-                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.6, punchDamp); 
+                // Drive Up Vertical & Center
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -2.3, punchDamp); 
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.2, punchDamp); 
                 
-                // Supinate (Palm Up/In)
-                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 1.5, punchDamp); 
+                // Center alignment
+                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, -0.2, punchDamp); 
                 
-                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -1.4, punchDamp); 
+                // Keep elbow bent for power
+                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -1.2, punchDamp); 
+                
+                // Palm Up (Supinated)
+                parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2 + 1.2, punchDamp); 
                 
                 applyFist(true, 1.8);
 
-                // Legs - Left Step & Extend Up (Big Step)
+                // Jump/Drive
                 parts.hips.position.z = lerp(parts.hips.position.z, stepLength3, punchDamp);
-                parts.hips.position.y = lerp(parts.hips.position.y, baseHeight + 0.05, punchDamp); // Jump/Rise
+                parts.hips.position.y = lerp(parts.hips.position.y, baseHeight + 0.08, punchDamp); 
 
-                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.8, punchDamp); // Land Left fwd
-                parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.4, punchDamp);
-
-                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.6, punchDamp); // Trail Right
-                parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.1, punchDamp);
+                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.8, punchDamp);
+                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.6, punchDamp);
             }
         }
         
@@ -226,9 +216,14 @@ export class PunchAction {
     private static recoverToIdle(parts: any, damp: number, baseHeight: number, lerp: any, torsoOffset: number) {
         parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0, damp);
         parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, 0, damp);
-        // Reset Wrist rotations
+        
         parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0, damp);
         parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0, damp);
+        parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, 0, damp);
+        parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0, damp);
+
+        parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2, damp);
+        parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, damp);
         
         parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0 + torsoOffset, damp);
         parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0, damp);

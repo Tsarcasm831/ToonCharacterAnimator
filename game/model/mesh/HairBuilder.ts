@@ -4,20 +4,15 @@ import { PlayerConfig } from '../../../types';
 
 export class HairBuilder {
     static build(parts: any, config: PlayerConfig, material: THREE.Material) {
-        // 1. Cleanup old hair
         const head = parts.head;
         const existing = head.getObjectByName('HairInstanced');
         if (existing) {
             head.remove(existing);
             (existing as THREE.InstancedMesh).geometry.dispose();
-            // We don't dispose material here as we might reuse the base, 
-            // but we clone it below, so we should clean up the clone if we tracked it.
         }
 
-        // Only build if we have a hair style
         if (config.hairStyle === 'bald') return;
 
-        // 2. Locate Hair Caps (The surfaces to grow hair from)
         const hairCapGroup = head.getObjectByName('HairCap');
         if (!hairCapGroup) return;
 
@@ -28,29 +23,30 @@ export class HairBuilder {
 
         if (emitters.length === 0) return;
 
-        // 3. Configuration
-        const HAIR_COUNT = 100000;
-        const hairLen = 0.05; // Short hair
-        const hairThick = 0.0035; // Root thickness
+        const HAIR_COUNT = 4000;
+        const hairLen = 0.055; 
+        const hairThick = 0.005; 
 
-        // 4. Geometry (Simple Tetrahedron/Cone for performance)
-        // RadiusTop (tip), RadiusBottom (root), Height, Segments
-        const hairGeo = new THREE.CylinderGeometry(0.0001, hairThick, hairLen, 3, 1, false);
-        // Pivot at the bottom (root)
+        // Tapered cylinder for hair strands
+        const hairGeo = new THREE.CylinderGeometry(0.001, hairThick, hairLen, 3, 3, false);
         hairGeo.translate(0, hairLen / 2, 0);
 
-        // 5. Custom Shader Material for Physics
-        // We clone the base toon material and inject vertex shader code for "wiggle"
         const hairMat = material.clone();
-        
-        // This uniform will be updated by PlayerModel every frame
         const uInertia = { value: new THREE.Vector3(0, 0, 0) };
+        const uGravity = { value: new THREE.Vector3(0, -0.01, 0) };
+        const uSpeed = { value: 0.0 };
 
         hairMat.onBeforeCompile = (shader) => {
             shader.uniforms.uHairInertia = uInertia;
+            shader.uniforms.uGravity = uGravity;
+            shader.uniforms.uSpeed = uSpeed;
+            shader.uniforms.uTime = { value: 0 };
 
             shader.vertexShader = `
                 uniform vec3 uHairInertia;
+                uniform vec3 uGravity;
+                uniform float uSpeed;
+                uniform float uTime;
                 ${shader.vertexShader}
             `;
 
@@ -59,22 +55,39 @@ export class HairBuilder {
                 `
                 #include <begin_vertex>
                 
-                // Simple physics: bend vertex based on height (y) and inertia vector
-                // "transformed" is the vertex position in local space
+                float h = clamp(position.y / ${hairLen.toFixed(4)}, 0.0, 1.0);
                 
-                float heightFactor = smoothstep(0.0, ${hairLen.toFixed(4)}, transformed.y);
+                // Use a soft sigmoid-like bend curve
+                float bendFactor = h * h * (3.0 - 2.0 * h); 
                 
-                // Apply drag opposite to movement (inertia)
-                // The tip moves more than the root
-                transformed += uHairInertia * (heightFactor * heightFactor * 1.5);
+                // 1. Core displacement (Lag + Gravity)
+                vec3 displacement = (uHairInertia + uGravity) * bendFactor;
+                
+                // 2. Multi-Wave Turbulence
+                // Use square root of speed to prevent linear 'spikiness'
+                float speedInfluence = pow(uSpeed * 0.2, 0.6); 
+                
+                // Primary slow flow (low frequency)
+                float wave1 = sin(uTime * 4.0 + position.y * 50.0 + position.x * 100.0) * 0.003;
+                // Secondary wind flutter (high frequency)
+                float wave2 = cos(uTime * 18.0 + position.z * 150.0) * 0.0015;
+                
+                float totalFlutter = (wave1 + wave2) * speedInfluence * h;
+                
+                displacement.x += totalFlutter;
+                displacement.z += totalFlutter * 0.7;
+                
+                // 3. Air Resistance (Push down slightly when moving fast)
+                displacement.y -= speedInfluence * 0.01 * h;
+                
+                transformed += displacement;
                 `
             );
         };
 
-        // 6. Surface Sampling & Instance Generation
         const instancedMesh = new THREE.InstancedMesh(hairGeo, hairMat, HAIR_COUNT);
         instancedMesh.name = 'HairInstanced';
-        instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+        instancedMesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
         instancedMesh.castShadow = true;
         instancedMesh.receiveShadow = true;
 
@@ -83,20 +96,17 @@ export class HairBuilder {
         const _normal = new THREE.Vector3();
         const _target = new THREE.Vector3();
 
-        // Pre-calculate total area for weighted sampling
         let totalArea = 0;
-        const emitterData: { mesh: THREE.Mesh, area: number, startIdx: number }[] = [];
+        const emitterData: { mesh: THREE.Mesh, area: number }[] = [];
 
         emitters.forEach(mesh => {
             const geo = mesh.geometry;
             const pos = geo.attributes.position;
             const idx = geo.index;
             const count = idx ? idx.count : pos.count;
-
             let area = 0;
             const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
-            const tempPos = new THREE.Vector3();
-            const tempNorm = new THREE.Vector3();
+            const temp1 = new THREE.Vector3(), temp2 = new THREE.Vector3();
             
             for (let i = 0; i < count; i += 3) {
                 if (idx) {
@@ -108,28 +118,22 @@ export class HairBuilder {
                     b.fromBufferAttribute(pos, i+1);
                     c.fromBufferAttribute(pos, i+2);
                 }
-                
-                // Triangle area: 0.5 * length(cross(b-a, c-a))
-                tempPos.subVectors(b, a);
-                tempNorm.subVectors(c, a);
-                tempPos.cross(tempNorm);
-                area += 0.5 * tempPos.length();
+                temp1.subVectors(b, a);
+                temp2.subVectors(c, a);
+                temp1.cross(temp2);
+                area += 0.5 * temp1.length();
             }
-            
             totalArea += area;
-            emitterData.push({ mesh, area, startIdx: 0 }); 
+            emitterData.push({ mesh, area }); 
         });
 
-        // Generate Instances
-        let seed = 1234;
+        let hairsGenerated = 0;
+        let seed = 42;
         const random = () => {
             seed = (seed * 16807) % 2147483647;
             return (seed - 1) / 2147483646;
         };
 
-        let hairsGenerated = 0;
-        
-        // Distribute hair counts based on area
         emitterData.forEach(data => {
             if (totalArea === 0) return;
             const count = Math.floor((data.area / totalArea) * HAIR_COUNT);
@@ -137,60 +141,44 @@ export class HairBuilder {
             const pos = geo.attributes.position;
             const norm = geo.attributes.normal;
             const idx = geo.index;
-            const vertexCount = idx ? idx.count : pos.count;
-            const triangleCount = vertexCount / 3;
+            const triangleCount = (idx ? idx.count : pos.count) / 3;
 
             for (let k = 0; k < count; k++) {
-                // Pick random triangle
+                if (hairsGenerated >= HAIR_COUNT) break;
+
                 const triIndex = Math.floor(random() * triangleCount) * 3;
                 let iA, iB, iC;
-                
                 if (idx) {
-                    iA = idx.getX(triIndex);
-                    iB = idx.getX(triIndex+1);
-                    iC = idx.getX(triIndex+2);
+                    iA = idx.getX(triIndex); iB = idx.getX(triIndex+1); iC = idx.getX(triIndex+2);
                 } else {
-                    iA = triIndex;
-                    iB = triIndex+1;
-                    iC = triIndex+2;
+                    iA = triIndex; iB = triIndex+1; iC = triIndex+2;
                 }
 
-                // Random Barycentric Coordinates
-                let r1 = random();
-                let r2 = random();
+                let r1 = random(), r2 = random();
                 if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; }
                 const r3 = 1 - r1 - r2;
 
-                // Interpolate Position
                 _position.set(0,0,0);
                 _position.addScaledVector(new THREE.Vector3().fromBufferAttribute(pos, iA), r1);
                 _position.addScaledVector(new THREE.Vector3().fromBufferAttribute(pos, iB), r2);
                 _position.addScaledVector(new THREE.Vector3().fromBufferAttribute(pos, iC), r3);
 
-                // Interpolate Normal
                 _normal.set(0,0,0);
                 _normal.addScaledVector(new THREE.Vector3().fromBufferAttribute(norm, iA), r1);
                 _normal.addScaledVector(new THREE.Vector3().fromBufferAttribute(norm, iB), r2);
                 _normal.addScaledVector(new THREE.Vector3().fromBufferAttribute(norm, iC), r3);
                 _normal.normalize();
 
-                // Setup Dummy Matrix
                 dummy.position.copy(_position);
-                
-                // Rotate to align +Y (hair up) with Surface Normal
                 _target.copy(_position).add(_normal);
                 dummy.lookAt(_target);
-                // Fix orientation: lookAt aligns +Z to target. We want +Y to target.
-                // Rotate X by 90 deg
                 dummy.rotateX(Math.PI / 2);
                 
-                // Add some random messiness
                 dummy.rotateX((random() - 0.5) * 0.3);
                 dummy.rotateZ((random() - 0.5) * 0.3);
                 
-                // Scale variation
-                const s = 0.8 + random() * 0.4;
-                dummy.scale.set(s, s * (0.9 + random() * 0.2), s);
+                const s = 0.9 + random() * 0.2;
+                dummy.scale.set(s, s * (0.8 + random() * 0.4), s);
 
                 dummy.updateMatrix();
                 instancedMesh.setMatrixAt(hairsGenerated, dummy.matrix);
@@ -198,9 +186,16 @@ export class HairBuilder {
             }
         });
 
+        instancedMesh.onBeforeRender = () => {
+            const m = instancedMesh.material as any;
+            if (m.uniforms && m.uniforms.uTime) {
+                m.uniforms.uTime.value = performance.now() * 0.001;
+            }
+        };
+
         head.add(instancedMesh);
-        
-        // Attach the uniform reference to the mesh userData so PlayerModel can find it
         instancedMesh.userData.uInertia = uInertia;
+        instancedMesh.userData.uGravity = uGravity;
+        instancedMesh.userData.uSpeed = uSpeed;
     }
 }

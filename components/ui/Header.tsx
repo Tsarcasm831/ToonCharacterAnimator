@@ -1,13 +1,39 @@
 
 import React from 'react';
 
-export const Header: React.FC = () => (
-    <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none">
-        <h1 className="text-4xl font-black text-gray-800 tracking-tighter drop-shadow-sm opacity-80">
-          ANIMATOR<span className="text-blue-600">3D</span>
-        </h1>
-        <p className="text-gray-600 font-medium text-sm mt-1 max-w-md">
-          W/A/S/D move, SHIFT run, SPACE jump, X change view, 1-8 items.
-        </p>
+interface HeaderProps {
+    biome?: { name: string, color: string };
+}
+
+export const Header: React.FC<HeaderProps> = ({ biome }) => (
+    <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none flex flex-col md:flex-row md:items-start justify-between">
+        <div>
+            <h1 className="text-4xl font-black text-gray-800 tracking-tighter drop-shadow-sm opacity-80">
+              ANIMATOR<span className="text-blue-600">3D</span>
+            </h1>
+            <p className="text-gray-600 font-medium text-sm mt-1 max-w-md">
+              W/A/S/D move, SHIFT run, SPACE jump, X focus, V POV, 1-8 items.
+            </p>
+        </div>
+
+        {biome && (
+            <div className="mt-4 md:mt-0 flex items-center gap-3 animate-[fadeIn_0.5s_ease-out]">
+                <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-1">Current Location</span>
+                    <div 
+                        className="px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 shadow-xl flex items-center gap-2 group transition-all"
+                        style={{ boxShadow: `0 4px 15px -3px ${biome.color}44` }}
+                    >
+                        <div 
+                            className="w-2.5 h-2.5 rounded-full animate-pulse shadow-[0_0_8px_rgba(255,255,255,0.5)]"
+                            style={{ backgroundColor: biome.color }}
+                        />
+                        <span className="text-white text-xs font-black uppercase tracking-widest group-hover:scale-105 transition-transform">
+                            {biome.name}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        )}
     </div>
 );
