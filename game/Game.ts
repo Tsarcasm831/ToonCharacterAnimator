@@ -4,6 +4,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Player } from './Player';
 import { NPC } from './NPC';
 import { Assassin } from './Assassin';
+import { Archer } from './Archer';
+import { Wolf } from './Wolf';
 import { LowLevelCityGuard } from './LowLevelCityGuard';
 import { Environment } from './Environment';
 import { InputManager } from './InputManager';
@@ -24,6 +26,8 @@ export class Game {
     private player: Player;
     private npc: NPC;
     private assassin: Assassin;
+    private archer: Archer;
+    private wolf: Wolf;
     private guard: LowLevelCityGuard;
 
     // Foundry Factions
@@ -120,6 +124,11 @@ export class Game {
         this.npc = new NPC(this.scene, { bodyType: 'female', outfit: 'peasant' }, new THREE.Vector3(-3, 0, 2));
         this.assassin = new Assassin(this.scene, new THREE.Vector3(30, 0, 0));
         this.assassin.config.isAssassinHostile = initialConfig.isAssassinHostile;
+        this.archer = new Archer(this.scene, new THREE.Vector3(-5, 0, 4));
+        this.archer.config.isAssassinHostile = initialConfig.isAssassinHostile;
+
+        this.wolf = new Wolf(this.scene, new THREE.Vector3(10, 0, 10));
+
         this.guard = new LowLevelCityGuard(this.scene, new THREE.Vector3(-8, 0, -2));
         
         // --- INDUSTRIAL FOUNDRY COMBATANTS ---
@@ -132,6 +141,7 @@ export class Game {
 
         if (this.npc) this.npc.model.group.visible = initialConfig.showNPC;
         if (this.assassin) this.assassin.model.group.visible = initialConfig.showAssassin;
+        if (this.archer) this.archer.model.group.visible = initialConfig.showAssassin; // Reusing assassin visibility for now
         if (this.guard) this.guard.model.group.visible = initialConfig.showGuard;
 
         this.inputManager.onToggleHitbox = () => this.player.toggleHitbox();
@@ -207,6 +217,10 @@ export class Game {
         if (this.assassin) {
             this.assassin.model.group.visible = config.showAssassin;
             this.assassin.config.isAssassinHostile = config.isAssassinHostile;
+        }
+        if (this.archer) {
+            this.archer.model.group.visible = config.showAssassin;
+            this.archer.config.isAssassinHostile = config.isAssassinHostile;
         }
     }
 
@@ -314,7 +328,7 @@ export class Game {
             playerInput.attack2 = false;
         }
         
-        const entities = [this.npc, this.guard, this.assassin, this.foundryGuard, this.foundryAssassin];
+        const entities = [this.npc, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin];
         this.player.update(delta, playerInput, this.camera.position, cameraRotation, this.environment, this.particleManager, entities);
         
         if (this.config.showNPC && this.npc) {
@@ -325,6 +339,20 @@ export class Game {
         }
         if (this.config.showGuard && this.guard) {
             this.guard.update(delta, this.player.mesh.position, this.environment);
+        }
+        if (this.config.showAssassin && this.archer) {
+            this.archer.update(delta, this.environment, [
+                { position: this.player.mesh.position.clone() }, 
+                { position: this.npc.position.clone() },
+                { position: this.wolf.position.clone(), isWolf: true, isDead: this.wolf.isDead }
+            ]);
+        }
+        if (this.wolf) {
+            this.wolf.update(delta, this.environment, [
+                { position: this.player.mesh.position.clone() },
+                { position: this.archer.position.clone() },
+                { position: this.npc.position.clone() }
+            ]);
         }
         if (this.config.showAssassin && this.assassin) {
             this.assassin.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.npc.position.clone() }]);

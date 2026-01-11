@@ -100,6 +100,12 @@ export class Player {
     fishingChargeTime: number = 0;
     needsReclick: boolean = false;
 
+    // Bow
+    isFiringBow: boolean = false;
+    bowState: 'draw' | 'hold' | 'release' = 'draw';
+    bowCharge: number = 0;
+    bowTimer: number = 0;
+
     // Ragdoll
     isDragged: boolean = false;
     draggedPartName: string = 'hips';

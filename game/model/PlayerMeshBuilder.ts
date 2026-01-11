@@ -179,6 +179,13 @@ export class PlayerMeshBuilder {
         rightHandMount.rotation.set(0, 0, 0); 
         rightHand.add(rightHandMount);
 
+        // Left hand mount: mirror of right hand for bow
+        const leftHandMount = new THREE.Group();
+        leftHandMount.position.set(0, -0.04, -0.04);
+        // Flip Y so its local axes match the right-hand mount (prevents wrist twist)
+        leftHandMount.rotation.set(0, Math.PI, 0);
+        leftHand.add(leftHandMount);
+
         const rightShoulderMount = new THREE.Group(); rightShoulderMount.position.y = 0.05; rightArm.add(rightShoulderMount);
         const leftShoulderMount = new THREE.Group(); leftShoulderMount.position.y = 0.05; leftArm.add(leftShoulderMount);
         
@@ -197,7 +204,7 @@ export class PlayerMeshBuilder {
             rightArm, rightForeArm,
             leftArm, leftForeArm,
             rightHand, leftHand,
-            rightHandMount,
+            rightHandMount, leftHandMount,
             rightShoulderMount, leftShoulderMount, leftShieldMount
         };
 

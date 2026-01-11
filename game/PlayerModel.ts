@@ -397,7 +397,8 @@ export class PlayerModel {
             let isHoldingThisHand = false;
             
             if (held === 'Bow') {
-                isHoldingThisHand = isLeft;
+                // Left holds bow, Right holds string (so both grip)
+                isHoldingThisHand = true;
             } else if (held) {
                 isHoldingThisHand = !isLeft;
             }

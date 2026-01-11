@@ -72,6 +72,12 @@ const App: React.FC = () => {
 
   const [gameInstance, setGameInstance] = useState<Game | null>(null);
 
+  useEffect(() => {
+    const preventContextMenu = (e: MouseEvent) => e.preventDefault();
+    window.addEventListener('contextmenu', preventContextMenu);
+    return () => window.removeEventListener('contextmenu', preventContextMenu);
+  }, []);
+
   const handleExport = () => {
       if (gameInstance) ModelExporter.exportAndDownloadZip(gameInstance['player']);
   };

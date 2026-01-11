@@ -1,13 +1,13 @@
 
 import * as THREE from 'three';
-import { PlayerMaterials } from '../PlayerMaterials';
-import { TorsoBuilder } from './TorsoBuilder';
-import { HeadBuilder } from './HeadBuilder';
-import { HandBuilder } from './HandBuilder';
-import { FootBuilder } from './FootBuilder';
-import { ShoeBuilder } from './ShoeBuilder';
-import { createSegment } from './MeshUtils';
-import { PlayerConfig } from '../../../types';
+import { PlayerMaterials } from './PlayerMaterials';
+import { TorsoBuilder } from './mesh/TorsoBuilder';
+import { HeadBuilder } from './mesh/HeadBuilder';
+import { HandBuilder } from './mesh/HandBuilder';
+import { FootBuilder } from './mesh/FootBuilder';
+import { ShoeBuilder } from './mesh/ShoeBuilder';
+import { createSegment } from './mesh/MeshUtils';
+import { PlayerConfig } from '../../types';
 
 export class PlayerMeshBuilder {
     static build(materials: PlayerMaterials, config: PlayerConfig) {
@@ -173,15 +173,16 @@ export class PlayerMeshBuilder {
 
         // 7. Mounts
         const rightHandMount = new THREE.Group();
-        // Position: centered horizontally, lowered towards fingertips (Y ~ -0.075), pushed into palm (+Z)
-        // HandBuilder system: Z+ is palm side, Z- is back of hand.
-        rightHandMount.position.set(0, -0.055, 0.035); 
+        // Position: centered vertically on palm, slight forward into palm side
+        // Pinned to the "Gold" section (Outside/Back of hand = Z-) but higher up (Y towards 0)
+        rightHandMount.position.set(0, -0.04, -0.04); 
         rightHandMount.rotation.set(0, 0, 0); 
         rightHand.add(rightHandMount);
 
-        // Left Hand Mount (For Bow)
+        // Left hand mount: mirror of right hand for bow
         const leftHandMount = new THREE.Group();
-        leftHandMount.position.set(0, -0.055, 0.035);
+        leftHandMount.position.set(0, -0.04, -0.04);
+        leftHandMount.rotation.set(0, 0, 0);
         leftHand.add(leftHandMount);
 
         const rightShoulderMount = new THREE.Group(); rightShoulderMount.position.y = 0.05; rightArm.add(rightShoulderMount);
