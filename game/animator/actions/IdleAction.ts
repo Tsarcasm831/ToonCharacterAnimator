@@ -28,6 +28,7 @@ export class IdleAction {
         parts.torsoContainer.rotation.z = lerp(parts.torsoContainer.rotation.z, 0, damp);
         parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, Math.sin(t) * 0.02, damp);
 
+        parts.neck.rotation.y = lerp(parts.neck.rotation.y, 0, damp);
         parts.neck.rotation.x = -Math.sin(t) * 0.02;
         parts.head.rotation.x = 0.1 + Math.sin(t - 1) * 0.02;
         

@@ -5,13 +5,44 @@ import { PlayerInput } from '../../types';
 import { PlayerPhysics } from './PlayerPhysics';
 import { ParticleManager } from '../ParticleManager';
 import { Environment } from '../Environment';
+import { ArrowBuilder } from '../model/equipment/ArrowBuilder';
 
 export class PlayerCombat {
     static update(player: Player, dt: number, input: PlayerInput, environment: Environment, particleManager: ParticleManager) {
+        // Update projectiles
+        for (let i = this.activeProjectiles.length - 1; i >= 0; i--) {
+            const p = this.activeProjectiles[i];
+            
+            // Move
+            const moveStep = p.velocity.clone().multiplyScalar(dt);
+            p.mesh.position.add(moveStep);
+            
+            // Check Collision
+            if (this.checkProjectileCollision(p.mesh.position, environment, particleManager)) {
+                if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
+                this.activeProjectiles.splice(i, 1);
+                continue;
+            }
+
+            // Check Max Distance (40m)
+            if (p.mesh.position.distanceTo(p.startPos) > 40.0) {
+                 if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
+                 this.activeProjectiles.splice(i, 1);
+                 continue;
+            }
+
+            p.life -= dt;
+            if (p.life <= 0) {
+                if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
+                this.activeProjectiles.splice(i, 1);
+            }
+        }
         
         // Handle Inputs
         if (player.config.selectedItem === 'Fishing Pole') {
             this.handleFishingInput(player, dt, input);
+        } else if (player.config.selectedItem === 'Bow') {
+            this.handleBowInput(player, dt, input, particleManager);
         } else {
             // Other weapons support continuous hold (Auto-attack)
             if (input.attack1) {
@@ -35,7 +66,120 @@ export class PlayerCombat {
         // Update Timers & Logic
         this.updateAxeSwing(player, dt, environment, particleManager);
         this.updateFishing(player, dt);
+        this.updateBowLogic(player, dt);
         this.updatePunchCombo(player, dt, input, environment.obstacles);
+    }
+
+    private static checkProjectileCollision(pos: THREE.Vector3, environment: Environment, particleManager: ParticleManager): boolean {
+        for (const obs of environment.obstacles) {
+            const obsPos = new THREE.Vector3();
+            obs.getWorldPosition(obsPos);
+            
+            // Simple distance check for collision (approx 1.5m radius for trees/rocks)
+            const dist = pos.distanceTo(obsPos);
+            if (dist < 1.5) {
+                const matType = obs.userData.type === 'hard' ? 'stone' : 'wood';
+                particleManager.emit(pos, 5, matType === 'stone' ? 'spark' : 'wood');
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static handleBowInput(player: Player, dt: number, input: PlayerInput, particleManager: ParticleManager) {
+        if (player.bowState === 'release') return; // Locked during release animation
+
+        if (input.attack1) {
+            // DRAW / CHARGE
+            if (!player.isFiringBow) {
+                player.isFiringBow = true;
+                player.bowState = 'draw';
+                player.bowCharge = 0;
+                player.bowTimer = 0;
+            }
+
+            if (player.bowState === 'draw') {
+                player.bowTimer += dt;
+                player.bowCharge = Math.min(1.0, player.bowTimer / 0.6); // 0.6s to full draw
+                
+                if (player.bowCharge >= 1.0) {
+                    player.bowState = 'hold';
+                    // Optional: Screenshake or sound to indicate full draw
+                }
+            }
+        } else {
+            // RELEASE
+            if (player.isFiringBow && (player.bowState === 'draw' || player.bowState === 'hold')) {
+                // Fire!
+                player.bowState = 'release';
+                player.bowTimer = 0;
+                
+                // Visuals
+                if (player.bowCharge > 0.3) {
+                    // Only fire if drawn enough
+                    this.fireArrow(player, particleManager);
+                } else {
+                    // Cancelled / Weak shot
+                    player.isFiringBow = false;
+                }
+            }
+        }
+    }
+
+    private static activeProjectiles: { 
+        mesh: THREE.Group, 
+        velocity: THREE.Vector3, 
+        life: number,
+        startPos: THREE.Vector3 
+    }[] = [];
+
+    private static fireArrow(player: Player, particleManager: ParticleManager) {
+        // Find arrow spawn point (approx left hand position)
+        const spawnPos = player.mesh.position.clone();
+        spawnPos.y += 1.35; // Shoulder height
+        
+        // Offset forward and slightly left to match bow position
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion);
+        const left = new THREE.Vector3(1, 0, 0).applyQuaternion(player.mesh.quaternion);
+        
+        spawnPos.addScaledVector(forward, 0.8);
+        spawnPos.addScaledVector(left, 0.2); // Align with bow hold
+
+        // Create Arrow
+        const arrow = ArrowBuilder.buildArrow();
+        arrow.position.copy(spawnPos);
+        arrow.quaternion.copy(player.mesh.quaternion);
+        
+        // Add to scene
+        if (player.mesh.parent) {
+            player.mesh.parent.add(arrow);
+        }
+
+        // Launch
+        const speed = 20.0;
+        // Clone forward to ensure velocity is independent
+        const velocity = forward.clone().normalize().multiplyScalar(speed);
+        
+        this.activeProjectiles.push({
+            mesh: arrow,
+            velocity: velocity,
+            life: 3.0, // Fallback lifetime
+            startPos: spawnPos.clone()
+        });
+
+        // Emit particle/projectile
+        particleManager.emit(spawnPos, 5, 'spark'); 
+    }
+
+    private static updateBowLogic(player: Player, dt: number) {
+        if (player.isFiringBow && player.bowState === 'release') {
+            player.bowTimer += dt;
+            if (player.bowTimer > 0.4) { // Recovery time
+                player.isFiringBow = false;
+                player.bowState = 'draw';
+                player.bowCharge = 0;
+            }
+        }
     }
 
     private static handleFishingInput(player: Player, dt: number, input: PlayerInput) {

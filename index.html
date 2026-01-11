@@ -5,29 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Toon Character Animator</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script type="importmap">
+    <style>
+      body { touch-action: none; overflow: hidden; -webkit-user-select: none; user-select: none; background-color: #111827; }
+      canvas { touch-action: none; }
+    </style>
+  <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.2.0",
-    "react/": "https://esm.sh/react@18.2.0/",
-    "react-dom": "https://esm.sh/react-dom@18.2.0",
-    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
-    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
-    "three": "https://esm.sh/three@0.160.0",
-    "three/": "https://esm.sh/three@0.160.0/",
-    "jszip": "https://esm.sh/jszip@3.10.1",
-    "nipplejs": "https://esm.sh/nipplejs@0.10.2"
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "three": "https://esm.sh/three@^0.182.0",
+    "three/": "https://esm.sh/three@^0.182.0/",
+    "jszip": "https://esm.sh/jszip@^3.10.1",
+    "nipplejs": "https://esm.sh/nipplejs@^0.10.2"
   }
 }
 </script>
-<style>
-  body { touch-action: none; overflow: hidden; -webkit-user-select: none; user-select: none; background-color: #111827; }
-  canvas { touch-action: none; }
-</style>
 </head>
   <body>
     <div id="root"></div>
-    <script type="text/babel" data-type="module" data-presets="react,typescript" src="main.tsx"></script>
+    <script type="module" src="/main.tsx"></script>
   </body>
 </html>

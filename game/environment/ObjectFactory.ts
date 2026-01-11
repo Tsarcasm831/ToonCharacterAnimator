@@ -548,17 +548,19 @@ export class ObjectFactory {
         group.position.copy(position);
         group.rotation.y = rotationY;
 
-        const mat = new THREE.MeshStandardMaterial({ color: 0x555555 });
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 1.0), mat);
-        body.position.y = 0.15;
-        group.add(body);
+        const wolf = this.createWolfModel(0x555555);
+        group.add(wolf.group);
         
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.4), mat);
-        head.position.set(0, 0.25, 0.6);
-        group.add(head);
+        // Pose as dead
+        wolf.group.rotation.z = Math.PI / 2; // Dead on side
+        wolf.group.position.y = 0.15;
         
-        group.rotation.z = Math.PI / 2; // Dead on side
-        group.position.y += 0.3;
+        // Splayed legs
+        if (wolf.parts.legFR) wolf.parts.legFR.rotation.x = 0.8;
+        if (wolf.parts.legFL) wolf.parts.legFL.rotation.x = -0.8;
+        if (wolf.parts.legBR) wolf.parts.legBR.rotation.x = 1.2;
+        if (wolf.parts.legBL) wolf.parts.legBL.rotation.x = -1.2;
+        if (wolf.parts.head) wolf.parts.head.rotation.x = 0.5;
 
         // Make it skinnable
         const hitBox = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.0, 1.5), new THREE.MeshBasicMaterial({ visible: false }));
@@ -566,6 +568,70 @@ export class ObjectFactory {
         group.add(hitBox);
 
         return { group, obstacle: hitBox };
+    }
+
+    static createWolfModel(color: number = 0x555555) {
+        const group = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color, flatShading: true });
+        const parts: any = {};
+
+        // Body
+        const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 1.1), mat);
+        body.position.y = 0.6;
+        body.castShadow = true;
+        group.add(body);
+        parts.body = body;
+
+        // Head
+        const headGroup = new THREE.Group();
+        headGroup.position.set(0, 0.9, 0.5);
+        group.add(headGroup);
+        parts.head = headGroup;
+
+        const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.5), mat);
+        head.position.z = 0.2;
+        head.castShadow = true;
+        headGroup.add(head);
+
+        // Snout
+        const snout = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.3), mat);
+        snout.position.set(0, -0.05, 0.55);
+        snout.castShadow = true;
+        headGroup.add(snout);
+
+        // Ears
+        const earGeo = new THREE.BoxGeometry(0.1, 0.2, 0.05);
+        const earR = new THREE.Mesh(earGeo, mat);
+        earR.position.set(0.15, 0.25, 0.1);
+        headGroup.add(earR);
+        const earL = new THREE.Mesh(earGeo, mat);
+        earL.position.set(-0.15, 0.25, 0.1);
+        headGroup.add(earL);
+
+        // Legs
+        const legGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
+        const createLeg = (x: number, z: number) => {
+            const leg = new THREE.Mesh(legGeo, mat);
+            leg.position.set(x, 0.3, z);
+            leg.castShadow = true;
+            group.add(leg);
+            return leg;
+        };
+
+        parts.legFR = createLeg(0.2, 0.4);
+        parts.legFL = createLeg(-0.2, 0.4);
+        parts.legBR = createLeg(0.2, -0.4);
+        parts.legBL = createLeg(-0.2, -0.4);
+
+        // Tail
+        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.4), mat);
+        tail.position.set(0, 0.7, -0.6);
+        tail.rotation.x = -0.5;
+        tail.castShadow = true;
+        group.add(tail);
+        parts.tail = tail;
+
+        return { group, parts };
     }
 
     static createBlueBlock() {

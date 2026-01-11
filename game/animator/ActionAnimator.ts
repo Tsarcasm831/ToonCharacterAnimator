@@ -9,6 +9,7 @@ import { SkinningAction } from './actions/SkinningAction';
 import { FishingAction } from './actions/FishingAction';
 import { WaveAction } from './actions/WaveAction';
 import { SummonAction } from './actions/SummonAction';
+import { FireArrowAction } from './actions/FireArrowAction';
 
 export class ActionAnimator {
     animateClimb(player: any, parts: any, dt: number, damp: number) {
@@ -45,5 +46,9 @@ export class ActionAnimator {
 
     animateSummon(player: any, parts: any, dt: number, damp: number) {
         SummonAction.animate(player, parts, dt, damp);
+    }
+
+    animateFireArrow(player: any, parts: any, dt: number, damp: number) {
+        FireArrowAction.animate(player, parts, dt, damp);
     }
 }

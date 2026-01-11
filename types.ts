@@ -333,7 +333,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   helmScale: 0.86,
 
   hoodX: 0,
-  hoodY: 0.04,
+  hoodY: 0.008,
   hoodZ: 0,
   hoodScale: 1.0,
 

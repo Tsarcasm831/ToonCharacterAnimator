@@ -16,6 +16,25 @@ export class PlayerEquipment {
         parts: any,
         equippedMeshes: any
     ): string | null {
+        // Optimization: Only skip if item name matches AND the meshes are actually in the scene
+        // and attached to the CURRENT mounts (handles cases where parts were rebuilt)
+        if (itemName === currentHeldItem && equippedMeshes.heldItem) {
+            const isBow = itemName === 'Bow';
+            const expectedParent = isBow ? parts.leftHandMount : parts.rightHandMount;
+            
+            // Check if held item is attached to the correct mount
+            if (equippedMeshes.heldItem.parent === expectedParent) {
+                if (isBow) {
+                    // For Bow, also check Quiver is attached to torso
+                    if (equippedMeshes.quiver && equippedMeshes.quiver.parent === parts.torso) {
+                        return currentHeldItem;
+                    }
+                } else {
+                    return currentHeldItem;
+                }
+            }
+        }
+
         // Force cleanup if changing from Bow (left hand) to non-Bow (right hand) or vice versa
         // Or simply always clean up to be safe
         if (equippedMeshes.heldItem) {
@@ -67,9 +86,10 @@ export class PlayerEquipment {
              // Let's attach to torsoContainer or shirt torso.
              // Using `parts.torso` (the mesh) or `parts.torsoContainer`.
              // `parts.torso` has scale applied. 
-             quiver.position.set(0.15, 0.2, -0.25); // Offset to back right shoulder
-             quiver.rotation.z = -0.4; // Tilt
-             quiver.rotation.x = 0.2;
+             quiver.position.set(-0.15, 0.3, -0.2); // Offset to back left shoulder
+             quiver.rotation.z = 0.6; // Lean top to the right (Left shoulder to Right hip diagonal)
+             quiver.rotation.x = 0.2 + (Math.PI / 3.5); // Tilt inward
+             quiver.rotation.y = -0.1; // Reduced angle for straighter look
              
              // Attach to torsoContainer to follow body lean, but might clip.
              // Attach to upper torso (chest/shoulders) ideally.
@@ -240,6 +260,10 @@ export class PlayerEquipment {
                     v.y -= displacement * 0.06; 
                     if (Math.abs(v.x) < 0.05) v.z += 0.01; 
                 }
+                
+                // Push the lower hood forward more if the mask is equipped to avoid clipping
+                const maskZPush = (mask && v.y < 0.1 && v.y > -0.2 && v.z > 0) ? 0.02 : 0;
+                
                 if (v.y < 0.1 && v.y > -0.2 && v.z > -0.1) {
                     if (Math.abs(v.x) > 0.15) {
                         v.x *= 1.05;
@@ -253,7 +277,7 @@ export class PlayerEquipment {
                     if (v.z > 0.1) {
                         const centerBias = Math.max(0, 1.0 - Math.abs(v.x)/0.35);
                         v.y -= centerBias * 0.22; 
-                        v.z += centerBias * 0.08;
+                        v.z += (centerBias * 0.08) + maskZPush;
                     }
                     if (v.z < -0.1) {
                         v.y -= 0.05; 
@@ -269,9 +293,11 @@ export class PlayerEquipment {
                 const vA = new THREE.Vector3();
                 const vB = new THREE.Vector3();
                 const vC = new THREE.Vector3();
-                const center = new THREE.Vector3();
-                const cutMinY = -0.18; 
-                const cutMaxY = 0.06;  
+                
+                // Hood logic with eye-slit cover (Assassin Style)
+                // Always use the smaller cutout to keep the face covered below the eyes.
+                const cutMinY = -0.04; 
+                const cutMaxY = 0.04;  
                 const cutWidth = 0.13; 
                 const cutMinZ = 0.1;   
 
@@ -282,9 +308,14 @@ export class PlayerEquipment {
                     vA.fromBufferAttribute(pos, a);
                     vB.fromBufferAttribute(pos, b);
                     vC.fromBufferAttribute(pos, c);
-                    center.copy(vA).add(vB).add(vC).divideScalar(3);
-                    const isInside = center.z > cutMinZ && Math.abs(center.x) < cutWidth && center.y > cutMinY && center.y < cutMaxY;
-                    if (!isInside) {
+                    
+                    // Logic: Keep triangle only if NO vertex is inside the cutout zone.
+                    // This is conservative and prevents "grating" by not allowing partial triangles.
+                    const isInsideA = vA.z > cutMinZ && Math.abs(vA.x) < cutWidth && vA.y > cutMinY && vA.y < cutMaxY;
+                    const isInsideB = vB.z > cutMinZ && Math.abs(vB.x) < cutWidth && vB.y > cutMinY && vB.y < cutMaxY;
+                    const isInsideC = vC.z > cutMinZ && Math.abs(vC.x) < cutWidth && vC.y > cutMinY && vC.y < cutMaxY;
+                    
+                    if (!isInsideA && !isInsideB && !isInsideC) {
                         newIndices.push(a, b, c);
                     }
                 }
