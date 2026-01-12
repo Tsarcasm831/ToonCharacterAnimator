@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { ENV_CONSTANTS } from './EnvironmentTypes';
+import { ENV_CONSTANTS, BIOME_DATA } from './EnvironmentTypes';
 import { TerrainTextureFactory } from './TerrainTextureFactory';
 
 const WATER_VERTEX_SHADER = `
@@ -119,29 +119,27 @@ export class SceneBuilder {
         scene.add(sky);
 
         // Terrain
-        const patchSize = 40;
-        const gridRadius = 1; 
-        const terrainMap: Record<string, string> = {
-            '0,0': 'Grass',
-            '1,0': 'Sand',
-            '1,1': 'Gravel',
-            '0,1': 'Dirt',
-            '-1,1': 'Wood',
-            '-1,0': 'Stone',
-            '-1,-1': 'Metal',
-            '0,-1': 'Snow',
-            '1,-1': 'Leaves'
-        };
+        const patchSize = ENV_CONSTANTS.PATCH_SIZE;
+        const biomeSize = ENV_CONSTANTS.BIOME_SIZE;
+        // Increase radius to 7 to cover a 15x15 grid of patches (approx 200 units wide)
+        const gridRadius = 7; 
 
         for (let x = -gridRadius; x <= gridRadius; x++) {
             for (let z = -gridRadius; z <= gridRadius; z++) {
-                const key = `${x},${z}`;
-                const type = terrainMap[key] || 'Grass';
+                const centerX = x * patchSize;
+                const centerZ = z * patchSize;
+                
+                // Calculate Biome Index based on physical position vs Biome Grid (40x40)
+                const biomeX = Math.round(centerX / biomeSize);
+                const biomeZ = Math.round(centerZ / biomeSize);
+                const biomeKey = `${biomeX},${biomeZ}`;
+                
+                const biomeData = BIOME_DATA[biomeKey] || BIOME_DATA['0,0'];
+                const type = biomeData.type;
+                
                 const geo = new THREE.PlaneGeometry(patchSize, patchSize, 64, 64);
                 const posAttribute = geo.attributes.position;
                 const vertex = new THREE.Vector3();
-                const centerX = x * patchSize;
-                const centerZ = z * patchSize;
 
                 for (let i = 0; i < posAttribute.count; i++) {
                     vertex.fromBufferAttribute(posAttribute, i);
@@ -163,7 +161,7 @@ export class SceneBuilder {
                     map: texture,
                     color: 0xdddddd,
                     roughness: 0.9,
-                    metalness: type === 'Metal' ? 0.6 : 0.1
+                    metalness: (type === 'Metal' || type === 'Obsidian') ? 0.6 : 0.1
                 });
                 const mesh = new THREE.Mesh(geo, mat);
                 mesh.rotation.x = -Math.PI / 2;
@@ -194,7 +192,7 @@ export class SceneBuilder {
         scene.add(water);
     
         // Grid
-        const grid = new THREE.GridHelper(100, 40, 0x000000, 0x000000);
+        const grid = new THREE.GridHelper(200, 200, 0x000000, 0x000000); 
         if(grid.material instanceof THREE.Material) {
             grid.material.opacity = 0.05;
             grid.material.transparent = true;

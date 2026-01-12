@@ -9,6 +9,7 @@ import { ControlPanel } from './components/ui/ControlPanel.tsx';
 import { InventoryModal } from './components/ui/InventoryModal.tsx';
 import { BuilderUI } from './components/ui/BuilderUI.tsx';
 import { MobileControls } from './components/ui/MobileControls.tsx';
+import { KeybindsModal } from './components/ui/KeybindsModal.tsx';
 import { ModelExporter } from './game/ModelExporter.ts';
 import { Game } from './game/Game.ts';
 import { StructureType } from './game/builder/BuildingParts.ts';
@@ -67,6 +68,7 @@ const App: React.FC = () => {
   const [progress, setProgress] = useState<number | null>(null);
   const [coins, setCoins] = useState(1250);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
   
   const [dialogue, setDialogue] = useState<string | null>(null);
 
@@ -105,6 +107,7 @@ const App: React.FC = () => {
   };
 
   const toggleInventory = () => setIsInventoryOpen(prev => !prev);
+  const toggleKeybinds = () => setIsKeybindsOpen(prev => !prev);
 
   const handleSelectStructure = (type: StructureType) => {
       setActiveStructure(type);
@@ -193,11 +196,12 @@ const App: React.FC = () => {
           onGameReady={(g) => {
               setGameInstance(g);
               g['inputManager'].onToggleInventory = toggleInventory;
+              g['inputManager'].onToggleKeybinds = toggleKeybinds;
               g.onBuilderToggle = (active) => setIsBuilderMode(active);
               g.onBiomeUpdate = (b) => setCurrentBiome(b);
               g.onDialogueTrigger = (content) => setDialogue(content);
           }}
-          controlsDisabled={isInventoryOpen || !!dialogue}
+          controlsDisabled={isInventoryOpen || !!dialogue || isKeybindsOpen}
         />
       </div>
 
@@ -239,6 +243,11 @@ const App: React.FC = () => {
           onEquipItem={handleEquipItem}
           onUnequipItem={handleUnequipItem}
           coins={coins}
+      />
+
+      <KeybindsModal 
+          isOpen={isKeybindsOpen}
+          onClose={() => setIsKeybindsOpen(false)}
       />
 
       {dialogue && (

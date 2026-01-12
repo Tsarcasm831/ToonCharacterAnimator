@@ -1,6 +1,30 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
+
+// Patch setPointerCapture and releasePointerCapture to suppress InvalidStateError
+// This error commonly occurs in Three.js/React applications (OrbitControls, etc.) when 
+// controls are disabled or components unmount while a pointer interaction is active.
+if (typeof Element !== 'undefined') {
+  const patch = (methodName: string) => {
+    const original = (Element.prototype as any)[methodName];
+    if (original) {
+      (Element.prototype as any)[methodName] = function(pointerId: number) {
+        try {
+          original.call(this, pointerId);
+        } catch (e: any) {
+          // Only suppress InvalidStateError, rethrow others for debugging
+          if (e.name !== 'InvalidStateError') {
+            throw e;
+          }
+        }
+      };
+    }
+  };
+  patch('setPointerCapture');
+  patch('releasePointerCapture');
+}
 
 const rootElement = document.getElementById('root');
 

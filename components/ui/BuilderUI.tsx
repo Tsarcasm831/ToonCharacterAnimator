@@ -20,7 +20,7 @@ export const BuilderUI: React.FC<BuilderUIProps> = ({ activeType, onSelectType }
         <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-4 animate-fade-in-up">
             {/* Contextual Help */}
             <div className="bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 text-white text-[10px] font-bold uppercase tracking-widest flex gap-4 shadow-xl">
-                <span className="flex items-center gap-1.5"><kbd className="bg-white/20 px-1.5 py-0.5 rounded border border-white/20">T</kbd> Rotate</span>
+                <span className="flex items-center gap-1.5"><kbd className="bg-white/20 px-1.5 py-0.5 rounded border border-white/20">R</kbd> Rotate</span>
                 <span className="flex items-center gap-1.5"><kbd className="bg-white/20 px-1.5 py-0.5 rounded border border-white/20">LMB</kbd> Build</span>
                 <span className="flex items-center gap-1.5"><kbd className="bg-white/20 px-1.5 py-0.5 rounded border border-white/20">B</kbd> Exit</span>
             </div>

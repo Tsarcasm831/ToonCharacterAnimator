@@ -38,8 +38,8 @@ export class PlayerInteraction {
 
         // Skinning Check & Logic
         const hasKnife = player.config.selectedItem === 'Knife';
-        const nearSkinnable = this.checkSkinnablesNearby(player, obstacles);
-        player.canSkin = nearSkinnable && hasKnife;
+        const skinnableTarget = this.getSkinnableTargetNearby(player, obstacles);
+        player.canSkin = !!skinnableTarget && hasKnife;
 
         // Dialogue Check (Guard Interaction)
         this.checkGuardsNearby(player, entities);
@@ -67,6 +67,22 @@ export class PlayerInteraction {
                     player.isSkinning = false;
                     player.skinningTimer = 0;
                     player.addItem('Fur'); 
+
+                    // Mark as harvested so it can't be skinned again
+                    if (skinnableTarget) {
+                        // Check if it's a living entity like a Wolf
+                        // Entities store themselves in the group's userData.parent
+                        const entityRoot = skinnableTarget.parent?.userData.type === 'creature' ? skinnableTarget.parent : skinnableTarget;
+                        const entity = entityRoot.userData.parent;
+
+                        if (entity && typeof entity.markAsSkinned === 'function') {
+                            entity.markAsSkinned();
+                        } else {
+                            // Fallback for static objects
+                            skinnableTarget.userData.isSkinnable = false;
+                            skinnableTarget.traverse(c => c.userData.isSkinnable = false);
+                        }
+                    }
                 }
             }
         } else {
@@ -111,17 +127,21 @@ export class PlayerInteraction {
         }
     }
 
-    private static checkSkinnablesNearby(player: Player, obstacles: THREE.Object3D[]): boolean {
+    private static getSkinnableTargetNearby(player: Player, obstacles: THREE.Object3D[]): THREE.Object3D | null {
         const skinnables = obstacles.filter(o => o.userData.isSkinnable);
+        let best = null;
+        let minDist = 1.5;
+
         for (const sk of skinnables) {
             const skPos = new THREE.Vector3();
             sk.getWorldPosition(skPos);
             const dist = player.mesh.position.distanceTo(skPos);
-            if (dist < 1.5) { 
-                return true;
+            if (dist < minDist) { 
+                minDist = dist;
+                best = sk;
             }
         }
-        return false;
+        return best;
     }
 
     private static checkGuardsNearby(player: Player, entities: any[]) {

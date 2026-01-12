@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { Player } from './Player';
 import { PlayerUtils } from './player/PlayerUtils';
+import { ENV_CONSTANTS, BIOME_DATA } from './environment/EnvironmentTypes';
 
 export class SoundManager {
     ctx: AudioContext | null = null;
@@ -87,26 +88,16 @@ export class SoundManager {
         const pondDepth = PlayerUtils.getTerrainHeight(pos.x, pos.z);
         if (pondDepth < -0.1) return 'Water';
 
-        // 2. Check Grid Tile
-        const patchSize = 40;
-        const ix = Math.round(pos.x / patchSize);
-        const iz = Math.round(pos.z / patchSize);
+        // 2. Check Biome Grid Tile
+        const biomeSize = ENV_CONSTANTS.BIOME_SIZE;
+        const ix = Math.round(pos.x / biomeSize);
+        const iz = Math.round(pos.z / biomeSize);
         
         const key = `${ix},${iz}`;
+        const biomeData = BIOME_DATA[key];
         
-        const terrainMap: Record<string, string> = {
-            '0,0': 'Grass',
-            '1,0': 'Sand',
-            '1,1': 'Gravel',
-            '0,1': 'Dirt',
-            '-1,1': 'Wood',
-            '-1,0': 'Stone',
-            '-1,-1': 'Metal',
-            '0,-1': 'Snow',
-            '1,-1': 'Leaves'
-        };
-
-        return terrainMap[key] || 'Grass';
+        if (biomeData) return biomeData.type;
+        return 'Grass';
     }
 
     playFootstep(volume: number, terrain: string) {
@@ -161,6 +152,8 @@ export class SoundManager {
                 break;
 
             case 'Stone':
+            case 'Marble':
+            case 'Obsidian':
                 // Sharp click
                 noiseFilter.type = 'highpass';
                 noiseFilter.frequency.setValueAtTime(1000, t);
@@ -218,7 +211,17 @@ export class SoundManager {
                 noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
                 break;
 
+            case 'Toxic':
+                // Bubbling/Squish
+                noiseFilter.type = 'bandpass';
+                noiseFilter.frequency.setValueAtTime(500, t);
+                noiseFilter.Q.setValueAtTime(10, t);
+                noiseGain.gain.setValueAtTime(volume * 1.2, t);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+                break;
+
             case 'Dirt':
+            case 'Crimson':
             default:
                 // Standard thud + crunch
                 noiseFilter.type = 'lowpass';

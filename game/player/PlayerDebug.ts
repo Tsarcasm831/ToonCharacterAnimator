@@ -101,7 +101,12 @@ export class PlayerDebug {
                     
                     if (show) {
                         if (!overlay && child.parent) {
-                            const m = new THREE.Mesh(child.geometry, this.obstacleMaterial);
+                            // Check if this is a living creature (e.g. Wolf)
+                            const isCreature = child.userData.type === 'creature' || obs.userData.type === 'creature';
+                            // Use red for creatures, green for static obstacles
+                            const debugMat = isCreature ? this.material : this.obstacleMaterial;
+                            
+                            const m = new THREE.Mesh(child.geometry, debugMat);
                             m.name = 'ObstacleHitboxOverlay';
                             child.add(m);
                         }

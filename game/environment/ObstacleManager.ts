@@ -164,7 +164,9 @@ export class ObstacleManager {
     }
 
     addObstacle(obj: THREE.Object3D) {
-        this.scene.add(obj);
+        if (!obj.parent) {
+            this.scene.add(obj);
+        }
         this.obstacles.push(obj);
     }
 

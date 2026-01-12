@@ -25,6 +25,8 @@ export class InputManager {
     onToggleInventory?: () => void;
     onToggleFirstPerson?: () => void;
     onToggleBuilder?: () => void;
+    onToggleGrid?: () => void;
+    onToggleKeybinds?: () => void;
 
     constructor() {
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -72,18 +74,23 @@ export class InputManager {
         if (e.code === 'KeyI') {
             this.onToggleInventory?.();
         }
+        
+        if (e.code === 'Backquote') {
+            this.onToggleKeybinds?.();
+        }
 
         if (this.isBlocked) return;
 
         this.keys[e.code] = true; 
         
         if (e.code === 'KeyG') this.onToggleHitbox?.();
-        if (e.code === 'KeyR') this.onToggleObstacleHitboxes?.();
+        if (e.code === 'KeyU') this.onToggleObstacleHitboxes?.(); 
         if (e.code === 'KeyX') this.onToggleCamera?.();
         if (e.code === 'KeyH') this.onToggleHands?.();
         if (e.code === 'KeyJ') this.onToggleSkeletonMode?.();
         if (e.code === 'KeyV') this.onToggleFirstPerson?.();
         if (e.code === 'KeyB') this.onToggleBuilder?.();
+        if (e.code === 'KeyT') this.onToggleGrid?.(); 
 
         if (e.code.startsWith('Digit')) {
             const num = parseInt(e.code.replace('Digit', ''));
@@ -140,7 +147,7 @@ export class InputManager {
             wave: !!(this.manualInput.wave),
             summon: !!(this.keys['KeyL'] || this.manualInput.summon),
             toggleBuilder: !!(this.keys['KeyB']),
-            rotateGhost: !!(this.keys['KeyT']) // Changed from KeyR to KeyT
+            rotateGhost: !!(this.keys['KeyR']) 
         };
     }
 
