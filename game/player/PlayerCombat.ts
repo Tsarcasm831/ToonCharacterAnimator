@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import type { Player } from '../Player';
 import { PlayerInput } from '../../types';
@@ -7,6 +6,15 @@ import { ParticleManager } from '../ParticleManager';
 import { Environment } from '../Environment';
 import { ArrowBuilder } from '../model/equipment/ArrowBuilder';
 import { Wolf } from '../Wolf';
+import { Bear } from '../Bear';
+import { Yeti } from '../Yeti';
+import { Deer } from '../Deer';
+import { Chicken } from '../Chicken';
+import { Pig } from '../Pig';
+import { Sheep } from '../Sheep';
+import { Spider } from '../Spider';
+import { Lizard } from '../Lizard';
+import { Horse } from '../Horse';
 
 export class PlayerCombat {
     private static _tempBox1 = new THREE.Box3();
@@ -89,10 +97,9 @@ export class PlayerCombat {
             }
         }
 
-        // 2. Check Entities (Wolves)
+        // 2. Check Entities
         for (const ent of entities) {
-            if (ent instanceof Wolf && !ent.isDead) {
-                // Precise check for arrows: iterate hitbox parts
+            if (ent && ent.hitbox && !ent.isDead) {
                 const arrowPoint = pos;
                 let hit = false;
                 ent.hitbox.children.forEach(part => {
@@ -106,7 +113,7 @@ export class PlayerCombat {
                 });
 
                 if (hit) {
-                    ent.takeDamage(2); 
+                    ent.takeDamage(5); 
                     particleManager.emit(pos, 8, 'wood');
                     return true;
                 }
@@ -273,7 +280,6 @@ export class PlayerCombat {
             if (item === 'Sword') duration = 0.6;
             if (item === 'Knife') duration = 0.4;
             
-            // ADJUSTED: 0.5 is the middle of the arc. 0.6 was often too late for small creatures.
             const impactTime = duration * 0.5; 
             
             if (!player.hasHit && player.axeSwingTimer > impactTime) {
@@ -298,13 +304,11 @@ export class PlayerCombat {
     }
 
     private static checkChoppingImpact(player: Player, environment: Environment, particleManager: ParticleManager, entities: any[]) {
-        // CRITICAL: Ensure player model hierarchy is fully updated to sync world matrices for the current frame's pose
         player.model.group.updateMatrixWorld(true);
 
         const playerPos = player.mesh.position;
         const damage = this.getWeaponDamage(player.config.selectedItem);
         
-        // --- 1. Identify the damage dealer ---
         let dealer: THREE.Object3D | null = null;
         if (player.config.selectedItem) {
             dealer = player.model.equippedMeshes.heldItem || null;
@@ -318,18 +322,13 @@ export class PlayerCombat {
 
         if (!dealer) return;
 
-        // Generate bounding box for weapon in world space
         this._tempBox1.setFromObject(dealer);
-        // FORGIVENESS: Expand the hit volume of the weapon slightly to account for frame stepping and thin geometry
         this._tempBox1.expandByScalar(0.25);
 
-        // --- 2. Check Entity Hitboxes (Priority) ---
         for (const ent of entities) {
-            if (ent instanceof Wolf && !ent.isDead) {
-                // Verify proximity first
-                if (playerPos.distanceTo(ent.group.position) < 3.5) {
+            if (ent && ent.hitbox && !ent.isDead) {
+                if (playerPos.distanceTo(ent.group.position) < 4.5) {
                     let hit = false;
-                    // Check intersection against wolf hitbox components
                     ent.hitbox.children.forEach(part => {
                         if (part instanceof THREE.Mesh) {
                             part.updateMatrixWorld(true);
@@ -345,13 +344,12 @@ export class PlayerCombat {
                         const impactPoint = new THREE.Vector3();
                         this._tempBox1.getCenter(impactPoint);
                         particleManager.emit(impactPoint, 10, 'wood'); 
-                        return; // Found target, stop checking
+                        return; 
                     }
                 }
             }
         }
 
-        // --- 3. Check Static Obstacles ---
         const item = player.config.selectedItem;
         const canChop = item === 'Axe' || item === 'Pickaxe' || item === 'Halberd';
         if (!canChop) return;
@@ -364,7 +362,6 @@ export class PlayerCombat {
         let minDist = Infinity;
 
         for (const obs of environment.obstacles) {
-            // Only hard obstacles like trees
             if (obs.userData.type === 'hard' && !obs.userData.type?.includes('creature')) {
                 const obsPos = new THREE.Vector3();
                 obs.getWorldPosition(obsPos);
