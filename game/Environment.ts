@@ -12,6 +12,7 @@ import { PlayerUtils } from './player/PlayerUtils';
 
 export class Environment {
     private scene: THREE_LIB.Scene;
+    public group: THREE_LIB.Group; // Root group for this environment
     private obstacleManager: ObstacleManager;
     private debrisSystem: DebrisSystem;
     private grassManager: GrassManager;
@@ -31,19 +32,25 @@ export class Environment {
 
     constructor(scene: THREE_LIB.Scene) {
         this.scene = scene;
+        this.group = new THREE_LIB.Group();
+        this.scene.add(this.group);
         
         this.hemiLight = scene.children.find(c => c instanceof THREE_LIB.HemisphereLight) as THREE_LIB.HemisphereLight;
         this.sunLight = scene.children.find(c => c instanceof THREE_LIB.DirectionalLight) as THREE_LIB.DirectionalLight;
 
-        this.debrisSystem = new DebrisSystem(scene, (logs) => {
+        this.debrisSystem = new DebrisSystem(this.group, (logs) => {
             this.obstacleManager.addLogs(logs);
         });
         
-        this.obstacleManager = new ObstacleManager(scene, this.debrisSystem);
-        this.grassManager = new GrassManager(scene);
-        this.snowSystem = new SnowSystem(scene);
-        this.worldGrid = new WorldGridManager(scene);
+        this.obstacleManager = new ObstacleManager(this.group, this.debrisSystem);
+        this.grassManager = new GrassManager(this.group);
+        this.snowSystem = new SnowSystem(this.group);
+        this.worldGrid = new WorldGridManager(this.group);
         this.build();
+    }
+
+    setVisible(visible: boolean) {
+        this.group.visible = visible;
     }
 
     get obstacles(): THREE_LIB.Object3D[] {
@@ -73,6 +80,8 @@ export class Environment {
     }
 
     update(dt: number, config: PlayerConfig, playerPosition: THREE_LIB.Vector3) {
+        if (!this.group.visible) return; // Don't update if not visible
+
         this.debrisSystem.update(dt);
         this.obstacleManager.update(dt);
         this.grassManager.update(dt);
@@ -120,7 +129,7 @@ export class Environment {
             }
         }
 
-        const skysphere = this.scene.getObjectByName('skysphere') as THREE_LIB.Mesh;
+        const skysphere = this.group.getObjectByName('skysphere') as THREE_LIB.Mesh;
         if (skysphere && skysphere.material instanceof THREE_LIB.ShaderMaterial) {
             const uniforms = skysphere.material.uniforms;
             uniforms.sunPos.value.set(sunX, sunY, sunZ);
@@ -164,7 +173,7 @@ export class Environment {
     }
 
     private build() {
-        SceneBuilder.build(this.scene);
+        SceneBuilder.build(this.group);
         this.obstacleManager.init();
     }
 }

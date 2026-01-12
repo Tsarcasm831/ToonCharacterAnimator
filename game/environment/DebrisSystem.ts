@@ -4,13 +4,13 @@ import { FallingObject, Debris } from './EnvironmentTypes';
 import { ObjectFactory } from './ObjectFactory';
 
 export class DebrisSystem {
-    private scene: THREE.Scene;
+    private parent: THREE.Object3D;
     private fallingObjects: FallingObject[] = [];
     private rockDebris: Debris[] = [];
     private onLogsSpawned: (logs: THREE.Mesh[]) => void;
 
-    constructor(scene: THREE.Scene, onLogsSpawned: (logs: THREE.Mesh[]) => void) {
-        this.scene = scene;
+    constructor(parent: THREE.Object3D, onLogsSpawned: (logs: THREE.Mesh[]) => void) {
+        this.parent = parent;
         this.onLogsSpawned = onLogsSpawned;
     }
 
@@ -24,14 +24,14 @@ export class DebrisSystem {
             axis: axis,
             angle: 0
         });
-        this.scene.add(mesh);
+        this.parent.add(mesh);
     }
 
     spawnRockDebris(origin: THREE.Vector3, material: THREE.Material) {
         const chunks = 8;
         for (let i = 0; i < chunks; i++) {
             const chunk = ObjectFactory.createDebrisChunk(origin, material);
-            this.scene.add(chunk);
+            this.parent.add(chunk);
 
             this.rockDebris.push({
                 mesh: chunk,
@@ -66,10 +66,10 @@ export class DebrisSystem {
             // Hit ground at 90 degrees (PI/2)
             if (obj.angle >= Math.PI / 2) {
                 const logs = ObjectFactory.createLogs(obj.mesh.position, obj.mesh.quaternion);
-                logs.forEach(log => this.scene.add(log));
+                logs.forEach(log => this.parent.add(log));
                 this.onLogsSpawned(logs);
                 
-                this.scene.remove(obj.mesh);
+                this.parent.remove(obj.mesh);
                 this.fallingObjects.splice(i, 1);
             }
         }
@@ -84,7 +84,7 @@ export class DebrisSystem {
                 // Shrink then remove
                 deb.mesh.scale.multiplyScalar(0.9);
                 if (deb.mesh.scale.x < 0.05) {
-                    this.scene.remove(deb.mesh);
+                    this.parent.remove(deb.mesh);
                     this.rockDebris.splice(i, 1);
                 }
             } else {

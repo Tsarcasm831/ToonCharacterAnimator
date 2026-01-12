@@ -9,9 +9,12 @@ import { InventoryModal } from './components/ui/InventoryModal.tsx';
 import { BuilderUI } from './components/ui/BuilderUI.tsx';
 import { MobileControls } from './components/ui/MobileControls.tsx';
 import { KeybindsModal } from './components/ui/KeybindsModal.tsx';
+import { WorldMapModal } from './components/ui/WorldMapModal.tsx';
+import LoadingScreen from './components/ui/LoadingScreen.tsx';
 import { ModelExporter } from './game/ModelExporter.ts';
 import { Game } from './game/Game.ts';
 import { StructureType } from './game/builder/BuildingParts.ts';
+import * as THREE from 'three';
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<PlayerConfig>(DEFAULT_CONFIG);
@@ -29,7 +32,8 @@ const App: React.FC = () => {
   const [activeStructure, setActiveStructure] = useState<StructureType>('foundation');
   const [currentBiome, setCurrentBiome] = useState({ name: 'Verdant Meadows', color: '#4ade80' });
   const [isTravelOpen, setIsTravelOpen] = useState(false);
-  const [activeScene, setActiveScene] = useState<'dev' | 'world'>('world');
+  const [activeScene, setActiveScene] = useState<'dev' | 'world'>('dev');
+  const [isLoading, setIsLoading] = useState(false);
 
   const [inventory, setInventory] = useState<string[]>(() => {
     const inv = Array(32).fill('');
@@ -70,6 +74,8 @@ const App: React.FC = () => {
   const [coins, setCoins] = useState(1250);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
+  const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
+  const [playerPosForMap, setPlayerPosForMap] = useState(new THREE.Vector3());
   
   const [dialogue, setDialogue] = useState<string | null>(null);
 
@@ -109,6 +115,15 @@ const App: React.FC = () => {
 
   const toggleInventory = () => setIsInventoryOpen(prev => !prev);
   const toggleKeybinds = () => setIsKeybindsOpen(prev => !prev);
+
+  const handleToggleWorldMap = (pos: THREE.Vector3) => {
+    if (activeScene === 'world') {
+      setPlayerPosForMap(pos);
+      setIsWorldMapOpen(prev => !prev);
+    } else {
+      setIsWorldMapOpen(false);
+    }
+  };
 
   const handleSelectStructure = (type: StructureType) => {
       setActiveStructure(type);
@@ -185,17 +200,27 @@ const App: React.FC = () => {
   };
 
   const handleTravel = (scene: 'dev' | 'world') => {
-      setActiveScene(scene);
-      setIsTravelOpen(false);
-      if (gameInstance.current) {
-          gameInstance.current.switchScene(scene);
+      if (scene === activeScene) {
+          setIsTravelOpen(false);
+          return;
       }
+      
+      setIsLoading(true);
+      setIsTravelOpen(false);
+      
+      // Short delay to allow loading screen to fade in before switching
+      setTimeout(() => {
+          setActiveScene(scene);
+          // Loading screen will be turned off by Scene component via onGameReady
+      }, 500);
   };
 
   return (
     <div className="w-screen h-screen relative bg-gray-900 overflow-hidden font-sans">
       <div className="absolute inset-0 z-0">
         <Scene 
+          key={activeScene}
+          activeScene={activeScene}
           config={config} 
           manualInput={manualInput} 
           initialInventory={inventory}
@@ -209,10 +234,16 @@ const App: React.FC = () => {
               g.onBuilderToggle = (active) => setIsBuilderMode(active);
               g.onBiomeUpdate = (b) => setCurrentBiome(b);
               g.onDialogueTrigger = (content) => setDialogue(content);
+              
+              // Finish loading
+              setTimeout(() => setIsLoading(false), 800);
           }}
-          controlsDisabled={isInventoryOpen || !!dialogue || isKeybindsOpen}
+          onToggleWorldMap={handleToggleWorldMap}
+          controlsDisabled={isInventoryOpen || !!dialogue || isKeybindsOpen || isLoading}
         />
       </div>
+
+      <LoadingScreen isVisible={isLoading} message={`Traveling to ${activeScene === 'dev' ? 'Dev Scene' : 'World Scene'}...`} />
 
       {!isInventoryOpen && !isBuilderMode && <Header biome={currentBiome} />}
       
@@ -290,6 +321,12 @@ const App: React.FC = () => {
       <KeybindsModal 
           isOpen={isKeybindsOpen}
           onClose={() => setIsKeybindsOpen(false)}
+      />
+
+      <WorldMapModal 
+          isOpen={isWorldMapOpen}
+          onClose={() => setIsWorldMapOpen(false)}
+          playerPos={playerPosForMap}
       />
 
       {dialogue && (

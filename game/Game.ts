@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Player } from './Player';
 import { Environment } from './Environment';
+import { WorldEnvironment } from './WorldEnvironment';
 import { InputManager } from './InputManager';
 import { SoundManager } from './SoundManager';
 import { ParticleManager } from './ParticleManager';
@@ -17,7 +18,10 @@ export class Game {
     
     public player: Player;
     private entityManager: EntityManager;
-    private environment: Environment;
+    private environment: Environment | null = null;
+    private worldEnvironment: WorldEnvironment | null = null;
+    private activeScene: 'dev' | 'world';
+
     private inputManager: InputManager;
     private soundManager: SoundManager;
     private particleManager: ParticleManager;
@@ -48,12 +52,14 @@ export class Game {
     onInteractionUpdate?: (text: string | null, progress: number | null) => void;
     onBuilderToggle?: (active: boolean) => void;
     onBiomeUpdate?: (biome: { name: string, color: string }) => void;
+    onToggleWorldMapCallback?: (pos: THREE.Vector3) => void;
     onDialogueTrigger?: (content: string) => void;
 
     private currentBiomeName: string = '';
 
-    constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: string[]) {
+    constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: string[], activeScene: 'dev' | 'world') {
         this.config = initialConfig;
+        this.activeScene = activeScene;
         this.renderManager = new RenderManager(container);
 
         this.inputManager = new InputManager();
@@ -61,9 +67,6 @@ export class Game {
         this.soundManager = new SoundManager();
         this.soundManager.setVolume(initialConfig.globalVolume);
 
-        this.prevTargetPos.copy(this.renderManager.controls.target);
-
-        this.environment = new Environment(this.renderManager.scene);
         this.particleManager = new ParticleManager(this.renderManager.scene);
         this.builderManager = new BuilderManager(this.renderManager.scene);
 
@@ -71,21 +74,44 @@ export class Game {
         Object.assign(this.player.config, initialConfig);
         this.player.inventory.setItems(initialInventory);
         
-        this.entityManager = new EntityManager(this.renderManager.scene, this.environment, initialConfig);
+        if (activeScene === 'dev') {
+            this.environment = new Environment(this.renderManager.scene);
+            this.entityManager = new EntityManager(this.renderManager.scene, this.environment, initialConfig);
+            
+            // Initial position for Dev at Timber Wharf label [-17, -30]
+            const startX = -17, startZ = -30;
+            this.player.mesh.position.set(startX, 0, startZ);
+            this.renderManager.controls.target.set(startX, 1.7, startZ);
+            this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
+        } else {
+            this.worldEnvironment = new WorldEnvironment(this.renderManager.scene);
+            this.entityManager = new EntityManager(this.renderManager.scene, null as any, initialConfig);
+            this.entityManager.setVisibility(false);
 
+            // Initial position for World
+            this.player.mesh.position.set(0, 5, 0);
+            this.renderManager.controls.target.set(0, 6.7, 0);
+            this.renderManager.camera.position.set(0, 8.2, 5.0);
+        }
+
+        this.prevTargetPos.copy(this.renderManager.controls.target);
         this.clock = new THREE.Clock();
 
         this.inputManager.onToggleHitbox = () => this.player.toggleHitbox();
         this.inputManager.onToggleObstacleHitboxes = () => {
             this.showObstacleHitboxes = !this.showObstacleHitboxes;
-            PlayerDebug.updateObstacleHitboxVisuals(this.environment.obstacles, this.showObstacleHitboxes);
+            const obstacles = this.activeScene === 'dev' ? this.environment?.obstacles : this.worldEnvironment?.obstacles;
+            if (obstacles) PlayerDebug.updateObstacleHitboxVisuals(obstacles, this.showObstacleHitboxes);
         };
         this.inputManager.onToggleCamera = () => this.toggleCameraFocus();
         this.inputManager.onToggleHands = () => this.player.toggleHandsDebug();
         this.inputManager.onToggleSkeletonMode = () => this.player.toggleSkeletonMode();
         this.inputManager.onToggleFirstPerson = () => this.toggleFirstPerson();
-        this.inputManager.onToggleBuilder = () => this.toggleBuilder();
-        this.inputManager.onToggleGrid = () => this.environment.toggleWorldGrid();
+        this.inputManager.onToggleGrid = () => this.environment?.toggleWorldGrid();
+
+        this.inputManager.onToggleWorldMap = () => {
+            this.onToggleWorldMapCallback?.(this.player.mesh.position.clone());
+        };
         
         this._onPointerLockChange = this.onPointerLockChange.bind(this);
         this._onMouseMove = this.onMouseMove.bind(this);
@@ -104,18 +130,30 @@ export class Game {
     }
 
     public switchScene(sceneName: 'dev' | 'world') {
+        this.activeScene = sceneName;
+
         if (sceneName === 'dev') {
-            // Teleport to origin for testing
-            this.player.mesh.position.set(0, 0, 0);
-            this.renderManager.controls.target.set(0, 1.7, 0);
-            this.renderManager.camera.position.set(0, 3.2, 5.0);
+            this.environment?.setVisible(true);
+            this.worldEnvironment?.setVisible(false);
+
+            // Teleport to Timber Wharf label [-17, -30] for dev scene
+            const startX = -17, startZ = -30;
+            this.player.mesh.position.set(startX, 0, startZ);
+            this.renderManager.controls.target.set(startX, 1.7, startZ);
+            this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
         } else {
-            // Teleport to the "Game World" starting area (Foundry)
-            this.player.mesh.position.set(-24, 0, 50);
-            this.renderManager.controls.target.set(-24, 1.7, 50);
-            this.renderManager.camera.position.set(-24, 3.2, 55.0);
+            this.environment?.setVisible(false);
+            this.worldEnvironment?.setVisible(true);
+
+            // Teleport to the World Scene (spawn at 0, 5, 0 relative to world center)
+            this.player.mesh.position.set(0, 5, 0);
+            this.renderManager.controls.target.set(0, 6.7, 0);
+            this.renderManager.camera.position.set(0, 8.2, 5.0);
         }
         this.prevTargetPos.copy(this.renderManager.controls.target);
+
+        // Hide entities in world scene
+        this.entityManager.setVisibility(sceneName === 'dev');
     }
 
     private toggleBuilder() {
@@ -208,28 +246,46 @@ export class Game {
         if (input.rotateGhost && !this.wasRotateKeyPressed) this.builderManager.rotate();
         this.wasRotateKeyPressed = !!input.rotateGhost;
         if (this.isBuilding && input.attack1 && !this.wasAttack1Pressed) {
-            this.builderManager.build(this.environment);
-            if (this.showObstacleHitboxes) PlayerDebug.updateObstacleHitboxVisuals(this.environment.obstacles, true);
+            const currentEnv = this.activeScene === 'dev' ? this.environment : this.worldEnvironment;
+            if (currentEnv) {
+                this.builderManager.build(currentEnv);
+                if (this.showObstacleHitboxes) PlayerDebug.updateObstacleHitboxVisuals(currentEnv.obstacles, true);
+            }
         }
         this.wasAttack1Pressed = !!input.attack1;
 
         let cameraRotation = this.isFirstPerson ? (this.fpvYaw + Math.PI) : Math.atan2(this.renderManager.camera.position.x - this.renderManager.controls.target.x, this.renderManager.camera.position.z - this.renderManager.controls.target.z);
 
-        this.environment.update(delta, this.config, this.player.mesh.position);
+        // Update correct environment
+        let currentEnv: any = null;
+        let currentEntities: any[] = [];
+
+        if (this.activeScene === 'dev' && this.environment) {
+            this.environment.update(delta, this.config, this.player.mesh.position);
+            
+            // Entities only in dev scene for now
+            this.entityManager.update(delta, this.config, this.player.mesh.position, this.environment);
+            currentEntities = this.entityManager.getAllEntities();
+            currentEnv = this.environment;
+        } else if (this.activeScene === 'world' && this.worldEnvironment) {
+            currentEnv = this.worldEnvironment;
+            this.worldEnvironment.update(delta, this.config, this.player.mesh.position);
+            // No entities in World Scene yet
+        }
+
         this.particleManager.update(delta);
         
-        const biome = this.environment.getBiomeAt(this.player.mesh.position);
-        if (biome.name !== this.currentBiomeName) { this.currentBiomeName = biome.name; this.onBiomeUpdate?.(biome); }
-
-        const playerInput = { ...input };
-        if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
-        
-        this.entityManager.update(delta, this.config, this.player.mesh.position, this.environment);
-        const entities = this.entityManager.getAllEntities();
-
-        this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, this.environment, this.particleManager, entities);
-        
-        if (this.isBuilding) this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, this.environment, this.renderManager.camera, this.inputManager.mousePosition);
+        if (currentEnv) {
+            const biome = currentEnv.getBiomeAt(this.player.mesh.position);
+            if (biome.name !== this.currentBiomeName) { this.currentBiomeName = biome.name; this.onBiomeUpdate?.(biome); }
+            
+            const playerInput = { ...input };
+            if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
+            
+            this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities);
+            
+            if (this.isBuilding) this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv, this.renderManager.camera, this.inputManager.mousePosition);
+        }
         this.soundManager.update(this.player, delta);
 
         const targetPos = this.player.mesh.position.clone();

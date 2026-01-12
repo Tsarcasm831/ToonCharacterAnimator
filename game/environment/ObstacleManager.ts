@@ -15,15 +15,15 @@ import {
 
 export class ObstacleManager {
     obstacles: THREE.Object3D[] = [];
-    private scene: THREE.Scene;
+    private parent: THREE.Object3D;
     private trees: Map<string, TreeData> = new Map();
     private rocks: Map<string, RockData> = new Map();
     private decorativeItems: THREE.Object3D[] = [];
     private debrisSystem: DebrisSystem;
     private clock = new THREE.Clock();
 
-    constructor(scene: THREE.Scene, debrisSystem: DebrisSystem) {
-        this.scene = scene;
+    constructor(parent: THREE.Object3D, debrisSystem: DebrisSystem) {
+        this.parent = parent;
         this.debrisSystem = debrisSystem;
     }
 
@@ -36,11 +36,11 @@ export class ObstacleManager {
 
         const wolfPos = new THREE.Vector3(2.5, PlayerUtils.getTerrainHeight(2.5, 2.5), 2.5);
         const wolf = ObjectFactory.createDeadWolf(wolfPos, Math.PI / 3);
-        this.scene.add(wolf.group);
+        this.parent.add(wolf.group);
         this.obstacles.push(wolf.obstacle);
 
         const initContext: ObstacleInitContext = {
-            scene: this.scene,
+            scene: this.parent as THREE.Scene, // This cast is a bit hacky but works since Scene is Object3D
             obstacles: this.obstacles,
             trees: this.trees,
             rocks: this.rocks,
@@ -71,7 +71,7 @@ export class ObstacleManager {
 
     addObstacle(obj: THREE.Object3D) {
         if (!obj.parent) {
-            this.scene.add(obj);
+            this.parent.add(obj);
         }
         this.obstacles.push(obj);
     }
@@ -87,7 +87,7 @@ export class ObstacleManager {
                 const sz = pos.z + Math.sin(angle) * r;
                 const sy = PlayerUtils.getTerrainHeight(sx, sz);
                 const mush = ObjectFactory.createMushroom(new THREE.Vector3(sx, sy, sz));
-                this.scene.add(mush);
+                this.parent.add(mush);
                 this.decorativeItems.push(mush);
             }
         });
@@ -95,7 +95,7 @@ export class ObstacleManager {
 
     private createRock(position: THREE.Vector3, scale: number = 1.0) {
         const { group, rock } = ObjectFactory.createRock(position, scale);
-        this.scene.add(group);
+        this.parent.add(group);
         this.obstacles.push(rock);
         this.rocks.set(rock.uuid, {
             id: rock.uuid, mesh: rock, health: 10, shudderTimer: 0, basePosition: group.position.clone()
@@ -104,7 +104,7 @@ export class ObstacleManager {
 
     private createTree(position: THREE.Vector3) {
         const { group, trunk, leaves } = ObjectFactory.createTree(position);
-        this.scene.add(group);
+        this.parent.add(group);
         this.obstacles.push(trunk);
         this.trees.set(trunk.uuid, {
             id: trunk.uuid, group: group, trunk: trunk, leaves: leaves, health: 8, shudderTimer: 0, basePosition: group.position.clone()
@@ -113,7 +113,7 @@ export class ObstacleManager {
 
     private createAutumnTree(position: THREE.Vector3) {
         const { group, trunk, leaves } = ObjectFactory.createAutumnTree(position);
-        this.scene.add(group);
+        this.parent.add(group);
         this.obstacles.push(trunk);
         this.trees.set(trunk.uuid, {
             id: trunk.uuid, group: group, trunk: trunk, leaves: leaves, health: 8, shudderTimer: 0, basePosition: group.position.clone()
@@ -122,7 +122,7 @@ export class ObstacleManager {
 
     private createDeadTree(position: THREE.Vector3) {
         const { group, obstacle } = ObjectFactory.createDeadTree(position);
-        this.scene.add(group);
+        this.parent.add(group);
         this.obstacles.push(obstacle);
         this.trees.set(obstacle.uuid, {
             id: obstacle.uuid, group: group, trunk: obstacle as any, leaves: undefined as any, health: 4, shudderTimer: 0, basePosition: group.position.clone()
@@ -140,10 +140,10 @@ export class ObstacleManager {
                 this.trees.delete(object.uuid);
                 const trunkMat = (tree.trunk as any).children[0].material;
                 const fallingGroup = ObjectFactory.createFallingTrunk(tree.basePosition, trunkMat);
-                this.scene.remove(tree.group);
+                this.parent.remove(tree.group);
                 this.debrisSystem.addFallingTree(fallingGroup);
                 const stump = ObjectFactory.createStump(tree.basePosition, tree.group.quaternion, trunkMat);
-                this.scene.add(stump);
+                this.parent.add(stump);
                 this.obstacles.push(stump);
             }
             return 'wood';
@@ -158,7 +158,7 @@ export class ObstacleManager {
             if (rock.health <= 0) {
                 this.obstacles = this.obstacles.filter(o => o.uuid !== object.uuid);
                 this.rocks.delete(object.uuid);
-                this.scene.remove(rock.mesh.parent || rock.mesh);
+                this.parent.remove(rock.mesh.parent || rock.mesh);
             }
             return 'stone';
         }
@@ -168,7 +168,7 @@ export class ObstacleManager {
     // Fixed: Completed the update method and fixed truncated lines
     update(dt: number) {
         const time = this.clock.getElapsedTime();
-        const water = this.scene.getObjectByName('pond_water');
+        const water = this.parent.getObjectByName('pond_water');
         if (water && (water as THREE.Mesh).material instanceof THREE.ShaderMaterial) {
             ((water as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.uTime.value = time;
         }

@@ -95,7 +95,7 @@ void main() {
 `;
 
 export class SceneBuilder {
-    static build(scene: THREE.Scene) {
+    static build(parent: THREE.Object3D) {
         // Sky
         const uniforms = {
             topColor: { value: new THREE.Color(0x0077ff) },
@@ -116,7 +116,7 @@ export class SceneBuilder {
         });
         const sky = new THREE.Mesh(skyGeo, skyMat);
         sky.name = 'skysphere';
-        scene.add(sky);
+        parent.add(sky);
 
         // Terrain
         const patchSize = ENV_CONSTANTS.PATCH_SIZE;
@@ -168,7 +168,7 @@ export class SceneBuilder {
                 mesh.position.set(centerX, 0, centerZ);
                 mesh.receiveShadow = true;
                 mesh.userData = { type: 'terrain', terrainType: type };
-                scene.add(mesh);
+                parent.add(mesh);
             }
         }
         
@@ -189,7 +189,7 @@ export class SceneBuilder {
         water.rotation.x = -Math.PI / 2;
         water.position.set(ENV_CONSTANTS.POND_X, -0.4, ENV_CONSTANTS.POND_Z);
         water.name = 'pond_water';
-        scene.add(water);
+        parent.add(water);
     
         // Grid
         const grid = new THREE.GridHelper(200, 200, 0x000000, 0x000000); 
@@ -198,6 +198,6 @@ export class SceneBuilder {
             grid.material.transparent = true;
         }
         grid.position.y = 0.01;
-        scene.add(grid);
+        parent.add(grid);
     }
 }

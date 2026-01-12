@@ -163,7 +163,7 @@ export class Player {
         PlayerDebug.toggleHandDebugMode(this);
     }
 
-    update(dt: number, input: PlayerInput, cameraPosition: THREE.Vector3, cameraAngle: number, environment: Environment, particleManager: ParticleManager, entities: any[] = []) {
+    update(dt: number, input: PlayerInput, cameraPosition: THREE.Vector3, cameraAngle: number, environment: any, particleManager: ParticleManager, entities: any[] = []) {
         this.syncConfig();
         
         // 1. Physics & Model Update
