@@ -90,7 +90,7 @@ export class SnowSystem {
     private presence = 0; // 0 to 1 based on player location
     private state: WeatherState = 'LIGHT';
 
-    constructor(scene: THREE.Scene) {
+    constructor(parent: THREE.Object3D) {
         const geo = new THREE.BufferGeometry();
         const positions = new Float32Array(this.count * 3);
         const sizes = new Float32Array(this.count);
@@ -135,7 +135,7 @@ export class SnowSystem {
         this.particleSystem = new THREE.Points(geo, mat);
         // Center of Frostfell Peaks (Grid 0, -1) is at Z=-40
         this.particleSystem.position.set(0, 0, -40); 
-        scene.add(this.particleSystem);
+        parent.add(this.particleSystem);
         
         this.setWeather('LIGHT');
     }

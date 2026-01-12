@@ -21,7 +21,7 @@ export class PlayerCombat {
     private static _tempBox2 = new THREE.Box3();
     private static _tempVec = new THREE.Vector3();
 
-    static update(player: Player, dt: number, input: PlayerInput, environment: Environment, particleManager: ParticleManager, entities: any[] = []) {
+    static update(player: Player, dt: number, input: PlayerInput, environment: any, particleManager: ParticleManager, entities: any[] = []) {
         // Update projectiles
         for (let i = this.activeProjectiles.length - 1; i >= 0; i--) {
             const p = this.activeProjectiles[i];
@@ -83,7 +83,7 @@ export class PlayerCombat {
         this.updatePunchCombo(player, dt, input, environment.obstacles);
     }
 
-    private static checkProjectileCollision(pos: THREE.Vector3, environment: Environment, particleManager: ParticleManager, entities: any[]): boolean {
+    private static checkProjectileCollision(pos: THREE.Vector3, environment: any, particleManager: ParticleManager, entities: any[]): boolean {
         // 1. Check Obstacles (Trees/Rocks)
         for (const obs of environment.obstacles) {
             const obsPos = new THREE.Vector3();
@@ -271,7 +271,15 @@ export class PlayerCombat {
         }
     }
 
-    private static updateAxeSwing(player: Player, dt: number, environment: Environment, particleManager: ParticleManager, entities: any[]) {
+    private static getWeaponDamage(item: string | null): number {
+        if (item === 'Sword') return 5;
+        if (item === 'Axe') return 4;
+        if (item === 'Pickaxe') return 3;
+        if (item === 'Halberd') return 4;
+        return 1; 
+    }
+
+    private static updateAxeSwing(player: Player, dt: number, environment: any, particleManager: ParticleManager, entities: any[]) {
         if (player.isAxeSwing) {
             player.axeSwingTimer += dt;
             const item = player.config.selectedItem;
@@ -295,15 +303,7 @@ export class PlayerCombat {
         }
     }
 
-    private static getWeaponDamage(item: string | null): number {
-        if (item === 'Sword') return 5;
-        if (item === 'Axe') return 4;
-        if (item === 'Pickaxe') return 3;
-        if (item === 'Halberd') return 4;
-        return 1; 
-    }
-
-    private static checkChoppingImpact(player: Player, environment: Environment, particleManager: ParticleManager, entities: any[]) {
+    private static checkChoppingImpact(player: Player, environment: any, particleManager: ParticleManager, entities: any[]) {
         player.model.group.updateMatrixWorld(true);
 
         const playerPos = player.mesh.position;

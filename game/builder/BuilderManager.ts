@@ -52,7 +52,7 @@ export class BuilderManager {
         this.scene.add(this.ghostMesh);
     }
 
-    update(playerPos: THREE.Vector3, playerRotation: number, environment: Environment, camera: THREE.Camera, mousePos: {x: number, y: number}) {
+    update(playerPos: THREE.Vector3, playerRotation: number, environment: any, camera: THREE.Camera, mousePos: {x: number, y: number}) {
         if (!this.isActive || !this.ghostMesh) return;
 
         // Reset rotation to user selection every frame
@@ -215,7 +215,7 @@ export class BuilderManager {
         }
     }
 
-    build(environment: Environment) {
+    build(environment: any) {
         if (!this.isActive || !this.ghostMesh) return;
 
         const realMesh = BuildingParts.createStructureMesh(this.currentType, false);

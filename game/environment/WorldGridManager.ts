@@ -11,7 +11,7 @@ interface LabelPoolMember {
 }
 
 export class WorldGridManager {
-    private scene: THREE.Scene;
+    private parent: THREE.Object3D;
     private group: THREE.Group;
     private isVisible: boolean = false;
     private labelPool: LabelPoolMember[] = [];
@@ -19,11 +19,11 @@ export class WorldGridManager {
     private readonly cellSize = 1.3333; // 40/30 or 4/3
     private lastUpdatePos = new THREE.Vector3(Infinity, Infinity, Infinity);
 
-    constructor(scene: THREE.Scene) {
-        this.scene = scene;
+    constructor(parent: THREE.Object3D) {
+        this.parent = parent;
         this.group = new THREE.Group();
         this.group.visible = false;
-        this.scene.add(this.group);
+        this.parent.add(this.group);
         this.buildGridLines();
         this.initLabelPool();
     }

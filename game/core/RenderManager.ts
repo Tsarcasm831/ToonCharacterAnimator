@@ -58,9 +58,39 @@ export class RenderManager {
 
     dispose() {
         this.controls.dispose();
+        
+        // Traverse and dispose of all objects in the scene
+        this.scene.traverse((object) => {
+            if (object instanceof THREE.Mesh) {
+                if (object.geometry) {
+                    object.geometry.dispose();
+                }
+
+                if (object.material) {
+                    if (Array.isArray(object.material)) {
+                        object.material.forEach(material => this.disposeMaterial(material));
+                    } else {
+                        this.disposeMaterial(object.material);
+                    }
+                }
+            }
+        });
+
         this.renderer.dispose();
         if (this.container.contains(this.renderer.domElement)) {
             this.container.removeChild(this.renderer.domElement);
+        }
+    }
+
+    private disposeMaterial(material: THREE.Material) {
+        material.dispose();
+
+        // Dispose of textures
+        for (const key in material) {
+            const value = (material as any)[key];
+            if (value && value instanceof THREE.Texture) {
+                value.dispose();
+            }
         }
     }
 }

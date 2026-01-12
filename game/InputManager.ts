@@ -28,8 +28,9 @@ export class InputManager {
     onToggleInventory?: () => void;
     onToggleFirstPerson?: () => void;
     onToggleBuilder?: () => void;
-    onToggleGrid?: () => void;
     onToggleKeybinds?: () => void;
+    onToggleWorldMap?: () => void;
+    onToggleGrid?: () => void;
 
     constructor() {
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -82,6 +83,10 @@ export class InputManager {
         
         if (e.code === 'Backquote') {
             this.onToggleKeybinds?.();
+        }
+
+        if (e.code === 'KeyM') {
+            this.onToggleWorldMap?.();
         }
 
         if (this.isBlocked) return;

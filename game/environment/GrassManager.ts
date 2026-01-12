@@ -69,10 +69,10 @@ void main() {
 export class GrassManager {
     private mesh: THREE.InstancedMesh;
     private count: number = 15000; // Increased count
-    private scene: THREE.Scene;
+    private parent: THREE.Object3D;
 
-    constructor(scene: THREE.Scene) {
-        this.scene = scene;
+    constructor(parent: THREE.Object3D) {
+        this.parent = parent;
 
         // 1. Geometry: Single Curved Plane (More realistic than cross-plane)
         // A simple plane curved slightly
@@ -112,7 +112,7 @@ export class GrassManager {
         this.mesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
         this.mesh.castShadow = false; 
         this.mesh.receiveShadow = true;
-        this.scene.add(this.mesh);
+        this.parent.add(this.mesh);
 
         this.populate();
     }

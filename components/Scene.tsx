@@ -1,9 +1,10 @@
-
 import React, { useRef, useEffect } from 'react';
-import { Game } from '../game/Game';
+import * as THREE from 'three';
+import { Game } from "../game/Game";
 import { PlayerConfig, PlayerInput } from '../types';
 
 interface SceneProps {
+  activeScene: 'dev' | 'world';
   config: PlayerConfig;
   manualInput: Partial<PlayerInput>;
   initialInventory: string[];
@@ -11,10 +12,12 @@ interface SceneProps {
   onSlotSelect?: (slotIndex: number) => void;
   onInteractionUpdate?: (text: string | null, progress: number | null) => void;
   onGameReady?: (game: Game) => void;
+  onToggleWorldMap?: (pos: THREE.Vector3) => void;
   controlsDisabled?: boolean;
 }
 
 const Scene: React.FC<SceneProps> = ({ 
+    activeScene,
     config, 
     manualInput, 
     initialInventory, 
@@ -22,6 +25,7 @@ const Scene: React.FC<SceneProps> = ({
     onSlotSelect, 
     onInteractionUpdate, 
     onGameReady,
+    onToggleWorldMap,
     controlsDisabled = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +35,7 @@ const Scene: React.FC<SceneProps> = ({
     if (!containerRef.current) return;
 
     // Initialize Game
-    const game = new Game(containerRef.current, config, manualInput, initialInventory);
+    const game = new Game(containerRef.current, config, manualInput, initialInventory, activeScene);
     gameRef.current = game;
     
     if (onGameReady) onGameReady(game);
@@ -41,6 +45,9 @@ const Scene: React.FC<SceneProps> = ({
     game.onInteractionUpdate = onInteractionUpdate;
     if (onSlotSelect) {
         game.setSlotSelectCallback(onSlotSelect);
+    }
+    if (onToggleWorldMap) {
+        game.onToggleWorldMapCallback = onToggleWorldMap;
     }
 
     game.start();

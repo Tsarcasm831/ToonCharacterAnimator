@@ -10,7 +10,7 @@ export class PlayerUtils {
     static POND_DEPTH = 1.8;
 
     // World size expanded from 60 to 100 for 5x5 biomes (200x200 total)
-    static WORLD_LIMIT = 100;
+    static WORLD_LIMIT = 1000;
 
     static getHitboxBounds(position: THREE.Vector3, config: PlayerConfig): THREE.Box3 {
         const { legScale, torsoHeight, torsoWidth, headScale } = config;
