@@ -21,7 +21,8 @@ export class PlayerPhysics {
     static update(player: Player, dt: number, input: PlayerInput, cameraAngle: number, obstacles: THREE.Object3D[]) {
         // 1. Handle Ground & Gravity
         const pos = player.mesh.position;
-        let groundHeight = PlayerUtils.getGroundHeight(pos, player.config, obstacles);
+        // Use getLandingHeight to avoid snapping to overhead obstacles (lintels)
+        let groundHeight = PlayerUtils.getLandingHeight(pos, player.config, obstacles);
         const waterDepth = PlayerUtils.getTerrainHeight(pos.x, pos.z);
         const isInWater = waterDepth < -0.05;
         

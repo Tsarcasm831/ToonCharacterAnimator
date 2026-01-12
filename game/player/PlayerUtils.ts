@@ -30,7 +30,8 @@ export class PlayerUtils {
         
         const box = new THREE.Box3();
         // Lift collision bottom slightly to smooth out step climbing
-        const stepOffset = 0.1; 
+        // Increased to 0.5 to allow stepping onto foundations (0.4m high)
+        const stepOffset = 0.5; 
         
         box.min.set(position.x - rX, position.y + stepOffset, position.z - rZ);
         box.max.set(position.x + rX, position.y + totalHeight, position.z + rZ);
@@ -88,6 +89,46 @@ export class PlayerUtils {
                 pBox.min.z < obsBox.max.z && pBox.max.z > obsBox.min.z) {
                 // If we hit an obstacle, use its top surface
                 highest = Math.max(highest, obsBox.max.y);
+            }
+        }
+        return highest;
+    }
+
+    /**
+     * Specialized version of getGroundHeight for Physics.
+     * Ignores obstacles that are too high above the player (like doorway lintels).
+     */
+    static getLandingHeight(pos: THREE.Vector3, config: PlayerConfig, obstacles: THREE.Object3D[]): number {
+        let highest = this.getTerrainHeight(pos.x, pos.z);
+        
+        const width = 0.6 * config.torsoWidth;
+        const depth = width * 0.7;
+        
+        // Use a tighter column that starts from the player's current feet + step limit
+        // We shouldn't snap to things higher than our step limit.
+        const stepLimit = 0.6; // Slightly more than stepOffset (0.5)
+        const searchCeiling = pos.y + stepLimit;
+
+        // Bounding box for horizontal overlap check
+        const pBox = new THREE.Box3().setFromCenterAndSize(
+            new THREE.Vector3(pos.x, pos.y, pos.z), 
+            new THREE.Vector3(width, 1, depth) // Height doesn't matter much here, we check Y manually
+        );
+
+        for (const obs of obstacles) {
+            if (obs.userData.type === 'soft' || obs.userData.type === 'creature') continue; 
+            
+            const obsBox = new THREE.Box3().setFromObject(obs);
+            
+            // horizontal intersection
+            if (pBox.min.x < obsBox.max.x && pBox.max.x > obsBox.min.x &&
+                pBox.min.z < obsBox.max.z && pBox.max.z > obsBox.min.z) {
+                
+                // Vertical Check:
+                // The surface must be below our step limit.
+                if (obsBox.max.y <= searchCeiling) {
+                    highest = Math.max(highest, obsBox.max.y);
+                }
             }
         }
         return highest;
