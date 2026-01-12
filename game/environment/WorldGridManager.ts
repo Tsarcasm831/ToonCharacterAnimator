@@ -38,20 +38,28 @@ export class WorldGridManager {
         const majorPoints: THREE.Vector3[] = [];
         const minorPoints: THREE.Vector3[] = [];
 
-        const start = -Math.ceil(worldRadius / this.cellSize) * this.cellSize;
+        // Use integer steps to avoid floating point drift
+        // worldRadius is approx 100. cellSize is 1.33. 100/1.33 = 75 cells.
+        const cellRadius = Math.ceil(worldRadius / this.cellSize);
         
-        for (let x = start; x <= worldRadius; x += this.cellSize) {
-            const distFromBound = Math.abs((x % patchSize) - (patchSize/2));
-            const isMajor = Math.abs(x % patchSize) < 0.1 || Math.abs(distFromBound) < 0.1;
+        for (let i = -cellRadius; i <= cellRadius; i++) {
+            const x = i * this.cellSize;
+            
+            // We want major lines at patch boundaries.
+            // Patches are 10 cells wide.
+            // Boundaries are at indices -15, -5, 5, 15, etc.
+            // This corresponds to i % 10 === 5 or -5.
+            const isMajor = Math.abs(i % 10) === 5;
 
             const targetPoints = isMajor ? majorPoints : minorPoints;
             targetPoints.push(new THREE.Vector3(x, 0.05, -worldRadius));
             targetPoints.push(new THREE.Vector3(x, 0.05, worldRadius));
         }
 
-        for (let z = start; z <= worldRadius; z += this.cellSize) {
-            const distFromBound = Math.abs((z % patchSize) - (patchSize/2));
-            const isMajor = Math.abs(z % patchSize) < 0.1 || Math.abs(distFromBound) < 0.1;
+        for (let j = -cellRadius; j <= cellRadius; j++) {
+            const z = j * this.cellSize;
+            
+            const isMajor = Math.abs(j % 10) === 5;
 
             const targetPoints = isMajor ? majorPoints : minorPoints;
             targetPoints.push(new THREE.Vector3(-worldRadius, 0.05, z));
@@ -101,10 +109,8 @@ export class WorldGridManager {
         }
     }
 
-    private updateLabel(member: LabelPoolMember, x: number, z: number, color: string) {
-        const rx = Math.round(x);
-        const rz = Math.round(z);
-        const key = `${rx},${rz}_${color}`;
+    private updateLabel(member: LabelPoolMember, ix: number, iz: number, color: string) {
+        const key = `${ix},${iz}_${color}`;
         
         if (member.currentKey === key) return;
 
@@ -124,7 +130,7 @@ export class WorldGridManager {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = 'bold 16px monospace';
-        ctx.fillText(`${rx},${rz}`, 34, 16);
+        ctx.fillText(`${ix},${iz}`, 34, 16);
 
         member.texture.needsUpdate = true;
         member.currentKey = key;
@@ -170,7 +176,7 @@ export class WorldGridManager {
 
                     member.mesh.position.set(cx, 0.08, cz);
                     member.mesh.visible = true;
-                    this.updateLabel(member, cx, cz, biome.color);
+                    this.updateLabel(member, ix, iz, biome.color);
                     
                     poolIdx++;
                 }

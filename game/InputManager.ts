@@ -14,6 +14,9 @@ export class InputManager {
     // Joystick State
     private joystickMove = { x: 0, y: 0 };
     private joystickLook = { x: 0, y: 0 };
+    
+    // Mouse State (NDC)
+    mousePosition = { x: 0, y: 0 };
 
     // Callbacks for specific actions
     onSlotSelect?: (slotIndex: number) => void;
@@ -33,12 +36,14 @@ export class InputManager {
         this.handleKeyUp = this.handleKeyUp.bind(this);
         this.handleMouseDown = this.handleMouseDown.bind(this);
         this.handleMouseUp = this.handleMouseUp.bind(this);
+        this.handleMouseMove = this.handleMouseMove.bind(this);
         
         if (typeof window !== 'undefined') {
             window.addEventListener('keydown', this.handleKeyDown, { passive: false });
             window.addEventListener('keyup', this.handleKeyUp, { passive: false });
             window.addEventListener('mousedown', this.handleMouseDown, { passive: false });
             window.addEventListener('mouseup', this.handleMouseUp, { passive: false });
+            window.addEventListener('mousemove', this.handleMouseMove, { passive: false });
         }
     }
 
@@ -113,6 +118,14 @@ export class InputManager {
     
     private handleMouseUp(e: MouseEvent) {
         if (e.button === 0) this.isMouseDown = false;
+    }
+
+    private handleMouseMove(e: MouseEvent) {
+        if (this.isBlocked) return;
+        // Convert to Normalized Device Coordinates (NDC)
+        // x: -1 to 1, y: 1 to -1
+        this.mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
+        this.mousePosition.y = -(e.clientY / window.innerHeight) * 2 + 1;
     }
 
     getInput(): PlayerInput {

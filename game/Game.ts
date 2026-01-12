@@ -103,7 +103,7 @@ export class Game {
         this.scene.fog = new THREE.Fog(0xf0f5ff, 10, 80);
 
         this.camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.01, 200);
-        this.camera.position.set(0, 3.2, 5.0);
+        this.camera.position.set(-24, 3.2, 55.0);
 
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(container.clientWidth, container.clientHeight);
@@ -114,7 +114,7 @@ export class Game {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.target.set(0, 1.7, 0);
+        this.controls.target.set(-24, 1.7, 50);
         
         this.controls.mouseButtons = { LEFT: null as any, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
         this.prevTargetPos.copy(this.controls.target);
@@ -376,7 +376,7 @@ export class Game {
             this.foundryAssassin.update(delta, this.environment, [{ position: this.foundryGuard.position.clone(), isDead: false }]);
         }
         
-        if (this.isBuilding) this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, this.environment);
+        if (this.isBuilding) this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, this.environment, this.camera, this.inputManager.mousePosition);
         this.soundManager.update(this.player, delta);
 
         const targetPos = this.player.mesh.position.clone();

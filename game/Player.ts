@@ -125,6 +125,7 @@ export class Player {
         this.model = new PlayerModel(this.config);
         this.animator = new PlayerAnimator();
         this.scene.add(this.model.group);
+        this.model.group.position.set(-24, 0, 50);
         this.model.group.rotation.y = Math.PI;
 
         // Initialize Handlers

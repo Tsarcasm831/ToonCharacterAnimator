@@ -5,18 +5,21 @@ export type StructureType = 'foundation' | 'wall' | 'doorway' | 'door' | 'roof';
 
 export class BuildingParts {
     static getGeometry(type: StructureType): THREE.BufferGeometry {
+        const GRID_SIZE = 1.3333;
+        
         switch (type) {
             case 'foundation':
-                return new THREE.BoxGeometry(2, 0.4, 2);
+                return new THREE.BoxGeometry(GRID_SIZE, 0.4, GRID_SIZE);
             case 'wall':
-                return new THREE.BoxGeometry(2, 2.5, 0.2);
+                return new THREE.BoxGeometry(GRID_SIZE, 2.75, 0.2);
             case 'doorway':
-                // Proportions for a 2.5m tall doorway with a 2.1m opening
-                const postWidth = 0.4;
-                const totalWidth = 2.0;
-                const holeWidth = 1.2;
-                const totalHeight = 2.5;
-                const lintelHeight = 0.4; // 2.5 - 2.1 = 0.4m lintel
+                // Proportions for a 2.75m tall doorway (increased 10%)
+                // Fits within 1.333m grid
+                const postWidth = 0.26;
+                const totalWidth = GRID_SIZE;
+                const holeWidth = totalWidth - (postWidth * 2); 
+                const totalHeight = 2.75; // Increased from 2.5
+                const lintelHeight = 0.4; // Opening = 2.75 - 0.4 = 2.35m
                 const depth = 0.2;
                 
                 // CRITICAL: Convert to non-indexed so manual attribute merging works correctly
@@ -58,15 +61,16 @@ export class BuildingParts {
                 return mergedGeo;
 
             case 'door':
-                // Match the 1.2m x 2.1m doorway opening
-                return new THREE.BoxGeometry(1.2, 2.1, 0.15); 
+                // Match the doorway opening (2.75m - 0.4m = 2.35m)
+                return new THREE.BoxGeometry(0.8, 2.35, 0.15); 
             case 'roof':
+                const halfSize = GRID_SIZE / 2;
                 const roofGeo = new THREE.BufferGeometry();
                 const vertices = new Float32Array([
-                    -1, 0, -1,  1, 0, -1,  0, 1, 0,
-                    1, 0, -1,   1, 0, 1,   0, 1, 0,
-                    1, 0, 1,   -1, 0, 1,   0, 1, 0,
-                    -1, 0, 1,  -1, 0, -1,  0, 1, 0
+                    -halfSize, 0, -halfSize,  halfSize, 0, -halfSize,  0, 1, 0,
+                    halfSize, 0, -halfSize,   halfSize, 0, halfSize,   0, 1, 0,
+                    halfSize, 0, halfSize,   -halfSize, 0, halfSize,   0, 1, 0,
+                    -halfSize, 0, halfSize,  -halfSize, 0, -halfSize,  0, 1, 0
                 ]);
                 roofGeo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
                 roofGeo.computeVertexNormals();
@@ -76,35 +80,92 @@ export class BuildingParts {
         }
     }
 
-    static createStructureMesh(type: StructureType, isGhost: boolean = false): THREE.Mesh {
-        const geo = this.getGeometry(type);
-        let mat: THREE.Material;
+    static createStructureMesh(type: StructureType, isGhost: boolean = false): THREE.Object3D {
+        const GRID_SIZE = 1.3333;
 
-        if (isGhost) {
-            mat = new THREE.MeshStandardMaterial({
-                color: 0x44ff44,
-                transparent: true,
-                opacity: 0.4,
-                wireframe: true
-            });
-        } else {
-            const color = type === 'foundation' ? 0x795548 : (type === 'roof' ? 0x4e342e : 0x8d6e63);
-            mat = new THREE.MeshStandardMaterial({
-                color: color,
-                roughness: 0.8,
-                metalness: 0.1,
-                flatShading: true
-            });
+        // Helper for material
+        const getMat = (t: StructureType) => {
+            if (isGhost) {
+                return new THREE.MeshStandardMaterial({
+                    color: 0x44ff44,
+                    transparent: true,
+                    opacity: 0.4,
+                    wireframe: true
+                });
+            } else {
+                const color = t === 'foundation' ? 0x795548 : (t === 'roof' ? 0x4e342e : 0x8d6e63);
+                return new THREE.MeshStandardMaterial({
+                    color: color,
+                    roughness: 0.8,
+                    metalness: 0.1,
+                    flatShading: true
+                });
+            }
+        };
+
+        if (type === 'doorway') {
+            const group = new THREE.Group();
+            const mat = getMat(type);
+            
+            const totalWidth = GRID_SIZE * 2; // 2 Grids wide
+            const postWidth = 0.3;
+            const totalHeight = 2.75; // Increased from 2.5
+            const depth = 0.2;
+            const lintelHeight = 0.4;
+            const holeWidth = totalWidth - (postWidth * 2);
+
+            // Left Post
+            const leftGeo = new THREE.BoxGeometry(postWidth, totalHeight, depth);
+            const leftPost = new THREE.Mesh(leftGeo, mat);
+            leftPost.position.set(-(totalWidth/2 - postWidth/2), 0, 0);
+            leftPost.castShadow = !isGhost;
+            leftPost.receiveShadow = !isGhost;
+            leftPost.userData = { type: 'hard', material: 'wood', structureType: 'doorway' };
+            group.add(leftPost);
+
+            // Right Post
+            const rightGeo = new THREE.BoxGeometry(postWidth, totalHeight, depth);
+            const rightPost = new THREE.Mesh(rightGeo, mat);
+            rightPost.position.set(+(totalWidth/2 - postWidth/2), 0, 0);
+            rightPost.castShadow = !isGhost;
+            rightPost.receiveShadow = !isGhost;
+            rightPost.userData = { type: 'hard', material: 'wood', structureType: 'doorway' };
+            group.add(rightPost);
+
+            // Lintel
+            const lintelGeo = new THREE.BoxGeometry(holeWidth, lintelHeight, depth);
+            const lintel = new THREE.Mesh(lintelGeo, mat);
+            lintel.position.set(0, (totalHeight/2) - (lintelHeight/2), 0);
+            lintel.castShadow = !isGhost;
+            lintel.receiveShadow = !isGhost;
+            lintel.userData = { type: 'hard', material: 'wood', structureType: 'doorway' };
+            group.add(lintel);
+
+            return group;
         }
+
+        if (type === 'door') {
+             // Wider door to fit 2-grid doorway
+             const width = (GRID_SIZE * 2) - 0.6; // Total - 2*Post
+             const geo = new THREE.BoxGeometry(width, 2.35, 0.15);
+             const mat = getMat(type);
+             const mesh = new THREE.Mesh(geo, mat);
+             mesh.position.y = 1.175;
+             mesh.castShadow = !isGhost;
+             mesh.receiveShadow = !isGhost;
+             return mesh;
+        }
+
+        const geo = this.getGeometry(type);
+        const mat = getMat(type);
 
         const mesh = new THREE.Mesh(geo, mat);
         mesh.castShadow = !isGhost;
         mesh.receiveShadow = !isGhost;
         
-        // Pivot adjustments to keep bottom at Y=0 relative to foundation surface
-        if (type === 'wall' || type === 'doorway') mesh.position.y = 1.25; // 2.5 / 2
-        if (type === 'foundation') mesh.position.y = 0.2; // 0.4 / 2
-        if (type === 'door') mesh.position.y = 1.05; // 2.1 / 2
+        // Pivot adjustments
+        if (type === 'wall') mesh.position.y = 1.375; 
+        if (type === 'foundation') mesh.position.y = 0.2; 
         if (type === 'roof') mesh.position.y = 0;
 
         return mesh;
