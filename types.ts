@@ -18,6 +18,7 @@ export interface EquipmentState {
   heavyLeatherArmor: boolean;
   ringMail: boolean;
   plateMail: boolean;
+  robe: boolean;
 }
 
 export interface PlayerInput {
@@ -73,6 +74,8 @@ export interface PlayerConfig {
   bootsColor: string;
   hairColor: string;
   hairStyle: HairStyle;
+  robeColor: string;
+  robeTrimColor: string;
   tintColor?: string; // Optional faction tint
   
   // Detailed Proportions
@@ -245,6 +248,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     heavyLeatherArmor: false,
     ringMail: false,
     plateMail: false,
+    robe: false,
   },
   selectedItem: null,
   weaponStance: 'side',
@@ -269,6 +273,8 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   bootsColor: '#3e2723',
   hairColor: '#3e2723',
   hairStyle: 'bald',
+  robeColor: '#2c2c2c',
+  robeTrimColor: '#d4af37',
   
   headScale: 1.0,
   neckHeight: 0.75,

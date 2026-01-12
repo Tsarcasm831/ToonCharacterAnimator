@@ -9,6 +9,7 @@ import { PantsBuilder } from './model/mesh/PantsBuilder';
 import { HairBuilder } from './model/mesh/HairBuilder';
 import { FootBuilder } from './model/mesh/FootBuilder';
 import { ShoeBuilder } from './model/mesh/ShoeBuilder';
+import { RobeBuilder } from './model/equipment/RobeBuilder';
 
 export class PlayerModel {
     group: THREE.Group;
@@ -36,8 +37,10 @@ export class PlayerModel {
     // Track dynamic meshes
     private shirtMeshes: THREE.Object3D[] = [];
     private pantsMeshes: THREE.Object3D[] = [];
+    private robeMeshes: THREE.Object3D[] = [];
     private lastShirtConfigHash: string = '';
     private lastPantsConfigHash: string = '';
+    private lastRobeConfigHash: string = '';
     private lastShoeState: boolean | null = null;
     
     // Track hair state
@@ -138,7 +141,7 @@ export class PlayerModel {
     }
 
     private updateShirt(config: PlayerConfig) {
-        const hash = `${config.outfit}_${config.shirtColor}_${config.bodyType}_${config.equipment.shirt}_${config.equipment.quiltedArmor}_${config.equipment.leatherArmor}`;
+        const hash = `${config.outfit}_${config.shirtColor}_${config.bodyType}_${config.equipment.shirt}_${config.equipment.quiltedArmor}_${config.equipment.leatherArmor}_${config.equipment.heavyLeatherArmor}_${config.equipment.ringMail}_${config.equipment.plateMail}`;
         if (hash === this.lastShirtConfigHash) return;
         this.lastShirtConfigHash = hash;
         if (this.parts.shirt) this.parts.shirt = null;
@@ -165,6 +168,23 @@ export class PlayerModel {
         this.pantsMeshes = [];
         const meshes = PantsBuilder.build(this.parts, config);
         if (meshes) this.pantsMeshes = meshes;
+    }
+
+    private updateRobe(config: PlayerConfig) {
+        const hash = `${config.equipment.robe}_${config.robeColor}_${config.robeTrimColor}_${config.bodyType}`;
+        if (hash === this.lastRobeConfigHash) return;
+        this.lastRobeConfigHash = hash;
+
+        this.robeMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if ((m as THREE.Mesh).geometry) (m as THREE.Mesh).geometry.dispose();
+        });
+        this.robeMeshes = [];
+
+        const result = RobeBuilder.build(this.parts, config);
+        if (result) {
+            this.robeMeshes = result.meshes;
+        }
     }
 
     private updateShoes(config: PlayerConfig) {
@@ -481,6 +501,7 @@ export class PlayerModel {
 
         this.updatePants(config);
         this.updateShirt(config);
+        this.updateRobe(config);
         this.updateHair(config);
         
         const hairMesh = this.parts.head?.getObjectByName('HairInstanced') as THREE.InstancedMesh;

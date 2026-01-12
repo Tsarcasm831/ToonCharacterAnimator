@@ -64,7 +64,9 @@ export class LowLevelCityGuard {
                 helm: true, shoulders: true, shield: false,
                 shirt: true, pants: true, shoes: true, mask: false, hood: false,
                 quiltedArmor: true, leatherArmor: false, heavyLeatherArmor: false,
-                ringMail: false, plateMail: false
+                ringMail: false, plateMail: false,
+                // Add missing robe property
+                robe: false
             },
             selectedItem: 'Halberd',
             weaponStance: 'shoulder',

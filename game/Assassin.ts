@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../types';
 import { PlayerModel } from './PlayerModel';
@@ -91,7 +92,9 @@ export class Assassin {
                 leatherArmor: false,
                 heavyLeatherArmor: false,
                 ringMail: false,
-                plateMail: false
+                plateMail: false,
+                // Add missing robe property
+                robe: false
             },
             selectedItem: 'Knife',
             weaponStance: 'side',

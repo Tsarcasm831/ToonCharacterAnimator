@@ -88,7 +88,7 @@ export class WeaponAction {
                 parts.neck.rotation.y = lerp(parts.neck.rotation.y, 0, actionDamp);
             }
         } else {
-            // AXE/PICKAXE/POLE (Overhead Vertical)
+            // AXE/PICKAXE/HALBERD/POLE (Overhead Vertical)
             if (p < 0.45) {
                 // PHASE 1: WINDUP
                 const wd = actionDamp * 0.8; 
@@ -101,22 +101,25 @@ export class WeaponAction {
                 parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, -0.2, wd); 
                 parts.neck.rotation.x = lerp(parts.neck.rotation.x, -0.3, wd); 
 
-            } else if (p < 0.7) {
-                // PHASE 2: STRIKE
-                const sd = actionDamp * 1.5; 
-                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.8, sd); 
-                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, 0, sd); 
-                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.5, sd); 
+            } else if (p < 0.75) {
+                // PHASE 2: STRIKE (Smash Forward and Down)
+                const sd = actionDamp * 1.8; 
+                // Changed Arm X from -0.8 (Upward diagonal) to 0.4 (Downward diagonal) for lower reach
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.4, sd); 
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, 0.1, sd); 
+                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.4, sd); 
                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2, sd);
 
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.4 + torsoOffset, sd);
-                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.5, sd); 
-                parts.neck.rotation.x = lerp(parts.neck.rotation.x, 0.2, sd);
+                // Twist torso into the hit
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.5 + torsoOffset, sd);
+                // Increased torso lean forward (0.5 -> 0.7) for weight
+                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.7, sd); 
+                parts.neck.rotation.x = lerp(parts.neck.rotation.x, 0.3, sd);
 
             } else {
                 // PHASE 3: RECOVERY
                 const rd = actionDamp * 0.5;
-                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.8, rd);
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0, rd);
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.5, rd);
                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2, rd);
 

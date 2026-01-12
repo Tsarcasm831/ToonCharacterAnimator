@@ -6,6 +6,8 @@ import { NPC } from './NPC';
 import { Assassin } from './Assassin';
 import { Archer } from './Archer';
 import { Wolf } from './Wolf';
+import { Bear } from './Bear';
+import { Owl } from './Owl';
 import { LowLevelCityGuard } from './LowLevelCityGuard';
 import { Environment } from './Environment';
 import { InputManager } from './InputManager';
@@ -28,9 +30,10 @@ export class Game {
     private assassin: Assassin;
     private archer: Archer;
     private wolf: Wolf;
+    private bear: Bear;
+    private owl: Owl;
     private guard: LowLevelCityGuard;
 
-    // Foundry Factions
     private foundryGuard: LowLevelCityGuard;
     private foundryAssassin: Assassin;
 
@@ -96,17 +99,10 @@ export class Game {
         this.controls.dampingFactor = 0.05;
         this.controls.target.set(0, 1.7, 0);
         
-        this.controls.mouseButtons = {
-            LEFT: null as any,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.ROTATE
-        };
-        
+        this.controls.mouseButtons = { LEFT: null as any, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
         this.prevTargetPos.copy(this.controls.target);
 
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
-        this.scene.add(hemiLight);
-
+        this.scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
         dirLight.position.set(5, 15, 5);
         dirLight.castShadow = true;
@@ -128,21 +124,21 @@ export class Game {
         this.archer.config.isAssassinHostile = initialConfig.isAssassinHostile;
 
         this.wolf = new Wolf(this.scene, new THREE.Vector3(10, 0, 10));
+        this.environment.addObstacle(this.wolf.hitbox);
+
+        this.bear = new Bear(this.scene, new THREE.Vector3(-15, 0, 15));
+        this.environment.addObstacle(this.bear.hitbox);
+
+        this.owl = new Owl(this.scene, new THREE.Vector3(5, 5, -5));
+        this.environment.addObstacle(this.owl.hitbox);
 
         this.guard = new LowLevelCityGuard(this.scene, new THREE.Vector3(-8, 0, -2));
-        
-        // --- INDUSTRIAL FOUNDRY COMBATANTS ---
         this.foundryGuard = new LowLevelCityGuard(this.scene, new THREE.Vector3(-42, 0, -42), 0, '#4ade80');
         this.foundryAssassin = new Assassin(this.scene, new THREE.Vector3(-38, 0, -38), '#ef4444');
         this.foundryAssassin.config.isAssassinHostile = true;
 
         this.player.inventory.setItems(initialInventory);
         this.clock = new THREE.Clock();
-
-        if (this.npc) this.npc.model.group.visible = initialConfig.showNPC;
-        if (this.assassin) this.assassin.model.group.visible = initialConfig.showAssassin;
-        if (this.archer) this.archer.model.group.visible = initialConfig.showAssassin; // Reusing assassin visibility for now
-        if (this.guard) this.guard.model.group.visible = initialConfig.showGuard;
 
         this.inputManager.onToggleHitbox = () => this.player.toggleHitbox();
         this.inputManager.onToggleObstacleHitboxes = () => {
@@ -154,27 +150,22 @@ export class Game {
         this.inputManager.onToggleSkeletonMode = () => this.player.toggleSkeletonMode();
         this.inputManager.onToggleFirstPerson = () => this.toggleFirstPerson();
         this.inputManager.onToggleBuilder = () => this.toggleBuilder();
+        this.inputManager.onToggleGrid = () => this.environment.toggleWorldGrid();
         
         this._onPointerLockChange = this.onPointerLockChange.bind(this);
         this._onMouseMove = this.onMouseMove.bind(this);
         document.addEventListener('pointerlockchange', this._onPointerLockChange);
         window.addEventListener('mousemove', this._onMouseMove);
-
         this.animate = this.animate.bind(this);
     }
 
     start() { this.animate(); }
-
     stop() {
         cancelAnimationFrame(this.animationId);
         document.removeEventListener('pointerlockchange', this._onPointerLockChange);
         window.removeEventListener('mousemove', this._onMouseMove);
-        this.controls.dispose();
-        this.renderer.dispose();
-        this.inputManager.dispose();
-        if (this.container.contains(this.renderer.domElement)) {
-            this.container.removeChild(this.renderer.domElement);
-        }
+        this.controls.dispose(); this.renderer.dispose(); this.inputManager.dispose();
+        if (this.container.contains(this.renderer.domElement)) this.container.removeChild(this.renderer.domElement);
     }
 
     private toggleBuilder() {
@@ -184,15 +175,9 @@ export class Game {
         if (this.isBuilding && this.isFirstPerson) this.toggleFirstPerson(false);
     }
 
-    setBuildingType(type: any) {
-        this.builderManager.setType(type);
-    }
+    setBuildingType(type: any) { this.builderManager.setType(type); }
 
-    private onPointerLockChange() {
-        if (document.pointerLockElement !== this.renderer.domElement && this.isFirstPerson) {
-            this.toggleFirstPerson(false);
-        }
-    }
+    private onPointerLockChange() { if (document.pointerLockElement !== this.renderer.domElement && this.isFirstPerson) this.toggleFirstPerson(false); }
 
     private onMouseMove(e: MouseEvent) {
         if (this.isFirstPerson && document.pointerLockElement === this.renderer.domElement) {
@@ -204,9 +189,7 @@ export class Game {
         }
     }
 
-    setManualInput(input: Partial<PlayerInput>) {
-        this.inputManager.setManualInput(input);
-    }
+    setManualInput(input: Partial<PlayerInput>) { this.inputManager.setManualInput(input); }
 
     setConfig(config: PlayerConfig) {
         this.config = config;
@@ -214,43 +197,26 @@ export class Game {
         this.soundManager.setVolume(config.globalVolume);
         if (this.npc) this.npc.model.group.visible = config.showNPC;
         if (this.guard) this.guard.model.group.visible = config.showGuard;
-        if (this.assassin) {
-            this.assassin.model.group.visible = config.showAssassin;
-            this.assassin.config.isAssassinHostile = config.isAssassinHostile;
-        }
-        if (this.archer) {
-            this.archer.model.group.visible = config.showAssassin;
-            this.archer.config.isAssassinHostile = config.isAssassinHostile;
-        }
+        if (this.assassin) { this.assassin.model.group.visible = config.showAssassin; this.assassin.config.isAssassinHostile = config.isAssassinHostile; }
+        if (this.archer) { this.archer.model.group.visible = config.showAssassin; this.archer.config.isAssassinHostile = config.isAssassinHostile; }
     }
 
     setInventory(items: string[]) { this.player.inventory.setItems(items); }
     setSlotSelectCallback(cb: (index: number) => void) { this.inputManager.onSlotSelect = cb; }
-    setControlsActive(active: boolean) {
-        this.controls.enabled = active;
-        this.inputManager.setBlocked(!active);
-    }
+    setControlsActive(active: boolean) { this.controls.enabled = active; this.inputManager.setBlocked(!active); }
 
-    private toggleCameraFocus() {
-        if (this.isFirstPerson) this.toggleFirstPerson(false); 
-        this.cameraFocusMode = (this.cameraFocusMode + 1) % 3;
-    }
+    private toggleCameraFocus() { if (this.isFirstPerson) this.toggleFirstPerson(false); this.cameraFocusMode = (this.cameraFocusMode + 1) % 3; }
 
     private toggleFirstPerson(forceState?: boolean) {
         const nextState = forceState !== undefined ? forceState : !this.isFirstPerson;
         if (nextState === this.isFirstPerson) return;
         this.isFirstPerson = nextState;
         if (this.isFirstPerson) {
-            this.controls.minDistance = 0.01;
-            this.controls.maxDistance = 0.1; 
-            this.controls.enabled = false;
-            this.fpvYaw = this.player.mesh.rotation.y + Math.PI;
-            this.fpvPitch = 0;
+            this.controls.minDistance = 0.01; this.controls.maxDistance = 0.1; this.controls.enabled = false;
+            this.fpvYaw = this.player.mesh.rotation.y + Math.PI; this.fpvPitch = 0;
             this.renderer.domElement.requestPointerLock();
         } else {
-            this.controls.minDistance = 0.1;
-            this.controls.maxDistance = 100;
-            this.controls.enabled = true;
+            this.controls.minDistance = 0.1; this.controls.maxDistance = 100; this.controls.enabled = true;
             if (document.pointerLockElement === this.renderer.domElement) document.exitPointerLock();
             if (this.player.model.parts.head) this.player.model.parts.head.visible = true;
             const dir = new THREE.Vector3().subVectors(this.camera.position, this.controls.target).normalize();
@@ -273,62 +239,39 @@ export class Game {
         if (joyLook.x !== 0 || joyLook.y !== 0) {
             const joySensitivity = 2.5 * delta;
             if (this.isFirstPerson) {
-                this.fpvYaw -= joyLook.x * joySensitivity;
-                this.fpvPitch -= joyLook.y * joySensitivity;
-                const limit = Math.PI / 2 - 0.1;
-                this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
+                this.fpvYaw -= joyLook.x * joySensitivity; this.fpvPitch -= joyLook.y * joySensitivity;
+                const limit = Math.PI / 2 - 0.1; this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
             } else {
                 const offset = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
                 const spherical = new THREE.Spherical().setFromVector3(offset);
-                spherical.theta -= joyLook.x * joySensitivity;
-                spherical.phi -= joyLook.y * joySensitivity;
-                spherical.makeSafe();
-                offset.setFromSpherical(spherical);
+                spherical.theta -= joyLook.x * joySensitivity; spherical.phi -= joyLook.y * joySensitivity;
+                spherical.makeSafe(); offset.setFromSpherical(spherical);
                 this.camera.position.copy(this.controls.target).add(offset);
             }
         }
 
         if (input.toggleFirstPerson && !this.wasFirstPersonKeyPressed) this.toggleFirstPerson();
         this.wasFirstPersonKeyPressed = !!input.toggleFirstPerson;
-
         if (input.rotateGhost && !this.wasRotateKeyPressed) this.builderManager.rotate();
         this.wasRotateKeyPressed = !!input.rotateGhost;
-
         if (this.isBuilding && input.attack1 && !this.wasAttack1Pressed) {
             this.builderManager.build(this.environment);
-            // Refresh hitboxes if they are currently shown
-            if (this.showObstacleHitboxes) {
-                PlayerDebug.updateObstacleHitboxVisuals(this.environment.obstacles, true);
-            }
+            if (this.showObstacleHitboxes) PlayerDebug.updateObstacleHitboxVisuals(this.environment.obstacles, true);
         }
         this.wasAttack1Pressed = !!input.attack1;
 
-        let cameraRotation = 0;
-        if (this.isFirstPerson) {
-            cameraRotation = this.fpvYaw + Math.PI;
-        } else {
-            cameraRotation = Math.atan2(
-                this.camera.position.x - this.controls.target.x,
-                this.camera.position.z - this.controls.target.z
-            );
-        }
+        let cameraRotation = this.isFirstPerson ? (this.fpvYaw + Math.PI) : Math.atan2(this.camera.position.x - this.controls.target.x, this.camera.position.z - this.controls.target.z);
 
         this.environment.update(delta, this.config, this.player.mesh.position);
         this.particleManager.update(delta);
         
         const biome = this.environment.getBiomeAt(this.player.mesh.position);
-        if (biome.name !== this.currentBiomeName) {
-            this.currentBiomeName = biome.name;
-            this.onBiomeUpdate?.(biome);
-        }
+        if (biome.name !== this.currentBiomeName) { this.currentBiomeName = biome.name; this.onBiomeUpdate?.(biome); }
 
         const playerInput = { ...input };
-        if (this.isBuilding) {
-            playerInput.attack1 = false;
-            playerInput.attack2 = false;
-        }
+        if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
         
-        const entities = [this.npc, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin];
+        const entities = [this.npc, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin, this.wolf, this.bear, this.owl];
         this.player.update(delta, playerInput, this.camera.position, cameraRotation, this.environment, this.particleManager, entities);
         
         if (this.config.showNPC && this.npc) {
@@ -337,92 +280,56 @@ export class Game {
             else eyePos.copy(this.player.mesh.position).y += 1.7;
             this.npc.update(delta, eyePos, this.environment);
         }
-        if (this.config.showGuard && this.guard) {
-            this.guard.update(delta, this.player.mesh.position, this.environment);
-        }
+        if (this.config.showGuard && this.guard) this.guard.update(delta, this.player.mesh.position, this.environment);
         if (this.config.showAssassin && this.archer) {
             this.archer.update(delta, this.environment, [
-                { position: this.player.mesh.position.clone() }, 
-                { position: this.npc.position.clone() },
-                { position: this.wolf.position.clone(), isWolf: true, isDead: this.wolf.isDead }
+                { position: this.player.mesh.position.clone() }, { position: this.npc.position.clone() },
+                { position: this.wolf.position.clone(), isWolf: true, isDead: this.wolf.isDead },
+                { position: this.bear.position.clone(), isWolf: true, isDead: this.bear.isDead }
             ]);
         }
-        if (this.wolf) {
-            this.wolf.update(delta, this.environment, [
-                { position: this.player.mesh.position.clone() },
-                { position: this.archer.position.clone() },
-                { position: this.npc.position.clone() }
-            ]);
-        }
-        if (this.config.showAssassin && this.assassin) {
-            this.assassin.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.npc.position.clone() }]);
-        }
+        if (this.wolf) this.wolf.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
+        if (this.bear) this.bear.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
+        if (this.owl) this.owl.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
+        if (this.config.showAssassin && this.assassin) this.assassin.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.npc.position.clone() }]);
 
-        // --- FOUNDRY COMBAT UPDATES ---
         if (this.foundryGuard && this.foundryAssassin) {
             this.foundryGuard.update(delta, this.player.mesh.position, this.environment, [{ position: this.foundryAssassin.position.clone(), isDead: false }]);
             this.foundryAssassin.update(delta, this.environment, [{ position: this.foundryGuard.position.clone(), isDead: false }]);
         }
         
-        if (this.isBuilding) {
-            this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, this.environment);
-        }
-
+        if (this.isBuilding) this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, this.environment);
         this.soundManager.update(this.player, delta);
 
         const targetPos = this.player.mesh.position.clone();
-        let heightOffset = 1.7; 
-        if (this.cameraFocusMode === 1) heightOffset = 1.0; 
-        if (this.cameraFocusMode === 2) heightOffset = 0.4; 
+        let heightOffset = this.cameraFocusMode === 1 ? 1.0 : (this.cameraFocusMode === 2 ? 0.4 : 1.7);
         targetPos.y += heightOffset; 
 
         if (this.isFirstPerson) {
             const head = this.player.model.parts.head;
             if (head) {
-                const headPos = new THREE.Vector3();
-                head.getWorldPosition(headPos);
-                const forward = new THREE.Vector3();
-                this.player.mesh.getWorldDirection(forward);
-                headPos.addScaledVector(forward, 0.14);
-                head.visible = false;
-                this.controls.target.copy(headPos);
-                const camDir = new THREE.Vector3(0, 0, 1);
-                camDir.applyAxisAngle(new THREE.Vector3(1, 0, 0), this.fpvPitch);
-                camDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.fpvYaw);
-                this.camera.position.copy(headPos);
-                this.camera.lookAt(headPos.clone().add(camDir));
+                const headPos = new THREE.Vector3(); head.getWorldPosition(headPos);
+                const forward = new THREE.Vector3(); this.player.mesh.getWorldDirection(forward);
+                headPos.addScaledVector(forward, 0.14); head.visible = false; this.controls.target.copy(headPos);
+                const camDir = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(1, 0, 0), this.fpvPitch).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.fpvYaw);
+                this.camera.position.copy(headPos); this.camera.lookAt(headPos.clone().add(camDir));
             }
         } else {
             this.controls.target.lerp(targetPos, 0.1);
             const deltaPos = new THREE.Vector3().subVectors(this.controls.target, this.prevTargetPos);
-            this.camera.position.add(deltaPos);
-            this.prevTargetPos.copy(this.controls.target);
-            this.controls.update();
+            this.camera.position.add(deltaPos); this.prevTargetPos.copy(this.controls.target); this.controls.update();
         }
   
-        if (this.player.isTalking) {
-            this.onInteractionUpdate?.(null, null);
-        } else if (this.player.isSkinning) {
-            this.onInteractionUpdate?.(null, this.player.skinningProgress);
-        } else if (this.player.isChargingFishing) {
-            this.onInteractionUpdate?.('Power', this.player.fishingCharge);
-        } else if (this.player.canTalk) {
+        if (this.player.isTalking) this.onInteractionUpdate?.(null, null);
+        else if (this.player.isSkinning) this.onInteractionUpdate?.(null, this.player.skinningProgress);
+        else if (this.player.isChargingFishing) this.onInteractionUpdate?.('Power', this.player.fishingCharge);
+        else if (this.player.canTalk) {
             this.onInteractionUpdate?.('Press E to Talk', null);
-            if (input.interact) {
-                this.player.isTalking = true;
-                this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant.");
-            }
-        } else if (this.player.canSkin) {
-            this.onInteractionUpdate?.('Press F to Skin', null);
-        } else {
-            this.onInteractionUpdate?.(null, null);
-        }
+            if (input.interact) { this.player.isTalking = true; this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); }
+        } else if (this.player.canSkin) this.onInteractionUpdate?.('Press F to Skin', null);
+        else this.onInteractionUpdate?.(null, null);
   
-        if (this.player.inventory.isDirty) {
-            this.onInventoryUpdate?.([...this.player.inventory.items]);
-            this.player.inventory.isDirty = false;
-        }
-
+        if (this.player.inventory.isDirty) { this.onInventoryUpdate?.([...this.player.inventory.items]); this.player.inventory.isDirty = false; }
         this.renderer.render(this.scene, this.camera);
     }
 }

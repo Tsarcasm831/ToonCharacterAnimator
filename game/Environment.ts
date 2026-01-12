@@ -1,3 +1,4 @@
+
 import * as THREE_LIB from 'three';
 import { ENV_CONSTANTS, BIOME_DATA } from './environment/EnvironmentTypes';
 import { SceneBuilder } from './environment/SceneBuilder';
@@ -5,6 +6,7 @@ import { DebrisSystem } from './environment/DebrisSystem';
 import { ObstacleManager } from './environment/ObstacleManager';
 import { GrassManager } from './environment/GrassManager';
 import { SnowSystem } from './environment/SnowSystem';
+import { WorldGridManager } from './environment/WorldGridManager';
 import { PlayerConfig } from '../types';
 import { PlayerUtils } from './player/PlayerUtils';
 
@@ -14,6 +16,7 @@ export class Environment {
     private debrisSystem: DebrisSystem;
     private grassManager: GrassManager;
     private snowSystem: SnowSystem;
+    private worldGrid: WorldGridManager;
     private sunLight: THREE_LIB.DirectionalLight;
     private hemiLight: THREE_LIB.HemisphereLight;
     
@@ -39,6 +42,7 @@ export class Environment {
         this.obstacleManager = new ObstacleManager(scene, this.debrisSystem);
         this.grassManager = new GrassManager(scene);
         this.snowSystem = new SnowSystem(scene);
+        this.worldGrid = new WorldGridManager(scene);
         this.build();
     }
 
@@ -46,15 +50,23 @@ export class Environment {
         return this.obstacleManager.obstacles;
     }
 
+    addObstacle(obj: THREE_LIB.Object3D) {
+        this.obstacleManager.addObstacle(obj);
+    }
+
+    toggleWorldGrid() {
+        this.worldGrid.toggle();
+    }
+
     getBiomeAt(pos: THREE_LIB.Vector3): { name: string, color: string } {
         // 1. Check Water (Pond)
         const pondDepth = PlayerUtils.getTerrainHeight(pos.x, pos.z);
         if (pondDepth < -0.1) return BIOME_DATA['water'];
 
-        // 2. Check Grid Tile
-        const patchSize = 40;
-        const ix = Math.round(pos.x / patchSize);
-        const iz = Math.round(pos.z / patchSize);
+        // 2. Check Grid Tile using BIOME_SIZE
+        const biomeSize = ENV_CONSTANTS.BIOME_SIZE;
+        const ix = Math.round(pos.x / biomeSize);
+        const iz = Math.round(pos.z / biomeSize);
         const key = `${ix},${iz}`;
 
         return BIOME_DATA[key] || BIOME_DATA['0,0'];

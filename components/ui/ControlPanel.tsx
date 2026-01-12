@@ -59,7 +59,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             {!isOpen && (
                 <button 
                     onClick={() => setIsOpen(true)}
-                    className="absolute top-4 right-4 z-20 p-3 bg-white/90 backdrop-blur-md shadow-lg rounded-xl border border-white/50 text-gray-600 hover:text-blue-600 transition-all hover:scale-105 active:scale-95"
+                    className="absolute bottom-4 right-4 z-20 p-3 bg-white/90 backdrop-blur-md shadow-lg rounded-xl border border-white/50 text-gray-600 hover:text-blue-600 transition-all hover:scale-105 active:scale-95"
                     title="Open Controls"
                 >
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

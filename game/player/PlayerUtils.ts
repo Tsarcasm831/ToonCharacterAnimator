@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
 
@@ -8,8 +9,8 @@ export class PlayerUtils {
     static POND_RADIUS = 4.5;
     static POND_DEPTH = 1.8;
 
-    // World size is based on 3x3 grid of 40x40 patches centered at -40, 0, 40
-    static WORLD_LIMIT = 60;
+    // World size expanded from 60 to 100 for 5x5 biomes (200x200 total)
+    static WORLD_LIMIT = 100;
 
     static getHitboxBounds(position: THREE.Vector3, config: PlayerConfig): THREE.Box3 {
         const { legScale, torsoHeight, torsoWidth, headScale } = config;
@@ -71,14 +72,16 @@ export class PlayerUtils {
         const width = 0.6 * config.torsoWidth;
         const depth = width * 0.7;
         
-        // Cast check from high up
+        // Cast check from high up (column check)
         const pBox = new THREE.Box3().setFromCenterAndSize(
             new THREE.Vector3(pos.x, 5, pos.z), // Start high
             new THREE.Vector3(width, 10, depth)
         );
 
         for (const obs of obstacles) {
-            if (obs.userData.type === 'soft') continue; 
+            // IMPORTANT: Skip soft decorative items AND creatures (Wolves, Bears, Owls)
+            // We only want to stand on 'hard' static objects like foundations, rocks, or logs.
+            if (obs.userData.type === 'soft' || obs.userData.type === 'creature') continue; 
             
             const obsBox = new THREE.Box3().setFromObject(obs);
             if (pBox.min.x < obsBox.max.x && pBox.max.x > obsBox.min.x &&

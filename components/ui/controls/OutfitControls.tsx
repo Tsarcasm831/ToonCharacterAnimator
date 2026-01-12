@@ -85,6 +85,7 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                     <button onClick={() => handleEquipmentChange('mask')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.mask ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Mask</button>
                     <button onClick={() => handleEquipmentChange('shoulders')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.shoulders ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Pads</button>
                     <button onClick={() => handleEquipmentChange('shield')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.shield ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-amber-400'}`}>Shield</button>
+                    <button onClick={() => handleEquipmentChange('robe')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.robe ? 'bg-indigo-100 border-indigo-500 text-indigo-800' : 'bg-white border-gray-200 text-gray-400'}`}>Robe</button>
                     <button onClick={() => handleEquipmentChange('quiltedArmor')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.quiltedArmor ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Quilted</button>
                     <button onClick={() => handleEquipmentChange('leatherArmor')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.leatherArmor ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Leather</button>
                     <button onClick={() => handleEquipmentChange('heavyLeatherArmor')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.heavyLeatherArmor ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>H.Leather</button>
@@ -98,6 +99,12 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
             </div>
 
             <div className="space-y-2 pt-1 border-t border-gray-100">
+                {config.equipment.robe && (
+                    <>
+                        <ColorPicker label="Robe Color" value={config.robeColor} onChange={(v) => handleConfigChange('robeColor', v)} />
+                        <ColorPicker label="Robe Trim" value={config.robeTrimColor} onChange={(v) => handleConfigChange('robeTrimColor', v)} />
+                    </>
+                )}
                 <ColorPicker label="Shirt Base" value={config.shirtColor} onChange={(v) => handleConfigChange('shirtColor', v)} />
                 <ColorPicker label="Shirt Sec." value={config.shirtColor2} onChange={(v) => handleConfigChange('shirtColor2', v)} />
                 <ColorPicker label="Pants" value={config.pantsColor} onChange={(v) => handleConfigChange('pantsColor', v)} />

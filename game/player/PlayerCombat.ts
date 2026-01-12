@@ -6,9 +6,14 @@ import { PlayerPhysics } from './PlayerPhysics';
 import { ParticleManager } from '../ParticleManager';
 import { Environment } from '../Environment';
 import { ArrowBuilder } from '../model/equipment/ArrowBuilder';
+import { Wolf } from '../Wolf';
 
 export class PlayerCombat {
-    static update(player: Player, dt: number, input: PlayerInput, environment: Environment, particleManager: ParticleManager) {
+    private static _tempBox1 = new THREE.Box3();
+    private static _tempBox2 = new THREE.Box3();
+    private static _tempVec = new THREE.Vector3();
+
+    static update(player: Player, dt: number, input: PlayerInput, environment: Environment, particleManager: ParticleManager, entities: any[] = []) {
         // Update projectiles
         for (let i = this.activeProjectiles.length - 1; i >= 0; i--) {
             const p = this.activeProjectiles[i];
@@ -17,8 +22,8 @@ export class PlayerCombat {
             const moveStep = p.velocity.clone().multiplyScalar(dt);
             p.mesh.position.add(moveStep);
             
-            // Check Collision
-            if (this.checkProjectileCollision(p.mesh.position, environment, particleManager)) {
+            // Check Collision (Environment & Entities)
+            if (this.checkProjectileCollision(p.mesh.position, environment, particleManager, entities)) {
                 if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
                 this.activeProjectiles.splice(i, 1);
                 continue;
@@ -64,18 +69,18 @@ export class PlayerCombat {
         player.wasAttack2Pressed = !!input.attack2;
 
         // Update Timers & Logic
-        this.updateAxeSwing(player, dt, environment, particleManager);
+        this.updateAxeSwing(player, dt, environment, particleManager, entities);
         this.updateFishing(player, dt);
         this.updateBowLogic(player, dt);
         this.updatePunchCombo(player, dt, input, environment.obstacles);
     }
 
-    private static checkProjectileCollision(pos: THREE.Vector3, environment: Environment, particleManager: ParticleManager): boolean {
+    private static checkProjectileCollision(pos: THREE.Vector3, environment: Environment, particleManager: ParticleManager, entities: any[]): boolean {
+        // 1. Check Obstacles (Trees/Rocks)
         for (const obs of environment.obstacles) {
             const obsPos = new THREE.Vector3();
             obs.getWorldPosition(obsPos);
             
-            // Simple distance check for collision (approx 1.5m radius for trees/rocks)
             const dist = pos.distanceTo(obsPos);
             if (dist < 1.5) {
                 const matType = obs.userData.type === 'hard' ? 'stone' : 'wood';
@@ -83,11 +88,36 @@ export class PlayerCombat {
                 return true;
             }
         }
+
+        // 2. Check Entities (Wolves)
+        for (const ent of entities) {
+            if (ent instanceof Wolf && !ent.isDead) {
+                // Precise check for arrows: iterate hitbox parts
+                const arrowPoint = pos;
+                let hit = false;
+                ent.hitbox.children.forEach(part => {
+                    if (part instanceof THREE.Mesh) {
+                        part.updateMatrixWorld(true);
+                        this._tempBox1.setFromObject(part);
+                        if (this._tempBox1.containsPoint(arrowPoint)) {
+                            hit = true;
+                        }
+                    }
+                });
+
+                if (hit) {
+                    ent.takeDamage(2); 
+                    particleManager.emit(pos, 8, 'wood');
+                    return true;
+                }
+            }
+        }
+
         return false;
     }
 
     private static handleBowInput(player: Player, dt: number, input: PlayerInput, particleManager: ParticleManager) {
-        if (player.bowState === 'release') return; // Locked during release animation
+        if (player.bowState === 'release') return; 
 
         if (input.attack1) {
             // DRAW / CHARGE
@@ -100,26 +130,21 @@ export class PlayerCombat {
 
             if (player.bowState === 'draw') {
                 player.bowTimer += dt;
-                player.bowCharge = Math.min(1.0, player.bowTimer / 0.6); // 0.6s to full draw
+                player.bowCharge = Math.min(1.0, player.bowTimer / 0.6); 
                 
                 if (player.bowCharge >= 1.0) {
                     player.bowState = 'hold';
-                    // Optional: Screenshake or sound to indicate full draw
                 }
             }
         } else {
             // RELEASE
             if (player.isFiringBow && (player.bowState === 'draw' || player.bowState === 'hold')) {
-                // Fire!
                 player.bowState = 'release';
                 player.bowTimer = 0;
                 
-                // Visuals
                 if (player.bowCharge > 0.3) {
-                    // Only fire if drawn enough
                     this.fireArrow(player, particleManager);
                 } else {
-                    // Cancelled / Weak shot
                     player.isFiringBow = false;
                 }
             }
@@ -134,47 +159,40 @@ export class PlayerCombat {
     }[] = [];
 
     private static fireArrow(player: Player, particleManager: ParticleManager) {
-        // Find arrow spawn point (approx left hand position)
         const spawnPos = player.mesh.position.clone();
-        spawnPos.y += 1.35; // Shoulder height
+        spawnPos.y += 1.35; 
         
-        // Offset forward and slightly left to match bow position
         const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion);
         const left = new THREE.Vector3(1, 0, 0).applyQuaternion(player.mesh.quaternion);
         
         spawnPos.addScaledVector(forward, 0.8);
-        spawnPos.addScaledVector(left, 0.2); // Align with bow hold
+        spawnPos.addScaledVector(left, 0.2); 
 
-        // Create Arrow
         const arrow = ArrowBuilder.buildArrow();
         arrow.position.copy(spawnPos);
         arrow.quaternion.copy(player.mesh.quaternion);
         
-        // Add to scene
         if (player.mesh.parent) {
             player.mesh.parent.add(arrow);
         }
 
-        // Launch
         const speed = 20.0;
-        // Clone forward to ensure velocity is independent
         const velocity = forward.clone().normalize().multiplyScalar(speed);
         
         this.activeProjectiles.push({
             mesh: arrow,
             velocity: velocity,
-            life: 3.0, // Fallback lifetime
+            life: 3.0,
             startPos: spawnPos.clone()
         });
 
-        // Emit particle/projectile
         particleManager.emit(spawnPos, 5, 'spark'); 
     }
 
     private static updateBowLogic(player: Player, dt: number) {
         if (player.isFiringBow && player.bowState === 'release') {
             player.bowTimer += dt;
-            if (player.bowTimer > 0.4) { // Recovery time
+            if (player.bowTimer > 0.4) { 
                 player.isFiringBow = false;
                 player.bowState = 'draw';
                 player.bowCharge = 0;
@@ -246,23 +264,20 @@ export class PlayerCombat {
         }
     }
 
-    private static updateAxeSwing(player: Player, dt: number, environment: Environment, particleManager: ParticleManager) {
+    private static updateAxeSwing(player: Player, dt: number, environment: Environment, particleManager: ParticleManager, entities: any[]) {
         if (player.isAxeSwing) {
             player.axeSwingTimer += dt;
             const item = player.config.selectedItem;
-            const isAxe = item === 'Axe' || item === 'Halberd';
-            const isPick = item === 'Pickaxe';
             
             let duration = 0.9;
             if (item === 'Sword') duration = 0.6;
             if (item === 'Knife') duration = 0.4;
             
-            const impactTime = duration * 0.45; // Slightly earlier impact
+            // ADJUSTED: 0.5 is the middle of the arc. 0.6 was often too late for small creatures.
+            const impactTime = duration * 0.5; 
             
             if (!player.hasHit && player.axeSwingTimer > impactTime) {
-                if (isAxe || isPick) {
-                    this.checkChoppingImpact(player, environment, particleManager);
-                }
+                this.checkChoppingImpact(player, environment, particleManager, entities);
                 player.hasHit = true;
             }
 
@@ -274,25 +289,86 @@ export class PlayerCombat {
         }
     }
 
-    private static checkChoppingImpact(player: Player, environment: Environment, particleManager: ParticleManager) {
-        // Generous hit range for tree trunks (includes reach + trunk radius)
-        const hitRange = 2.0; 
+    private static getWeaponDamage(item: string | null): number {
+        if (item === 'Sword') return 5;
+        if (item === 'Axe') return 4;
+        if (item === 'Pickaxe') return 3;
+        if (item === 'Halberd') return 4;
+        return 1; 
+    }
+
+    private static checkChoppingImpact(player: Player, environment: Environment, particleManager: ParticleManager, entities: any[]) {
+        // CRITICAL: Ensure player model hierarchy is fully updated to sync world matrices for the current frame's pose
+        player.model.group.updateMatrixWorld(true);
+
         const playerPos = player.mesh.position;
+        const damage = this.getWeaponDamage(player.config.selectedItem);
         
-        // Character is rotated by PI in local space, so forward is +Z in its local space.
-        // We use applyQuaternion to find world forward.
+        // --- 1. Identify the damage dealer ---
+        let dealer: THREE.Object3D | null = null;
+        if (player.config.selectedItem) {
+            dealer = player.model.equippedMeshes.heldItem || null;
+            if (dealer) {
+                const subPart = dealer.getObjectByName('damagePart');
+                if (subPart) dealer = subPart;
+            }
+        } else {
+            dealer = player.model.parts.rightHand;
+        }
+
+        if (!dealer) return;
+
+        // Generate bounding box for weapon in world space
+        this._tempBox1.setFromObject(dealer);
+        // FORGIVENESS: Expand the hit volume of the weapon slightly to account for frame stepping and thin geometry
+        this._tempBox1.expandByScalar(0.25);
+
+        // --- 2. Check Entity Hitboxes (Priority) ---
+        for (const ent of entities) {
+            if (ent instanceof Wolf && !ent.isDead) {
+                // Verify proximity first
+                if (playerPos.distanceTo(ent.group.position) < 3.5) {
+                    let hit = false;
+                    // Check intersection against wolf hitbox components
+                    ent.hitbox.children.forEach(part => {
+                        if (part instanceof THREE.Mesh) {
+                            part.updateMatrixWorld(true);
+                            this._tempBox2.setFromObject(part);
+                            if (this._tempBox1.intersectsBox(this._tempBox2)) {
+                                hit = true;
+                            }
+                        }
+                    });
+
+                    if (hit) {
+                        ent.takeDamage(damage);
+                        const impactPoint = new THREE.Vector3();
+                        this._tempBox1.getCenter(impactPoint);
+                        particleManager.emit(impactPoint, 10, 'wood'); 
+                        return; // Found target, stop checking
+                    }
+                }
+            }
+        }
+
+        // --- 3. Check Static Obstacles ---
+        const item = player.config.selectedItem;
+        const canChop = item === 'Axe' || item === 'Pickaxe' || item === 'Halberd';
+        if (!canChop) return;
+
         const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion).normalize();
         playerForward.y = 0; 
+        const hitRange = 2.0;
 
         let closest: THREE.Object3D | null = null;
         let minDist = Infinity;
 
         for (const obs of environment.obstacles) {
-            if (obs.userData.type === 'hard') {
+            // Only hard obstacles like trees
+            if (obs.userData.type === 'hard' && !obs.userData.type?.includes('creature')) {
                 const obsPos = new THREE.Vector3();
                 obs.getWorldPosition(obsPos);
                 
-                // Calculate horizontal distance to center of obstacle
                 const dx = obsPos.x - playerPos.x;
                 const dz = obsPos.z - playerPos.z;
                 const distXZ = Math.sqrt(dx * dx + dz * dz);
@@ -301,7 +377,6 @@ export class PlayerCombat {
                     const dirToObs = new THREE.Vector3(dx, 0, dz).normalize();
                     const dot = playerForward.dot(dirToObs);
 
-                    // Impact in a ~140 degree front cone
                     if (dot > 0.35) {
                         if (distXZ < minDist) {
                             minDist = distXZ;
@@ -315,8 +390,6 @@ export class PlayerCombat {
         if (closest) { 
              const obsPos = new THREE.Vector3();
              closest.getWorldPosition(obsPos);
-             
-             // Visual hit point roughly at weapon tip height
              const impactPos = playerPos.clone().lerp(obsPos, 0.5);
              impactPos.y += 1.1; 
 

@@ -218,10 +218,12 @@ export class Player {
                 this.summonTimer = 0;
             } else {
                 this.summonTimer += dt;
-                if (this.summonTimer > 2.5) { // Total duration of the animation
+                if (this.summonTimer > 3.0) { // Extended to 3.0s for full recovery
                     this.isSummoning = false;
                     this.summonTimer = 0;
-                    // Potential trigger for skill effects
+                    
+                    // Trigger effect at impact time (~1.7s mark)
+                    // (Logic could be added here to spawn particles if needed)
                 }
             }
         }
@@ -233,7 +235,8 @@ export class Player {
             // While recovering, we still disable most inputs but physics might settle
             if (this.status.recoverTimer <= 0) {
                 PlayerInteraction.update(this, dt, input, environment.obstacles, entities);
-                PlayerCombat.update(this, dt, input, environment, particleManager);
+                // Pass entities to combat for damage calculation
+                PlayerCombat.update(this, dt, input, environment, particleManager, entities);
                 PlayerPhysics.update(this, dt, input, cameraAngle, environment.obstacles);
             }
         }

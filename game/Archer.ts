@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../types';
 import { PlayerModel } from './PlayerModel';
@@ -82,7 +83,9 @@ export class Archer {
                 leatherArmor: true,
                 heavyLeatherArmor: false,
                 ringMail: false,
-                plateMail: false
+                plateMail: false,
+                // Add missing robe property
+                robe: false
             },
             selectedItem: 'Bow', // Equip bow
             weaponStance: 'side',
