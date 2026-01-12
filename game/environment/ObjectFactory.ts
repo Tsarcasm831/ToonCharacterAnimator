@@ -6,6 +6,10 @@ import { PropFactory } from './objects/PropFactory';
 import { RockFactory } from './objects/RockFactory';
 import { DebrisFactory } from './objects/DebrisFactory';
 import { FaunaFactory } from './objects/FaunaFactory';
+import { ScatterFactory } from './objects/ScatterFactory';
+import { VegetationFactory } from './objects/VegetationFactory';
+import { HumanRemnantsFactory } from './objects/HumanRemnantsFactory';
+import { AtmosphereFactory } from './objects/AtmosphereFactory';
 
 export class ObjectFactory {
     // Trees
@@ -25,7 +29,7 @@ export class ObjectFactory {
         return TreeFactory.createPineTree(position, scale);
     }
 
-    // Plants
+    // Plants & Vegetation
     static createCactus(position: THREE.Vector3, scale: number = 1.0) {
         return PlantFactory.createCactus(position, scale);
     }
@@ -36,6 +40,44 @@ export class ObjectFactory {
 
     static createLilyPad(position: THREE.Vector3) {
         return PlantFactory.createLilyPad(position);
+    }
+
+    static createBush(position: THREE.Vector3, scale: number = 1.0) {
+        return VegetationFactory.createBush(position, scale);
+    }
+
+    static createFern(position: THREE.Vector3) {
+        return VegetationFactory.createFern(position);
+    }
+
+    static createReeds(position: THREE.Vector3) {
+        return VegetationFactory.createReeds(position);
+    }
+
+    // Storytelling & Remnants
+    static createFence(position: THREE.Vector3, rotationY: number) {
+        return HumanRemnantsFactory.createFence(position, rotationY);
+    }
+
+    static createPallet(position: THREE.Vector3) {
+        return HumanRemnantsFactory.createPallet(position);
+    }
+
+    static createCampfire(position: THREE.Vector3) {
+        return HumanRemnantsFactory.createCampfire(position);
+    }
+
+    static createRoadSign(position: THREE.Vector3, type: 'stop' | 'yield' = 'stop') {
+        return HumanRemnantsFactory.createRoadSign(position, type);
+    }
+
+    // Atmosphere
+    static createHangingMoss(position: THREE.Vector3, scale: number = 1.0) {
+        return AtmosphereFactory.createHangingMoss(position, scale);
+    }
+
+    static createAtmosphericMotes(position: THREE.Vector3, count: number = 8, color: number = 0xaaff00) {
+        return AtmosphereFactory.createAtmosphericMotes(position, count, color);
     }
 
     // Props
@@ -96,5 +138,18 @@ export class ObjectFactory {
 
     static createOwlModel(color: number = 0x8B4513) {
         return FaunaFactory.createOwlModel(color);
+    }
+
+    // Scatter
+    static createGrass(position: THREE.Vector3, type: 'tall' | 'short' | 'dry' = 'short') {
+        return ScatterFactory.createGrassClump(position, type);
+    }
+
+    static createPebble(position: THREE.Vector3) {
+        return ScatterFactory.createPebble(position);
+    }
+
+    static createMushroom(position: THREE.Vector3) {
+        return ScatterFactory.createMushroom(position);
     }
 }

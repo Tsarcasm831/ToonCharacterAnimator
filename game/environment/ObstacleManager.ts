@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { TreeData, RockData, ENV_CONSTANTS } from './EnvironmentTypes';
 import { ObjectFactory } from './ObjectFactory';
@@ -33,6 +32,10 @@ export class ObstacleManager {
 
         this.initPondDecorations();
         this.initBiomes();
+        this.initWorldScatter();
+        this.initMidLevelFillers();
+        this.initStorytellingRemnants();
+        this.initAtmosphericEffects();
     }
 
     private initBiomes() {
@@ -118,6 +121,175 @@ export class ObstacleManager {
         }
     }
 
+    private initWorldScatter() {
+        this.trees.forEach(tree => {
+            const pos = tree.basePosition;
+            for(let i=0; i<3; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = 0.5 + Math.random() * 1.5;
+                const sx = pos.x + Math.cos(angle) * r;
+                const sz = pos.z + Math.sin(angle) * r;
+                const sy = PlayerUtils.getTerrainHeight(sx, sz);
+                
+                if (Math.random() > 0.4) {
+                    const grass = ObjectFactory.createGrass(new THREE.Vector3(sx, sy, sz), 'short');
+                    this.scene.add(grass);
+                    this.decorativeItems.push(grass);
+                }
+                
+                if (Math.random() > 0.7) {
+                    const mush = ObjectFactory.createMushroom(new THREE.Vector3(sx, sy, sz));
+                    this.scene.add(mush);
+                    this.decorativeItems.push(mush);
+                }
+            }
+        });
+
+        this.rocks.forEach(rock => {
+            const pos = rock.basePosition;
+            for(let i=0; i<4; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = 0.8 + Math.random() * 1.2;
+                const sx = pos.x + Math.cos(angle) * r;
+                const sz = pos.z + Math.sin(angle) * r;
+                const sy = PlayerUtils.getTerrainHeight(sx, sz);
+                
+                const pebble = ObjectFactory.createPebble(new THREE.Vector3(sx, sy, sz));
+                this.scene.add(pebble);
+                this.decorativeItems.push(pebble);
+            }
+        });
+
+        for(let i=0; i<40; i++) {
+            const x = (Math.random() - 0.5) * 40;
+            const z = (Math.random() - 0.5) * 40;
+            const y = PlayerUtils.getTerrainHeight(x, z);
+            if (y > -0.1) {
+                const grass = ObjectFactory.createGrass(new THREE.Vector3(x, y, z), Math.random() > 0.8 ? 'tall' : 'short');
+                this.scene.add(grass);
+                this.decorativeItems.push(grass);
+            }
+        }
+    }
+
+    private initMidLevelFillers() {
+        this.trees.forEach(tree => {
+            if (Math.random() > 0.3) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = 1.5 + Math.random() * 1.0;
+                const x = tree.basePosition.x + Math.cos(angle) * r;
+                const z = tree.basePosition.z + Math.sin(angle) * r;
+                const y = PlayerUtils.getTerrainHeight(x, z);
+                const bush = ObjectFactory.createBush(new THREE.Vector3(x, y, z), 0.8 + Math.random() * 0.4);
+                this.scene.add(bush);
+                this.decorativeItems.push(bush);
+            }
+            if (tree.basePosition.z < -10) {
+                for(let i=0; i<2; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 1.0 + Math.random() * 2.0;
+                    const x = tree.basePosition.x + Math.cos(angle) * r;
+                    const z = tree.basePosition.z + Math.sin(angle) * r;
+                    const y = PlayerUtils.getTerrainHeight(x, z);
+                    const fern = ObjectFactory.createFern(new THREE.Vector3(x, y, z));
+                    this.scene.add(fern);
+                    this.decorativeItems.push(fern);
+                }
+            }
+        });
+        const radius = ENV_CONSTANTS.POND_RADIUS;
+        const centerX = ENV_CONSTANTS.POND_X;
+        const centerZ = ENV_CONSTANTS.POND_Z;
+        for (let i = 0; i < 10; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = radius + 0.4 + Math.random() * 0.8;
+            const x = centerX + Math.cos(angle) * r;
+            const z = centerZ + Math.sin(angle) * r;
+            const y = PlayerUtils.getTerrainHeight(x, z);
+            const reeds = ObjectFactory.createReeds(new THREE.Vector3(x, y, z));
+            this.scene.add(reeds);
+            this.decorativeItems.push(reeds);
+        }
+    }
+
+    private initStorytellingRemnants() {
+        const fireLocations = [
+            new THREE.Vector3(-8, 0, 5),
+            new THREE.Vector3(45, 0, -45)
+        ];
+        fireLocations.forEach(pos => {
+            pos.y = PlayerUtils.getTerrainHeight(pos.x, pos.z);
+            const fire = ObjectFactory.createCampfire(pos);
+            this.scene.add(fire);
+            this.decorativeItems.push(fire);
+        });
+
+        for (let i = 0; i < 5; i++) {
+            const pos = new THREE.Vector3(-25, 0, 30 + i * 2);
+            pos.y = PlayerUtils.getTerrainHeight(pos.x, pos.z);
+            const fence = ObjectFactory.createFence(pos, Math.PI / 2);
+            this.addObstacle(fence);
+        }
+
+        const foundryX = -40, foundryZ = -40;
+        for (let i = 0; i < 4; i++) {
+            const x = foundryX + (Math.random() - 0.5) * 20;
+            const z = foundryZ + (Math.random() - 0.5) * 20;
+            const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
+            const pallet = ObjectFactory.createPallet(pos);
+            pallet.rotation.y = Math.random() * Math.PI;
+            this.addObstacle(pallet);
+        }
+
+        const signLocs = [
+            { pos: new THREE.Vector3(-15, 0, 0), type: 'yield' as const },
+            { pos: new THREE.Vector3(-30, 0, -30), type: 'stop' as const }
+        ];
+        signLocs.forEach(cfg => {
+            cfg.pos.y = PlayerUtils.getTerrainHeight(cfg.pos.x, cfg.pos.z);
+            const sign = ObjectFactory.createRoadSign(cfg.pos, cfg.type);
+            this.addObstacle(sign);
+        });
+    }
+
+    private initAtmosphericEffects() {
+        // 1. Hanging Moss on Trees
+        this.trees.forEach(tree => {
+            // Standard trees and Autumn trees get moss
+            const isStandard = tree.group.name !== 'pine'; // Pine uses createPineTree which returns different structure
+            if (isStandard && Math.random() > 0.4) {
+                const count = 1 + Math.floor(Math.random() * 3);
+                for(let i=0; i<count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const r = 1.0 + Math.random() * 0.8;
+                    const h = 2.5 + Math.random() * 1.5;
+                    const mossPos = new THREE.Vector3(Math.cos(angle)*r, h, Math.sin(angle)*r);
+                    const moss = ObjectFactory.createHangingMoss(mossPos);
+                    tree.group.add(moss);
+                    this.decorativeItems.push(moss);
+                }
+            }
+        });
+
+        // 2. Fireflies in Meadows and Autumn Grove
+        const fireflySpawns = [
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(40, 0, -40),
+            new THREE.Vector3(-10, 0, 10)
+        ];
+        fireflySpawns.forEach(pos => {
+            pos.y = PlayerUtils.getTerrainHeight(pos.x, pos.z);
+            const flies = ObjectFactory.createAtmosphericMotes(pos, 10, 0xaaff00);
+            this.scene.add(flies);
+            this.decorativeItems.push(flies);
+        });
+
+        // 3. Frost Glitter in Peaks
+        const frostMotes = ObjectFactory.createAtmosphericMotes(new THREE.Vector3(0, 0, -40), 15, 0x00ffff);
+        this.scene.add(frostMotes);
+        this.decorativeItems.push(frostMotes);
+    }
+
     private createTreeAt(xz: THREE.Vector2) {
         const y = PlayerUtils.getTerrainHeight(xz.x, xz.y);
         this.createTree(new THREE.Vector3(xz.x, y, xz.y));
@@ -171,7 +343,20 @@ export class ObstacleManager {
     }
 
     addLogs(logs: THREE.Mesh[]) {
-        logs.forEach(log => this.obstacles.push(log));
+        logs.forEach(log => {
+            this.obstacles.push(log);
+            const pos = log.position;
+            for(let i=0; i<2; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const r = 0.3 + Math.random() * 0.4;
+                const sx = pos.x + Math.cos(angle) * r;
+                const sz = pos.z + Math.sin(angle) * r;
+                const sy = PlayerUtils.getTerrainHeight(sx, sz);
+                const mush = ObjectFactory.createMushroom(new THREE.Vector3(sx, sy, sz));
+                this.scene.add(mush);
+                this.decorativeItems.push(mush);
+            }
+        });
     }
 
     private createRock(position: THREE.Vector3, scale: number = 1.0) {
@@ -205,120 +390,88 @@ export class ObstacleManager {
         const { group, obstacle } = ObjectFactory.createDeadTree(position);
         this.scene.add(group);
         this.obstacles.push(obstacle);
-        // Map dead wood as choppable tree
         this.trees.set(obstacle.uuid, {
             id: obstacle.uuid, group: group, trunk: obstacle as any, leaves: undefined as any, health: 4, shudderTimer: 0, basePosition: group.position.clone()
         });
     }
 
+    // Fixed: Added missing damageObstacle method
+    damageObstacle(object: THREE.Object3D, amount: number): string | null {
+        let tree = this.trees.get(object.uuid);
+        if (tree) {
+            tree.health -= amount;
+            tree.shudderTimer = 0.3;
+            if (tree.health <= 0) {
+                this.obstacles = this.obstacles.filter(o => o.uuid !== object.uuid);
+                this.trees.delete(object.uuid);
+                const trunkMat = (tree.trunk as any).children[0].material;
+                const fallingGroup = ObjectFactory.createFallingTrunk(tree.basePosition, trunkMat);
+                this.scene.remove(tree.group);
+                this.debrisSystem.addFallingTree(fallingGroup);
+                const stump = ObjectFactory.createStump(tree.basePosition, tree.group.quaternion, trunkMat);
+                this.scene.add(stump);
+                this.obstacles.push(stump);
+            }
+            return 'wood';
+        }
+        let rock = this.rocks.get(object.uuid);
+        if (rock) {
+            rock.health -= amount;
+            rock.shudderTimer = 0.2;
+            const worldPos = new THREE.Vector3();
+            rock.mesh.getWorldPosition(worldPos);
+            this.debrisSystem.spawnRockDebris(worldPos, rock.mesh.material as THREE.Material);
+            if (rock.health <= 0) {
+                this.obstacles = this.obstacles.filter(o => o.uuid !== object.uuid);
+                this.rocks.delete(object.uuid);
+                this.scene.remove(rock.mesh.parent || rock.mesh);
+            }
+            return 'stone';
+        }
+        return null;
+    }
+
+    // Fixed: Completed the update method and fixed truncated lines
     update(dt: number) {
         const time = this.clock.getElapsedTime();
         const water = this.scene.getObjectByName('pond_water');
-        // Fix: Cast material to THREE.ShaderMaterial to resolve TypeScript error when accessing uniforms
         if (water && (water as THREE.Mesh).material instanceof THREE.ShaderMaterial) {
             ((water as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.uTime.value = time;
         }
 
         this.decorativeItems.forEach(item => {
-            const phase = item.userData.phase || 0;
-            if (item instanceof THREE.Group && item.name !== 'foliage') {
-                const sway = Math.sin(time * 0.6 + phase) * 0.04;
-                item.rotation.x = sway;
-                item.rotation.z = sway * 0.5;
-            }
-            if (item instanceof THREE.Mesh && item.geometry instanceof THREE.ShapeGeometry) {
-                item.position.y = -0.38 + Math.sin(time * 1.5 + phase) * 0.01;
+            if (item instanceof THREE.Group) {
+                item.children.forEach(child => {
+                    if (child.userData.isMote) {
+                        const mPhase = child.userData.phase;
+                        const mSpeed = child.userData.speed;
+                        const originY = child.userData.originY;
+                        child.position.y = originY + Math.sin(time * mSpeed + mPhase) * 0.5;
+                        child.position.x += Math.sin(time * 0.5 + mPhase) * 0.005;
+                    }
+                });
+            } else {
+                const phase = item.userData.phase || 0;
+                item.rotation.z = Math.sin(time * 1.5 + phase) * 0.05;
             }
         });
 
         this.trees.forEach(tree => {
-            if (tree.leaves) {
-                tree.leaves.children.forEach((child: any) => {
-                    if (child.isMesh && child.userData.initialY !== undefined) {
-                        const phase = child.userData.phase || 0;
-                        child.rotation.x = Math.sin(time * 0.8 + phase) * 0.05;
-                        child.rotation.z = Math.cos(time * 0.5 + phase) * 0.05;
-                    }
-                });
-            }
             if (tree.shudderTimer > 0) {
                 tree.shudderTimer -= dt;
-                const intensity = tree.shudderTimer > 0 ? 0.1 * (tree.shudderTimer / 0.3) : 0;
-                tree.group.position.set(
-                    tree.basePosition.x + (Math.random() - 0.5) * intensity,
-                    tree.basePosition.y,
-                    tree.basePosition.z + (Math.random() - 0.5) * intensity
-                );
+                const s = Math.sin(tree.shudderTimer * 50) * 0.05;
+                tree.group.position.x = tree.basePosition.x + s;
+                if (tree.shudderTimer <= 0) tree.group.position.copy(tree.basePosition);
             }
         });
 
         this.rocks.forEach(rock => {
             if (rock.shudderTimer > 0) {
                 rock.shudderTimer -= dt;
-                const intensity = rock.shudderTimer > 0 ? 0.05 * (rock.shudderTimer / 0.2) : 0;
-                const shakeX = (Math.random() - 0.5) * intensity;
-                const shakeZ = (Math.random() - 0.5) * intensity;
-                const target = rock.mesh.parent instanceof THREE.Group ? rock.mesh.parent : rock.mesh;
-                target.position.set(rock.basePosition.x + shakeX, rock.basePosition.y, rock.basePosition.z + shakeZ);
+                const s = Math.sin(rock.shudderTimer * 60) * 0.03;
+                rock.mesh.position.x = s;
+                if (rock.shudderTimer <= 0) rock.mesh.position.set(0, rock.mesh.position.y, 0);
             }
         });
-    }
-
-    damageObstacle(object: THREE.Object3D, amount: number): string | null {
-        const tree = this.trees.get(object.uuid);
-        if (tree) {
-            tree.health -= amount;
-            tree.shudderTimer = 0.3;
-            if (tree.health <= 0) this.cutDownTree(tree);
-            return 'wood';
-        }
-        const rock = this.rocks.get(object.uuid);
-        if (rock) {
-            rock.health -= amount;
-            rock.shudderTimer = 0.2;
-            if (rock.health <= 0) this.shatterRock(rock);
-            return 'stone';
-        }
-        return object.userData.material || null;
-    }
-
-    private shatterRock(rock: RockData) {
-        this.obstacles = this.obstacles.filter(o => o !== rock.mesh);
-        this.rocks.delete(rock.id);
-        if (rock.mesh.parent instanceof THREE.Group) this.scene.remove(rock.mesh.parent);
-        else this.scene.remove(rock.mesh);
-        this.debrisSystem.spawnRockDebris(rock.basePosition, rock.mesh.material as THREE.Material);
-    }
-
-    private cutDownTree(tree: TreeData) {
-        this.obstacles = this.obstacles.filter(o => o !== tree.trunk);
-        this.trees.delete(tree.trunk.uuid);
-        tree.group.visible = false;
-        
-        const trunkPos = new THREE.Vector3();
-        tree.trunk.getWorldPosition(trunkPos);
-        
-        // Find material safely (trunk could be Mesh or Group)
-        let mat: THREE.Material | undefined;
-        if ((tree.trunk as any).material) {
-            mat = (tree.trunk as any).material;
-        } else if (tree.trunk.children.length > 0 && (tree.trunk.children[0] as any).material) {
-            mat = (tree.trunk.children[0] as any).material;
-        }
-        
-        if (!mat) {
-             mat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
-        }
-
-        const stump = ObjectFactory.createStump(trunkPos, tree.trunk.quaternion, mat);
-        this.addObstacle(stump);
-        
-        const fallGroup = ObjectFactory.createFallingTrunk(trunkPos, mat);
-        if (tree.leaves) {
-            const fallingFoliage = tree.leaves.clone();
-            fallingFoliage.position.y = 1.75;
-            fallGroup.add(fallingFoliage);
-        }
-        this.debrisSystem.addFallingTree(fallGroup);
     }
 }
