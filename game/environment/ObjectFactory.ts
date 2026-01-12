@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { TreeFactory } from './objects/TreeFactory';
 import { PlantFactory } from './objects/PlantFactory';
@@ -138,6 +137,34 @@ export class ObjectFactory {
 
     static createOwlModel(color: number = 0x8B4513) {
         return FaunaFactory.createOwlModel(color);
+    }
+
+    static createChickenModel(color: number = 0xFFFFFF) {
+        return FaunaFactory.createChickenModel(color);
+    }
+
+    static createPigModel(color: number = 0xFFC0CB) {
+        return FaunaFactory.createPigModel(color);
+    }
+
+    static createSheepModel(color: number = 0xFFFDD0) {
+        return FaunaFactory.createSheepModel(color);
+    }
+
+    static createSpiderModel(color: number = 0x1a1a1a) {
+        return FaunaFactory.createSpiderModel(color);
+    }
+
+    static createLizardModel(color: number = 0x6B8E23) {
+        return FaunaFactory.createLizardModel(color);
+    }
+
+    static createHorseModel(color: number = 0x8B4513) {
+        return FaunaFactory.createHorseModel(color);
+    }
+
+    static createDeerModel(color: number = 0xC19A6B) {
+        return FaunaFactory.createDeerModel(color);
     }
 
     // Scatter

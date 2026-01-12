@@ -77,6 +77,7 @@ export class Environment {
         this.obstacleManager.update(dt);
         this.grassManager.update(dt);
         this.snowSystem.update(dt, playerPosition);
+        this.worldGrid.update(playerPosition);
         this.updateDayNight(dt, config);
     }
 

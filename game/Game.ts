@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Player } from './Player';
@@ -8,6 +7,14 @@ import { Archer } from './Archer';
 import { Wolf } from './Wolf';
 import { Bear } from './Bear';
 import { Owl } from './Owl';
+import { Yeti } from './Yeti';
+import { Deer } from './Deer';
+import { Chicken } from './Chicken';
+import { Pig } from './Pig';
+import { Sheep } from './Sheep';
+import { Spider } from './Spider';
+import { Lizard } from './Lizard';
+import { Horse } from './Horse';
 import { LowLevelCityGuard } from './LowLevelCityGuard';
 import { Environment } from './Environment';
 import { InputManager } from './InputManager';
@@ -33,6 +40,16 @@ export class Game {
     private bear: Bear;
     private owl: Owl;
     private guard: LowLevelCityGuard;
+
+    // New Animals
+    private yeti: Yeti;
+    private deers: Deer[] = [];
+    private chickens: Chicken[] = [];
+    private pigs: Pig[] = [];
+    private sheeps: Sheep[] = [];
+    private spiders: Spider[] = [];
+    private lizards: Lizard[] = [];
+    private horses: Horse[] = [];
 
     private foundryGuard: LowLevelCityGuard;
     private foundryAssassin: Assassin;
@@ -131,6 +148,52 @@ export class Game {
 
         this.owl = new Owl(this.scene, new THREE.Vector3(5, 5, -5));
         this.environment.addObstacle(this.owl.hitbox);
+
+        // --- SPAWN NEW ANIMALS ---
+        this.yeti = new Yeti(this.scene, new THREE.Vector3(0, 0, -50));
+        this.environment.addObstacle(this.yeti.hitbox);
+
+        for(let i=0; i<3; i++) {
+            const deer = new Deer(this.scene, new THREE.Vector3(35 + i*2, 0, -35));
+            this.deers.push(deer);
+            this.environment.addObstacle(deer.hitbox);
+        }
+
+        for(let i=0; i<4; i++) {
+            const chicken = new Chicken(this.scene, new THREE.Vector3(-5 + i*2, 0, -5));
+            this.chickens.push(chicken);
+            this.environment.addObstacle(chicken.hitbox);
+        }
+
+        for(let i=0; i<2; i++) {
+            const pig = new Pig(this.scene, new THREE.Vector3(5 + i*3, 0, 5));
+            this.pigs.push(pig);
+            this.environment.addObstacle(pig.hitbox);
+        }
+
+        for(let i=0; i<3; i++) {
+            const sheep = new Sheep(this.scene, new THREE.Vector3(-15 + i*3, 0, -10));
+            this.sheeps.push(sheep);
+            this.environment.addObstacle(sheep.hitbox);
+        }
+
+        for(let i=0; i<2; i++) {
+            const spider = new Spider(this.scene, new THREE.Vector3(-35, 0, -35 + i*5));
+            this.spiders.push(spider);
+            this.environment.addObstacle(spider.hitbox);
+        }
+
+        for(let i=0; i<3; i++) {
+            const lizard = new Lizard(this.scene, new THREE.Vector3(35, 0, 35 + i*4));
+            this.lizards.push(lizard);
+            this.environment.addObstacle(lizard.hitbox);
+        }
+
+        for(let i=0; i<2; i++) {
+            const horse = new Horse(this.scene, new THREE.Vector3(-30, 0, 30 + i*6));
+            this.horses.push(horse);
+            this.environment.addObstacle(horse.hitbox);
+        }
 
         this.guard = new LowLevelCityGuard(this.scene, new THREE.Vector3(-8, 0, -2));
         this.foundryGuard = new LowLevelCityGuard(this.scene, new THREE.Vector3(-42, 0, -42), 0, '#4ade80');
@@ -271,7 +334,11 @@ export class Game {
         const playerInput = { ...input };
         if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
         
-        const entities = [this.npc, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin, this.wolf, this.bear, this.owl];
+        const entities = [
+            this.npc, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin, 
+            this.wolf, this.bear, this.owl, this.yeti, ...this.deers, ...this.chickens, ...this.pigs, 
+            ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
+        ];
         this.player.update(delta, playerInput, this.camera.position, cameraRotation, this.environment, this.particleManager, entities);
         
         if (this.config.showNPC && this.npc) {
@@ -288,9 +355,20 @@ export class Game {
                 { position: this.bear.position.clone(), isWolf: true, isDead: this.bear.isDead }
             ]);
         }
+
+        // Update Animals
         if (this.wolf) this.wolf.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
         if (this.bear) this.bear.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
         if (this.owl) this.owl.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
+        if (this.yeti) this.yeti.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }]);
+        this.deers.forEach(d => d.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }]));
+        this.chickens.forEach(c => c.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }]));
+        this.pigs.forEach(p => p.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }]));
+        this.sheeps.forEach(s => s.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }]));
+        this.spiders.forEach(s => s.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }]));
+        this.lizards.forEach(l => l.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }]));
+        this.horses.forEach(h => h.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }]));
+
         if (this.config.showAssassin && this.assassin) this.assassin.update(delta, this.environment, [{ position: this.player.mesh.position.clone() }, { position: this.npc.position.clone() }]);
 
         if (this.foundryGuard && this.foundryAssassin) {
