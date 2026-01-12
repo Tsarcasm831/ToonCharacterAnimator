@@ -15,7 +15,7 @@ export class Game {
     private renderManager: RenderManager;
     private clock: THREE.Clock;
     
-    private player: Player;
+    public player: Player;
     private entityManager: EntityManager;
     private environment: Environment;
     private inputManager: InputManager;
@@ -103,6 +103,21 @@ export class Game {
         this.inputManager.dispose();
     }
 
+    public switchScene(sceneName: 'dev' | 'world') {
+        if (sceneName === 'dev') {
+            // Teleport to origin for testing
+            this.player.mesh.position.set(0, 0, 0);
+            this.renderManager.controls.target.set(0, 1.7, 0);
+            this.renderManager.camera.position.set(0, 3.2, 5.0);
+        } else {
+            // Teleport to the "Game World" starting area (Foundry)
+            this.player.mesh.position.set(-24, 0, 50);
+            this.renderManager.controls.target.set(-24, 1.7, 50);
+            this.renderManager.camera.position.set(-24, 3.2, 55.0);
+        }
+        this.prevTargetPos.copy(this.renderManager.controls.target);
+    }
+
     private toggleBuilder() {
         this.isBuilding = !this.isBuilding;
         this.builderManager.setActive(this.isBuilding);
@@ -130,8 +145,6 @@ export class Game {
         this.config = config;
         Object.assign(this.player.config, config);
         this.soundManager.setVolume(config.globalVolume);
-        
-        // EntityManager updates visibilities in its update loop based on config
     }
 
     setInventory(items: string[]) { this.player.inventory.setItems(items); }

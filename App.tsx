@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import Scene from './components/Scene.tsx';
 import { PlayerConfig, PlayerInput, DEFAULT_CONFIG } from './types.ts';
@@ -29,6 +28,8 @@ const App: React.FC = () => {
   const [isBuilderMode, setIsBuilderMode] = useState(false);
   const [activeStructure, setActiveStructure] = useState<StructureType>('foundation');
   const [currentBiome, setCurrentBiome] = useState({ name: 'Verdant Meadows', color: '#4ade80' });
+  const [isTravelOpen, setIsTravelOpen] = useState(false);
+  const [activeScene, setActiveScene] = useState<'dev' | 'world'>('world');
 
   const [inventory, setInventory] = useState<string[]>(() => {
     const inv = Array(32).fill('');
@@ -72,7 +73,7 @@ const App: React.FC = () => {
   
   const [dialogue, setDialogue] = useState<string | null>(null);
 
-  const [gameInstance, setGameInstance] = useState<Game | null>(null);
+  const gameInstance = useRef<Game | null>(null);
 
   useEffect(() => {
     const preventContextMenu = (e: MouseEvent) => e.preventDefault();
@@ -81,7 +82,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleExport = () => {
-      if (gameInstance) ModelExporter.exportAndDownloadZip(gameInstance['player']);
+      if (gameInstance.current) ModelExporter.exportAndDownloadZip(gameInstance.current['player']);
   };
 
   useEffect(() => {
@@ -111,7 +112,7 @@ const App: React.FC = () => {
 
   const handleSelectStructure = (type: StructureType) => {
       setActiveStructure(type);
-      if (gameInstance) gameInstance.setBuildingType(type);
+      if (gameInstance.current) gameInstance.current.setBuildingType(type);
   };
 
   const handleEquipItem = (item: string, slotId: string) => {
@@ -178,9 +179,17 @@ const App: React.FC = () => {
 
   const closeDialogue = () => {
     setDialogue(null);
-    if (gameInstance) {
-      gameInstance['player'].isTalking = false;
+    if (gameInstance.current) {
+      gameInstance.current['player'].isTalking = false;
     }
+  };
+
+  const handleTravel = (scene: 'dev' | 'world') => {
+      setActiveScene(scene);
+      setIsTravelOpen(false);
+      if (gameInstance.current) {
+          gameInstance.current.switchScene(scene);
+      }
   };
 
   return (
@@ -194,7 +203,7 @@ const App: React.FC = () => {
           onSlotSelect={setSelectedSlot} 
           onInteractionUpdate={handleInteractionUpdate}
           onGameReady={(g) => {
-              setGameInstance(g);
+              gameInstance.current = g;
               g['inputManager'].onToggleInventory = toggleInventory;
               g['inputManager'].onToggleKeybinds = toggleKeybinds;
               g.onBuilderToggle = (active) => setIsBuilderMode(active);
@@ -207,6 +216,39 @@ const App: React.FC = () => {
 
       {!isInventoryOpen && !isBuilderMode && <Header biome={currentBiome} />}
       
+      {/* Travel Button Top Center */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[50]">
+          <div className="relative">
+              <button 
+                onClick={() => setIsTravelOpen(!isTravelOpen)}
+                className="px-6 py-2 bg-black/40 backdrop-blur-md border-2 border-white/20 rounded-full text-white font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-600/80 hover:border-blue-400 transition-all shadow-xl active:scale-95 flex items-center gap-2"
+              >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                  Travel
+                  <svg className={`w-3 h-3 transition-transform ${isTravelOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </button>
+
+              {isTravelOpen && (
+                  <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-48 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1 animate-fade-in-down">
+                      <button 
+                        onClick={() => handleTravel('dev')}
+                        className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'dev' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}
+                      >
+                          Dev Scene
+                          {activeScene === 'dev' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                      </button>
+                      <button 
+                        onClick={() => handleTravel('world')}
+                        className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'world' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}
+                      >
+                          World Scene
+                          {activeScene === 'world' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                      </button>
+                  </div>
+              )}
+          </div>
+      </div>
+
       <InteractionOverlay text={interactionText} progress={progress} />
 
       {!isInventoryOpen && !isBuilderMode && (
@@ -230,7 +272,7 @@ const App: React.FC = () => {
           />
       )}
 
-      {!isInventoryOpen && <MobileControls game={gameInstance} />}
+      {!isInventoryOpen && <MobileControls game={gameInstance.current} />}
 
       <InventoryModal 
           isOpen={isInventoryOpen}
