@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Player } from './Player';
@@ -74,12 +75,18 @@ export class Game {
         Object.assign(this.player.config, initialConfig);
         this.player.inventory.setItems(initialInventory);
         
+        // Define standard cell size used for grid labels
+        const GRID_CELL_SIZE = 1.3333;
+
         if (activeScene === 'dev') {
             this.environment = new Environment(this.renderManager.scene);
             this.entityManager = new EntityManager(this.renderManager.scene, this.environment, initialConfig);
             
             // Initial position for Dev at Timber Wharf label [-17, -30]
-            const startX = -17, startZ = -30;
+            // We multiply the index by cell size to land on the correct label
+            const startX = -17 * GRID_CELL_SIZE;
+            const startZ = -30 * GRID_CELL_SIZE;
+            
             this.player.mesh.position.set(startX, 0, startZ);
             this.renderManager.controls.target.set(startX, 1.7, startZ);
             this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
@@ -131,13 +138,16 @@ export class Game {
 
     public switchScene(sceneName: 'dev' | 'world') {
         this.activeScene = sceneName;
+        const GRID_CELL_SIZE = 1.3333;
 
         if (sceneName === 'dev') {
             this.environment?.setVisible(true);
             this.worldEnvironment?.setVisible(false);
 
             // Teleport to Timber Wharf label [-17, -30] for dev scene
-            const startX = -17, startZ = -30;
+            const startX = -17 * GRID_CELL_SIZE;
+            const startZ = -30 * GRID_CELL_SIZE;
+            
             this.player.mesh.position.set(startX, 0, startZ);
             this.renderManager.controls.target.set(startX, 1.7, startZ);
             this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);

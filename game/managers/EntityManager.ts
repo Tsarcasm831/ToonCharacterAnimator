@@ -150,7 +150,7 @@ export class EntityManager {
         if (this.wolf) this.wolf.update(delta, environment as any, [{ position: playerPosition.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
         if (this.bear) this.bear.update(delta, environment as any, [{ position: playerPosition.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
         if (this.owl) this.owl.update(delta, environment as any, [{ position: playerPosition.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
-        if (this.yeti) this.yeti.update(delta, environment as any, [{ position: playerPosition.clone() }]);
+        if (this.yeti) this.yeti.update(delta, environment as any);
         
         this.deers.forEach(d => d.update(delta, environment as any, [{ position: playerPosition.clone() }]));
         this.chickens.forEach(c => c.update(delta, environment as any, [{ position: playerPosition.clone() }]));
