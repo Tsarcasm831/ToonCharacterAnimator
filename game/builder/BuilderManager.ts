@@ -10,6 +10,8 @@ export class BuilderManager {
     private currentType: StructureType = 'foundation';
     private ghostRotation: number = 0;
     private isActive: boolean = false;
+    // Added a reusable Vector2 for raycasting to avoid per-frame allocations
+    private _rayCoords = new THREE.Vector2();
     
     constructor(scene: THREE.Scene) {
         this.scene = scene;
@@ -58,7 +60,9 @@ export class BuilderManager {
 
         // Raycast from mouse to ground plane at player's height
         const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mousePos, camera);
+        // Fix: Convert simple object {x, y} to THREE.Vector2 before passing to setFromCamera
+        this._rayCoords.set(mousePos.x, mousePos.y);
+        raycaster.setFromCamera(this._rayCoords, camera);
         
         const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -playerPos.y);
         const hit = new THREE.Vector3();
