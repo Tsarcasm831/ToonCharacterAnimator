@@ -94,7 +94,9 @@ export class Assassin {
                 ringMail: false,
                 plateMail: false,
                 // Add missing robe property
-                robe: false
+                robe: false,
+                // Added missing blacksmithApron property
+                blacksmithApron: false
             },
             selectedItem: 'Knife',
             weaponStance: 'side',

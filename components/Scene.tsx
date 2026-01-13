@@ -1,3 +1,4 @@
+
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { Game } from "../game/Game";
@@ -13,6 +14,7 @@ interface SceneProps {
   onInteractionUpdate?: (text: string | null, progress: number | null) => void;
   onGameReady?: (game: Game) => void;
   onToggleWorldMap?: (pos: THREE.Vector3) => void;
+  onToggleQuestLog?: () => void;
   controlsDisabled?: boolean;
 }
 
@@ -26,6 +28,7 @@ const Scene: React.FC<SceneProps> = ({
     onInteractionUpdate, 
     onGameReady,
     onToggleWorldMap,
+    onToggleQuestLog,
     controlsDisabled = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -79,7 +82,10 @@ const Scene: React.FC<SceneProps> = ({
       // Sync Control State
       game.setControlsActive(!controlsDisabled);
 
-  }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, controlsDisabled]);
+      // Input Manager specific callbacks
+      game['inputManager'].onToggleQuestLog = onToggleQuestLog;
+
+  }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onToggleQuestLog, controlsDisabled]);
 
   return <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />;
 };
