@@ -5,55 +5,72 @@ import { PlayerConfig, OutfitType } from '../../types';
 // Helper to generate brain fold texture
 const createBrainTexture = () => {
     if (typeof document === 'undefined') return null;
-    const size = 512;
+    const size = 1024; // Increased resolution
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    // Background (Sulci - deep valleys)
-    ctx.fillStyle = '#404040'; 
+    // Background (Sulci - deep valleys) - Dark reddish grey
+    ctx.fillStyle = '#6e4c4c'; 
     ctx.fillRect(0, 0, size, size);
 
     // Draw Gyri (Ridges)
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     
-    // Draw many winding paths
-    const drawWorms = (count: number, widthBase: number, alpha: number) => {
+    // Draw many winding paths with varying thickness to simulate packed tissue
+    const drawFolds = (count: number, widthBase: number, alpha: number) => {
         for (let i = 0; i < count; i++) {
             ctx.beginPath();
             let x = Math.random() * size;
             let y = Math.random() * size;
             ctx.moveTo(x, y);
             
-            const steps = 5 + Math.random() * 10;
+            // More segments for tighter winding
+            const steps = 15 + Math.random() * 20; 
             for (let j = 0; j < steps; j++) {
-                // Smooth random walk
+                // Tighter random walk for packed look
                 const angle = Math.random() * Math.PI * 2;
-                const dist = 20 + Math.random() * 30;
+                const dist = 10 + Math.random() * 25;
+                
+                // Bias towards center slightly to keep clumps? No, brain is uniform surface mostly.
+                // Just random walk.
+                
                 x += Math.cos(angle) * dist;
                 y += Math.sin(angle) * dist;
-                // Wrap
+                
+                // Soft wrap
                 if (x < 0) x += size; if (x > size) x -= size;
                 if (y < 0) y += size; if (y > size) y -= size;
                 
-                ctx.quadraticCurveTo(
-                    x - Math.cos(angle)*10, y - Math.sin(angle)*10, 
-                    x, y
-                );
+                // Bezier for smoother curves
+                const cx = x - Math.cos(angle) * dist * 0.5;
+                const cy = y - Math.sin(angle) * dist * 0.5;
+
+                ctx.quadraticCurveTo(cx, cy, x, y);
             }
             
-            const val = 150 + Math.random() * 105;
-            ctx.strokeStyle = `rgba(${val},${val},${val}, ${alpha})`;
-            ctx.lineWidth = widthBase + Math.random() * (widthBase/2);
+            // Varying colors for organic feel
+            const r = 220 + Math.random() * 35;
+            const g = 180 + Math.random() * 40;
+            const b = 180 + Math.random() * 40;
+            
+            ctx.strokeStyle = `rgba(${r},${g},${b}, ${alpha})`;
+            ctx.lineWidth = widthBase + Math.random() * (widthBase * 0.6);
+            // Shadow blur to simulate depth
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = 'rgba(50, 20, 20, 0.5)';
             ctx.stroke();
+            ctx.shadowBlur = 0; // Reset
         }
     };
 
-    drawWorms(200, 25, 0.8);
-    drawWorms(300, 15, 0.5); // Details
+    // Layered drawing for depth
+    drawFolds(400, 30, 0.7); // Base structure
+    drawFolds(600, 18, 0.6); // Medium details
+    drawFolds(800, 8, 0.4);  // Fine details
 
     return new THREE.CanvasTexture(canvas);
 };
@@ -69,7 +86,7 @@ export class PlayerMaterials {
     lip: THREE.MeshToonMaterial;
     underwear: THREE.MeshToonMaterial;
     hair: THREE.MeshToonMaterial;
-    brain: THREE.MeshStandardMaterial;
+    brain: THREE.MeshPhysicalMaterial;
 
     constructor(config: PlayerConfig) {
         this.skin = new THREE.MeshToonMaterial({ color: config.skinColor });
@@ -85,14 +102,18 @@ export class PlayerMaterials {
         this.underwear = new THREE.MeshToonMaterial({ color: 0xeaeaea });
         this.hair = new THREE.MeshToonMaterial({ color: config.hairColor, side: THREE.DoubleSide });
         
-        // Brain Material setup
+        // Brain Material setup - Physical for wet/organic look
         const brainTex = createBrainTexture();
-        this.brain = new THREE.MeshStandardMaterial({ 
-            color: 0xeba8b5, // Pale fleshy pink
-            roughness: 0.3,   // Wet/Shiny
-            metalness: 0.0,
+        this.brain = new THREE.MeshPhysicalMaterial({ 
+            color: 0xdea5b0,   // Pinkish Grey
+            roughness: 0.35,   // Wet but not mirror
+            metalness: 0.05,
             bumpMap: brainTex || undefined,
-            bumpScale: 0.015,
+            bumpScale: 0.025,  // Deeper folds
+            clearcoat: 0.8,    // Mucus/fluid layer
+            clearcoatRoughness: 0.25,
+            sheen: 0.3,        // Soft velvet-like highlight on ridges
+            sheenColor: new THREE.Color(0xffddee),
         });
         
         this.sync(config);

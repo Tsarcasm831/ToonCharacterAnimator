@@ -93,6 +93,7 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                     <button onClick={() => handleEquipmentChange('plateMail')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.plateMail ? 'bg-blue-100 border-blue-600 text-blue-800' : 'bg-white border-gray-200 text-gray-400'}`}>PlateMail</button>
                     <button onClick={() => handleEquipmentChange('shirt')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.shirt ? 'bg-red-100 border-red-500 text-red-800' : 'bg-white border-gray-200 text-gray-400'}`}>Shirt</button>
                     <button onClick={() => handleEquipmentChange('pants')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.pants ? 'bg-blue-100 border-blue-500 text-blue-800' : 'bg-white border-gray-200 text-gray-400'}`}>Pants</button>
+                    <button onClick={() => handleEquipmentChange('blacksmithApron')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.blacksmithApron ? 'bg-orange-100 border-orange-500 text-orange-800' : 'bg-white border-gray-200 text-gray-400'}`}>Apron</button>
                     <button onClick={() => handleEquipmentChange('shoes')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.shoes ? 'bg-stone-100 border-stone-500 text-stone-800' : 'bg-white border-gray-200 text-gray-400'}`}>Shoes</button>
                     <button onClick={handleHairToggle} className={`py-1.5 text-[10px] font-bold rounded border ${config.hairStyle !== 'bald' ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : 'bg-white border-gray-200 text-gray-400'}`}>Hair</button>
                 </div>
@@ -108,6 +109,8 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                 <ColorPicker label="Shirt Base" value={config.shirtColor} onChange={(v) => handleConfigChange('shirtColor', v)} />
                 <ColorPicker label="Shirt Sec." value={config.shirtColor2} onChange={(v) => handleConfigChange('shirtColor2', v)} />
                 <ColorPicker label="Pants" value={config.pantsColor} onChange={(v) => handleConfigChange('pantsColor', v)} />
+                <ColorPicker label="Apron" value={config.apronColor} onChange={(v) => handleConfigChange('apronColor', v)} />
+                <ColorPicker label="Apron Detail" value={config.apronDetailColor} onChange={(v) => handleConfigChange('apronDetailColor', v)} />
             </div>
         </div>
     );

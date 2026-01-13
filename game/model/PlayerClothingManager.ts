@@ -7,6 +7,7 @@ import { ShirtBuilder } from './mesh/ShirtBuilder';
 import { PantsBuilder } from './mesh/PantsBuilder';
 import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
+import { ApronBuilder } from './mesh/ApronBuilder';
 
 export class PlayerClothingManager {
     private partsRegistry: PlayerPartsRegistry;
@@ -14,9 +15,11 @@ export class PlayerClothingManager {
 
     private shirtMeshes: THREE.Object3D[] = [];
     private pantsMeshes: THREE.Object3D[] = [];
+    private apronMeshes: THREE.Object3D[] = [];
     
     private lastShirtConfigHash: string = '';
     private lastPantsConfigHash: string = '';
+    private lastApronConfigHash: string = '';
     private lastShoeState: boolean | null = null;
 
     constructor(registry: PlayerPartsRegistry, materials: PlayerMaterials) {
@@ -31,6 +34,7 @@ export class PlayerClothingManager {
     update(config: PlayerConfig) {
         this.updatePants(config);
         this.updateShirt(config);
+        this.updateApron(config);
         this.updateShoes(config);
     }
 
@@ -70,6 +74,28 @@ export class PlayerClothingManager {
         const meshes = PantsBuilder.build(this.partsRegistry.parts, config);
         if (meshes) {
             this.pantsMeshes = meshes;
+        }
+    }
+
+    private updateApron(config: PlayerConfig) {
+        const hash = `${config.equipment.blacksmithApron}_${config.apronColor}_${config.apronDetailColor}_${config.apronX}_${config.apronY}_${config.apronZ}_${config.apronScale}_${config.apronWidth}_${config.apronHeight}`;
+        if (hash === this.lastApronConfigHash) return;
+        this.lastApronConfigHash = hash;
+
+        this.apronMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if (m instanceof THREE.Mesh && m.geometry) m.geometry.dispose();
+            m.traverse(c => {
+                if (c instanceof THREE.Mesh) {
+                    if (c.geometry) c.geometry.dispose();
+                }
+            });
+        });
+        this.apronMeshes = [];
+
+        const result = ApronBuilder.build(this.partsRegistry.parts, config);
+        if (result) {
+            this.apronMeshes = result.meshes;
         }
     }
 

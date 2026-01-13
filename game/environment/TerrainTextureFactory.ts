@@ -1,8 +1,13 @@
-
 import * as THREE from 'three';
 
 export class TerrainTextureFactory {
+    private static textureCache: Map<string, THREE.Texture> = new Map();
+
     static getTexture(type: string): THREE.Texture {
+        if (TerrainTextureFactory.textureCache.has(type)) {
+            return TerrainTextureFactory.textureCache.get(type)!;
+        }
+
         const size = 512;
         const canvas = document.createElement('canvas');
         canvas.width = size;
@@ -246,6 +251,7 @@ export class TerrainTextureFactory {
         tex.repeat.set(8, 8); 
         if (type === 'Wood' || type === 'Metal' || type === 'Marble') tex.repeat.set(4, 4);
         
+        this.textureCache.set(type, tex);
         return tex;
     }
 }

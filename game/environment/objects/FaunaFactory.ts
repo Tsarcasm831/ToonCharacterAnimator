@@ -1,6 +1,23 @@
 import * as THREE from 'three';
 
 export class FaunaFactory {
+    private static materials: Map<string, THREE.Material> = new Map();
+    private static geometries: Map<string, THREE.BufferGeometry> = new Map();
+
+    private static getMaterial(color: number, name: string): THREE.Material {
+        if (!this.materials.has(name)) {
+            this.materials.set(name, new THREE.MeshStandardMaterial({ color, flatShading: true }));
+        }
+        return this.materials.get(name)!;
+    }
+
+    private static getGeometry(name: string, createFn: () => THREE.BufferGeometry): THREE.BufferGeometry {
+        if (!this.geometries.has(name)) {
+            this.geometries.set(name, createFn());
+        }
+        return this.geometries.get(name)!;
+    }
+
     static createDeadWolf(position: THREE.Vector3, rotationY: number) {
         const group = new THREE.Group();
         group.position.copy(position);
@@ -18,7 +35,15 @@ export class FaunaFactory {
         if (wolf.parts.legBL) wolf.parts.legBL.rotation.x = -1.2;
         if (wolf.parts.head) wolf.parts.head.rotation.x = 0.5;
 
-        const hitBox = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.0, 1.5), new THREE.MeshBasicMaterial({ visible: false }));
+        // Hitbox geometry can be cached
+        const hitBoxGeo = this.getGeometry('wolf_hitbox', () => new THREE.BoxGeometry(1.5, 1.0, 1.5));
+        const hitBoxMat = this.materials.get('invisible_hitbox') || (() => {
+            const m = new THREE.MeshBasicMaterial({ visible: false });
+            this.materials.set('invisible_hitbox', m);
+            return m;
+        })();
+
+        const hitBox = new THREE.Mesh(hitBoxGeo, hitBoxMat);
         hitBox.userData = { type: 'hard', material: 'flesh', isSkinnable: true };
         group.add(hitBox);
 
@@ -27,10 +52,11 @@ export class FaunaFactory {
 
     static createWolfModel(color: number = 0x555555) {
         const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, flatShading: true });
+        const mat = this.getMaterial(color, `wolf_${color}`);
         const parts: any = {};
 
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 1.1), mat);
+        const bodyGeo = this.getGeometry('wolf_body', () => new THREE.BoxGeometry(0.5, 0.6, 1.1));
+        const body = new THREE.Mesh(bodyGeo, mat);
         body.position.y = 0.6;
         body.castShadow = true;
         group.add(body);
@@ -41,17 +67,19 @@ export class FaunaFactory {
         group.add(headGroup);
         parts.head = headGroup;
 
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.5), mat);
+        const headGeo = this.getGeometry('wolf_head', () => new THREE.BoxGeometry(0.4, 0.4, 0.5));
+        const head = new THREE.Mesh(headGeo, mat);
         head.position.z = 0.2;
         head.castShadow = true;
         headGroup.add(head);
 
-        const snout = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.3), mat);
+        const snoutGeo = this.getGeometry('wolf_snout', () => new THREE.BoxGeometry(0.2, 0.2, 0.3));
+        const snout = new THREE.Mesh(snoutGeo, mat);
         snout.position.set(0, -0.05, 0.55);
         snout.castShadow = true;
         headGroup.add(snout);
 
-        const earGeo = new THREE.BoxGeometry(0.1, 0.2, 0.05);
+        const earGeo = this.getGeometry('wolf_ear', () => new THREE.BoxGeometry(0.1, 0.2, 0.05));
         const earR = new THREE.Mesh(earGeo, mat);
         earR.position.set(0.15, 0.25, 0.1);
         headGroup.add(earR);
@@ -59,7 +87,7 @@ export class FaunaFactory {
         earL.position.set(-0.15, 0.25, 0.1);
         headGroup.add(earL);
 
-        const legGeo = new THREE.BoxGeometry(0.15, 0.6, 0.15);
+        const legGeo = this.getGeometry('wolf_leg', () => new THREE.BoxGeometry(0.15, 0.6, 0.15));
         const createLeg = (lx: number, lz: number) => {
             const leg = new THREE.Mesh(legGeo, mat);
             leg.position.set(lx, 0.3, lz);
@@ -73,7 +101,8 @@ export class FaunaFactory {
         parts.legBR = createLeg(0.2, -0.4);
         parts.legBL = createLeg(-0.2, -0.4);
 
-        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.4), mat);
+        const tailGeo = this.getGeometry('wolf_tail', () => new THREE.BoxGeometry(0.1, 0.1, 0.4));
+        const tail = new THREE.Mesh(tailGeo, mat);
         tail.position.set(0, 0.7, -0.6);
         tail.rotation.x = -0.5;
         tail.castShadow = true;
@@ -85,10 +114,11 @@ export class FaunaFactory {
 
     static createBearModel(color: number = 0x5C4033) {
         const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, flatShading: true });
+        const mat = this.getMaterial(color, `bear_${color}`);
         const parts: any = {};
 
-        const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 2.0), mat);
+        const bodyGeo = this.getGeometry('bear_body', () => new THREE.BoxGeometry(1.2, 1.2, 2.0));
+        const body = new THREE.Mesh(bodyGeo, mat);
         body.position.y = 0.9;
         body.castShadow = true;
         group.add(body);
@@ -99,20 +129,22 @@ export class FaunaFactory {
         group.add(headGroup);
         parts.head = headGroup;
 
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), mat);
+        const headGeo = this.getGeometry('bear_head', () => new THREE.BoxGeometry(0.8, 0.8, 0.8));
+        const head = new THREE.Mesh(headGeo, mat);
         head.castShadow = true;
         headGroup.add(head);
 
-        const snout = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.4), mat);
+        const snoutGeo = this.getGeometry('bear_snout', () => new THREE.BoxGeometry(0.5, 0.4, 0.4));
+        const snout = new THREE.Mesh(snoutGeo, mat);
         snout.position.set(0, -0.15, 0.55);
         snout.castShadow = true;
         headGroup.add(snout);
 
-        const earGeo = new THREE.BoxGeometry(0.2, 0.2, 0.1);
+        const earGeo = this.getGeometry('bear_ear', () => new THREE.BoxGeometry(0.2, 0.2, 0.1));
         const earR = new THREE.Mesh(earGeo, mat); earR.position.set(0.3, 0.45, 0); headGroup.add(earR);
         const earL = new THREE.Mesh(earGeo, mat); earL.position.set(-0.3, 0.45, 0); headGroup.add(earL);
 
-        const legGeo = new THREE.BoxGeometry(0.4, 0.8, 0.4);
+        const legGeo = this.getGeometry('bear_leg', () => new THREE.BoxGeometry(0.4, 0.8, 0.4));
         const createLeg = (lx: number, lz: number) => {
             const leg = new THREE.Mesh(legGeo, mat);
             leg.position.set(lx, 0.4, lz);
@@ -236,18 +268,25 @@ export class FaunaFactory {
 
     static createSpiderModel(color: number = 0x1a1a1a) {
         const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, flatShading: true });
+        const mat = this.getMaterial(color, `spider_${color}`);
         const parts: any = {};
-        const thorax = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.3, 0.4), mat);
+        
+        const thoraxGeo = this.getGeometry('spider_thorax', () => new THREE.BoxGeometry(0.4, 0.3, 0.4));
+        const thorax = new THREE.Mesh(thoraxGeo, mat);
         thorax.position.y = 0.3; group.add(thorax); parts.body = thorax;
-        const abdomen = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 0.8), mat);
+        
+        const abdomenGeo = this.getGeometry('spider_abdomen', () => new THREE.BoxGeometry(0.7, 0.6, 0.8));
+        const abdomen = new THREE.Mesh(abdomenGeo, mat);
         abdomen.position.set(0, 0.5, -0.6); group.add(abdomen); parts.abdomen = abdomen;
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.25, 0.3), mat);
+        
+        const headGeo = this.getGeometry('spider_head', () => new THREE.BoxGeometry(0.3, 0.25, 0.3));
+        const head = new THREE.Mesh(headGeo, mat);
         head.position.set(0, 0.35, 0.3); group.add(head);
+        
+        const legGeo = this.getGeometry('spider_leg', () => new THREE.BoxGeometry(1.2, 0.08, 0.08));
         for(let i=1; i<=4; i++) {
             const side = i % 2 === 0 ? 1 : -1;
             const z = (i-2.5) * 0.3;
-            const legGeo = new THREE.BoxGeometry(1.2, 0.08, 0.08);
             const lL = new THREE.Mesh(legGeo, mat); lL.position.set(-0.6, 0.2, z); group.add(lL); parts[`legL${i}`] = lL;
             const lR = new THREE.Mesh(legGeo, mat); lR.position.set(0.6, 0.2, z); group.add(lR); parts[`legR${i}`] = lR;
         }
@@ -256,38 +295,54 @@ export class FaunaFactory {
 
     static createLizardModel(color: number = 0x6B8E23) {
         const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, flatShading: true });
+        const mat = this.getMaterial(color, `lizard_${color}`);
         const parts: any = {};
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.8), mat);
+        
+        const bodyGeo = this.getGeometry('lizard_body', () => new THREE.BoxGeometry(0.3, 0.2, 0.8));
+        const body = new THREE.Mesh(bodyGeo, mat);
         body.position.y = 0.15; group.add(body); parts.body = body;
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.15, 0.3), mat);
+        
+        const headGeo = this.getGeometry('lizard_head', () => new THREE.BoxGeometry(0.2, 0.15, 0.3));
+        const head = new THREE.Mesh(headGeo, mat);
         head.position.set(0, 0.2, 0.5); group.add(head); parts.head = head;
-        const legGeo = new THREE.BoxGeometry(0.3, 0.05, 0.1);
+        
+        const legGeo = this.getGeometry('lizard_leg', () => new THREE.BoxGeometry(0.3, 0.05, 0.1));
         parts.legFR = new THREE.Mesh(legGeo, mat); parts.legFR.position.set(0.25, 0.1, 0.3); group.add(parts.legFR);
         parts.legFL = new THREE.Mesh(legGeo, mat); parts.legFL.position.set(-0.25, 0.1, 0.3); group.add(parts.legFL);
         parts.legBR = new THREE.Mesh(legGeo, mat); parts.legBR.position.set(0.25, 0.1, -0.3); group.add(parts.legBR);
         parts.legBL = new THREE.Mesh(legGeo, mat); parts.legBL.position.set(-0.25, 0.1, -0.3); group.add(parts.legBL);
-        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.1, 0.8), mat);
+        
+        const tailGeo = this.getGeometry('lizard_tail', () => new THREE.BoxGeometry(0.15, 0.1, 0.8));
+        const tail = new THREE.Mesh(tailGeo, mat);
         tail.position.set(0, 0.1, -0.8); group.add(tail); parts.tail = tail;
         return { group, parts };
     }
 
     static createHorseModel(color: number = 0x8B4513) {
         const group = new THREE.Group();
-        const mat = new THREE.MeshStandardMaterial({ color, flatShading: true });
+        const mat = this.getMaterial(color, `horse_${color}`);
         const parts: any = {};
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 1.6), mat);
+        
+        const bodyGeo = this.getGeometry('horse_body', () => new THREE.BoxGeometry(0.7, 0.9, 1.6));
+        const body = new THREE.Mesh(bodyGeo, mat);
         body.position.y = 1.0; group.add(body); parts.body = body;
-        const neck = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.8, 0.4), mat);
+        
+        const neckGeo = this.getGeometry('horse_neck', () => new THREE.BoxGeometry(0.35, 0.8, 0.4));
+        const neck = new THREE.Mesh(neckGeo, mat);
         neck.position.set(0, 1.7, 0.9); neck.rotation.x = -Math.PI/6; group.add(neck);
-        const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.6), mat);
+        
+        const headGeo = this.getGeometry('horse_head', () => new THREE.BoxGeometry(0.35, 0.35, 0.6));
+        const head = new THREE.Mesh(headGeo, mat);
         head.position.set(0, 2.2, 1.2); group.add(head); parts.head = head;
-        const legGeo = new THREE.BoxGeometry(0.15, 1.0, 0.15);
+        
+        const legGeo = this.getGeometry('horse_leg', () => new THREE.BoxGeometry(0.15, 1.0, 0.15));
         parts.legFR = new THREE.Mesh(legGeo, mat); parts.legFR.position.set(0.25, 0.5, 0.6); group.add(parts.legFR);
         parts.legFL = new THREE.Mesh(legGeo, mat); parts.legFL.position.set(-0.25, 0.5, 0.6); group.add(parts.legFL);
         parts.legBR = new THREE.Mesh(legGeo, mat); parts.legBR.position.set(0.25, 0.5, -0.6); group.add(parts.legBR);
         parts.legBL = new THREE.Mesh(legGeo, mat); parts.legBL.position.set(-0.25, 0.5, -0.6); group.add(parts.legBL);
-        const tail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.1), mat);
+        
+        const tailGeo = this.getGeometry('horse_tail', () => new THREE.BoxGeometry(0.1, 0.5, 0.1));
+        const tail = new THREE.Mesh(tailGeo, mat);
         tail.position.set(0, 1.2, -0.85); tail.rotation.x = -0.4; group.add(tail); parts.tail = tail;
         return { group, parts };
     }
@@ -299,12 +354,15 @@ export class FaunaFactory {
         // Thinner body
         parts.body.scale.set(0.8, 0.9, 1.0);
         // Antlers
-        const antlerMat = new THREE.MeshStandardMaterial({color: 0xDEB887});
+        const antlerMat = this.getMaterial(0xDEB887, 'antler');
+        const antlerGeo = this.getGeometry('antler_main', () => new THREE.BoxGeometry(0.05, 0.4, 0.05));
+        const t1Geo = this.getGeometry('antler_tip', () => new THREE.BoxGeometry(0.04, 0.2, 0.04));
+        
         for(let side of [-1, 1]) {
-            const antler = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.4, 0.05), antlerMat);
+            const antler = new THREE.Mesh(antlerGeo, antlerMat);
             antler.position.set(side * 0.15, 0.25, 0); antler.rotation.z = side * 0.4;
             parts.head.add(antler);
-            const t1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.2, 0.04), antlerMat);
+            const t1 = new THREE.Mesh(t1Geo, antlerMat);
             t1.position.set(side * 0.1, 0.2, 0.1); t1.rotation.x = 0.8; antler.add(t1);
         }
         return { group, parts };

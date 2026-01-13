@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { BuildingParts } from './builder/BuildingParts';
 import { Player } from './Player';
 import { Environment } from './Environment';
 import { WorldEnvironment } from './WorldEnvironment';
@@ -85,11 +86,13 @@ export class Game {
             // Initial position for Dev at Timber Wharf label [-17, -30]
             // We multiply the index by cell size to land on the correct label
             const startX = -17 * GRID_CELL_SIZE;
-            const startZ = -30 * GRID_CELL_SIZE;
+            const startZ = 30 * GRID_CELL_SIZE;
             
             this.player.mesh.position.set(startX, 0, startZ);
             this.renderManager.controls.target.set(startX, 1.7, startZ);
             this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
+            
+            this.buildInitialStructure();
         } else {
             this.worldEnvironment = new WorldEnvironment(this.renderManager.scene);
             this.entityManager = new EntityManager(this.renderManager.scene, null as any, initialConfig);
@@ -146,7 +149,7 @@ export class Game {
 
             // Teleport to Timber Wharf label [-17, -30] for dev scene
             const startX = -17 * GRID_CELL_SIZE;
-            const startZ = -30 * GRID_CELL_SIZE;
+            const startZ = 30 * GRID_CELL_SIZE;
             
             this.player.mesh.position.set(startX, 0, startZ);
             this.renderManager.controls.target.set(startX, 1.7, startZ);
@@ -164,6 +167,86 @@ export class Game {
 
         // Hide entities in world scene
         this.entityManager.setVisibility(sceneName === 'dev');
+    }
+
+    private buildInitialStructure() {
+        if (!this.environment) return;
+
+        const GRID_SIZE = 1.3333;
+        const startX = -27;
+        const startZ = 36;
+        const size = 5;
+
+        // Foundation is 0.4m tall, centered at 0.2m
+        const foundationTop = 0.4;
+
+        // 1. Build 5x5 Foundation
+        for (let x = 0; x < size; x++) {
+            for (let z = 0; z < size; z++) {
+                this.placeStructure('foundation', (startX + x) * GRID_SIZE + GRID_SIZE/2, 0.2, (startZ + z) * GRID_SIZE + GRID_SIZE/2, 0);
+            }
+        }
+
+        // 2. Build Walls and Doorways around the perimeter
+        // Wall/Doorway is 2.75m tall, center is 1.375m. 
+        // If placed on foundation, base is at 0.4m, center is at 0.4 + 1.375 = 1.775m
+        const wallY = foundationTop + 1.375;
+
+        // North (z=0) and South (z=size)
+        for (let x = 0; x < size; x++) {
+            // North wall
+            if (x === 1) {
+                // Doorway at (startX + 1, startZ) - Doorway is 2 grids wide, centers on line
+                this.placeStructure('doorway', (startX + x + 1.0) * GRID_SIZE, wallY, (startZ) * GRID_SIZE, 0);
+                x++; // Skip next cell since doorway is 2 grids wide
+            } else {
+                this.placeStructure('wall', (startX + x) * GRID_SIZE + GRID_SIZE/2, wallY, (startZ) * GRID_SIZE, 0);
+            }
+        }
+
+        for (let x = 0; x < size; x++) {
+            // South wall
+            if (x === 3) {
+                // Doorway at (startX + 3, startZ + size)
+                this.placeStructure('doorway', (startX + x + 1.0) * GRID_SIZE, wallY, (startZ + size) * GRID_SIZE, 0);
+                x++; // Skip next cell
+            } else {
+                 this.placeStructure('wall', (startX + x) * GRID_SIZE + GRID_SIZE/2, wallY, (startZ + size) * GRID_SIZE, 0);
+            }
+        }
+
+        // West (x=0) and East (x=size)
+        for (let z = 0; z < size; z++) {
+            // West wall
+            this.placeStructure('wall', (startX) * GRID_SIZE, wallY, (startZ + z) * GRID_SIZE + GRID_SIZE/2, Math.PI / 2);
+            // East wall
+            this.placeStructure('wall', (startX + size) * GRID_SIZE, wallY, (startZ + z) * GRID_SIZE + GRID_SIZE/2, Math.PI / 2);
+        }
+    }
+
+    private placeStructure(type: any, x: number, y: number, z: number, rotation: number) {
+        const mesh = BuildingParts.createStructureMesh(type, false);
+        mesh.position.set(x, y, z);
+        mesh.rotation.y = rotation;
+
+        const applyUserData = (obj: THREE.Object3D) => {
+            obj.userData = { 
+                ...obj.userData,
+                type: 'hard', 
+                material: 'wood',
+                structureType: type 
+            };
+        };
+
+        if (mesh instanceof THREE.Group) {
+            mesh.traverse(applyUserData);
+            mesh.children.forEach(child => this.environment?.obstacles.push(child));
+        } else {
+            applyUserData(mesh);
+            this.environment?.obstacles.push(mesh);
+        }
+        
+        this.renderManager.scene.add(mesh);
     }
 
     private toggleBuilder() {

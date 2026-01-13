@@ -15,8 +15,9 @@ export class WorldGridManager {
     private group: THREE.Group;
     private isVisible: boolean = false;
     private labelPool: LabelPoolMember[] = [];
-    private readonly poolSize = 256; // More than enough for 10m radius at 1.33m spacing
-    private readonly cellSize = 1.3333; // 40/30 or 4/3
+    private readonly poolSize = 200; // Drastically reduced from 10000 to avoid freezing startup
+    private readonly cellSize = 1.3333; 
+    private readonly devWorldRadius = 100; // Radius to cover the entire dev scene area
     private lastUpdatePos = new THREE.Vector3(Infinity, Infinity, Infinity);
 
     constructor(parent: THREE.Object3D) {
@@ -29,8 +30,7 @@ export class WorldGridManager {
     }
 
     private buildGridLines() {
-        const patchSize = ENV_CONSTANTS.PATCH_SIZE;
-        const worldRadius = patchSize * 7.5; 
+        const worldRadius = this.devWorldRadius; 
         
         const majorLineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.6 });
         const minorLineMat = new THREE.LineBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.2 });
@@ -144,43 +144,58 @@ export class WorldGridManager {
         this.lastUpdatePos.copy(playerPos);
 
         const biomeSize = ENV_CONSTANTS.BIOME_SIZE;
-        const visibleRadius = 10;
+        // Reduce check radius to what's reasonably visible to save sorting time
+        // Camera is usually not seeing more than 40 units away clearly for labels
+        const visibleRadius = 40; 
         const sqRadius = visibleRadius * visibleRadius;
         const cellCount = Math.ceil(visibleRadius / this.cellSize);
 
-        // Find current cell center index
-        const px = Math.floor(playerPos.x / this.cellSize);
-        const pz = Math.floor(playerPos.z / this.cellSize);
+        // Identify center cell
+        const centerIx = Math.round(playerPos.x / this.cellSize);
+        const centerIz = Math.round(playerPos.z / this.cellSize);
 
-        let poolIdx = 0;
+        // Collect valid visible cells
+        const visibleCells: {ix: number, iz: number, distSq: number}[] = [];
 
-        for (let ix = px - cellCount; ix <= px + cellCount; ix++) {
-            for (let iz = pz - cellCount; iz <= pz + cellCount; iz++) {
-                if (poolIdx >= this.poolSize) break;
-
-                // Cell center in world space
+        for (let ix = centerIx - cellCount; ix <= centerIx + cellCount; ix++) {
+            for (let iz = centerIz - cellCount; iz <= centerIz + cellCount; iz++) {
                 const cx = (ix + 0.5) * this.cellSize;
                 const cz = (iz + 0.5) * this.cellSize;
-
+                
                 const dx = cx - playerPos.x;
                 const dz = cz - playerPos.z;
                 const distSq = dx * dx + dz * dz;
 
                 if (distSq <= sqRadius) {
-                    const member = this.labelPool[poolIdx];
-                    
-                    // Determine Biome
-                    const bx = Math.round(cx / biomeSize);
-                    const bz = Math.round(cz / biomeSize);
-                    const biome = BIOME_DATA[`${bx},${bz}`] || BIOME_DATA['0,0'];
-
-                    member.mesh.position.set(cx, 0.08, cz);
-                    member.mesh.visible = true;
-                    this.updateLabel(member, ix, iz, biome.color);
-                    
-                    poolIdx++;
+                    visibleCells.push({ ix, iz, distSq });
                 }
             }
+        }
+
+        // Sort by distance to prioritize closest labels
+        visibleCells.sort((a, b) => a.distSq - b.distSq);
+
+        // Render up to poolSize
+        let poolIdx = 0;
+        const count = Math.min(visibleCells.length, this.poolSize);
+
+        for (let i = 0; i < count; i++) {
+            const cell = visibleCells[i];
+            const member = this.labelPool[poolIdx];
+            
+            const cx = (cell.ix + 0.5) * this.cellSize;
+            const cz = (cell.iz + 0.5) * this.cellSize;
+
+            // Determine Biome
+            const bx = Math.round(cx / biomeSize);
+            const bz = Math.round(cz / biomeSize);
+            const biome = BIOME_DATA[`${bx},${bz}`] || BIOME_DATA['0,0'];
+
+            member.mesh.position.set(cx, 0.08, cz);
+            member.mesh.visible = true;
+            this.updateLabel(member, cell.ix, cell.iz, biome.color);
+            
+            poolIdx++;
         }
 
         // Hide remaining pool members
