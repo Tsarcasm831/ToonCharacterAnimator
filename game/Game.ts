@@ -44,6 +44,16 @@ export class Game {
 
     private fpvYaw: number = 0;
     private fpvPitch: number = 0;
+    private readonly tempTargetPos = new THREE.Vector3();
+    private readonly tempDeltaPos = new THREE.Vector3();
+    private readonly tempHeadPos = new THREE.Vector3();
+    private readonly tempForward = new THREE.Vector3();
+    private readonly tempCamDir = new THREE.Vector3();
+    private readonly tempLookAt = new THREE.Vector3();
+    private readonly tempCameraOffset = new THREE.Vector3();
+    private readonly camDirBase = new THREE.Vector3(0, 0, 1);
+    private readonly axisX = new THREE.Vector3(1, 0, 0);
+    private readonly axisY = new THREE.Vector3(0, 1, 0);
 
     public config: PlayerConfig;
 
@@ -59,6 +69,10 @@ export class Game {
     onDialogueTrigger?: (content: string) => void;
 
     private currentBiomeName: string = '';
+    private lastRotationUpdate = 0;
+    private lastRotationValue = 0;
+    private readonly rotationUpdateIntervalMs = 100;
+    private readonly rotationUpdateEpsilon = 0.01;
 
     constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: string[], activeScene: 'dev' | 'world') {
         this.config = initialConfig;
@@ -315,9 +329,9 @@ export class Game {
         this.renderManager.resize();
     }
 
-    private animate() {
+    private animate(time: number = 0) {
         this.animationId = requestAnimationFrame(this.animate);
-        const delta = Math.min(this.clock.getDelta(), 0.1);
+        const delta = Math.min(this.clock.getDelta(), 0.02);
         const input = this.inputManager.getInput();
 
         const joyLook = this.inputManager.getJoystickLook();
@@ -383,26 +397,50 @@ export class Game {
         this.soundManager.update(this.player, delta);
         
         // Push Camera Rotation to UI (Compass now reflects looking direction)
-        this.onRotationUpdate?.(cameraRotation);
+        const now = time;
+        if (
+            now - this.lastRotationUpdate >= this.rotationUpdateIntervalMs ||
+            Math.abs(cameraRotation - this.lastRotationValue) >= this.rotationUpdateEpsilon
+        ) {
+            this.lastRotationUpdate = now;
+            this.lastRotationValue = cameraRotation;
+            this.onRotationUpdate?.(cameraRotation);
+        }
 
-        const targetPos = this.player.mesh.position.clone();
+        this.tempTargetPos.copy(this.player.mesh.position);
         let heightOffset = this.cameraFocusMode === 1 ? 1.0 : (this.cameraFocusMode === 2 ? 0.4 : 1.7);
-        targetPos.y += heightOffset; 
+        this.tempTargetPos.y += heightOffset; 
 
         if (this.isFirstPerson) {
             const head = this.player.model.parts.head;
             if (head) {
-                const headPos = new THREE.Vector3(); head.getWorldPosition(headPos);
-                const forward = new THREE.Vector3(); this.player.mesh.getWorldDirection(forward);
-                headPos.addScaledVector(forward, 0.14); head.visible = false; this.renderManager.controls.target.copy(headPos);
-                const camDir = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(1, 0, 0), this.fpvPitch).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.fpvYaw);
-                this.renderManager.camera.position.copy(headPos); this.renderManager.camera.lookAt(headPos.clone().add(camDir));
+                head.getWorldPosition(this.tempHeadPos);
+                this.player.mesh.getWorldDirection(this.tempForward);
+                this.tempHeadPos.addScaledVector(this.tempForward, 0.14);
+                head.visible = false;
+                this.renderManager.controls.target.copy(this.tempHeadPos);
+                this.tempCamDir.copy(this.camDirBase).applyAxisAngle(this.axisX, this.fpvPitch).applyAxisAngle(this.axisY, this.fpvYaw);
+                this.renderManager.camera.position.copy(this.tempHeadPos);
+                this.tempLookAt.copy(this.tempHeadPos).add(this.tempCamDir);
+                this.renderManager.camera.lookAt(this.tempLookAt);
             }
         } else {
-            this.renderManager.controls.target.lerp(targetPos, 0.1);
-            const deltaPos = new THREE.Vector3().subVectors(this.renderManager.controls.target, this.prevTargetPos);
-            this.renderManager.camera.position.add(deltaPos); 
-            this.prevTargetPos.copy(this.renderManager.controls.target); 
+            // Rigid Follow Camera Logic
+            // 1. Snapshot the current target
+            this.prevTargetPos.copy(this.renderManager.controls.target);
+            
+            // 2. HARD LOCK the controls target to the player's new position
+            // This eliminates lag/float and syncing issues between player physics and camera lerp
+            this.renderManager.controls.target.copy(this.tempTargetPos);
+            
+            // 3. Calculate exact shift vector
+            this.tempDeltaPos.subVectors(this.renderManager.controls.target, this.prevTargetPos);
+            
+            // 4. Shift the camera by the EXACT same amount to maintain relative orbit
+            this.renderManager.camera.position.add(this.tempDeltaPos);
+            
+            // 5. Update OrbitControls (handles rotation smooth damping if enabled, but translation is now rigid)
+            this.renderManager.controls.update();
         }
   
         if (this.player.isTalking) this.onInteractionUpdate?.(null, null);

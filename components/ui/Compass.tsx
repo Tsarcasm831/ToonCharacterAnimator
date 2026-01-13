@@ -1,11 +1,33 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface CompassProps {
     rotation: number;
 }
 
 export const Compass: React.FC<CompassProps> = ({ rotation }) => {
+    const [fps, setFps] = useState(0);
+
+    useEffect(() => {
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let rafId = 0;
+
+        const tick = (now: number) => {
+            frameCount += 1;
+            const elapsed = now - lastTime;
+            if (elapsed >= 500) {
+                setFps(Math.round((frameCount * 1000) / elapsed));
+                frameCount = 0;
+                lastTime = now;
+            }
+            rafId = requestAnimationFrame(tick);
+        };
+
+        rafId = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(rafId);
+    }, []);
+
     // In Three.js, rotation.y increases counter-clockwise.
     // User requested 180 degree flip from previous orientation.
     // New Mapping for Camera Heading:
@@ -87,6 +109,11 @@ export const Compass: React.FC<CompassProps> = ({ rotation }) => {
             {/* Subtle Gradient Fade at Edges */}
             <div className="absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-slate-900/40 to-transparent pointer-events-none rounded-l-lg" />
             <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-slate-900/40 to-transparent pointer-events-none rounded-r-lg" />
+
+            <div className="absolute top-0 left-full ml-2 h-10 px-2 bg-black/40 backdrop-blur-md rounded-lg border border-white/10 shadow-2xl flex items-center gap-1">
+                <span className="text-[8px] font-black tracking-widest text-slate-400">FPS</span>
+                <span className="text-[10px] font-mono font-bold text-emerald-300">{fps}</span>
+            </div>
         </div>
     );
 };
