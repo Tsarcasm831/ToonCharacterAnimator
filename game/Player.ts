@@ -74,6 +74,8 @@ export class Player {
     // Emotes
     isWaving: boolean = false;
     waveTimer: number = 0;
+    isLeftHandWaving: boolean = false;
+    leftHandWaveTimer: number = 0;
 
     // Summoning
     isSummoning: boolean = false;
@@ -200,9 +202,30 @@ export class Player {
                 this.waveTimer = 0;
             } else {
                 this.waveTimer += dt;
-                if (this.waveTimer > 2.0) {
+                // Extended to 3.0s for the "slow raise" animation
+                if (this.waveTimer > 3.0) {
                     this.isWaving = false;
                     this.waveTimer = 0;
+                }
+            }
+        }
+
+        // Left Hand Wave Handler
+        if (input.leftHandWave && !this.isLeftHandWaving && !this.isCombatStance && !this.isJumping) {
+            this.isLeftHandWaving = true;
+            this.leftHandWaveTimer = 0;
+        }
+
+        if (this.isLeftHandWaving) {
+            if (input.x !== 0 || input.y !== 0 || input.jump || input.isPickingUp || input.attack1) {
+                this.isLeftHandWaving = false;
+                this.leftHandWaveTimer = 0;
+            } else {
+                this.leftHandWaveTimer += dt;
+                // Extended to 2.5s for smooth casual wave
+                if (this.leftHandWaveTimer > 2.5) {
+                    this.isLeftHandWaving = false;
+                    this.leftHandWaveTimer = 0;
                 }
             }
         }
@@ -222,9 +245,6 @@ export class Player {
                 if (this.summonTimer > 3.0) { // Extended to 3.0s for full recovery
                     this.isSummoning = false;
                     this.summonTimer = 0;
-                    
-                    // Trigger effect at impact time (~1.7s mark)
-                    // (Logic could be added here to spawn particles if needed)
                 }
             }
         }
@@ -272,6 +292,15 @@ export class Player {
         
         if (this.config.selectedItem === 'Fishing Pole' && this.config.weaponStance !== 'shoulder') {
             this.config.weaponStance = 'shoulder';
+        }
+
+        // --- BOW STATE SANITATION ---
+        // Force cleanup of bow firing state if the bow is no longer equipped
+        if (this.config.selectedItem !== 'Bow' && this.isFiringBow) {
+            this.isFiringBow = false;
+            this.bowCharge = 0;
+            this.bowTimer = 0;
+            this.bowState = 'draw';
         }
 
         this.model.sync(this.config, this.isCombatStance);

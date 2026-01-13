@@ -21,7 +21,7 @@ export class ScatterFactory {
         group.position.copy(position);
 
         const bladeCount = type === 'tall' ? 5 : 3;
-        const baseHeight = type === 'tall' ? 0.6 : 0.3;
+        const baseHeight = type === 'tall' ? 0.42 : 0.21; // Reduced 30% from 0.6 and 0.3
         const color = type === 'dry' ? 0x9a8c81 : (type === 'tall' ? 0x2d3a1e : 0x416128);
         
         const mat = this.getMaterial(color, `grass_${type}`);

@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { TreeData, RockData } from './EnvironmentTypes';
 import { ObjectFactory } from './ObjectFactory';
@@ -129,7 +130,6 @@ export class ObstacleManager {
         });
     }
 
-    // Fixed: Added missing damageObstacle method
     damageObstacle(object: THREE.Object3D, amount: number): string | null {
         let tree = this.trees.get(object.uuid);
         if (tree) {
@@ -165,7 +165,6 @@ export class ObstacleManager {
         return null;
     }
 
-    // Fixed: Completed the update method and fixed truncated lines
     update(dt: number) {
         const time = this.clock.getElapsedTime();
         const water = this.parent.getObjectByName('pond_water');
@@ -182,6 +181,21 @@ export class ObstacleManager {
                         const originY = child.userData.originY;
                         child.position.y = originY + Math.sin(time * mSpeed + mPhase) * 0.5;
                         child.position.x += Math.sin(time * 0.5 + mPhase) * 0.005;
+                    } else if (child.userData.isFlame) {
+                        // High-frequency flame flicker
+                        const fPhase = child.userData.phase;
+                        const bScale = child.userData.baseScale;
+                        const bY = child.userData.baseY;
+                        const flicker = Math.sin(time * 15.0 + fPhase);
+                        const s = bScale * (1.0 + flicker * 0.15);
+                        child.scale.set(s, s * (1.8 + flicker * 0.2), s);
+                        child.position.y = bY + flicker * 0.02;
+                        if (child.material instanceof THREE.MeshStandardMaterial) {
+                            child.material.emissiveIntensity = 2.0 + flicker * 0.8;
+                        }
+                    } else if (child.userData.isFlameLight) {
+                        const lPhase = child.userData.phase;
+                        child.intensity = 1.5 + Math.sin(time * 12.0 + lPhase) * 0.5;
                     }
                 });
             } else {

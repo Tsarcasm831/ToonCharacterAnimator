@@ -1,8 +1,8 @@
 
 import * as THREE from 'three';
-import { Environment } from './Environment';
-import { ObjectFactory } from './environment/ObjectFactory';
-import { PlayerUtils } from './player/PlayerUtils';
+import { Environment } from '../../../Environment';
+import { ObjectFactory } from '../../../environment/ObjectFactory';
+import { PlayerUtils } from '../../../player/PlayerUtils';
 
 export enum OwlState { IDLE, PATROL, CHASE, SWOOP, RETREAT, FALLING, DEAD }
 
@@ -49,5 +49,5 @@ export class Owl {
     takeDamage(amount: number) { if (this.isDead) return; this.health -= amount; this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth); this.model.parts.body.material.emissive.setHex(0xff0000); this.model.parts.body.material.emissiveIntensity = 0.5; if (this.health <= 0) this.die(); else setTimeout(() => { if (!this.isDead) this.model.parts.body.material.emissiveIntensity = 0; }, 100); }
     private die() { this.isDead = true; this.state = OwlState.FALLING; this.healthBarGroup.visible = false; }
     private settleDeath() { this.state = OwlState.DEAD; this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'feathers'; this.hitbox.children.forEach(child => { child.userData.isSkinnable = true; child.userData.material = 'feathers'; }); this.group.rotation.set(0, 0, 0); this.model.group.rotation.x = Math.PI / 2; this.model.group.position.y = 0.1; this.model.parts.wingL.rotation.z = 1.5; this.model.parts.wingR.rotation.z = -1.5; }
-    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.hitbox.children.forEach(child => { child.userData.isSkinnable = false; }); this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.multiplyScalar(0.3); } }); }
+    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.hitbox.userData.type = 'soft'; this.hitbox.children.forEach(child => { child.userData.isSkinnable = false; child.userData.type = 'soft'; }); this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.setHex(0x000000); if (obj.material.emissive) obj.material.emissive.setHex(0x000000); } }); }
 }

@@ -7,7 +7,7 @@ export class InputManager {
     manualInput: PlayerInput = {
         x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false,
         attack1: false, attack2: false, interact: false, combat: false,
-        toggleFirstPerson: false, wave: false, summon: false, toggleBuilder: false, rotateGhost: false
+        toggleFirstPerson: false, wave: false, leftHandWave: false, summon: false, toggleBuilder: false, rotateGhost: false
     };
     isBlocked: boolean = false;
     
@@ -143,7 +143,7 @@ export class InputManager {
             return {
                 x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false,
                 attack1: false, attack2: false, interact: false, combat: false,
-                toggleFirstPerson: false, wave: false, summon: false, toggleBuilder: false, rotateGhost: false
+                toggleFirstPerson: false, wave: false, leftHandWave: false, summon: false, toggleBuilder: false, rotateGhost: false
             };
         }
 
@@ -168,6 +168,7 @@ export class InputManager {
             combat: !!(this.keys['KeyC'] || this.manualInput.combat),
             toggleFirstPerson: !!(this.manualInput.toggleFirstPerson),
             wave: !!(this.manualInput.wave),
+            leftHandWave: !!(this.manualInput.leftHandWave),
             summon: !!(this.keys['KeyL'] || this.manualInput.summon),
             toggleBuilder: !!(this.keys['KeyB']),
             rotateGhost: !!(this.keys['KeyR']) 

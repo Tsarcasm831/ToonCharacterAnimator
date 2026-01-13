@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import type { Player } from '../Player';
 import { PlayerInput } from '../../types';
@@ -5,16 +6,16 @@ import { PlayerPhysics } from './PlayerPhysics';
 import { ParticleManager } from '../ParticleManager';
 import { Environment } from '../Environment';
 import { ArrowBuilder } from '../model/equipment/ArrowBuilder';
-import { Wolf } from '../Wolf';
-import { Bear } from '../Bear';
-import { Yeti } from '../Yeti';
-import { Deer } from '../Deer';
-import { Chicken } from '../Chicken';
-import { Pig } from '../Pig';
-import { Sheep } from '../Sheep';
-import { Spider } from '../Spider';
-import { Lizard } from '../Lizard';
-import { Horse } from '../Horse';
+import { Wolf } from '../entities/animal/aggressive/Wolf';
+import { Bear } from '../entities/animal/aggressive/Bear';
+import { Yeti } from '../entities/animal/neutral/Yeti';
+import { Deer } from '../entities/animal/neutral/Deer';
+import { Chicken } from '../entities/animal/neutral/Chicken';
+import { Pig } from '../entities/animal/neutral/Pig';
+import { Sheep } from '../entities/animal/neutral/Sheep';
+import { Spider } from '../entities/animal/aggressive/Spider';
+import { Lizard } from '../entities/animal/neutral/Lizard';
+import { Horse } from '../entities/animal/tameable/Horse';
 
 export class PlayerCombat {
     private static _tempBox1 = new THREE.Box3();
@@ -70,6 +71,12 @@ export class PlayerCombat {
                     this.playAxeSwing(player);
                 }
             }
+            
+            // Cleanup bow state if not holding bow
+            if (player.isFiringBow) {
+                player.isFiringBow = false;
+                player.bowState = 'draw';
+            }
         }
 
         // Update Input History
@@ -124,11 +131,15 @@ export class PlayerCombat {
     }
 
     private static handleBowInput(player: Player, dt: number, input: PlayerInput, particleManager: ParticleManager) {
-        if (player.bowState === 'release') return; 
+        // If in release phase, only return if the timer hasn't finished. 
+        // We add a safety check: if they click again during release, we might want to queue the next draw.
+        if (player.bowState === 'release' && player.bowTimer < 0.3) {
+            return; 
+        }
 
         if (input.attack1) {
             // DRAW / CHARGE
-            if (!player.isFiringBow) {
+            if (!player.isFiringBow || player.bowState === 'release') {
                 player.isFiringBow = true;
                 player.bowState = 'draw';
                 player.bowCharge = 0;
@@ -149,10 +160,13 @@ export class PlayerCombat {
                 player.bowState = 'release';
                 player.bowTimer = 0;
                 
-                if (player.bowCharge > 0.3) {
+                if (player.bowCharge > 0.25) {
                     this.fireArrow(player, particleManager);
                 } else {
+                    // Canceled or short draw
                     player.isFiringBow = false;
+                    player.bowState = 'draw';
+                    player.bowCharge = 0;
                 }
             }
         }
@@ -199,10 +213,11 @@ export class PlayerCombat {
     private static updateBowLogic(player: Player, dt: number) {
         if (player.isFiringBow && player.bowState === 'release') {
             player.bowTimer += dt;
-            if (player.bowTimer > 0.4) { 
+            if (player.bowTimer > 0.45) { // Slightly longer for full animation settle
                 player.isFiringBow = false;
                 player.bowState = 'draw';
                 player.bowCharge = 0;
+                player.bowTimer = 0;
             }
         }
     }

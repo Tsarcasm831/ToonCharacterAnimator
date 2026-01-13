@@ -45,6 +45,8 @@ export class PlayerAnimator {
             this.action.animateFishing(player, parts, dt, damp, obstacles);
         } else if (player.isWaving) {
             this.action.animateWave(player, parts, dt, damp);
+        } else if (player.isLeftHandWaving) {
+            this.action.animateLeftHandWave(player, parts, dt, damp);
         } else {
             // Check if we need to reset fishing bobber (if holding pole but not fishing)
             if (player.config.selectedItem === 'Fishing Pole') {

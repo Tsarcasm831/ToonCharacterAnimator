@@ -138,6 +138,7 @@ export class Environment {
             let bottomColor = new THREE_LIB.Color();
             let sunColor = new THREE_LIB.Color();
 
+            // Calculate atmospheric colors based on sun position
             if (sunAltitude > 0.2) {
                 topColor.setHex(0x0077ff);
                 bottomColor.setHex(0xa0cfff);
@@ -153,13 +154,12 @@ export class Environment {
                 sunColor.setHex(0x90caf9);
             }
 
+            // Darken bottom for blend, but let post-process fog handle the rest
+            bottomColor.setHex(0x000000); 
+
             uniforms.topColor.value.copy(topColor);
             uniforms.bottomColor.value.copy(bottomColor);
             uniforms.sunColor.value.copy(sunColor);
-
-            if (this.scene.fog instanceof THREE_LIB.Fog) {
-                this.scene.fog.color.copy(bottomColor);
-            }
         }
 
         if (this.hemiLight) {

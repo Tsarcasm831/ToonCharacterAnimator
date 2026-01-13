@@ -7,6 +7,7 @@ import { InteractionOverlay } from './components/ui/InteractionOverlay.tsx';
 import { Hotbar } from './components/ui/Hotbar.tsx';
 import { ControlPanel } from './components/ui/ControlPanel.tsx';
 import { InventoryModal } from './components/ui/InventoryModal.tsx';
+import { TradeModal } from './components/ui/TradeModal.tsx';
 import { BuilderUI } from './components/ui/BuilderUI.tsx';
 import { MobileControls } from './components/ui/MobileControls.tsx';
 import { KeybindsModal } from './components/ui/KeybindsModal.tsx';
@@ -101,6 +102,7 @@ const App: React.FC = () => {
   const [progress, setProgress] = useState<number | null>(null);
   const [coins, setCoins] = useState(1250);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isTradeOpen, setIsTradeOpen] = useState(false);
   const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
@@ -112,9 +114,15 @@ const App: React.FC = () => {
   const gameInstance = useRef<Game | null>(null);
 
   useEffect(() => {
-    const preventContextMenu = (e: MouseEvent) => e.preventDefault();
-    window.addEventListener('contextmenu', preventContextMenu);
-    return () => window.removeEventListener('contextmenu', preventContextMenu);
+    // Robust context menu prevention, including Shift+RightClick bypass cases
+    const preventContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    };
+    
+    window.addEventListener('contextmenu', preventContextMenu, true);
+    return () => window.removeEventListener('contextmenu', preventContextMenu, true);
   }, []);
 
   const handleExport = () => {
@@ -143,7 +151,10 @@ const App: React.FC = () => {
       setProgress(prog);
   };
 
-  const toggleInventory = () => setIsInventoryOpen(prev => !prev);
+  const toggleInventory = () => {
+    if (isTradeOpen) setIsTradeOpen(false);
+    setIsInventoryOpen(prev => !prev);
+  };
   const toggleKeybinds = () => setIsKeybindsOpen(prev => !prev);
   const toggleQuestLog = () => setIsQuestLogOpen(prev => !prev);
 
@@ -223,6 +234,28 @@ const App: React.FC = () => {
       }
   };
 
+  const handleBuy = (item: string, price: number) => {
+    if (coins < price) return;
+    const emptyIdx = inventory.findIndex(s => s === '');
+    if (emptyIdx === -1) {
+        alert("Inventory Full!");
+        return;
+    }
+    setCoins(prev => prev - price);
+    const newInv = [...inventory];
+    newInv[emptyIdx] = item;
+    setInventory(newInv);
+  };
+
+  const handleSell = (index: number, price: number) => {
+    const item = inventory[index];
+    if (!item) return;
+    setCoins(prev => prev + price);
+    const newInv = [...inventory];
+    newInv[index] = '';
+    setInventory(newInv);
+  };
+
   const closeDialogue = () => {
     setDialogue(null);
     if (gameInstance.current) {
@@ -266,6 +299,7 @@ const App: React.FC = () => {
               g.onBuilderToggle = (active) => setIsBuilderMode(active);
               g.onBiomeUpdate = (b) => setCurrentBiome(b);
               g.onDialogueTrigger = (content) => setDialogue(content);
+              g.onTradeTrigger = () => setIsTradeOpen(true);
               g.onRotationUpdate = (r) => setPlayerRotation(r);
               
               // Finish loading
@@ -273,15 +307,15 @@ const App: React.FC = () => {
           }}
           onToggleWorldMap={handleToggleWorldMap}
           onToggleQuestLog={toggleQuestLog}
-          controlsDisabled={isInventoryOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isLoading}
+          controlsDisabled={isInventoryOpen || isTradeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isLoading}
         />
       </div>
 
       <LoadingScreen isVisible={isLoading} message={`Traveling to ${activeScene === 'dev' ? 'Dev Scene' : 'World Scene'}...`} />
 
-      {!isInventoryOpen && !isBuilderMode && !isQuestLogOpen && <Header biome={currentBiome} />}
+      {!isInventoryOpen && !isTradeOpen && !isBuilderMode && !isQuestLogOpen && <Header biome={currentBiome} />}
       
-      {!isInventoryOpen && !isBuilderMode && !isQuestLogOpen && <Compass rotation={playerRotation} />}
+      {!isInventoryOpen && !isTradeOpen && !isBuilderMode && !isQuestLogOpen && <Compass rotation={playerRotation} />}
 
       {/* Travel Button Top Center */}
       <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[50]">
@@ -318,15 +352,15 @@ const App: React.FC = () => {
 
       <InteractionOverlay text={interactionText} progress={progress} />
 
-      {!isInventoryOpen && !isBuilderMode && !isQuestLogOpen && (
+      {!isInventoryOpen && !isTradeOpen && !isBuilderMode && !isQuestLogOpen && (
           <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={setSelectedSlot} />
       )}
 
-      {isBuilderMode && !isInventoryOpen && (
+      {isBuilderMode && !isInventoryOpen && !isTradeOpen && (
           <BuilderUI activeType={activeStructure} onSelectType={handleSelectStructure} />
       )}
 
-      {!isInventoryOpen && !isBuilderMode && !isQuestLogOpen && (
+      {!isInventoryOpen && !isTradeOpen && !isBuilderMode && !isQuestLogOpen && (
           <ControlPanel 
             config={config}
             manualInput={manualInput}
@@ -339,7 +373,7 @@ const App: React.FC = () => {
           />
       )}
 
-      {!isInventoryOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
+      {!isInventoryOpen && !isTradeOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
 
       <InventoryModal 
           isOpen={isInventoryOpen}
@@ -352,6 +386,15 @@ const App: React.FC = () => {
           onEquipItem={handleEquipItem}
           onUnequipItem={handleUnequipItem}
           coins={coins}
+      />
+
+      <TradeModal
+          isOpen={isTradeOpen}
+          onClose={() => { setIsTradeOpen(false); if(gameInstance.current) gameInstance.current['player'].isTalking = false; }}
+          inventory={inventory}
+          coins={coins}
+          onBuy={handleBuy}
+          onSell={handleSell}
       />
 
       <KeybindsModal 

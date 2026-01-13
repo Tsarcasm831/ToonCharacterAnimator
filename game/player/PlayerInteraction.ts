@@ -2,7 +2,8 @@
 import * as THREE from 'three';
 import type { Player } from '../Player';
 import { PlayerInput } from '../../types';
-import { LowLevelCityGuard } from '../LowLevelCityGuard';
+import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
+import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 
 export class PlayerInteraction {
 
@@ -41,8 +42,8 @@ export class PlayerInteraction {
         const skinnableTarget = this.getSkinnableTargetNearby(player, obstacles);
         player.canSkin = !!skinnableTarget && hasKnife;
 
-        // Dialogue Check (Guard Interaction)
-        this.checkGuardsNearby(player, entities);
+        // Dialogue Check
+        this.checkNPCInteraction(player, entities);
 
         if (input.isPickingUp) {
             if (player.canSkin && !player.isSkinning && !player.isPickingUp) {
@@ -80,7 +81,11 @@ export class PlayerInteraction {
                         } else {
                             // Fallback for static objects
                             skinnableTarget.userData.isSkinnable = false;
-                            skinnableTarget.traverse(c => c.userData.isSkinnable = false);
+                            skinnableTarget.userData.type = 'soft'; // Disable collision
+                            skinnableTarget.traverse(c => {
+                                c.userData.isSkinnable = false;
+                                c.userData.type = 'soft';
+                            });
                         }
                     }
                 }
@@ -144,17 +149,25 @@ export class PlayerInteraction {
         return best;
     }
 
-    private static checkGuardsNearby(player: Player, entities: any[]) {
+    private static checkNPCInteraction(player: Player, entities: any[]) {
         player.canTalk = false;
         player.talkingTarget = null;
 
         for (const entity of entities) {
+            // Check Guards
             if (entity instanceof LowLevelCityGuard) {
-                // Ignore guards in combat
                 if (entity.isInCombat()) continue;
-
                 const dist = player.mesh.position.distanceTo(entity.position);
                 if (dist < 2.0) {
+                    player.canTalk = true;
+                    player.talkingTarget = entity;
+                    break;
+                }
+            }
+            // Check Blacksmith
+            if (entity instanceof Blacksmith) {
+                const dist = player.mesh.position.distanceTo(entity.position);
+                if (dist < 2.5) { // Slightly larger interaction radius for the shopkeeper
                     player.canTalk = true;
                     player.talkingTarget = entity;
                     break;

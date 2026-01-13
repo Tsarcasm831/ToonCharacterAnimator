@@ -83,8 +83,14 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
             
             <div className="grid grid-cols-2 gap-2">
                 <button onClick={() => triggerAction('wave')} className="py-2 rounded-lg font-bold text-xs bg-pink-50 border border-pink-200 text-pink-600 hover:bg-pink-100 shadow-sm flex items-center justify-center gap-2">
-                    <span>👋 Wave Hello</span>
+                    <span>👋 Wave</span>
                 </button>
+                <button onClick={() => triggerAction('leftHandWave')} className="py-2 rounded-lg font-bold text-xs bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 shadow-sm flex items-center justify-center gap-2">
+                    <span>🤳 Left Wave</span>
+                </button>
+            </div>
+            
+            <div className="grid grid-cols-1">
                 <button 
                     onClick={() => triggerAction('summon')} 
                     className={`py-2 rounded-lg font-bold text-xs shadow-sm flex items-center justify-center gap-2 ${config?.selectedItem ? 'bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200' : 'bg-purple-50 border border-purple-200 text-purple-600 hover:bg-purple-100'}`}
