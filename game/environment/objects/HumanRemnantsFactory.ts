@@ -96,26 +96,30 @@ export class HumanRemnantsFactory {
         const group = new THREE.Group();
         group.position.copy(position);
 
-        // Ash circle
-        const ashGeo = this.getGeometry('campfire_ash', () => new THREE.CircleGeometry(0.5, 12));
+        // 1. Ash circle
+        const ashGeo = this.getGeometry('campfire_ash', () => new THREE.CircleGeometry(0.65, 12));
         const ashMat = this.getMaterial(0x1a1a1a, 'campfire_ash', { roughness: 1.0 });
         const ash = new THREE.Mesh(ashGeo, ashMat);
         ash.rotation.x = -Math.PI/2;
         ash.position.y = 0.01;
         group.add(ash);
 
-        // Ring of rocks (re-use rock factory logic? RockFactory creates unique rocks usually. 
-        // But we can just create simple rocks here or use RockFactory.
-        // RockFactory doesn't seem to cache yet, let's just make simple ones here to be safe and fast)
-        
-        // Actually RockFactory.createRock creates a detailed rock group.
-        // Let's manually create small simple rocks to save overhead.
-        const rockMat = this.getMaterial(0x888888, 'campfire_rock', { flatShading: true });
-        const rockGeo = this.getGeometry('campfire_rock', () => new THREE.DodecahedronGeometry(0.15, 0));
+        // 2. Invisible Collision Cylinder
+        // This ensures the player can't walk into the fire
+        const collisionGeo = this.getGeometry('campfire_collision', () => new THREE.CylinderGeometry(0.75, 0.75, 1.0, 8));
+        const collisionMat = new THREE.MeshBasicMaterial({ visible: false });
+        const collision = new THREE.Mesh(collisionGeo, collisionMat);
+        collision.position.y = 0.5;
+        collision.userData = { type: 'hard', material: 'stone' };
+        group.add(collision);
 
-        for(let i=0; i<7; i++) {
-            const angle = (i / 7) * Math.PI * 2;
-            const r = 0.6 + Math.random() * 0.15;
+        // 3. Ring of rocks
+        const rockMat = this.getMaterial(0x666666, 'campfire_rock', { flatShading: true });
+        const rockGeo = this.getGeometry('campfire_rock', () => new THREE.DodecahedronGeometry(0.18, 0));
+
+        for(let i=0; i<8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const r = 0.65 + Math.random() * 0.1;
             const rock = new THREE.Mesh(rockGeo, rockMat);
             rock.position.set(Math.cos(angle) * r, 0.1, Math.sin(angle) * r);
             rock.rotation.set(Math.random(), Math.random(), Math.random());
@@ -123,18 +127,51 @@ export class HumanRemnantsFactory {
             group.add(rock);
         }
 
-        // Charred logs
+        // 4. Charred logs
         const logMat = this.getMaterial(0x111111, 'campfire_log', { roughness: 1.0 });
-        const logGeo = this.getGeometry('campfire_log', () => new THREE.CylinderGeometry(0.045, 0.045, 0.7, 6));
+        const logGeo = this.getGeometry('campfire_log', () => new THREE.CylinderGeometry(0.05, 0.05, 0.8, 6));
         for(let i=0; i<3; i++) {
             const log = new THREE.Mesh(logGeo, logMat);
-            log.position.y = 0.06;
+            log.position.y = 0.08;
             log.rotation.z = Math.PI/2;
             log.rotation.y = (i/3) * Math.PI * 2 + Math.random();
             group.add(log);
         }
 
-        group.userData = { type: 'soft' }; 
+        // 5. Procedural Flames
+        const flameColors = [0xff6600, 0xffaa00, 0xffff00];
+        const flameGeo = new THREE.DodecahedronGeometry(1, 0);
+
+        flameColors.forEach((color, i) => {
+            const fMat = new THREE.MeshStandardMaterial({
+                color: color,
+                emissive: color,
+                emissiveIntensity: 2.5,
+                transparent: true,
+                opacity: 0.6 + (i * 0.1),
+                blending: THREE.AdditiveBlending
+            });
+            const flame = new THREE.Mesh(flameGeo, fMat);
+            // Smaller as they get hotter/inner
+            const s = 0.35 - (i * 0.08);
+            flame.scale.set(s, s * 1.8, s);
+            flame.position.y = 0.1 + (i * 0.05);
+            flame.userData = { 
+                isFlame: true, 
+                phase: Math.random() * Math.PI * 2,
+                baseScale: s,
+                baseY: flame.position.y
+            };
+            group.add(flame);
+        });
+
+        // 6. Firelight
+        const fireLight = new THREE.PointLight(0xffaa00, 1.5, 6);
+        fireLight.position.set(0, 0.5, 0);
+        fireLight.userData = { isFlameLight: true, phase: Math.random() * Math.PI * 2 };
+        group.add(fireLight);
+
+        group.userData = { type: 'hard', material: 'stone' }; 
         return group;
     }
 

@@ -50,6 +50,7 @@ export interface PlayerInput {
   combat: boolean;
   toggleFirstPerson: boolean;
   wave: boolean;
+  leftHandWave: boolean;
   summon: boolean; 
   toggleBuilder: boolean; 
   rotateGhost: boolean;   
@@ -116,6 +117,7 @@ export interface PlayerConfig {
   apronStrapRotX: number;
   apronStrapRotY: number;
   apronStrapRotZ: number;
+  apronStrapRotZOffset?: number; 
   tintColor?: string; // Optional faction tint
   
   // Detailed Proportions
@@ -389,19 +391,19 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   pupilScale: 0.40,
   
   maskX: 0,
-  maskY: 0,
-  maskZ: -0.026,
-  maskRotX: 0,
-  maskScale: 1.01,
-  maskStretchX: 0.82,
-  maskStretchY: 1.05,
+  maskY: -0.098,
+  maskZ: 0.025,
+  maskRotX: -0.1,
+  maskScale: 0.81,
+  maskStretchX: 0.89,
+  maskStretchY: 1.0,
   maskStretchZ: 1.0,
 
   helmX: 0,
-  helmY: 0.05,
-  helmZ: -0.016,
-  helmRotX: 0,
-  helmScale: 0.86,
+  helmY: 0.064,
+  helmZ: 0,
+  helmRotX: -0.24,
+  helmScale: 1.0,
 
   hoodX: 0,
   hoodY: 0.008,

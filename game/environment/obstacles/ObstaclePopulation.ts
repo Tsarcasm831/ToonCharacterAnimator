@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { TreeData, RockData, ENV_CONSTANTS } from '../EnvironmentTypes';
 import { ObjectFactory } from '../ObjectFactory';
@@ -267,6 +268,8 @@ export function initStorytellingRemnants(ctx: ObstacleInitContext) {
         const fire = ObjectFactory.createCampfire(pos);
         ctx.scene.add(fire);
         ctx.decorativeItems.push(fire);
+        // Add to obstacles for collision
+        ctx.obstacles.push(fire);
     });
 
     for (let i = 0; i < 5; i++) {

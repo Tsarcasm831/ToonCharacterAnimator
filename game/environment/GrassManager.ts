@@ -77,7 +77,7 @@ export class GrassManager {
         // 1. Geometry: Single Curved Plane (More realistic than cross-plane)
         // A simple plane curved slightly
         const bladeWidth = 0.08;
-        const bladeHeight = 0.55;
+        const bladeHeight = 0.38; // Reduced 30% from 0.55
         
         // 3 segments high for bending
         const geometry = new THREE.PlaneGeometry(bladeWidth, bladeHeight, 1, 3);
@@ -177,7 +177,7 @@ export class GrassManager {
                 dummy.rotation.x = (Math.random() - 0.5) * 0.3;
                 dummy.rotation.z = (Math.random() - 0.5) * 0.3;
                 
-                const scaleY = 0.7 + Math.random() * 0.6;
+                const scaleY = 0.5 + Math.random() * 0.4; // Reduced range by 30% from [0.7, 1.3]
                 const scaleXZ = 1.0 + Math.random() * 0.5;
                 dummy.scale.set(scaleXZ, scaleY, scaleXZ);
                 

@@ -1,10 +1,10 @@
 
 import * as THREE from 'three';
-import { PlayerConfig, DEFAULT_CONFIG } from '../types';
-import { PlayerModel } from './PlayerModel';
-import { PlayerAnimator } from './PlayerAnimator';
-import { Environment } from './Environment';
-import { PlayerUtils } from './player/PlayerUtils';
+import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { PlayerModel } from '../../../PlayerModel';
+import { PlayerAnimator } from '../../../PlayerAnimator';
+import { Environment } from '../../../Environment';
+import { PlayerUtils } from '../../../player/PlayerUtils';
 
 enum ArcherState { IDLE, PATROL, CHASE, DUEL, ATTACK, RETREAT }
 

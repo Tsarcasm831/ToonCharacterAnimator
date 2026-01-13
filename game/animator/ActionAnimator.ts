@@ -8,6 +8,7 @@ import { InteractAction } from './actions/InteractAction';
 import { SkinningAction } from './actions/SkinningAction';
 import { FishingAction } from './actions/FishingAction';
 import { WaveAction } from './actions/WaveAction';
+import { LeftHandWaveAction } from './actions/LeftHandWaveAction';
 import { SummonAction } from './actions/SummonAction';
 import { FireArrowAction } from './actions/FireArrowAction';
 
@@ -42,6 +43,10 @@ export class ActionAnimator {
 
     animateWave(player: any, parts: any, dt: number, damp: number) {
         WaveAction.animate(player, parts, dt, damp);
+    }
+
+    animateLeftHandWave(player: any, parts: any, dt: number, damp: number) {
+        LeftHandWaveAction.animate(player, parts, dt, damp);
     }
 
     animateSummon(player: any, parts: any, dt: number, damp: number) {

@@ -13,6 +13,8 @@ import { PlayerConfig, PlayerInput } from '../types';
 import { PlayerDebug } from './player/PlayerDebug';
 import { RenderManager } from './core/RenderManager';
 import { EntityManager } from './managers/EntityManager';
+import { LowLevelCityGuard } from './entities/npc/friendly/LowLevelCityGuard';
+import { Blacksmith } from './entities/npc/friendly/Blacksmith';
 
 export class Game {
     private renderManager: RenderManager;
@@ -67,6 +69,7 @@ export class Game {
     onRotationUpdate?: (rotation: number) => void;
     onToggleWorldMapCallback?: (pos: THREE.Vector3) => void;
     onDialogueTrigger?: (content: string) => void;
+    onTradeTrigger?: (merchantType: string) => void;
 
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
@@ -448,7 +451,20 @@ export class Game {
         else if (this.player.isChargingFishing) this.onInteractionUpdate?.('Power', this.player.fishingCharge);
         else if (this.player.canTalk) {
             this.onInteractionUpdate?.('Press E to Talk', null);
-            if (input.interact) { this.player.isTalking = true; this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); }
+            if (input.interact) { 
+                this.player.isTalking = true; 
+                const target = this.player.talkingTarget;
+                if (target instanceof LowLevelCityGuard) {
+                    // Start wave on the guard
+                    target.isLeftHandWaving = true;
+                    target.leftHandWaveTimer = 0;
+                    this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); 
+                } else if (target instanceof Blacksmith) {
+                    this.onTradeTrigger?.("blacksmith");
+                } else {
+                    this.onDialogueTrigger?.("Greetings, traveler.");
+                }
+            }
         } else if (this.player.canSkin) this.onInteractionUpdate?.('Press F to Skin', null);
         else this.onInteractionUpdate?.(null, null);
   
