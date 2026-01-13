@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { Environment } from './Environment';
 import { ObjectFactory } from './environment/ObjectFactory';
@@ -22,7 +23,7 @@ export class Chicken {
     isDead: boolean = false;
     isSkinned: boolean = false;
     
-    maxHealth: number = 10; // Very fragile
+    maxHealth: number = 10;
     health: number = 10;
     
     hitbox: THREE.Group;
@@ -30,83 +31,63 @@ export class Chicken {
     private healthBarFill: THREE.Mesh;
     
     private walkTime: number = 0;
-    private moveSpeedVal: number = 2.0; // Surprisingly quick
+    private moveSpeedVal: number = 2.0; 
+    private readonly collisionSize = new THREE.Vector3(0.5, 0.5, 0.6);
+
+    // Stuck Detection
+    private stuckTimer: number = 0;
+    private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene;
         this.position.copy(initialPos);
-        
-        // White color
+        this.lastStuckPos.copy(this.position);
         const chickenData = ObjectFactory.createChickenModel ? ObjectFactory.createChickenModel(0xFFFFFF) : ObjectFactory.createBearModel(0xFFFFFF);
         this.group = new THREE.Group();
         this.group.add(chickenData.group);
         this.model = chickenData;
-        
-        // Scale down if using a generic model, chickens are small
-        if (!ObjectFactory.createChickenModel) {
-            chickenData.group.scale.set(0.3, 0.3, 0.3);
-        }
+        if (!ObjectFactory.createChickenModel) chickenData.group.scale.set(0.3, 0.3, 0.3);
 
         this.hitbox = new THREE.Group();
         this.hitbox.userData = { type: 'creature', parent: this }; 
         this.group.add(this.hitbox);
-
         const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
 
-        // Body: Small and round
         const bodyHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.6), hitboxMat);
         bodyHitbox.position.y = 0.4;
         bodyHitbox.userData = { type: 'creature' };
         this.hitbox.add(bodyHitbox);
 
-        // Head: Tiny, on top/front
         const headHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), hitboxMat);
         headHitbox.position.set(0, 0.7, 0.4);
         headHitbox.userData = { type: 'creature' };
         this.hitbox.add(headHitbox);
 
         this.healthBarGroup = new THREE.Group();
-        this.healthBarGroup.position.set(0, 1.0, 0); // Low bar
-        
-        // Smaller bar for smaller creature
+        this.healthBarGroup.position.set(0, 1.0, 0); 
         const bgGeo = new THREE.PlaneGeometry(0.6, 0.1);
         const bgMat = new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide });
         const bg = new THREE.Mesh(bgGeo, bgMat);
         this.healthBarGroup.add(bg);
-
         const fgGeo = new THREE.PlaneGeometry(0.56, 0.06);
         fgGeo.translate(0.28, 0, 0); 
         const fgMat = new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide });
         this.healthBarFill = new THREE.Mesh(fgGeo, fgMat);
         this.healthBarFill.position.set(-0.28, 0, 0.01); 
         this.healthBarGroup.add(this.healthBarFill);
-
         this.group.add(this.healthBarGroup);
+
         this.group.position.copy(this.position);
         this.scene.add(this.group);
     }
 
     update(dt: number, environment: Environment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[]) {
         if (this.isDead) return;
-
         this.stateTimer += dt;
+        if (this.state !== ChickenState.PATROL) { this.state = ChickenState.PATROL; this.findPatrolPoint(); }
 
-        if (this.state !== ChickenState.PATROL) {
-            this.state = ChickenState.PATROL;
-            this.findPatrolPoint();
-        }
-
-        let currentSpeed = 0;
-        if (this.state === ChickenState.PATROL) {
-            // Jerky movement: Move for 2s, Stop to peck for 3s
-            const cycle = this.stateTimer % 5.0;
-            
-            if (cycle < 2.0) {
-                currentSpeed = this.moveSpeedVal;
-            } else {
-                currentSpeed = 0; // Pecking time
-            }
-
+        let currentSpeed = (this.stateTimer % 5.0 < 2.0) ? this.moveSpeedVal : 0;
+        if (this.state === ChickenState.PATROL && currentSpeed > 0) {
             if (this.position.distanceTo(this.targetPos) < 0.5 || this.stateTimer > 10.0) {
                 this.findPatrolPoint();
                 this.stateTimer = 0;
@@ -121,15 +102,32 @@ export class Chicken {
                 let diff = desiredRot - this.rotationY;
                 while (diff < -Math.PI) diff += Math.PI * 2;
                 while (diff > Math.PI) diff -= Math.PI * 2;
-                this.rotationY += diff * 10.0 * dt; // Turns instantly (twitchy)
+                this.rotationY += diff * 10.0 * dt; 
                 const step = currentSpeed * dt;
                 const nextPos = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step));
-                if (PlayerUtils.isWithinBounds(nextPos)) {
+                if (PlayerUtils.isWithinBounds(nextPos) && !PlayerUtils.checkBoxCollision(nextPos, this.collisionSize, environment.obstacles)) {
                     this.position.x = nextPos.x;
                     this.position.z = nextPos.z;
                 }
             }
             this.walkTime += dt * currentSpeed;
+
+            // Stuck Detection
+            const distMoved = this.position.distanceTo(this.lastStuckPos);
+            if (distMoved < 0.001) {
+                this.stuckTimer += dt;
+                if (this.stuckTimer > 1.5) {
+                    this.findPatrolPoint();
+                    this.stuckTimer = 0;
+                    this.stateTimer = 0;
+                }
+            } else {
+                this.stuckTimer = 0;
+                this.lastStuckPos.copy(this.position);
+            }
+        } else {
+            this.stuckTimer = 0;
+            this.lastStuckPos.copy(this.position);
         }
 
         this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
@@ -139,112 +137,46 @@ export class Chicken {
     }
 
     private findPatrolPoint() {
-        const range = 8; // Small area
+        const range = 8;
         this.targetPos.set(this.position.x + (Math.random() - 0.5) * range, 0, this.position.z + (Math.random() - 0.5) * range);
         if (!PlayerUtils.isWithinBounds(this.targetPos)) this.targetPos.set(0, 0, 0);
     }
 
     private animate(dt: number, currentSpeed: number) {
         const parts = this.model.parts;
-        const time = this.walkTime * 5.0; // Fast legs
-        
         if (currentSpeed > 0) {
-            // Fast walk
-            const legSwing = Math.sin(time) * 0.4;
-            if(parts.legFR) parts.legFR.rotation.x = legSwing;
-            if(parts.legBL) parts.legBL.rotation.x = legSwing;
-            if(parts.legFL) parts.legFL.rotation.x = -legSwing;
-            if(parts.legBR) parts.legBR.rotation.x = -legSwing;
-            
-            // Classic Chicken Head Bob (Forward/Back)
-            // Head snaps forward and holds, then resets
-            const bob = Math.sin(time);
-            if(parts.head) {
-                parts.head.position.z = 0.4 + (bob * 0.1); 
-                parts.head.rotation.x = 0;
-            }
-            
-            // Body twitch
-            if(parts.body) parts.body.rotation.z = Math.sin(time * 0.5) * 0.05;
-
-        } else {
-            // PECKING Animation
-            const peckCycle = Math.sin(this.stateTimer * 10.0); // Fast pecks
-            
-            if(parts.head) {
-                // If in pecking phase (middle of the stop cycle)
-                if (this.stateTimer % 5.0 > 2.5 && this.stateTimer % 5.0 < 4.5) {
-                    // Snap head down to ground
-                    parts.head.rotation.x = 0.8 + Math.abs(peckCycle) * 0.3;
-                    parts.head.position.y = 0.5 - Math.abs(peckCycle) * 0.1;
-                } else {
-                    // Look around nervously
-                    parts.head.rotation.x = 0;
-                    parts.head.position.y = 0.7;
-                    // Twitch head occasionally
-                    if (Math.random() < 0.05) parts.head.rotation.y = (Math.random() - 0.5);
-                }
+            const legSwing = Math.sin(this.walkTime * 5.0) * 0.4;
+            if(parts.legFR) parts.legFR.rotation.x = legSwing; if(parts.legBL) parts.legBL.rotation.x = legSwing;
+            if(parts.legFL) parts.legFL.rotation.x = -legSwing; if(parts.legBR) parts.legBR.rotation.x = -legSwing;
+            if(parts.head) { parts.head.position.z = 0.4 + (Math.sin(this.walkTime * 5.0) * 0.1); parts.head.rotation.x = 0; }
+        } else if(parts.head) {
+            if (this.stateTimer % 5.0 > 2.5 && this.stateTimer % 5.0 < 4.5) {
+                parts.head.rotation.x = 0.8 + Math.abs(Math.sin(this.stateTimer * 10.0)) * 0.3;
+                parts.head.position.y = 0.5 - Math.abs(Math.sin(this.stateTimer * 10.0)) * 0.1;
+            } else {
+                parts.head.rotation.x = 0; parts.head.position.y = 0.7;
+                if (Math.random() < 0.05) parts.head.rotation.y = (Math.random() - 0.5);
             }
         }
     }
 
     takeDamage(amount: number) {
         if (this.isDead) return;
-        this.health -= amount;
-        const percent = Math.max(0, this.health / this.maxHealth);
-        this.healthBarFill.scale.x = percent;
-        if (percent < 0.3) (this.healthBarFill.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
-        
-        if(this.model.parts.body.material) {
-            this.model.parts.body.material.emissive.setHex(0xff0000);
-            this.model.parts.body.material.emissiveIntensity = 0.5;
-        }
-
-        if (this.health <= 0) {
-            this.die();
-        } else {
-            // Panic!
-            this.moveSpeedVal = 4.0; // Run faster when hit
-            setTimeout(() => { 
-                if (!this.isDead && this.model.parts.body.material) { 
-                    this.model.parts.body.material.emissiveIntensity = 0; 
-                    this.moveSpeedVal = 2.0; // Reset speed
-                } 
-            }, 500);
-        }
+        this.health -= amount; this.moveSpeedVal = 4.0;
+        this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth);
+        if(this.model.parts.body.material) { this.model.parts.body.material.emissive.setHex(0xff0000); this.model.parts.body.material.emissiveIntensity = 0.5; }
+        if (this.health <= 0) this.die();
+        else { setTimeout(() => { if (!this.isDead && this.model.parts.body.material) { this.model.parts.body.material.emissiveIntensity = 0; this.moveSpeedVal = 2.0; } }, 500); }
     }
 
     private die() {
-        this.isDead = true;
-        this.state = ChickenState.DEAD;
-        this.healthBarGroup.visible = false;
-        if (this.model.parts.body.material) {
-            this.model.parts.body.material.emissiveIntensity = 0;
-        }
-        
-        this.hitbox.userData.isSkinnable = true;
-        this.hitbox.userData.material = 'chicken_meat';
-        this.hitbox.children.forEach(child => {
-            child.userData.isSkinnable = true;
-            child.userData.material = 'chicken_meat';
-        });
-        
-        // Feet up
-        this.model.group.rotation.z = Math.PI; 
-        this.model.group.position.y = 0.3;
-        this.hitbox.position.y = -0.3;
-        this.hitbox.rotation.z = -Math.PI; 
+        this.isDead = true; this.state = ChickenState.DEAD; this.healthBarGroup.visible = false;
+        this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'chicken_meat';
+        this.model.group.rotation.z = Math.PI; this.model.group.position.y = 0.3; this.hitbox.position.y = -0.3;
     }
 
     markAsSkinned() {
-        this.isSkinned = true;
-        this.hitbox.userData.isSkinnable = false;
-        this.hitbox.children.forEach(child => { child.userData.isSkinnable = false; });
-        this.model.group.traverse((obj: any) => {
-            if (obj.isMesh && obj.material) {
-                obj.material = obj.material.clone();
-                obj.material.color.setHex(0xffaaaa); // Raw meat pink
-            }
-        });
+        this.isSkinned = true; this.hitbox.userData.isSkinnable = false;
+        this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.setHex(0xffaaaa); } });
     }
 }
