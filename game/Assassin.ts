@@ -41,7 +41,8 @@ export class Assassin {
     private attackCooldown: number = 0;
 
     // Stuck Recovery
-    private evaluationTimer: number = 0;
+    private stuckTimer: number = 0;
+    private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
     
     // Action Flags
     private isStriking: boolean = false;
@@ -75,6 +76,7 @@ export class Assassin {
         this.scene = scene;
         this.position.copy(initialPos);
         this.lastFramePos.copy(initialPos);
+        this.lastStuckPos.copy(this.position);
         
         this.config = {
             ...DEFAULT_CONFIG,
@@ -225,8 +227,6 @@ export class Assassin {
         // --- Movement Logic ---
         let moveSpeed = 0;
         let turnSpeed = 8.0;
-        let strafeX = 0;
-        let strafeZ = 0; // Forward/Back in local space
 
         switch (this.state) {
             case AssassinState.PATROL:
@@ -242,40 +242,27 @@ export class Assassin {
                 break;
 
             case AssassinState.DUEL:
-                moveSpeed = 0.0; // Handled manually via strafe calculation below
+                moveSpeed = 2.5; // Used for stuck detection primarily
                 // Strafe logic
-                // Vector to target
-                const toTarget = new THREE.Vector3().subVectors(this.currentTarget!.position, this.position).normalize();
-                const right = new THREE.Vector3(0, 1, 0).cross(toTarget).normalize();
-                
-                // Circle around
+                const toTargetDuel = new THREE.Vector3().subVectors(this.currentTarget!.position, this.position).normalize();
+                const right = new THREE.Vector3(0, 1, 0).cross(toTargetDuel).normalize();
                 const circleSpeed = 2.5;
                 const strafeVec = right.multiplyScalar(this.strafeDir * circleSpeed);
-                
-                // Maintain ideal distance (2.5m)
                 const idealDist = 2.5;
-                if (distToTarget < idealDist - 0.5) {
-                    strafeVec.add(toTarget.clone().multiplyScalar(-1.5)); // Back up
-                } else if (distToTarget > idealDist + 0.5) {
-                    strafeVec.add(toTarget.clone().multiplyScalar(1.5)); // Close in
-                }
+                if (distToTarget < idealDist - 0.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(-1.5));
+                else if (distToTarget > idealDist + 0.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(1.5));
 
-                // Apply to position manually since this isn't forward movement
                 const duelStep = strafeVec.multiplyScalar(dt);
                 const duelNext = this.position.clone().add(duelStep);
                 if (!PlayerUtils.checkCollision(duelNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(duelNext)) {
                     this.position.x = duelNext.x;
                     this.position.z = duelNext.z;
                 }
-                
-                // Animation Params for strafing
-                strafeX = this.strafeDir; 
                 break;
 
             case AssassinState.ATTACK:
                 moveSpeed = 0;
                 this.strikeTimer += dt;
-                // Lunge forward slightly during attack start
                 if (this.strikeTimer < 0.2) {
                     const lungeDir = new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0), this.rotationY);
                     const lungeStep = lungeDir.multiplyScalar(8.0 * dt);
@@ -287,27 +274,42 @@ export class Assassin {
                 break;
 
             case AssassinState.RETREAT:
-                // Move backward away from target
                 const retreatDir = new THREE.Vector3().subVectors(this.position, this.currentTarget!.position).normalize();
                 const retreatStep = retreatDir.multiplyScalar(4.0 * dt);
                 const retreatNext = this.position.clone().add(retreatStep);
                 if (!PlayerUtils.checkCollision(retreatNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(retreatNext)) {
                     this.position.copy(retreatNext);
                 }
-                moveSpeed = -4.0; // Animation backwards
+                moveSpeed = -4.0;
                 break;
         }
 
-        // Orientation & Standard Movement
+        // Stuck detection
+        if (moveSpeed !== 0) {
+            const distMoved = this.position.distanceTo(this.lastStuckPos);
+            if (distMoved < 0.001) {
+                this.stuckTimer += dt;
+                if (this.stuckTimer > 1.5) {
+                    this.setState(AssassinState.PATROL);
+                    this.findPatrolPoint(environment);
+                    this.stuckTimer = 0;
+                    this.stateTimer = 0;
+                }
+            } else {
+                this.stuckTimer = 0;
+                this.lastStuckPos.copy(this.position);
+            }
+        } else {
+            this.stuckTimer = 0;
+            this.lastStuckPos.copy(this.position);
+        }
+
+        // Orientation
         if (this.state !== AssassinState.DUEL && this.state !== AssassinState.RETREAT && this.state !== AssassinState.ATTACK) {
-            const toTarget = new THREE.Vector3().subVectors(this.targetPos, this.position);
-            toTarget.y = 0;
-            const distToGoal = toTarget.length();
-            
-            if (distToGoal > 0.1) {
-                const steer = toTarget.clone().normalize();
-                const desiredRot = Math.atan2(steer.x, steer.z);
-                
+            const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
+            toGoal.y = 0;
+            if (toGoal.length() > 0.1) {
+                const desiredRot = Math.atan2(toGoal.x, toGoal.z);
                 let diff = desiredRot - this.rotationY;
                 while (diff < -Math.PI) diff += Math.PI * 2;
                 while (diff > Math.PI) diff -= Math.PI * 2;
@@ -316,38 +318,15 @@ export class Assassin {
                 if (moveSpeed > 0) {
                     const step = moveSpeed * dt;
                     const nextPos = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step));
-                    
                     if (!PlayerUtils.checkCollision(nextPos, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
                         this.position.x = nextPos.x;
                         this.position.z = nextPos.z;
                     }
                 }
             }
-        } else if (this.currentTarget && (this.state === AssassinState.DUEL || this.state === AssassinState.ATTACK || this.state === AssassinState.RETREAT)) {
-            // Face target constantly
+        } else if (this.currentTarget) {
             const toTarget = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize();
-            const desiredRot = Math.atan2(toTarget.x, toTarget.z);
-            let diff = desiredRot - this.rotationY;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            this.rotationY += diff * 15.0 * dt; // Fast turn
-        }
-
-        // --- ENTITY COLLISION AVOIDANCE ---
-        if (this.currentTarget && !this.currentTarget.isDead) {
-            const toEntity = new THREE.Vector3().subVectors(this.currentTarget.position, this.position);
-            const dist = toEntity.length();
-            const minSep = 0.9; // Personal space
-            if (dist < minSep) {
-                const pushDir = toEntity.normalize().negate();
-                const pushStr = (minSep - dist) * 5.0 * dt; 
-                const pushStep = pushDir.multiplyScalar(pushStr);
-                const pushNext = this.position.clone().add(pushStep);
-                // Respect boundaries even when being pushed
-                if (PlayerUtils.isWithinBounds(pushNext)) {
-                    this.position.copy(pushNext);
-                }
-            }
+            this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toTarget.x, toTarget.z), dt * 15.0);
         }
 
         const groundH = PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles);
@@ -356,11 +335,10 @@ export class Assassin {
         this.model.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
         
-        let targetSpeed = moveSpeed;
-        if (this.state === AssassinState.DUEL) targetSpeed = 2.0; 
-        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, targetSpeed, dt * 6);
+        let targetSpeedAnim = moveSpeed;
+        if (this.state === AssassinState.DUEL) targetSpeedAnim = 2.0; 
+        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, targetSpeedAnim, dt * 6);
 
-        // Target Gaze
         if (this.currentTarget) {
             this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, 1.0, dt * 4.0);
             this.smoothedHeadTarget.lerp(this.currentTarget.position.clone().add(new THREE.Vector3(0,1.6,0)), dt * 5.0);
@@ -369,17 +347,10 @@ export class Assassin {
             this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, 0.0, dt * 4.0);
         }
 
-        // Resolve Animation Input
-        let animX = 0;
-        let animY = 0;
-        if (this.state === AssassinState.DUEL) {
-            animX = this.strafeDir;
-            animY = 0;
-        } else if (this.state === AssassinState.RETREAT) {
-            animY = 1; // Backwards
-        } else if (Math.abs(this.speedFactor) > 0.1) {
-            animY = -1; // Forward
-        }
+        let animX = 0; let animY = 0;
+        if (this.state === AssassinState.DUEL) { animX = this.strafeDir; animY = 0; }
+        else if (this.state === AssassinState.RETREAT) animY = 1;
+        else if (Math.abs(this.speedFactor) > 0.1) animY = -1;
 
         const animContext = {
             config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,

@@ -30,13 +30,16 @@ export class Archer {
     private state: ArcherState = ArcherState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
-    private currentTarget: { position: THREE.Vector3, isDead?: boolean } | null = null;
+    private currentTarget: { position: THREE.Vector3, isDead?: boolean, isWolf?: boolean } | null = null;
     
     // Combat Logic
     private duelTimer: number = 0;
     private strafeDir: number = 1;
     private attackCooldown: number = 0;
-    private arrowTimer: number = 0;
+
+    // Stuck Recovery
+    private stuckTimer: number = 0;
+    private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
 
     // Action Flags
     private isFiring: boolean = false;
@@ -66,6 +69,7 @@ export class Archer {
         this.scene = scene;
         this.position.copy(initialPos);
         this.lastFramePos.copy(initialPos);
+        this.lastStuckPos.copy(this.position);
         
         this.config = {
             ...DEFAULT_CONFIG,
@@ -94,10 +98,6 @@ export class Archer {
             isAssassinHostile: false,
             tintColor: tint
         };
-
-        // Custom shoes color (green) - note: config doesn't have direct shoes color, 
-        // but it's usually derived or handled in PlayerModel sync.
-        // For Archer we'll stick to green theme.
 
         this.model = new PlayerModel(this.config);
         this.animator = new PlayerAnimator();
@@ -150,9 +150,8 @@ export class Archer {
             if (t.isDead) continue;
             const d = this.position.distanceTo(t.position);
             
-            // Prioritize wolves if they are close
             let weight = 1.0;
-            if (t.isWolf) weight = 0.8; // Lower weight = more attractive target
+            if (t.isWolf) weight = 0.8; 
             
             if (d * weight < bestDist) {
                 bestDist = d;
@@ -170,7 +169,7 @@ export class Archer {
             }
             
             if (this.state === ArcherState.CHASE) {
-                if (distToTarget < 15.0) { // Range for bow
+                if (distToTarget < 15.0) {
                     this.setState(ArcherState.DUEL);
                 } else if (distToTarget > 40.0) {
                     this.setState(ArcherState.PATROL);
@@ -193,7 +192,7 @@ export class Archer {
             }
 
             if (this.state === ArcherState.ATTACK) {
-                if (this.fireTimer > 1.2) { // Bow animation timing
+                if (this.fireTimer > 1.2) {
                     this.setState(ArcherState.DUEL);
                     this.attackCooldown = 2.0 + Math.random();
                 }
@@ -214,7 +213,6 @@ export class Archer {
         // Movement Logic
         let moveSpeed = 0;
         let turnSpeed = 8.0;
-        let strafeX = 0;
 
         switch (this.state) {
             case ArcherState.PATROL:
@@ -230,26 +228,21 @@ export class Archer {
                 break;
 
             case ArcherState.DUEL:
-                moveSpeed = 0.0;
-                const toTarget = new THREE.Vector3().subVectors(this.currentTarget!.position, this.position).normalize();
-                const right = new THREE.Vector3(0, 1, 0).cross(toTarget).normalize();
+                moveSpeed = 2.0;
+                const toTargetDuel = new THREE.Vector3().subVectors(this.currentTarget!.position, this.position).normalize();
+                const right = new THREE.Vector3(0, 1, 0).cross(toTargetDuel).normalize();
                 const circleSpeed = 2.0;
                 const strafeVec = right.multiplyScalar(this.strafeDir * circleSpeed);
-                
                 const idealDist = 12.0;
-                if (distToTarget < idealDist - 1.0) {
-                    strafeVec.add(toTarget.clone().multiplyScalar(-2.0));
-                } else if (distToTarget > idealDist + 1.0) {
-                    strafeVec.add(toTarget.clone().multiplyScalar(2.0));
-                }
+                if (distToTarget < idealDist - 1.0) strafeVec.add(toTargetDuel.clone().multiplyScalar(-2.0));
+                else if (distToTarget > idealDist + 1.0) strafeVec.add(toTargetDuel.clone().multiplyScalar(2.0));
 
                 const duelStep = strafeVec.multiplyScalar(dt);
                 const duelNext = this.position.clone().add(duelStep);
-                if (!PlayerUtils.checkCollision(duelNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
+                if (!PlayerUtils.checkCollision(duelNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(duelNext)) {
                     this.position.x = duelNext.x;
                     this.position.z = duelNext.z;
                 }
-                strafeX = this.strafeDir; 
                 break;
 
             case ArcherState.ATTACK:
@@ -268,20 +261,32 @@ export class Archer {
                 break;
         }
 
+        // Stuck detection
+        if (moveSpeed !== 0) {
+            const distMoved = this.position.distanceTo(this.lastStuckPos);
+            if (distMoved < 0.001) {
+                this.stuckTimer += dt;
+                if (this.stuckTimer > 1.5) {
+                    this.setState(ArcherState.PATROL);
+                    this.findPatrolPoint(environment);
+                    this.stuckTimer = 0;
+                    this.stateTimer = 0;
+                }
+            } else {
+                this.stuckTimer = 0;
+                this.lastStuckPos.copy(this.position);
+            }
+        } else {
+            this.stuckTimer = 0;
+            this.lastStuckPos.copy(this.position);
+        }
+
         // Orientation
         if (this.state !== ArcherState.DUEL && this.state !== ArcherState.RETREAT && this.state !== ArcherState.ATTACK) {
             const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
             toGoal.y = 0;
-            const distToGoal = toGoal.length();
-            
-            if (distToGoal > 0.1) {
-                const steer = toGoal.clone().normalize();
-                const desiredRot = Math.atan2(steer.x, steer.z);
-                let diff = desiredRot - this.rotationY;
-                while (diff < -Math.PI) diff += Math.PI * 2;
-                while (diff > Math.PI) diff -= Math.PI * 2;
-                this.rotationY += diff * turnSpeed * dt;
-                
+            if (toGoal.length() > 0.1) {
+                this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), turnSpeed * dt);
                 if (moveSpeed > 0) {
                     const step = moveSpeed * dt;
                     const nextPos = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step));
@@ -293,11 +298,7 @@ export class Archer {
             }
         } else if (this.currentTarget) {
             const toTarget = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize();
-            const desiredRot = Math.atan2(toTarget.x, toTarget.z);
-            let diff = desiredRot - this.rotationY;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            this.rotationY += diff * 12.0 * dt;
+            this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toTarget.x, toTarget.z), dt * 12.0);
         }
 
         const groundH = PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles);
@@ -306,9 +307,9 @@ export class Archer {
         this.model.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
         
-        let targetSpeed = moveSpeed;
-        if (this.state === ArcherState.DUEL) targetSpeed = 1.5; 
-        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, targetSpeed, dt * 6);
+        let targetSpeedAnim = moveSpeed;
+        if (this.state === ArcherState.DUEL) targetSpeedAnim = 1.5; 
+        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, targetSpeedAnim, dt * 6);
 
         if (this.currentTarget) {
             this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, 1.0, dt * 4.0);
@@ -318,16 +319,10 @@ export class Archer {
             this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, 0.0, dt * 4.0);
         }
 
-        let animX = 0;
-        let animY = 0;
-        if (this.state === ArcherState.DUEL) {
-            animX = this.strafeDir;
-            animY = 0;
-        } else if (this.state === ArcherState.RETREAT) {
-            animY = 1;
-        } else if (Math.abs(this.speedFactor) > 0.1) {
-            animY = -1;
-        }
+        let animX = 0; let animY = 0;
+        if (this.state === ArcherState.DUEL) { animX = this.strafeDir; animY = 0; }
+        else if (this.state === ArcherState.RETREAT) animY = 1;
+        else if (Math.abs(this.speedFactor) > 0.1) animY = -1;
 
         const animContext = {
             config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
@@ -336,7 +331,6 @@ export class Archer {
             isPunch: false, isPickingUp: false, pickUpTime: 0,
             isInteracting: false, isWaving: false, isSkinning: false, isFishing: false, isDragged: false,
             walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false,
-            // Archer specific animation flags if they existed in PlayerAnimator
             isBowDraw: this.isFiring, bowDrawTimer: this.fireTimer
         };
 

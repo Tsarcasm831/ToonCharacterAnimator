@@ -54,6 +54,7 @@ export class Game {
     onInteractionUpdate?: (text: string | null, progress: number | null) => void;
     onBuilderToggle?: (active: boolean) => void;
     onBiomeUpdate?: (biome: { name: string, color: string }) => void;
+    onRotationUpdate?: (rotation: number) => void;
     onToggleWorldMapCallback?: (pos: THREE.Vector3) => void;
     onDialogueTrigger?: (content: string) => void;
 
@@ -380,6 +381,9 @@ export class Game {
             if (this.isBuilding) this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv, this.renderManager.camera, this.inputManager.mousePosition);
         }
         this.soundManager.update(this.player, delta);
+        
+        // Push Camera Rotation to UI (Compass now reflects looking direction)
+        this.onRotationUpdate?.(cameraRotation);
 
         const targetPos = this.player.mesh.position.clone();
         let heightOffset = this.cameraFocusMode === 1 ? 1.0 : (this.cameraFocusMode === 2 ? 0.4 : 1.7);

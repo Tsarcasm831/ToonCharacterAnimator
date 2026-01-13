@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 
 export class ArrowBuilder {
@@ -42,6 +43,9 @@ export class ArrowBuilder {
         });
         
         arrow.add(fletchGroup);
+
+        // Increase size by 20% to improve visibility in flight
+        arrow.scale.setScalar(1.2);
 
         return arrow;
     }

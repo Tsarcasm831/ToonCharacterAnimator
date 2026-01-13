@@ -34,10 +34,16 @@ export class Bear {
     
     private walkTime: number = 0;
     private attackCooldown: number = 0;
+    private readonly collisionSize = new THREE.Vector3(1.4, 1.4, 2.2);
+
+    // Stuck Detection
+    private stuckTimer: number = 0;
+    private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene;
         this.position.copy(initialPos);
+        this.lastStuckPos.copy(this.position);
         
         const bearData = ObjectFactory.createBearModel(0x5C4033);
         this.group = new THREE.Group();
@@ -67,31 +73,27 @@ export class Bear {
 
         this.healthBarGroup = new THREE.Group();
         this.healthBarGroup.position.set(0, 2.5, 0); 
-        
         const bgGeo = new THREE.PlaneGeometry(1.2, 0.18);
         const bgMat = new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide });
         const bg = new THREE.Mesh(bgGeo, bgMat);
         this.healthBarGroup.add(bg);
-
         const fgGeo = new THREE.PlaneGeometry(1.16, 0.14);
         fgGeo.translate(0.58, 0, 0); 
         const fgMat = new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide });
         this.healthBarFill = new THREE.Mesh(fgGeo, fgMat);
         this.healthBarFill.position.set(-0.58, 0, 0.01); 
         this.healthBarGroup.add(this.healthBarFill);
-
         this.group.add(this.healthBarGroup);
+
         this.group.position.copy(this.position);
         this.scene.add(this.group);
     }
 
     update(dt: number, environment: Environment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[]) {
         if (this.isDead) return;
-
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
-        // Passive behavior: Ignore targets and stay in patrol mode
         if (this.state !== BearState.PATROL) {
             this.state = BearState.PATROL;
             this.findPatrolPoint();
@@ -117,12 +119,29 @@ export class Bear {
                 this.rotationY += diff * 3.0 * dt; 
                 const step = moveSpeed * dt;
                 const nextPos = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step));
-                if (PlayerUtils.isWithinBounds(nextPos)) {
+                if (PlayerUtils.isWithinBounds(nextPos) && !PlayerUtils.checkBoxCollision(nextPos, this.collisionSize, environment.obstacles)) {
                     this.position.x = nextPos.x;
                     this.position.z = nextPos.z;
                 }
             }
             this.walkTime += dt * moveSpeed;
+
+            // Stuck detection
+            const distMoved = this.position.distanceTo(this.lastStuckPos);
+            if (distMoved < 0.001) {
+                this.stuckTimer += dt;
+                if (this.stuckTimer > 1.5) {
+                    this.findPatrolPoint();
+                    this.stuckTimer = 0;
+                    this.stateTimer = 0;
+                }
+            } else {
+                this.stuckTimer = 0;
+                this.lastStuckPos.copy(this.position);
+            }
+        } else {
+            this.stuckTimer = 0;
+            this.lastStuckPos.copy(this.position);
         }
 
         this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
@@ -142,10 +161,8 @@ export class Bear {
         const time = this.walkTime * 0.8; 
         if (moveSpeed > 0) {
             const legSwing = Math.sin(time * 1.5) * 0.6;
-            parts.legFR.rotation.x = legSwing;
-            parts.legBL.rotation.x = legSwing;
-            parts.legFL.rotation.x = -legSwing;
-            parts.legBR.rotation.x = -legSwing;
+            parts.legFR.rotation.x = legSwing; parts.legBL.rotation.x = legSwing;
+            parts.legFL.rotation.x = -legSwing; parts.legBR.rotation.x = -legSwing;
             parts.body.position.y = 0.9 + Math.abs(Math.cos(time * 1.5)) * 0.15;
         } else {
             const breath = Math.sin(this.stateTimer * 1.5) * 0.03;
@@ -156,47 +173,24 @@ export class Bear {
     takeDamage(amount: number) {
         if (this.isDead) return;
         this.health -= amount;
-        const percent = Math.max(0, this.health / this.maxHealth);
-        this.healthBarFill.scale.x = percent;
-        if (percent < 0.3) (this.healthBarFill.material as THREE.MeshBasicMaterial).color.setHex(0xff0000);
+        this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth);
         this.model.parts.body.material.emissive.setHex(0xff0000);
         this.model.parts.body.material.emissiveIntensity = 0.5;
-        if (this.health <= 0) {
-            this.die();
-        } else {
-            setTimeout(() => { if (!this.isDead) { this.model.parts.body.material.emissiveIntensity = 0; } }, 100);
-            // Passive: Do not transition to CHASE on hit
-        }
+        if (this.health <= 0) this.die();
+        else { setTimeout(() => { if (!this.isDead) { this.model.parts.body.material.emissiveIntensity = 0; } }, 100); }
     }
 
     private die() {
-        this.isDead = true;
-        this.state = BearState.DEAD;
-        this.healthBarGroup.visible = false;
-        if (this.model.parts.body.material) {
-            this.model.parts.body.material.emissiveIntensity = 0;
-        }
-        this.hitbox.userData.isSkinnable = true;
-        this.hitbox.userData.material = 'bear_fur';
-        this.hitbox.children.forEach(child => {
-            child.userData.isSkinnable = true;
-            child.userData.material = 'bear_fur';
-        });
-        this.model.group.rotation.z = Math.PI / 2;
-        this.model.group.position.y = 0.3;
-        this.hitbox.position.y = -0.6;
-        this.hitbox.rotation.z = -Math.PI / 2; 
+        this.isDead = true; this.state = BearState.DEAD; this.healthBarGroup.visible = false;
+        this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'bear_fur';
+        this.hitbox.children.forEach(child => { child.userData.isSkinnable = true; child.userData.material = 'bear_fur'; });
+        this.model.group.rotation.z = Math.PI / 2; this.model.group.position.y = 0.3; this.hitbox.position.y = -0.6;
     }
 
     markAsSkinned() {
         this.isSkinned = true;
         this.hitbox.userData.isSkinnable = false;
         this.hitbox.children.forEach(child => { child.userData.isSkinnable = false; });
-        this.model.group.traverse((obj: any) => {
-            if (obj.isMesh && obj.material) {
-                obj.material = obj.material.clone();
-                obj.material.color.multiplyScalar(0.3); 
-            }
-        });
+        this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.multiplyScalar(0.3); } });
     }
 }

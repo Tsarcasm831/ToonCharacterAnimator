@@ -12,6 +12,7 @@ import { MobileControls } from './components/ui/MobileControls.tsx';
 import { KeybindsModal } from './components/ui/KeybindsModal.tsx';
 import { WorldMapModal } from './components/ui/WorldMapModal.tsx';
 import { QuestLogModal } from './components/ui/QuestLogModal.tsx';
+import { Compass } from './components/ui/Compass.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
 import { ModelExporter } from './game/ModelExporter.ts';
 import { Game } from './game/Game.ts';
@@ -57,6 +58,7 @@ const App: React.FC = () => {
   const [isBuilderMode, setIsBuilderMode] = useState(false);
   const [activeStructure, setActiveStructure] = useState<StructureType>('foundation');
   const [currentBiome, setCurrentBiome] = useState({ name: 'Verdant Meadows', color: '#4ade80' });
+  const [playerRotation, setPlayerRotation] = useState(0);
   const [isTravelOpen, setIsTravelOpen] = useState(false);
   const [activeScene, setActiveScene] = useState<'dev' | 'world'>('dev');
   const [isLoading, setIsLoading] = useState(false);
@@ -264,6 +266,7 @@ const App: React.FC = () => {
               g.onBuilderToggle = (active) => setIsBuilderMode(active);
               g.onBiomeUpdate = (b) => setCurrentBiome(b);
               g.onDialogueTrigger = (content) => setDialogue(content);
+              g.onRotationUpdate = (r) => setPlayerRotation(r);
               
               // Finish loading
               setTimeout(() => setIsLoading(false), 800);
@@ -278,8 +281,10 @@ const App: React.FC = () => {
 
       {!isInventoryOpen && !isBuilderMode && !isQuestLogOpen && <Header biome={currentBiome} />}
       
+      {!isInventoryOpen && !isBuilderMode && !isQuestLogOpen && <Compass rotation={playerRotation} />}
+
       {/* Travel Button Top Center */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[50]">
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[50]">
           <div className="relative">
               <button 
                 onClick={() => setIsTravelOpen(!isTravelOpen)}

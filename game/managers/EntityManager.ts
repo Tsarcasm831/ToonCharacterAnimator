@@ -13,12 +13,14 @@ import { Sheep } from '../Sheep';
 import { Spider } from '../Spider';
 import { Lizard } from '../Lizard';
 import { Horse } from '../Horse';
+import { Blacksmith } from '../Blacksmith';
 import { LowLevelCityGuard } from '../LowLevelCityGuard';
 import { Environment } from '../Environment';
 import { PlayerConfig } from '../../types';
 
 export class EntityManager {
     public npc: NPC;
+    public blacksmith: Blacksmith;
     public assassin: Assassin;
     public archer: Archer;
     public guard: LowLevelCityGuard;
@@ -43,6 +45,8 @@ export class EntityManager {
     constructor(scene: THREE.Scene, environment: Environment | null, initialConfig: PlayerConfig) {
         // NPC
         this.npc = new NPC(scene, { bodyType: 'female', outfit: 'peasant' }, new THREE.Vector3(-3, 0, 2));
+        // Place Blacksmith in the corner of the house (Foundation Y is ~0.4)
+        this.blacksmith = new Blacksmith(scene, new THREE.Vector3(-35, 0.4, 53));
         
         // Hostiles
         this.assassin = new Assassin(scene, new THREE.Vector3(30, 0, 0));
@@ -117,6 +121,7 @@ export class EntityManager {
     update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, environment: Environment | null) {
         // Update Visibilities based on config
         if (this.npc) this.npc.model.group.visible = config.showNPC;
+        if (this.blacksmith) this.blacksmith.model.group.visible = config.showNPC;
         if (this.guard) this.guard.model.group.visible = config.showGuard;
         if (this.assassin) { 
             this.assassin.model.group.visible = config.showAssassin; 
@@ -182,7 +187,7 @@ export class EntityManager {
 
     getAllEntities() {
         return [
-            this.npc, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin, 
+            this.npc, this.blacksmith, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin, 
             this.wolf, this.bear, this.owl, this.yeti, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
         ];
