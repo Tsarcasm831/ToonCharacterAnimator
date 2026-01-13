@@ -52,7 +52,6 @@ export class RenderManager {
     }
 
     render() {
-        this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
 

@@ -41,6 +41,35 @@ export class EntityManager {
     // Foundry
     public foundryGuard: LowLevelCityGuard;
     public foundryAssassin: Assassin;
+    private readonly visibilityRangeSq = 20 * 20;
+    private readonly rangeCheckIntervalMs = 100;
+    private lastRangeCheck = -Infinity;
+    private readonly inRangeCache = new WeakMap<object, boolean>();
+    private readonly tempPlayerPos = new THREE.Vector3();
+    private readonly tempEyePos = new THREE.Vector3();
+    private readonly eyeOffset = new THREE.Vector3(0, 1.7, 0);
+    private readonly playerOnlyTarget = [{ position: new THREE.Vector3() }];
+    private readonly animalTargets = [
+        { position: new THREE.Vector3() },
+        { position: new THREE.Vector3() },
+        { position: new THREE.Vector3() }
+    ];
+    private readonly archerTargets = [
+        { position: new THREE.Vector3() },
+        { position: new THREE.Vector3() },
+        { position: new THREE.Vector3(), isWolf: true, isDead: false },
+        { position: new THREE.Vector3(), isWolf: true, isDead: false }
+    ];
+    private readonly assassinTargets = [
+        { position: new THREE.Vector3() },
+        { position: new THREE.Vector3() }
+    ];
+    private readonly foundryGuardTargets = [
+        { position: new THREE.Vector3(), isDead: false }
+    ];
+    private readonly foundryAssassinTargets = [
+        { position: new THREE.Vector3(), isDead: false }
+    ];
 
     constructor(scene: THREE.Scene, environment: Environment | null, initialConfig: PlayerConfig) {
         // NPC
@@ -116,63 +145,95 @@ export class EntityManager {
         this.foundryGuard = new LowLevelCityGuard(scene, new THREE.Vector3(-42, 0, -42), 0, '#4ade80');
         this.foundryAssassin = new Assassin(scene, new THREE.Vector3(-38, 0, -38), '#ef4444');
         this.foundryAssassin.config.isAssassinHostile = true;
+
     }
 
     update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, environment: Environment | null) {
+        const now = performance.now();
+        this.tempPlayerPos.copy(playerPosition);
+        if (now - this.lastRangeCheck >= this.rangeCheckIntervalMs) {
+            this.lastRangeCheck = now;
+            this.refreshRangeCache();
+        }
+        const isInRange = (entity: { position: THREE.Vector3 }) =>
+            this.inRangeCache.get(entity as any) ?? false;
+
         // Update Visibilities based on config
-        if (this.npc) this.npc.model.group.visible = config.showNPC;
-        if (this.blacksmith) this.blacksmith.model.group.visible = config.showNPC;
-        if (this.guard) this.guard.model.group.visible = config.showGuard;
+        if (this.npc) this.npc.model.group.visible = config.showNPC && isInRange(this.npc);
+        if (this.blacksmith) this.blacksmith.model.group.visible = config.showNPC && isInRange(this.blacksmith);
+        if (this.guard) this.guard.model.group.visible = config.showGuard && isInRange(this.guard);
         if (this.assassin) { 
-            this.assassin.model.group.visible = config.showAssassin; 
+            this.assassin.model.group.visible = config.showAssassin && isInRange(this.assassin); 
             this.assassin.config.isAssassinHostile = config.isAssassinHostile; 
         }
         if (this.archer) { 
-            this.archer.model.group.visible = config.showAssassin; 
+            this.archer.model.group.visible = config.showAssassin && isInRange(this.archer); 
             this.archer.config.isAssassinHostile = config.isAssassinHostile; 
         }
+        if (this.wolf) this.wolf.model.group.visible = isInRange(this.wolf);
+        if (this.bear) this.bear.model.group.visible = isInRange(this.bear);
+        if (this.owl) this.owl.model.group.visible = isInRange(this.owl);
+        if (this.yeti) this.yeti.model.group.visible = isInRange(this.yeti);
+        this.deers.forEach(d => d.model.group.visible = isInRange(d));
+        this.chickens.forEach(c => c.model.group.visible = isInRange(c));
+        this.pigs.forEach(p => p.model.group.visible = isInRange(p));
+        this.sheeps.forEach(s => s.model.group.visible = isInRange(s));
+        this.spiders.forEach(s => s.model.group.visible = isInRange(s));
+        this.lizards.forEach(l => l.model.group.visible = isInRange(l));
+        this.horses.forEach(h => h.model.group.visible = isInRange(h));
+        if (this.foundryGuard) this.foundryGuard.model.group.visible = isInRange(this.foundryGuard);
+        if (this.foundryAssassin) this.foundryAssassin.model.group.visible = isInRange(this.foundryAssassin);
 
         // Standard Updates
-        if (config.showNPC && this.npc) {
-            const eyePos = playerPosition.clone().add(new THREE.Vector3(0, 1.7, 0));
-            this.npc.update(delta, eyePos, environment as any);
+        if (config.showNPC && this.npc && isInRange(this.npc)) {
+            this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);
+            this.npc.update(delta, this.tempEyePos, environment as any);
         }
         
-        if (config.showGuard && this.guard) {
-            this.guard.update(delta, playerPosition, environment as any);
+        if (config.showGuard && this.guard && isInRange(this.guard)) {
+            this.guard.update(delta, this.tempPlayerPos, environment as any);
         }
 
         // Hostiles & Animals
-        if (config.showAssassin && this.archer) {
-            this.archer.update(delta, environment as any, [
-                { position: playerPosition.clone() }, 
-                { position: this.npc.position.clone() },
-                { position: this.wolf.position.clone(), isWolf: true, isDead: this.wolf.isDead },
-                { position: this.bear.position.clone(), isWolf: true, isDead: this.bear.isDead }
-            ]);
+        if (config.showAssassin && this.archer && isInRange(this.archer)) {
+            this.archerTargets[0].position.copy(this.tempPlayerPos);
+            this.archerTargets[1].position.copy(this.npc.position);
+            this.archerTargets[2].position.copy(this.wolf.position);
+            this.archerTargets[2].isDead = this.wolf.isDead;
+            this.archerTargets[3].position.copy(this.bear.position);
+            this.archerTargets[3].isDead = this.bear.isDead;
+            this.archer.update(delta, environment as any, this.archerTargets as any);
         }
 
-        if (this.wolf) this.wolf.update(delta, environment as any, [{ position: playerPosition.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
-        if (this.bear) this.bear.update(delta, environment as any, [{ position: playerPosition.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
-        if (this.owl) this.owl.update(delta, environment as any, [{ position: playerPosition.clone() }, { position: this.archer.position.clone() }, { position: this.npc.position.clone() }]);
-        if (this.yeti) this.yeti.update(delta, environment as any);
+        this.animalTargets[0].position.copy(this.tempPlayerPos);
+        this.animalTargets[1].position.copy(this.archer.position);
+        this.animalTargets[2].position.copy(this.npc.position);
+        if (this.wolf && isInRange(this.wolf)) this.wolf.update(delta, environment as any, this.animalTargets as any);
+        if (this.bear && isInRange(this.bear)) this.bear.update(delta, environment as any, this.animalTargets as any);
+        if (this.owl && isInRange(this.owl)) this.owl.update(delta, environment as any, this.animalTargets as any);
+        if (this.yeti && isInRange(this.yeti)) this.yeti.update(delta, environment as any);
         
-        this.deers.forEach(d => d.update(delta, environment as any, [{ position: playerPosition.clone() }]));
-        this.chickens.forEach(c => c.update(delta, environment as any, [{ position: playerPosition.clone() }]));
-        this.pigs.forEach(p => p.update(delta, environment as any, [{ position: playerPosition.clone() }]));
-        this.sheeps.forEach(s => s.update(delta, environment as any, [{ position: playerPosition.clone() }]));
-        this.spiders.forEach(s => s.update(delta, environment as any, [{ position: playerPosition.clone() }]));
-        this.lizards.forEach(l => l.update(delta, environment as any, [{ position: playerPosition.clone() }]));
-        this.horses.forEach(h => h.update(delta, environment as any, [{ position: playerPosition.clone() }]));
+        this.playerOnlyTarget[0].position.copy(this.tempPlayerPos);
+        this.deers.forEach(d => { if (isInRange(d)) d.update(delta, environment as any, this.playerOnlyTarget as any); });
+        this.chickens.forEach(c => { if (isInRange(c)) c.update(delta, environment as any, this.playerOnlyTarget as any); });
+        this.pigs.forEach(p => { if (isInRange(p)) p.update(delta, environment as any, this.playerOnlyTarget as any); });
+        this.sheeps.forEach(s => { if (isInRange(s)) s.update(delta, environment as any, this.playerOnlyTarget as any); });
+        this.spiders.forEach(s => { if (isInRange(s)) s.update(delta, environment as any, this.playerOnlyTarget as any); });
+        this.lizards.forEach(l => { if (isInRange(l)) l.update(delta, environment as any, this.playerOnlyTarget as any); });
+        this.horses.forEach(h => { if (isInRange(h)) h.update(delta, environment as any, this.playerOnlyTarget as any); });
 
-        if (config.showAssassin && this.assassin) {
-            this.assassin.update(delta, environment as any, [{ position: playerPosition.clone() }, { position: this.npc.position.clone() }]);
+        if (config.showAssassin && this.assassin && isInRange(this.assassin)) {
+            this.assassinTargets[0].position.copy(this.tempPlayerPos);
+            this.assassinTargets[1].position.copy(this.npc.position);
+            this.assassin.update(delta, environment as any, this.assassinTargets as any);
         }
 
         // Foundry Battle
-        if (this.foundryGuard && this.foundryAssassin) {
-            this.foundryGuard.update(delta, playerPosition, environment as any, [{ position: this.foundryAssassin.position.clone(), isDead: false }]);
-            this.foundryAssassin.update(delta, environment as any, [{ position: this.foundryGuard.position.clone(), isDead: false }]);
+        if (this.foundryGuard && this.foundryAssassin && (isInRange(this.foundryGuard) || isInRange(this.foundryAssassin))) {
+            this.foundryGuardTargets[0].position.copy(this.foundryAssassin.position);
+            this.foundryAssassinTargets[0].position.copy(this.foundryGuard.position);
+            this.foundryGuard.update(delta, this.tempPlayerPos, environment as any, this.foundryGuardTargets as any);
+            this.foundryAssassin.update(delta, environment as any, this.foundryAssassinTargets as any);
         }
     }
 
@@ -191,5 +252,14 @@ export class EntityManager {
             this.wolf, this.bear, this.owl, this.yeti, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
         ];
+    }
+
+    private refreshRangeCache() {
+        const entities = this.getAllEntities();
+        entities.forEach(entity => {
+            if (!entity) return;
+            const inRange = entity.position.distanceToSquared(this.tempPlayerPos) <= this.visibilityRangeSq;
+            this.inRangeCache.set(entity as any, inRange);
+        });
     }
 }
