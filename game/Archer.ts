@@ -85,7 +85,9 @@ export class Archer {
                 ringMail: false,
                 plateMail: false,
                 // Add missing robe property
-                robe: false
+                robe: false,
+                // Added missing blacksmithApron property
+                blacksmithApron: false
             },
             selectedItem: 'Bow', // Equip bow
             weaponStance: 'side',
@@ -243,7 +245,7 @@ export class Archer {
 
                 const duelStep = strafeVec.multiplyScalar(dt);
                 const duelNext = this.position.clone().add(duelStep);
-                if (!PlayerUtils.checkCollision(duelNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(duelNext)) {
+                if (!PlayerUtils.checkCollision(duelNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
                     this.position.x = duelNext.x;
                     this.position.z = duelNext.z;
                 }

@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Scene from './components/Scene.tsx';
-import { PlayerConfig, PlayerInput, DEFAULT_CONFIG } from './types.ts';
+import { PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest } from './types.ts';
 import { Header } from './components/ui/Header.tsx';
 import { InteractionOverlay } from './components/ui/InteractionOverlay.tsx';
 import { Hotbar } from './components/ui/Hotbar.tsx';
@@ -10,11 +11,36 @@ import { BuilderUI } from './components/ui/BuilderUI.tsx';
 import { MobileControls } from './components/ui/MobileControls.tsx';
 import { KeybindsModal } from './components/ui/KeybindsModal.tsx';
 import { WorldMapModal } from './components/ui/WorldMapModal.tsx';
+import { QuestLogModal } from './components/ui/QuestLogModal.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
 import { ModelExporter } from './game/ModelExporter.ts';
 import { Game } from './game/Game.ts';
 import { StructureType } from './game/builder/BuildingParts.ts';
 import * as THREE from 'three';
+
+const INITIAL_QUESTS: Quest[] = [
+  {
+    id: '1',
+    title: 'Timber Wharf Guard\'s Request',
+    description: 'The city guard is looking for help clearing out some of the local wildlife that has been harassing travelers near the Timber Wharf.',
+    status: 'active',
+    objectives: [
+      { label: 'Wolves defeated', current: 0, target: 5 },
+      { label: 'Collect Thick Fur', current: 0, target: 3 }
+    ],
+    reward: '500 Gold Coins & Steel Dagger'
+  },
+  {
+    id: '2',
+    title: 'The Wandering Yeti',
+    description: 'Legends speak of a passive Yeti wandering the Frostfell Peaks. Track it down and see if you can observe its behavior without scaring it away.',
+    status: 'active',
+    objectives: [
+      { label: 'Find the Yeti', current: 0, target: 1 }
+    ],
+    reward: 'Yeti Fur Boots & 1200 XP'
+  }
+];
 
 const App: React.FC = () => {
   const [config, setConfig] = useState<PlayerConfig>(DEFAULT_CONFIG);
@@ -75,8 +101,10 @@ const App: React.FC = () => {
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
+  const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
   const [playerPosForMap, setPlayerPosForMap] = useState(new THREE.Vector3());
   
+  const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
   const [dialogue, setDialogue] = useState<string | null>(null);
 
   const gameInstance = useRef<Game | null>(null);
@@ -115,6 +143,7 @@ const App: React.FC = () => {
 
   const toggleInventory = () => setIsInventoryOpen(prev => !prev);
   const toggleKeybinds = () => setIsKeybindsOpen(prev => !prev);
+  const toggleQuestLog = () => setIsQuestLogOpen(prev => !prev);
 
   const handleToggleWorldMap = (pos: THREE.Vector3) => {
     if (activeScene === 'world') {
@@ -231,6 +260,7 @@ const App: React.FC = () => {
               gameInstance.current = g;
               g['inputManager'].onToggleInventory = toggleInventory;
               g['inputManager'].onToggleKeybinds = toggleKeybinds;
+              g['inputManager'].onToggleQuestLog = toggleQuestLog;
               g.onBuilderToggle = (active) => setIsBuilderMode(active);
               g.onBiomeUpdate = (b) => setCurrentBiome(b);
               g.onDialogueTrigger = (content) => setDialogue(content);
@@ -239,13 +269,14 @@ const App: React.FC = () => {
               setTimeout(() => setIsLoading(false), 800);
           }}
           onToggleWorldMap={handleToggleWorldMap}
-          controlsDisabled={isInventoryOpen || !!dialogue || isKeybindsOpen || isLoading}
+          onToggleQuestLog={toggleQuestLog}
+          controlsDisabled={isInventoryOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isLoading}
         />
       </div>
 
       <LoadingScreen isVisible={isLoading} message={`Traveling to ${activeScene === 'dev' ? 'Dev Scene' : 'World Scene'}...`} />
 
-      {!isInventoryOpen && !isBuilderMode && <Header biome={currentBiome} />}
+      {!isInventoryOpen && !isBuilderMode && !isQuestLogOpen && <Header biome={currentBiome} />}
       
       {/* Travel Button Top Center */}
       <div className="absolute top-6 left-1/2 -translate-x-1/2 z-[50]">
@@ -282,7 +313,7 @@ const App: React.FC = () => {
 
       <InteractionOverlay text={interactionText} progress={progress} />
 
-      {!isInventoryOpen && !isBuilderMode && (
+      {!isInventoryOpen && !isBuilderMode && !isQuestLogOpen && (
           <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={setSelectedSlot} />
       )}
 
@@ -290,7 +321,7 @@ const App: React.FC = () => {
           <BuilderUI activeType={activeStructure} onSelectType={handleSelectStructure} />
       )}
 
-      {!isInventoryOpen && !isBuilderMode && (
+      {!isInventoryOpen && !isBuilderMode && !isQuestLogOpen && (
           <ControlPanel 
             config={config}
             manualInput={manualInput}
@@ -303,7 +334,7 @@ const App: React.FC = () => {
           />
       )}
 
-      {!isInventoryOpen && <MobileControls game={gameInstance.current} />}
+      {!isInventoryOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
 
       <InventoryModal 
           isOpen={isInventoryOpen}
@@ -327,6 +358,12 @@ const App: React.FC = () => {
           isOpen={isWorldMapOpen}
           onClose={() => setIsWorldMapOpen(false)}
           playerPos={playerPosForMap}
+      />
+
+      <QuestLogModal 
+          isOpen={isQuestLogOpen}
+          onClose={() => setIsQuestLogOpen(false)}
+          quests={quests}
       />
 
       {dialogue && (

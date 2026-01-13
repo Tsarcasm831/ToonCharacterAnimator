@@ -31,6 +31,7 @@ export class InputManager {
     onToggleKeybinds?: () => void;
     onToggleWorldMap?: () => void;
     onToggleGrid?: () => void;
+    onToggleQuestLog?: () => void;
 
     constructor() {
         this.handleKeyDown = this.handleKeyDown.bind(this);
@@ -79,6 +80,10 @@ export class InputManager {
     private handleKeyDown(e: KeyboardEvent) { 
         if (e.code === 'KeyI') {
             this.onToggleInventory?.();
+        }
+
+        if (e.code === 'KeyQ') {
+            this.onToggleQuestLog?.();
         }
         
         if (e.code === 'Backquote') {

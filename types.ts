@@ -4,6 +4,21 @@ export type OutfitType = 'nude' | 'naked' | 'peasant' | 'warrior' | 'noble';
 export type WeaponStance = 'side' | 'shoulder';
 export type HairStyle = 'bald' | 'crew';
 
+export type QuestStatus = 'active' | 'completed' | 'failed';
+
+export interface Quest {
+  id: string;
+  title: string;
+  description: string;
+  status: QuestStatus;
+  objectives: {
+    label: string;
+    current: number;
+    target: number;
+  }[];
+  reward: string;
+}
+
 export interface EquipmentState {
   helm: boolean;
   shoulders: boolean;
