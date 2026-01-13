@@ -131,7 +131,7 @@ export class GrassManager {
         
         let i = 0;
         let attempts = 0;
-        const maxAttempts = this.count * 10;
+        const maxAttempts = this.count * 4; // Reduced max attempts to prevent long hangs
 
         while (i < this.count && attempts < maxAttempts) {
             attempts++;
@@ -139,16 +139,17 @@ export class GrassManager {
             const x = (Math.random() - 0.5) * patchSize;
             const z = (Math.random() - 0.5) * patchSize;
             
-            // 1. POND EXCLUSION
-            const dx = x - pondX;
-            const dz = z - pondZ;
-            const distSq = dx*dx + dz*dz;
-            if (distSq < pondRadiusSq) continue;
+            // 1. POND EXCLUSION (Simple bounding box check first for speed)
+            if (Math.abs(x - pondX) < 6 && Math.abs(z - pondZ) < 6) {
+                const dx = x - pondX;
+                const dz = z - pondZ;
+                if (dx*dx + dz*dz < pondRadiusSq) continue;
+            }
 
             // 2. PATCH DENSITY NOISE
             const noise = Math.sin(x * patchNoiseScale) * Math.cos(z * patchNoiseScale);
-            const patchDensity = (noise + 1.0) / 2.0; 
-            if (Math.random() > patchDensity * 0.9 + 0.1) continue;
+            // Optimized: simplified density check
+            if (noise < -0.2 && Math.random() > 0.3) continue; // Skip some low noise areas
 
             // 3. SPAWN BLADES
             const bladesInTuft = Math.random() < tuftChance ? 3 + Math.floor(Math.random() * 5) : 1;
@@ -159,14 +160,17 @@ export class GrassManager {
                 const tx = x + (Math.random() - 0.5) * 0.4;
                 const tz = z + (Math.random() - 0.5) * 0.4;
 
-                // STRICT BOUNDARY CHECK
-                if (Math.abs(tx) > 19.5 || Math.abs(tz) > 19.5) continue;
+                // STRICT BOUNDARY CHECK (Clamp instead of continue to avoid wasted cycles)
+                const clampedTx = Math.max(-19.8, Math.min(19.8, tx));
+                const clampedTz = Math.max(-19.8, Math.min(19.8, tz));
 
-                const tdx = tx - pondX;
-                const tdz = tz - pondZ;
-                if (tdx*tdx + tdz*tdz < pondRadiusSq) continue;
+                if (Math.abs(clampedTx - pondX) < 6 && Math.abs(clampedTz - pondZ) < 6) {
+                     const tdx = clampedTx - pondX;
+                     const tdz = clampedTz - pondZ;
+                     if (tdx*tdx + tdz*tdz < pondRadiusSq) continue;
+                }
                 
-                dummy.position.set(tx, 0, tz);
+                dummy.position.set(clampedTx, 0, clampedTz);
                 dummy.rotation.y = Math.random() * Math.PI * 2;
                 
                 // Randomize tilt slightly for messy look
@@ -195,6 +199,7 @@ export class GrassManager {
             }
         }
         
+        this.mesh.count = i; // Update actual count in case we didn't fill buffer
         this.mesh.instanceMatrix.needsUpdate = true;
         if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
     }

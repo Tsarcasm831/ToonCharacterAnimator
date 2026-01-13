@@ -2,6 +2,20 @@
 import * as THREE from 'three';
 
 export class TreeFactory {
+    private static materials: Map<string, THREE.Material> = new Map();
+    private static geometries: Map<string, THREE.BufferGeometry> = new Map();
+
+    private static getMaterial(color: number, name: string): THREE.Material {
+        if (!this.materials.has(name)) {
+            this.materials.set(name, new THREE.MeshStandardMaterial({ 
+                color: color, 
+                flatShading: true,
+                roughness: 0.8 
+            }));
+        }
+        return this.materials.get(name)!;
+    }
+
     static createTree(position: THREE.Vector3) {
         const group = new THREE.Group();
         group.position.copy(position);
@@ -12,34 +26,40 @@ export class TreeFactory {
         const segmentCount = 6;
         const segHeight = trunkHeight / segmentCount;
         
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037, flatShading: true });
+        const trunkMat = this.getMaterial(0x5d4037, 'tree_trunk');
         
         const trunkGroup = new THREE.Group();
         trunkGroup.userData = { type: 'hard', material: 'wood' };
         group.add(trunkGroup);
 
         for (let i = 0; i < segmentCount; i++) {
-            const alphaBot = i / segmentCount;
-            const alphaTop = (i + 1) / segmentCount;
+            const key = `tree_seg_${i}`;
+            let geo = this.geometries.get(key);
+            if (!geo) {
+                const alphaBot = i / segmentCount;
+                const alphaTop = (i + 1) / segmentCount;
+                const rBot = THREE.MathUtils.lerp(trunkRadiusBot, trunkRadiusTop, alphaBot);
+                const rTop = THREE.MathUtils.lerp(trunkRadiusBot, trunkRadiusTop, alphaTop);
+                geo = new THREE.CylinderGeometry(rTop, rBot, segHeight, 8);
+                this.geometries.set(key, geo);
+            }
             
-            const rBot = THREE.MathUtils.lerp(trunkRadiusBot, trunkRadiusTop, alphaBot);
-            const rTop = THREE.MathUtils.lerp(trunkRadiusBot, trunkRadiusTop, alphaTop);
-            
-            const seg = new THREE.Mesh(
-                new THREE.CylinderGeometry(rTop, rBot, segHeight, 8),
-                trunkMat
-            );
+            const seg = new THREE.Mesh(geo, trunkMat);
             seg.position.y = (i * segHeight) + (segHeight / 2);
             seg.castShadow = true;
             seg.receiveShadow = true;
             trunkGroup.add(seg);
         }
 
+        const rootKey = 'tree_root';
+        let rootGeo = this.geometries.get(rootKey);
+        if (!rootGeo) {
+            rootGeo = new THREE.ConeGeometry(0.4, 0.8, 5);
+            this.geometries.set(rootKey, rootGeo);
+        }
+
         for (let i = 0; i < 5; i++) {
-            const root = new THREE.Mesh(
-                new THREE.ConeGeometry(0.4, 0.8, 5),
-                trunkMat
-            );
+            const root = new THREE.Mesh(rootGeo, trunkMat);
             const angle = (i / 5) * Math.PI * 2;
             root.position.set(Math.cos(angle) * 0.45, 0.2, Math.sin(angle) * 0.45);
             root.rotation.x = 0.5;
@@ -63,15 +83,18 @@ export class TreeFactory {
             { x: 0.5, y: trunkHeight * 0.58, z: 1.2, s: 0.75, c: 0x66bb6a },
         ];
 
+        const leafGeoKey = 'tree_leaf_dodeca';
+        let leafGeo = this.geometries.get(leafGeoKey);
+        if (!leafGeo) {
+            leafGeo = new THREE.DodecahedronGeometry(1, 1);
+            this.geometries.set(leafGeoKey, leafGeo);
+        }
+
         clumps.forEach(cfg => {
-            const geo = new THREE.DodecahedronGeometry(1, 1);
-            const mat = new THREE.MeshStandardMaterial({ 
-                color: cfg.c, 
-                flatShading: true,
-                roughness: 0.8
-            });
+            const matKey = `tree_leaf_${cfg.c}`;
+            const mat = this.getMaterial(cfg.c, matKey);
             
-            const clump = new THREE.Mesh(geo, mat);
+            const clump = new THREE.Mesh(leafGeo, mat);
             clump.position.set(cfg.x, cfg.y, cfg.z);
             clump.scale.setScalar(cfg.s);
             clump.castShadow = true;
@@ -87,6 +110,8 @@ export class TreeFactory {
                 const bVec = new THREE.Vector3().subVectors(bDir, trunkPoint);
                 const bLen = bVec.length();
                 
+                // Branch geometry depends on length, difficult to cache simply without quantization, 
+                // but we can at least share material
                 const branch = new THREE.Mesh(
                     new THREE.CylinderGeometry(0.04, 0.12, bLen, 5),
                     trunkMat
@@ -105,16 +130,25 @@ export class TreeFactory {
         const group = new THREE.Group();
         group.position.copy(position);
         
-        const deadWoodMat = new THREE.MeshStandardMaterial({ 
-            color: 0x2b231d, 
-            roughness: 0.9, 
-            flatShading: true 
-        });
-        const bleachedWoodMat = new THREE.MeshStandardMaterial({ 
-            color: 0x9a8c81, 
-            roughness: 0.8,
-            flatShading: true 
-        });
+        let deadWoodMat = this.materials.get('dead_wood');
+        if (!deadWoodMat) {
+            deadWoodMat = new THREE.MeshStandardMaterial({ 
+                color: 0x2b231d, 
+                roughness: 0.9, 
+                flatShading: true 
+            });
+            this.materials.set('dead_wood', deadWoodMat);
+        }
+
+        let bleachedWoodMat = this.materials.get('bleached_wood');
+        if (!bleachedWoodMat) {
+             bleachedWoodMat = new THREE.MeshStandardMaterial({ 
+                color: 0x9a8c81, 
+                roughness: 0.8,
+                flatShading: true 
+            });
+            this.materials.set('bleached_wood', bleachedWoodMat);
+        }
 
         const addGnarledBranch = (parent: THREE.Group | THREE.Mesh, startRad: number, length: number, iterations: number) => {
             if (iterations <= 0) return;
@@ -266,9 +300,19 @@ export class TreeFactory {
         group.position.copy(position);
         group.scale.setScalar(scale);
 
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3e2723, flatShading: true });
-        const leafMat = new THREE.MeshStandardMaterial({ color: 0x1b5e20, flatShading: true, roughness: 0.9 });
-        const snowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+        const trunkMat = this.getMaterial(0x3e2723, 'pine_trunk');
+        
+        let leafMat = this.materials.get('pine_leaf');
+        if (!leafMat) {
+             leafMat = new THREE.MeshStandardMaterial({ color: 0x1b5e20, flatShading: true, roughness: 0.9 });
+             this.materials.set('pine_leaf', leafMat);
+        }
+
+        let snowMat = this.materials.get('pine_snow');
+        if (!snowMat) {
+             snowMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+             this.materials.set('pine_snow', snowMat);
+        }
 
         const trunkH = 4.5;
         const trunkGroup = new THREE.Group();
@@ -279,13 +323,16 @@ export class TreeFactory {
         const segH = trunkH / segCount;
 
         for (let i = 0; i < segCount; i++) {
-            const rBot = THREE.MathUtils.lerp(0.3, 0.05, i / segCount);
-            const rTop = THREE.MathUtils.lerp(0.3, 0.05, (i + 1) / segCount);
+            const key = `pine_trunk_seg_${i}`;
+            let geo = this.geometries.get(key);
+            if (!geo) {
+                const rBot = THREE.MathUtils.lerp(0.3, 0.05, i / segCount);
+                const rTop = THREE.MathUtils.lerp(0.3, 0.05, (i + 1) / segCount);
+                geo = new THREE.CylinderGeometry(rTop, rBot, segH, 7);
+                this.geometries.set(key, geo);
+            }
             
-            const seg = new THREE.Mesh(
-                new THREE.CylinderGeometry(rTop, rBot, segH, 7),
-                trunkMat
-            );
+            const seg = new THREE.Mesh(geo, trunkMat);
             seg.position.y = (i * segH) + (segH / 2);
             seg.castShadow = true;
             trunkGroup.add(seg);
@@ -296,17 +343,31 @@ export class TreeFactory {
         const layerHeight = 1.2;
         
         for (let i = 0; i < layers; i++) {
+            const key = `pine_layer_${i}`;
+            let coneGeo = this.geometries.get(key);
+            
+            // We need to calculate dimensions even if we have the geo, to check if we need to make snow geo
+            // But actually snow geo depends on the same dimensions.
             const p = i / (layers - 1); 
             const rBot = 1.8 * (1.0 - p * 0.6);
-            
-            const coneGeo = new THREE.ConeGeometry(rBot, layerHeight, 8);
+
+            if (!coneGeo) {
+                coneGeo = new THREE.ConeGeometry(rBot, layerHeight, 8);
+                this.geometries.set(key, coneGeo);
+            }
+
             const cone = new THREE.Mesh(coneGeo, leafMat);
             cone.position.y = startY + i * 0.9;
             cone.castShadow = true;
             group.add(cone);
 
             if (Math.random() > 0.3) {
-                const snowGeo = new THREE.ConeGeometry(rBot * 0.95, layerHeight * 0.4, 8);
+                const snowKey = `pine_snow_layer_${i}`;
+                let snowGeo = this.geometries.get(snowKey);
+                if (!snowGeo) {
+                    snowGeo = new THREE.ConeGeometry(rBot * 0.95, layerHeight * 0.4, 8);
+                    this.geometries.set(snowKey, snowGeo);
+                }
                 const snow = new THREE.Mesh(snowGeo, snowMat);
                 snow.position.y = cone.position.y + layerHeight * 0.1;
                 group.add(snow);

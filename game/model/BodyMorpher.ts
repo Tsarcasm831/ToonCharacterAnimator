@@ -7,6 +7,7 @@ import { RobeBuilder } from './equipment/RobeBuilder';
 import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
 import { HairBuilder } from './mesh/HairBuilder';
+import { ApronBuilder } from './mesh/ApronBuilder';
 
 export class BodyMorpher {
     private parts: any;
@@ -30,9 +31,11 @@ export class BodyMorpher {
     private shirtMeshes: THREE.Object3D[] = [];
     private pantsMeshes: THREE.Object3D[] = [];
     private robeMeshes: THREE.Object3D[] = [];
+    private apronMeshes: THREE.Object3D[] = [];
     private lastShirtConfigHash: string = '';
     private lastPantsConfigHash: string = '';
     private lastRobeConfigHash: string = '';
+    private lastApronConfigHash: string = '';
     private lastShoeState: boolean | null = null;
     private lastHairHash: string = '';
 
@@ -282,7 +285,34 @@ export class BodyMorpher {
 
         this.updatePants(config);
         this.updateShirt(config);
+        
+        // Update Abs Positioning & Scale in real-time (without rebuilding shirt)
+        if (this.parts.shirt && this.parts.shirt.details) {
+            this.parts.shirt.details.forEach((child: any) => {
+                if (child.userData.isAbs && child.userData.basePos) {
+                    const base = child.userData.basePos;
+                    const centerY = -0.07; 
+                    const distY = base.y - centerY;
+                    
+                    // Combine base ab settings with shirt-specific ab offsets
+                    const finalSpacing = config.absSpacing * config.shirtAbsSpacing;
+                    const newY = centerY + (distY * finalSpacing) + config.absY + (config.shirtAbsY * 5);
+                    
+                    child.position.set(
+                        base.x + config.absX + (config.shirtAbsX * 5),
+                        newY,
+                        base.z + config.absZ + (config.shirtAbsZ * 5)
+                    );
+                    
+                    // Scale slightly larger than skin abs to form the fabric layer
+                    const finalScale = config.absScale * config.shirtAbsScale;
+                    child.scale.set(1.4 * finalScale, 0.9 * finalScale, 0.8 * finalScale);
+                }
+            });
+        }
+        
         this.updateRobe(config);
+        this.updateApron(config);
         this.updateHair(config);
 
         const hairMesh = this.parts.head?.getObjectByName('HairInstanced') as THREE.InstancedMesh;
@@ -305,6 +335,31 @@ export class BodyMorpher {
         if (result) {
             this.shirtMeshes = result.meshes;
             this.parts.shirt = result.refs;
+            
+            // Update Abs Positioning & Scale (Shirt Overlays)
+            if (this.parts.shirt && this.parts.shirt.details) {
+                this.parts.shirt.details.forEach((child: any) => {
+                    if (child.userData.isAbs && child.userData.basePos) {
+                        const base = child.userData.basePos;
+                        const centerY = -0.07; 
+                        const distY = base.y - centerY;
+                        
+                        // Combine base ab settings with shirt-specific ab offsets
+                        const finalSpacing = config.absSpacing * config.shirtAbsSpacing;
+                        const newY = centerY + (distY * finalSpacing) + config.absY + (config.shirtAbsY * 5);
+                        
+                        child.position.set(
+                            base.x + config.absX + (config.shirtAbsX * 5),
+                            newY,
+                            base.z + config.absZ + (config.shirtAbsZ * 5)
+                        );
+                        
+                        // Scale slightly larger than skin abs to form the fabric layer
+                        const finalScale = config.absScale * config.shirtAbsScale;
+                        child.scale.set(1.4 * finalScale, 0.9 * finalScale, 0.8 * finalScale);
+                    }
+                });
+            }
         }
     }
 
@@ -335,6 +390,31 @@ export class BodyMorpher {
         const result = RobeBuilder.build(this.parts, config);
         if (result) {
             this.robeMeshes = result.meshes;
+        }
+    }
+
+    private updateApron(config: PlayerConfig) {
+        const hash = `${config.equipment.blacksmithApron}_${config.apronColor}_${config.apronDetailColor}_${config.apronX}_${config.apronY}_${config.apronZ}_${config.apronScale}_${config.apronWidth}_${config.apronHeight}_${config.apronBibX}_${config.apronBibY}_${config.apronBibZ}_${config.apronBibScale}_${config.apronSkirtX}_${config.apronSkirtY}_${config.apronSkirtZ}_${config.apronSkirtScaleX}_${config.apronSkirtScaleY}_${config.apronSkirtScaleZ}_${config.apronStrapX}_${config.apronStrapY}_${config.apronStrapZ}_${config.apronStrapRotX}_${config.apronStrapRotY}_${config.apronStrapRotZ}`;
+        if (hash === this.lastApronConfigHash) return;
+        this.lastApronConfigHash = hash;
+
+        this.apronMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if (m instanceof THREE.Mesh && m.geometry) m.geometry.dispose();
+            m.traverse(c => {
+                if (c instanceof THREE.Mesh) {
+                    if (c.geometry) c.geometry.dispose();
+                }
+            });
+        });
+        this.apronMeshes = [];
+
+        // Import should be handled by adding it to the top of the file if not present, 
+        // but looking at previous edits, I should check imports.
+        // For now I will assume I need to add the import too.
+        const result = ApronBuilder.build(this.parts, config);
+        if (result) {
+            this.apronMeshes = result.meshes;
         }
     }
 

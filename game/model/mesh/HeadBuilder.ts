@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { PlayerMaterials } from '../PlayerMaterials';
+import { BrainBuilder } from './BrainBuilder';
 
 export class HeadBuilder {
     static build(materials: PlayerMaterials, arrays: any) {
@@ -193,87 +194,8 @@ export class HeadBuilder {
         head.add(headMount);
 
         // === BRAIN ===
-        const brain = new THREE.Group();
-        brain.position.set(0.35, 0.06, 0); 
-        brain.visible = false;
+        const brain = BrainBuilder.build(materials);
         head.add(brain);
-
-        // 1. CEREBRUM (Hemispheres)
-        const hemiGeo = new THREE.SphereGeometry(0.08, 48, 48);
-        hemiGeo.applyMatrix4(new THREE.Matrix4().makeScale(0.85, 1.0, 1.25)); // Elongate front-back
-        
-        const hemiPos = hemiGeo.attributes.position;
-        // Sculpt Medial Flatness & General Shape
-        for(let i=0; i<hemiPos.count; i++) {
-            vertex.fromBufferAttribute(hemiPos, i);
-            
-            // Medial surface (facing center): Flatten x
-            if (vertex.x < 0) { 
-                vertex.x *= 0.15; // Flatten inner side
-            }
-            
-            // Temporal lobe bulge (Side-bottom)
-            if (vertex.x > 0.04 && vertex.y < -0.02 && vertex.z > -0.02 && vertex.z < 0.05) {
-                vertex.x += 0.01;
-                vertex.y -= 0.01;
-            }
-
-            // General waviness for base shape (large lobes)
-            const d = 0.003;
-            const noise = Math.sin(vertex.x*20) + Math.cos(vertex.y*15) + Math.sin(vertex.z*25);
-            vertex.addScalar(noise * d);
-
-            hemiPos.setXYZ(i, vertex.x, vertex.y, vertex.z);
-        }
-        hemiGeo.computeVertexNormals();
-
-        // Left Hemisphere
-        const leftHemi = new THREE.Mesh(hemiGeo, materials.brain);
-        leftHemi.scale.set(-1, 1, 1); // Mirror for Left
-        leftHemi.position.set(0.005, 0, 0); // Slight gap
-        brain.add(leftHemi);
-
-        // Right Hemisphere
-        const rightHemi = new THREE.Mesh(hemiGeo, materials.brain);
-        rightHemi.position.set(-0.005, 0, 0); 
-        brain.add(rightHemi);
-
-        // 2. CEREBELLUM (Little Brain at back)
-        const cerebGeo = new THREE.SphereGeometry(0.045, 32, 24);
-        cerebGeo.applyMatrix4(new THREE.Matrix4().makeScale(1.4, 0.8, 0.9));
-        // Add ridged texture via geometry noise for different look
-        const cPos = cerebGeo.attributes.position;
-        for(let i=0; i<cPos.count; i++) {
-            vertex.fromBufferAttribute(cPos, i);
-            // Horizontal ridges typical of cerebellum
-            const ridges = Math.sin(vertex.y * 80) * 0.0015;
-            vertex.x += ridges * (vertex.x > 0 ? 1 : -1);
-            vertex.z += ridges;
-            cPos.setXYZ(i, vertex.x, vertex.y, vertex.z);
-        }
-        cerebGeo.computeVertexNormals();
-        
-        const cerebellum = new THREE.Mesh(cerebGeo, materials.brain);
-        cerebellum.position.set(0, -0.06, -0.075);
-        cerebellum.rotation.x = -0.2;
-        brain.add(cerebellum);
-
-        // 3. BRAINSTEM
-        const stemGeo = new THREE.CylinderGeometry(0.018, 0.012, 0.12, 16);
-        // Curve the stem slightly forward
-        const stemPos = stemGeo.attributes.position;
-        for(let i=0; i<stemPos.count; i++) {
-            const y = stemPos.getY(i);
-            const z = stemPos.getZ(i);
-            const bend = Math.pow((y + 0.06), 2) * 2.0; 
-            stemPos.setZ(i, z + bend * 0.5);
-        }
-        stemGeo.computeVertexNormals();
-        
-        const brainStem = new THREE.Mesh(stemGeo, materials.brain);
-        brainStem.position.set(0, -0.1, -0.02);
-        brainStem.rotation.x = 0.15;
-        brain.add(brainStem);
 
 
         // === LIP HELPER ===

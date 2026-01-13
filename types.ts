@@ -10,6 +10,7 @@ export interface EquipmentState {
   shield: boolean;
   shirt: boolean;
   pants: boolean;
+  blacksmithApron: boolean;
   shoes: boolean;
   mask: boolean;
   hood: boolean;
@@ -76,6 +77,30 @@ export interface PlayerConfig {
   hairStyle: HairStyle;
   robeColor: string;
   robeTrimColor: string;
+  apronColor: string;
+  apronDetailColor: string;
+  apronX: number;
+  apronY: number;
+  apronZ: number;
+  apronScale: number;
+  apronWidth: number;
+  apronHeight: number;
+  apronBibX: number;
+  apronBibY: number;
+  apronBibZ: number;
+  apronBibScale: number;
+  apronSkirtX: number;
+  apronSkirtY: number;
+  apronSkirtZ: number;
+  apronSkirtScaleX: number;
+  apronSkirtScaleY: number;
+  apronSkirtScaleZ: number;
+  apronStrapX: number;
+  apronStrapY: number;
+  apronStrapZ: number;
+  apronStrapRotX: number;
+  apronStrapRotY: number;
+  apronStrapRotZ: number;
   tintColor?: string; // Optional faction tint
   
   // Detailed Proportions
@@ -249,6 +274,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     ringMail: false,
     plateMail: false,
     robe: false,
+    blacksmithApron: false,
   },
   selectedItem: null,
   weaponStance: 'side',
@@ -275,7 +301,31 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   hairStyle: 'bald',
   robeColor: '#2c2c2c',
   robeTrimColor: '#d4af37',
-  
+  apronColor: '#4e342e',
+  apronDetailColor: '#212121',
+  apronX: 0,
+  apronY: 0,
+  apronZ: 0,
+  apronScale: 1.0,
+  apronWidth: 1.0,
+  apronHeight: 1.0,
+  apronBibX: 0,
+  apronBibY: 0.18,
+  apronBibZ: 0.126,
+  apronBibScale: 1.0,
+  apronSkirtX: 0,
+  apronSkirtY: -0.01,
+  apronSkirtZ: 0,
+  apronSkirtScaleX: 1.0,
+  apronSkirtScaleY: 1.0,
+  apronSkirtScaleZ: 1.0,
+  apronStrapX: 0,
+  apronStrapY: 0.356,
+  apronStrapZ: 0.21,
+  apronStrapRotX: -1.7,
+  apronStrapRotY: 0,
+  apronStrapRotZ: 0,
+
   headScale: 1.0,
   neckHeight: 0.75,
   neckThickness: 0.7,

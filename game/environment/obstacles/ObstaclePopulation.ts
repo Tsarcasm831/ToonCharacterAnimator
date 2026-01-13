@@ -16,11 +16,24 @@ export type ObstacleInitContext = {
 };
 
 export function initBiomes(ctx: ObstacleInitContext) {
+    const GRID_SIZE = 1.3333;
+    const houseMinX = -27 * GRID_SIZE;
+    const houseMaxX = (-27 + 5) * GRID_SIZE;
+    const houseMinZ = 36 * GRID_SIZE;
+    const houseMaxZ = (36 + 5) * GRID_SIZE;
+    const houseMargin = 2.0;
+
+    const isInsideHouse = (x: number, z: number) => {
+        return x > (houseMinX - houseMargin) && x < (houseMaxX + houseMargin) &&
+               z > (houseMinZ - houseMargin) && z < (houseMaxZ + houseMargin);
+    };
+
     // Golden Dunes
     const duneX = 40, duneZ = 0;
     for (let i = 0; i < 15; i++) {
         const x = duneX + (Math.random() - 0.5) * 35;
         const z = duneZ + (Math.random() - 0.5) * 35;
+        if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
         const { group, trunk } = ObjectFactory.createCactus(pos, 0.8 + Math.random() * 0.6);
         ctx.scene.add(group);
@@ -32,6 +45,7 @@ export function initBiomes(ctx: ObstacleInitContext) {
     for (let i = 0; i < 6; i++) {
         const x = wharfX + (Math.random() - 0.5) * 30;
         const z = wharfZ + (Math.random() - 0.5) * 30;
+        if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
         const { group, obstacle } = ObjectFactory.createLightpole(pos);
         group.rotation.y = Math.floor(Math.random() * 4) * (Math.PI / 2);
@@ -41,6 +55,7 @@ export function initBiomes(ctx: ObstacleInitContext) {
     for (let i = 0; i < 10; i++) {
         const x = wharfX + (Math.random() - 0.5) * 35;
         const z = wharfZ + (Math.random() - 0.5) * 35;
+        if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
         const { group, obstacle } = ObjectFactory.createBarrel(pos);
         ctx.scene.add(group);
@@ -52,6 +67,7 @@ export function initBiomes(ctx: ObstacleInitContext) {
     for (let i = 0; i < 12; i++) {
         const x = frostX + (Math.random() - 0.5) * 35;
         const z = frostZ + (Math.random() - 0.5) * 35;
+        if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
         const { group, trunk } = ObjectFactory.createPineTree(pos, 1.5 + Math.random());
         ctx.scene.add(group);
@@ -63,6 +79,7 @@ export function initBiomes(ctx: ObstacleInitContext) {
     for (let i = 0; i < 14; i++) {
         const x = autumnX + (Math.random() - 0.5) * 35;
         const z = autumnZ + (Math.random() - 0.5) * 35;
+        if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
         ctx.createAutumnTree(pos);
     }
@@ -72,6 +89,7 @@ export function initBiomes(ctx: ObstacleInitContext) {
     for (let i = 0; i < 10; i++) {
         const x = gravelX + (Math.random() - 0.5) * 35;
         const z = gravelZ + (Math.random() - 0.5) * 35;
+        if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
         ctx.createDeadTree(pos);
     }
@@ -81,6 +99,7 @@ export function initBiomes(ctx: ObstacleInitContext) {
     for (let i = 0; i < 12; i++) {
         const x = foundryX + (Math.random() - 0.5) * 35;
         const z = foundryZ + (Math.random() - 0.5) * 35;
+        if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
         const { group, obstacle } = ObjectFactory.createTire(pos);
         group.rotation.y = Math.random() * Math.PI * 2;
@@ -90,6 +109,7 @@ export function initBiomes(ctx: ObstacleInitContext) {
     for (let i = 0; i < 8; i++) {
         const x = foundryX + (Math.random() - 0.5) * 35;
         const z = foundryZ + (Math.random() - 0.5) * 35;
+        if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
         const { group, obstacle } = ObjectFactory.createCrate(pos);
         group.rotation.y = Math.floor(Math.random() * 4) * (Math.PI / 2);
@@ -99,6 +119,18 @@ export function initBiomes(ctx: ObstacleInitContext) {
 }
 
 export function initWorldScatter(ctx: ObstacleInitContext) {
+    const GRID_SIZE = 1.3333;
+    const houseMinX = -27 * GRID_SIZE;
+    const houseMaxX = (-27 + 5) * GRID_SIZE;
+    const houseMinZ = 36 * GRID_SIZE;
+    const houseMaxZ = (36 + 5) * GRID_SIZE;
+    const houseMargin = 2.0;
+
+    const isInsideHouse = (x: number, z: number) => {
+        return x > (houseMinX - houseMargin) && x < (houseMaxX + houseMargin) &&
+               z > (houseMinZ - houseMargin) && z < (houseMaxZ + houseMargin);
+    };
+
     ctx.trees.forEach(tree => {
         const pos = tree.basePosition;
         for (let i = 0; i < 3; i++) {
@@ -107,6 +139,8 @@ export function initWorldScatter(ctx: ObstacleInitContext) {
             const sx = pos.x + Math.cos(angle) * r;
             const sz = pos.z + Math.sin(angle) * r;
             const sy = PlayerUtils.getTerrainHeight(sx, sz);
+
+            if (isInsideHouse(sx, sz)) continue;
 
             if (Math.random() > 0.4) {
                 const grass = ObjectFactory.createGrass(new THREE.Vector3(sx, sy, sz), 'short');
@@ -131,6 +165,8 @@ export function initWorldScatter(ctx: ObstacleInitContext) {
             const sz = pos.z + Math.sin(angle) * r;
             const sy = PlayerUtils.getTerrainHeight(sx, sz);
 
+            if (isInsideHouse(sx, sz)) continue;
+
             const pebble = ObjectFactory.createPebble(new THREE.Vector3(sx, sy, sz));
             ctx.scene.add(pebble);
             ctx.decorativeItems.push(pebble);
@@ -140,6 +176,7 @@ export function initWorldScatter(ctx: ObstacleInitContext) {
     for (let i = 0; i < 40; i++) {
         const x = (Math.random() - 0.5) * 40;
         const z = (Math.random() - 0.5) * 40;
+        if (isInsideHouse(x, z)) continue;
         const y = PlayerUtils.getTerrainHeight(x, z);
         if (y > -0.1) {
             const grass = ObjectFactory.createGrass(
@@ -153,12 +190,25 @@ export function initWorldScatter(ctx: ObstacleInitContext) {
 }
 
 export function initMidLevelFillers(ctx: ObstacleInitContext) {
+    const GRID_SIZE = 1.3333;
+    const houseMinX = -27 * GRID_SIZE;
+    const houseMaxX = (-27 + 5) * GRID_SIZE;
+    const houseMinZ = 36 * GRID_SIZE;
+    const houseMaxZ = (36 + 5) * GRID_SIZE;
+    const houseMargin = 2.0;
+
+    const isInsideHouse = (x: number, z: number) => {
+        return x > (houseMinX - houseMargin) && x < (houseMaxX + houseMargin) &&
+               z > (houseMinZ - houseMargin) && z < (houseMaxZ + houseMargin);
+    };
+
     ctx.trees.forEach(tree => {
         if (Math.random() > 0.3) {
             const angle = Math.random() * Math.PI * 2;
             const r = 1.5 + Math.random() * 1.0;
             const x = tree.basePosition.x + Math.cos(angle) * r;
             const z = tree.basePosition.z + Math.sin(angle) * r;
+            if (isInsideHouse(x, z)) return;
             const y = PlayerUtils.getTerrainHeight(x, z);
             const bush = ObjectFactory.createBush(new THREE.Vector3(x, y, z), 0.8 + Math.random() * 0.4);
             ctx.scene.add(bush);
@@ -170,6 +220,7 @@ export function initMidLevelFillers(ctx: ObstacleInitContext) {
                 const r = 1.0 + Math.random() * 2.0;
                 const x = tree.basePosition.x + Math.cos(angle) * r;
                 const z = tree.basePosition.z + Math.sin(angle) * r;
+                if (isInsideHouse(x, z)) continue;
                 const y = PlayerUtils.getTerrainHeight(x, z);
                 const fern = ObjectFactory.createFern(new THREE.Vector3(x, y, z));
                 ctx.scene.add(fern);
@@ -185,6 +236,7 @@ export function initMidLevelFillers(ctx: ObstacleInitContext) {
         const r = radius + 0.4 + Math.random() * 0.8;
         const x = centerX + Math.cos(angle) * r;
         const z = centerZ + Math.sin(angle) * r;
+        if (isInsideHouse(x, z)) continue;
         const y = PlayerUtils.getTerrainHeight(x, z);
         const reeds = ObjectFactory.createReeds(new THREE.Vector3(x, y, z));
         ctx.scene.add(reeds);
@@ -193,11 +245,24 @@ export function initMidLevelFillers(ctx: ObstacleInitContext) {
 }
 
 export function initStorytellingRemnants(ctx: ObstacleInitContext) {
+    const GRID_SIZE = 1.3333;
+    const houseMinX = -27 * GRID_SIZE;
+    const houseMaxX = (-27 + 5) * GRID_SIZE;
+    const houseMinZ = 36 * GRID_SIZE;
+    const houseMaxZ = (36 + 5) * GRID_SIZE;
+    const houseMargin = 2.0;
+
+    const isInsideHouse = (x: number, z: number) => {
+        return x > (houseMinX - houseMargin) && x < (houseMaxX + houseMargin) &&
+               z > (houseMinZ - houseMargin) && z < (houseMaxZ + houseMargin);
+    };
+
     const fireLocations = [
         new THREE.Vector3(-8, 0, 5),
         new THREE.Vector3(45, 0, -45)
     ];
     fireLocations.forEach(pos => {
+        if (isInsideHouse(pos.x, pos.z)) return;
         pos.y = PlayerUtils.getTerrainHeight(pos.x, pos.z);
         const fire = ObjectFactory.createCampfire(pos);
         ctx.scene.add(fire);
@@ -206,6 +271,7 @@ export function initStorytellingRemnants(ctx: ObstacleInitContext) {
 
     for (let i = 0; i < 5; i++) {
         const pos = new THREE.Vector3(-25, 0, 30 + i * 2);
+        if (isInsideHouse(pos.x, pos.z)) continue;
         pos.y = PlayerUtils.getTerrainHeight(pos.x, pos.z);
         const fence = ObjectFactory.createFence(pos, Math.PI / 2);
         ctx.addObstacle(fence);
@@ -215,6 +281,7 @@ export function initStorytellingRemnants(ctx: ObstacleInitContext) {
     for (let i = 0; i < 4; i++) {
         const x = foundryX + (Math.random() - 0.5) * 20;
         const z = foundryZ + (Math.random() - 0.5) * 20;
+        if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
         const pallet = ObjectFactory.createPallet(pos);
         pallet.rotation.y = Math.random() * Math.PI;
@@ -226,6 +293,7 @@ export function initStorytellingRemnants(ctx: ObstacleInitContext) {
         { pos: new THREE.Vector3(-30, 0, -30), type: 'stop' as const }
     ];
     signLocs.forEach(cfg => {
+        if (isInsideHouse(cfg.pos.x, cfg.pos.z)) return;
         cfg.pos.y = PlayerUtils.getTerrainHeight(cfg.pos.x, cfg.pos.z);
         const sign = ObjectFactory.createRoadSign(cfg.pos, cfg.type);
         ctx.addObstacle(sign);
@@ -233,6 +301,18 @@ export function initStorytellingRemnants(ctx: ObstacleInitContext) {
 }
 
 export function initAtmosphericEffects(ctx: ObstacleInitContext) {
+    const GRID_SIZE = 1.3333;
+    const houseMinX = -27 * GRID_SIZE;
+    const houseMaxX = (-27 + 5) * GRID_SIZE;
+    const houseMinZ = 36 * GRID_SIZE;
+    const houseMaxZ = (36 + 5) * GRID_SIZE;
+    const houseMargin = 2.0;
+
+    const isInsideHouse = (x: number, z: number) => {
+        return x > (houseMinX - houseMargin) && x < (houseMaxX + houseMargin) &&
+               z > (houseMinZ - houseMargin) && z < (houseMaxZ + houseMargin);
+    };
+
     // 1. Hanging Moss on Trees
     ctx.trees.forEach(tree => {
         // Standard trees and Autumn trees get moss
@@ -258,6 +338,7 @@ export function initAtmosphericEffects(ctx: ObstacleInitContext) {
         new THREE.Vector3(-10, 0, 10)
     ];
     fireflySpawns.forEach(pos => {
+        if (isInsideHouse(pos.x, pos.z)) return;
         pos.y = PlayerUtils.getTerrainHeight(pos.x, pos.z);
         const flies = ObjectFactory.createAtmosphericMotes(pos, 10, 0xaaff00);
         ctx.scene.add(flies);
@@ -271,6 +352,18 @@ export function initAtmosphericEffects(ctx: ObstacleInitContext) {
 }
 
 export function initPondDecorations(ctx: ObstacleInitContext) {
+    const GRID_SIZE = 1.3333;
+    const houseMinX = -27 * GRID_SIZE;
+    const houseMaxX = (-27 + 5) * GRID_SIZE;
+    const houseMinZ = 36 * GRID_SIZE;
+    const houseMaxZ = (36 + 5) * GRID_SIZE;
+    const houseMargin = 2.0;
+
+    const isInsideHouse = (x: number, z: number) => {
+        return x > (houseMinX - houseMargin) && x < (houseMaxX + houseMargin) &&
+               z > (houseMinZ - houseMargin) && z < (houseMaxZ + houseMargin);
+    };
+
     const radius = ENV_CONSTANTS.POND_RADIUS;
     const centerX = ENV_CONSTANTS.POND_X;
     const centerZ = ENV_CONSTANTS.POND_Z;
@@ -280,6 +373,7 @@ export function initPondDecorations(ctx: ObstacleInitContext) {
         const r = radius + (Math.random() - 0.5) * 0.4;
         const x = centerX + Math.cos(angle) * r;
         const z = centerZ + Math.sin(angle) * r;
+        if (isInsideHouse(x, z)) continue;
         const y = PlayerUtils.getTerrainHeight(x, z);
         const cattail = ObjectFactory.createCattail(new THREE.Vector3(x, y, z));
         ctx.scene.add(cattail);
@@ -291,6 +385,7 @@ export function initPondDecorations(ctx: ObstacleInitContext) {
         const r = Math.random() * (radius - 1.0);
         const x = centerX + Math.cos(angle) * r;
         const z = centerZ + Math.sin(angle) * r;
+        if (isInsideHouse(x, z)) continue;
         const pad = ObjectFactory.createLilyPad(new THREE.Vector3(x, 0, z));
         pad.rotation.z = Math.PI / 2;
         ctx.scene.add(pad);
@@ -301,6 +396,7 @@ export function initPondDecorations(ctx: ObstacleInitContext) {
         const angle = Math.random() * Math.PI * 2;
         const x = centerX + Math.cos(angle) * (radius + 0.2);
         const z = centerZ + Math.sin(angle) * (radius + 0.2);
+        if (isInsideHouse(x, z)) continue;
         ctx.createRockAt(new THREE.Vector2(x, z), 0.3 + Math.random() * 0.4);
     }
 }

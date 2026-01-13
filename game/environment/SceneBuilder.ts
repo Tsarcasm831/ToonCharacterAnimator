@@ -141,21 +141,30 @@ export class SceneBuilder {
                 const posAttribute = geo.attributes.position;
                 const vertex = new THREE.Vector3();
 
-                for (let i = 0; i < posAttribute.count; i++) {
-                    vertex.fromBufferAttribute(posAttribute, i);
-                    const wX = centerX + vertex.x;
-                    const wZ = centerZ - vertex.y; 
-                    const pdx = wX - ENV_CONSTANTS.POND_X;
-                    const pdz = wZ - ENV_CONSTANTS.POND_Z;
-                    const dist = Math.sqrt(pdx*pdx + pdz*pdz);
-                    if (dist < ENV_CONSTANTS.POND_RADIUS) {
-                        const normDist = dist / ENV_CONSTANTS.POND_RADIUS;
-                        const depth = ENV_CONSTANTS.POND_DEPTH * (1 - normDist * normDist);
-                        vertex.z -= depth; 
+                // Optimization: Check if patch is near the pond
+                const distToPond = Math.sqrt(Math.pow(centerX - ENV_CONSTANTS.POND_X, 2) + Math.pow(centerZ - ENV_CONSTANTS.POND_Z, 2));
+                // Max distance from center of patch to corner is sqrt((size/2)^2 + (size/2)^2)
+                // Patch size 13.33 -> half is ~6.67 -> diag is ~9.43
+                const patchDiagRadius = (patchSize / 2) * 1.414;
+                
+                // Only modify vertices if the patch overlaps with the pond area
+                if (distToPond < (ENV_CONSTANTS.POND_RADIUS + patchDiagRadius)) {
+                    for (let i = 0; i < posAttribute.count; i++) {
+                        vertex.fromBufferAttribute(posAttribute, i);
+                        const wX = centerX + vertex.x;
+                        const wZ = centerZ - vertex.y; 
+                        const pdx = wX - ENV_CONSTANTS.POND_X;
+                        const pdz = wZ - ENV_CONSTANTS.POND_Z;
+                        const dist = Math.sqrt(pdx*pdx + pdz*pdz);
+                        if (dist < ENV_CONSTANTS.POND_RADIUS) {
+                            const normDist = dist / ENV_CONSTANTS.POND_RADIUS;
+                            const depth = ENV_CONSTANTS.POND_DEPTH * (1 - normDist * normDist);
+                            vertex.z -= depth; 
+                        }
+                        posAttribute.setZ(i, vertex.z);
                     }
-                    posAttribute.setZ(i, vertex.z);
+                    geo.computeVertexNormals();
                 }
-                geo.computeVertexNormals();
                 const texture = TerrainTextureFactory.getTexture(type);
                 const mat = new THREE.MeshStandardMaterial({ 
                     map: texture,

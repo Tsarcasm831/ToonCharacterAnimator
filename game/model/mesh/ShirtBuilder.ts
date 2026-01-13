@@ -160,9 +160,9 @@ export class ShirtBuilder {
             const chestSurfaceZ = torsoRadiusTop * torsoDepthScale;
             
             const abRows = [
-                { y: 0.02, z: chestSurfaceZ - 0.005 },
-                { y: -0.07, z: chestSurfaceZ - 0.012 },
-                { y: -0.16, z: chestSurfaceZ - 0.018 }
+                { y: 0.02, z: chestSurfaceZ - 0.015 },
+                { y: -0.07, z: chestSurfaceZ - 0.022 },
+                { y: -0.16, z: chestSurfaceZ - 0.03 }
             ];
 
             abRows.forEach((row) => {
@@ -170,8 +170,11 @@ export class ShirtBuilder {
                     // Use shirtMat directly so pattern is continuous
                     const ab = new THREE.Mesh(abGeo, shirtMat);
                     ab.scale.set(1.2, 0.8, 0.3);
+                    
+                    // Add back to shirtTorso to ensure they move and scale with the shirt torso
+                    // We use row.z directly because it's already calculated relative to the surface
                     ab.position.set(side * 0.055, row.y, row.z);
-                    ab.rotation.y = side * 0.15;
+                    ab.rotation.y = side * 0.15; 
                     ab.rotation.x = -0.05;
 
                     // Apply matching UV scale so pattern doesn't look stretched on the "puffs"
@@ -218,10 +221,11 @@ export class ShirtBuilder {
 
         // Shoulder Caps (For standard shirts only)
         if (!isLeatherArmor) {
-            const capGeo = new THREE.SphereGeometry(torsoRadiusTop * 1.02, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
-            capGeo.scale(1, 0.45, torsoDepthScale);
+            const capGeo = new THREE.SphereGeometry(torsoRadiusTop, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+            capGeo.scale(1, 0.5, torsoDepthScale);
             const shoulderCap = new THREE.Mesh(capGeo, shirtMat);
             shoulderCap.position.y = shirtLen / 2;
+            shoulderCap.userData.isShoulderCap = true;
             shirtTorso.add(shoulderCap);
             createdMeshes.push(shoulderCap);
             scaleUVs(shoulderCap, torsoRadiusTop, torsoRadiusTop);

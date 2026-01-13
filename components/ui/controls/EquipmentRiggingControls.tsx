@@ -61,13 +61,38 @@ export const EquipmentRiggingControls: React.FC<EquipmentRiggingControlsProps> =
                     {isMale && (
                         <>
                             <h6 className="text-[8px] font-bold text-green-500 uppercase mt-4">Ab-Cover Rigging</h6>
-                            <Slider label="Ab X" value={config.shirtAbsX} min={-0.05} max={0.05} step={0.001} onChange={(v) => handleConfigChange('shirtAbsX', v)} />
-                            <Slider label="Ab Y" value={config.shirtAbsY} min={-0.05} max={0.05} step={0.001} onChange={(v) => handleConfigChange('shirtAbsY', v)} />
-                            <Slider label="Ab Z" value={config.shirtAbsZ} min={-0.05} max={0.05} step={0.001} onChange={(v) => handleConfigChange('shirtAbsZ', v)} />
+                            <Slider label="Ab X" value={config.shirtAbsX} min={-0.2} max={0.2} step={0.001} onChange={(v) => handleConfigChange('shirtAbsX', v)} />
+                            <Slider label="Ab Y" value={config.shirtAbsY} min={-0.2} max={0.2} step={0.001} onChange={(v) => handleConfigChange('shirtAbsY', v)} />
+                            <Slider label="Ab Z" value={config.shirtAbsZ} min={-0.2} max={0.2} step={0.001} onChange={(v) => handleConfigChange('shirtAbsZ', v)} />
                             <Slider label="Ab Scale" value={config.shirtAbsScale} min={0.5} max={2.0} step={0.01} onChange={(v) => handleConfigChange('shirtAbsScale', v)} />
                             <Slider label="Ab Spacing" value={config.shirtAbsSpacing} min={0.5} max={2.0} step={0.01} onChange={(v) => handleConfigChange('shirtAbsSpacing', v)} />
                         </>
                     )}
+                </div>
+            )}
+
+            {config.equipment.blacksmithApron && (
+                <div className="space-y-2 border-b border-gray-100 pb-4">
+                    <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Apron Rigging</h5>
+                    <h6 className="text-[8px] font-bold text-orange-500 uppercase mt-2">Bib (Top)</h6>
+                    <Slider label="Bib X" value={config.apronBibX} min={-0.1} max={0.1} step={0.002} onChange={(v) => handleConfigChange('apronBibX', v)} />
+                    <Slider label="Bib Y" value={config.apronBibY} min={0.0} max={0.4} step={0.002} onChange={(v) => handleConfigChange('apronBibY', v)} />
+                    <Slider label="Bib Z" value={config.apronBibZ} min={0.1} max={0.4} step={0.002} onChange={(v) => handleConfigChange('apronBibZ', v)} />
+                    <Slider label="Bib Scale" value={config.apronBibScale} min={0.5} max={1.5} step={0.01} onChange={(v) => handleConfigChange('apronBibScale', v)} />
+
+                    <h6 className="text-[8px] font-bold text-orange-500 uppercase mt-2">Skirt (Bottom)</h6>
+                    <Slider label="Skirt X" value={config.apronSkirtX} min={-0.1} max={0.1} step={0.002} onChange={(v) => handleConfigChange('apronSkirtX', v)} />
+                    <Slider label="Skirt Y" value={config.apronSkirtY} min={-0.2} max={0.2} step={0.002} onChange={(v) => handleConfigChange('apronSkirtY', v)} />
+                    <Slider label="Skirt Z" value={config.apronSkirtZ} min={-0.1} max={0.1} step={0.002} onChange={(v) => handleConfigChange('apronSkirtZ', v)} />
+                    <Slider label="Skirt Scale X" value={config.apronSkirtScaleX} min={0.5} max={1.5} step={0.01} onChange={(v) => handleConfigChange('apronSkirtScaleX', v)} />
+                    <Slider label="Skirt Scale Y" value={config.apronSkirtScaleY} min={0.5} max={1.5} step={0.01} onChange={(v) => handleConfigChange('apronSkirtScaleY', v)} />
+                    <Slider label="Skirt Scale Z" value={config.apronSkirtScaleZ} min={0.5} max={1.5} step={0.01} onChange={(v) => handleConfigChange('apronSkirtScaleZ', v)} />
+
+                    <h6 className="text-[8px] font-bold text-orange-500 uppercase mt-2">Straps</h6>
+                    <Slider label="Strap Y" value={config.apronStrapY} min={0.2} max={0.5} step={0.002} onChange={(v) => handleConfigChange('apronStrapY', v)} />
+                    <Slider label="Strap Z" value={config.apronStrapZ} min={-0.1} max={0.2} step={0.002} onChange={(v) => handleConfigChange('apronStrapZ', v)} />
+                    <Slider label="Strap Rot X" value={config.apronStrapRotX} min={-Math.PI} max={0} step={0.02} onChange={(v) => handleConfigChange('apronStrapRotX', v)} />
+                    <Slider label="Strap Rot Z" value={config.apronStrapRotZ} min={0} max={0.5} step={0.01} onChange={(v) => handleConfigChange('apronStrapRotZ', v)} />
                 </div>
             )}
 

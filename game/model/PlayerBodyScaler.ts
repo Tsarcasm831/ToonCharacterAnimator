@@ -192,17 +192,17 @@ export class PlayerBodyScaler {
                         
                         // Combine base ab settings with shirt-specific ab offsets
                         const finalSpacing = config.absSpacing * config.shirtAbsSpacing;
-                        const newY = centerY + (distY * finalSpacing) + config.absY + config.shirtAbsY;
+                        const newY = centerY + (distY * finalSpacing) + config.absY + (config.shirtAbsY * 5);
                         
                         child.position.set(
-                            base.x + config.absX + config.shirtAbsX,
+                            base.x + config.absX + (config.shirtAbsX * 5),
                             newY,
-                            base.z + config.absZ + config.shirtAbsZ
+                            base.z + config.absZ + (config.shirtAbsZ * 5)
                         );
                         
                         // Scale slightly larger than skin abs to form the fabric layer
                         const finalScale = config.absScale * config.shirtAbsScale;
-                        child.scale.set(1.25 * finalScale, 0.85 * finalScale, 0.35 * finalScale);
+                        child.scale.set(1.4 * finalScale, 0.9 * finalScale, 0.8 * finalScale);
                 }
              });
         }
