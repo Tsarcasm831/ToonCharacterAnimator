@@ -11,6 +11,7 @@ import { WaveAction } from './actions/WaveAction';
 import { LeftHandWaveAction } from './actions/LeftHandWaveAction';
 import { SummonAction } from './actions/SummonAction';
 import { FireArrowAction } from './actions/FireArrowAction';
+import { FireballAction } from './actions/FireballAction';
 
 export class ActionAnimator {
     animateClimb(player: any, parts: any, dt: number, damp: number) {
@@ -55,5 +56,9 @@ export class ActionAnimator {
 
     animateFireArrow(player: any, parts: any, dt: number, damp: number) {
         FireArrowAction.animate(player, parts, dt, damp);
+    }
+
+    animateFireball(player: any, parts: any, dt: number, damp: number) {
+        FireballAction.animate(player, parts, dt, damp);
     }
 }

@@ -1,13 +1,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Scene from './components/Scene.tsx';
-import { PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest } from './types.ts';
+import { PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest, InventoryItem } from './types.ts';
 import { Header } from './components/ui/Header.tsx';
 import { InteractionOverlay } from './components/ui/InteractionOverlay.tsx';
 import { Hotbar } from './components/ui/Hotbar.tsx';
 import { ControlPanel } from './components/ui/ControlPanel.tsx';
 import { InventoryModal } from './components/ui/InventoryModal.tsx';
 import { TradeModal } from './components/ui/TradeModal.tsx';
+import { ForgeModal } from './components/ui/ForgeModal.tsx';
 import { BuilderUI } from './components/ui/BuilderUI.tsx';
 import { MobileControls } from './components/ui/MobileControls.tsx';
 import { KeybindsModal } from './components/ui/KeybindsModal.tsx';
@@ -64,30 +65,26 @@ const App: React.FC = () => {
   const [activeScene, setActiveScene] = useState<'dev' | 'world'>('dev');
   const [isLoading, setIsLoading] = useState(false);
 
-  const [inventory, setInventory] = useState<string[]>(() => {
-    const inv = Array(32).fill('');
-    // Keep Knife and Fishing Pole on Hotbar
-    inv[2] = 'Bow';
-    inv[4] = 'Knife';
-    inv[5] = 'Fishing Pole';
+  const [inventory, setInventory] = useState<(InventoryItem | null)[]>(() => {
+    const inv = Array(32).fill(null);
+    inv[2] = { name: 'Bow', count: 1 };
+    inv[4] = { name: 'Knife', count: 1 };
+    inv[5] = { name: 'Fishing Pole', count: 1 };
     
-    // Clothing items in inventory
-    inv[8] = 'Shirt';
-    inv[9] = 'Pants';
-    inv[10] = 'Shoes';
-    inv[11] = 'Mask';
-    inv[12] = 'Hood';
-    inv[13] = 'Quilted Armor';
-    inv[14] = 'Leather Armor';
-    inv[15] = 'Heavy Leather Armor';
-    inv[16] = 'RingMail';
-    inv[17] = 'Plate Mail';
-
-    // Moved Weapons to main inventory
-    inv[18] = 'Axe';
-    inv[19] = 'Sword';
-    inv[20] = 'Pickaxe';
-    inv[21] = 'Halberd';
+    inv[8] = { name: 'Shirt', count: 1 };
+    inv[9] = { name: 'Pants', count: 1 };
+    inv[10] = { name: 'Shoes', count: 1 };
+    inv[11] = { name: 'Mask', count: 1 };
+    inv[12] = { name: 'Hood', count: 1 };
+    inv[13] = { name: 'Quilted Armor', count: 1 };
+    inv[14] = { name: 'Leather Armor', count: 1 };
+    inv[15] = { name: 'Heavy Leather Armor', count: 1 };
+    inv[16] = { name: 'RingMail', count: 1 };
+    inv[17] = { name: 'Plate Mail', count: 1 };
+    inv[18] = { name: 'Axe', count: 1 };
+    inv[19] = { name: 'Sword', count: 1 };
+    inv[20] = { name: 'Pickaxe', count: 1 };
+    inv[21] = { name: 'Halberd', count: 1 };
 
     return inv;
   });
@@ -103,6 +100,7 @@ const App: React.FC = () => {
   const [coins, setCoins] = useState(1250);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isTradeOpen, setIsTradeOpen] = useState(false);
+  const [isForgeOpen, setIsForgeOpen] = useState(false);
   const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
@@ -114,13 +112,11 @@ const App: React.FC = () => {
   const gameInstance = useRef<Game | null>(null);
 
   useEffect(() => {
-    // Robust context menu prevention, including Shift+RightClick bypass cases
     const preventContextMenu = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
         return false;
     };
-    
     window.addEventListener('contextmenu', preventContextMenu, true);
     return () => window.removeEventListener('contextmenu', preventContextMenu, true);
   }, []);
@@ -130,7 +126,8 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    const itemName = inventory[selectedSlot] || null;
+    const item = inventory[selectedSlot];
+    const itemName = item ? item.name : null;
     setConfig(prev => ({ ...prev, selectedItem: itemName }));
   }, [selectedSlot, inventory]);
 
@@ -153,6 +150,7 @@ const App: React.FC = () => {
 
   const toggleInventory = () => {
     if (isTradeOpen) setIsTradeOpen(false);
+    if (isForgeOpen) setIsForgeOpen(false);
     setIsInventoryOpen(prev => !prev);
   };
   const toggleKeybinds = () => setIsKeybindsOpen(prev => !prev);
@@ -176,8 +174,8 @@ const App: React.FC = () => {
       const existing = equipmentSlots[slotId];
       let newInv = [...inventory];
       if (existing) {
-          const emptyIdx = newInv.findIndex(s => s === '');
-          if (emptyIdx !== -1) newInv[emptyIdx] = existing;
+          const emptyIdx = newInv.findIndex(s => s === null);
+          if (emptyIdx !== -1) newInv[emptyIdx] = { name: existing, count: 1 };
       }
       setEquipmentSlots(prev => ({ ...prev, [slotId]: item }));
       setConfig(prev => {
@@ -206,9 +204,9 @@ const App: React.FC = () => {
       const item = equipmentSlots[slotId];
       if (!item) return;
       const newInv = [...inventory];
-      const emptyIdx = newInv.findIndex(s => s === '');
+      const emptyIdx = newInv.findIndex(s => s === null);
       if (emptyIdx !== -1) {
-          newInv[emptyIdx] = item;
+          newInv[emptyIdx] = { name: item, count: 1 };
           setInventory(newInv);
           setEquipmentSlots(prev => ({ ...prev, [slotId]: null }));
           setConfig(prev => {
@@ -236,23 +234,38 @@ const App: React.FC = () => {
 
   const handleBuy = (item: string, price: number) => {
     if (coins < price) return;
-    const emptyIdx = inventory.findIndex(s => s === '');
-    if (emptyIdx === -1) {
-        alert("Inventory Full!");
-        return;
-    }
-    setCoins(prev => prev - price);
     const newInv = [...inventory];
-    newInv[emptyIdx] = item;
+    
+    // Check for stack
+    let found = false;
+    for (let i = 0; i < newInv.length; i++) {
+        const slot = newInv[i];
+        if (slot && slot.name === item) {
+            slot.count++;
+            found = true;
+            break;
+        }
+    }
+    
+    if (!found) {
+        const emptyIdx = newInv.findIndex(s => s === null);
+        if (emptyIdx === -1) {
+            alert("Inventory Full!");
+            return;
+        }
+        newInv[emptyIdx] = { name: item, count: 1 };
+    }
+
+    setCoins(prev => prev - price);
     setInventory(newInv);
   };
 
   const handleSell = (index: number, price: number) => {
     const item = inventory[index];
     if (!item) return;
-    setCoins(prev => prev + price);
+    setCoins(prev => prev + (price * item.count));
     const newInv = [...inventory];
-    newInv[index] = '';
+    newInv[index] = null;
     setInventory(newInv);
   };
 
@@ -268,14 +281,10 @@ const App: React.FC = () => {
           setIsTravelOpen(false);
           return;
       }
-      
       setIsLoading(true);
       setIsTravelOpen(false);
-      
-      // Short delay to allow loading screen to fade in before switching
       setTimeout(() => {
           setActiveScene(scene);
-          // Loading screen will be turned off by Scene component via onGameReady
       }, 500);
   };
 
@@ -300,24 +309,22 @@ const App: React.FC = () => {
               g.onBiomeUpdate = (b) => setCurrentBiome(b);
               g.onDialogueTrigger = (content) => setDialogue(content);
               g.onTradeTrigger = () => setIsTradeOpen(true);
+              g.onForgeTrigger = () => setIsForgeOpen(true);
               g.onRotationUpdate = (r) => setPlayerRotation(r);
-              
-              // Finish loading
               setTimeout(() => setIsLoading(false), 800);
           }}
           onToggleWorldMap={handleToggleWorldMap}
           onToggleQuestLog={toggleQuestLog}
-          controlsDisabled={isInventoryOpen || isTradeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isLoading}
+          controlsDisabled={isInventoryOpen || isTradeOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isLoading}
         />
       </div>
 
       <LoadingScreen isVisible={isLoading} message={`Traveling to ${activeScene === 'dev' ? 'Dev Scene' : 'World Scene'}...`} />
 
-      {!isInventoryOpen && !isTradeOpen && !isBuilderMode && !isQuestLogOpen && <Header biome={currentBiome} />}
+      {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <Header biome={currentBiome} />}
       
-      {!isInventoryOpen && !isTradeOpen && !isBuilderMode && !isQuestLogOpen && <Compass rotation={playerRotation} />}
+      {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <Compass rotation={playerRotation} />}
 
-      {/* Travel Button Top Center */}
       <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[50]">
           <div className="relative">
               <button 
@@ -352,15 +359,15 @@ const App: React.FC = () => {
 
       <InteractionOverlay text={interactionText} progress={progress} />
 
-      {!isInventoryOpen && !isTradeOpen && !isBuilderMode && !isQuestLogOpen && (
+      {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && (
           <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={setSelectedSlot} />
       )}
 
-      {isBuilderMode && !isInventoryOpen && !isTradeOpen && (
+      {isBuilderMode && !isInventoryOpen && !isTradeOpen && !isForgeOpen && (
           <BuilderUI activeType={activeStructure} onSelectType={handleSelectStructure} />
       )}
 
-      {!isInventoryOpen && !isTradeOpen && !isBuilderMode && !isQuestLogOpen && (
+      {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && (
           <ControlPanel 
             config={config}
             manualInput={manualInput}
@@ -373,7 +380,7 @@ const App: React.FC = () => {
           />
       )}
 
-      {!isInventoryOpen && !isTradeOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
+      {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
 
       <InventoryModal 
           isOpen={isInventoryOpen}
@@ -395,6 +402,13 @@ const App: React.FC = () => {
           coins={coins}
           onBuy={handleBuy}
           onSell={handleSell}
+      />
+
+      <ForgeModal
+          isOpen={isForgeOpen}
+          onClose={() => setIsForgeOpen(false)}
+          inventory={inventory}
+          onInventoryChange={setInventory}
       />
 
       <KeybindsModal 

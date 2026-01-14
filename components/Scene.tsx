@@ -2,14 +2,17 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { Game } from "../game/Game";
-import { PlayerConfig, PlayerInput } from '../types';
+// Added InventoryItem to imports to resolve prop type mismatches
+import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
 
 interface SceneProps {
   activeScene: 'dev' | 'world';
   config: PlayerConfig;
   manualInput: Partial<PlayerInput>;
-  initialInventory: string[];
-  onInventoryUpdate?: (items: string[]) => void;
+  // Fixed type from string[] to (InventoryItem | null)[] to match Game class constructor and App state
+  initialInventory: (InventoryItem | null)[];
+  // Fixed type from string[] to (InventoryItem | null)[] to match Game class onInventoryUpdate callback
+  onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
   onSlotSelect?: (slotIndex: number) => void;
   onInteractionUpdate?: (text: string | null, progress: number | null) => void;
   onGameReady?: (game: Game) => void;
@@ -38,12 +41,14 @@ const Scene: React.FC<SceneProps> = ({
     if (!containerRef.current) return;
 
     // Initialize Game
+    // Fixed: initialInventory is now correctly typed as (InventoryItem | null)[]
     const game = new Game(containerRef.current, config, manualInput, initialInventory, activeScene);
     gameRef.current = game;
     
     if (onGameReady) onGameReady(game);
 
     // Hook up callbacks
+    // Fixed: onInventoryUpdate now correctly matches the Game instance property type
     game.onInventoryUpdate = onInventoryUpdate;
     game.onInteractionUpdate = onInteractionUpdate;
     if (onSlotSelect) {
@@ -72,9 +77,11 @@ const Scene: React.FC<SceneProps> = ({
       game.setManualInput(manualInput);
       
       // Update inventory from React state if it changes (e.g. drag & drop)
+      // Fixed: initialInventory is now correctly typed as (InventoryItem | null)[]
       game.setInventory(initialInventory);
       
       // Update callbacks
+      // Fixed: onInventoryUpdate now correctly matches the Game instance property type
       game.onInventoryUpdate = onInventoryUpdate;
       game.onInteractionUpdate = onInteractionUpdate;
       if (onSlotSelect) game.setSlotSelectCallback(onSlotSelect);

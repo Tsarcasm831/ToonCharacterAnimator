@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
-import { PlayerConfig } from '../../types';
+import React from 'react';
+import { InventoryItem } from '../../types';
 import { ITEM_ICONS } from '../../data/constants';
 
 interface TradeModalProps {
     isOpen: boolean;
     onClose: () => void;
-    inventory: string[];
+    inventory: (InventoryItem | null)[];
     onBuy: (item: string, price: number) => void;
     onSell: (index: number, price: number) => void;
     coins: number;
@@ -44,6 +44,8 @@ const ITEM_VALUE_MAP: Record<string, number> = {
     'Heavy Leather Armor': 200,
     'RingMail': 300,
     'Plate Mail': 500,
+    'Wood': 2,
+    'Coal': 12
 };
 
 export const TradeModal: React.FC<TradeModalProps> = ({ 
@@ -77,8 +79,8 @@ export const TradeModal: React.FC<TradeModalProps> = ({
         );
     };
 
-    const renderPlayerSlot = (item: string, index: number) => {
-        const value = ITEM_VALUE_MAP[item] || 5;
+    const renderPlayerSlot = (item: InventoryItem | null, index: number) => {
+        const value = item ? (ITEM_VALUE_MAP[item.name] || 5) : 0;
         return (
             <div 
                 key={index}
@@ -92,14 +94,19 @@ export const TradeModal: React.FC<TradeModalProps> = ({
             >
                 {item && (
                     <>
-                        <span className="text-2xl drop-shadow-md group-hover:scale-110 transition-transform">
-                            {ITEM_ICONS[item] || '📦'}
-                        </span>
+                        <div className="flex flex-col items-center justify-center">
+                            <span className="text-2xl drop-shadow-md group-hover:scale-110 transition-transform">
+                                {ITEM_ICONS[item.name] || '📦'}
+                            </span>
+                            {item.count > 1 && (
+                                <div className="absolute top-1 right-1 bg-black/60 rounded px-1 text-[10px] font-black text-white">{item.count}</div>
+                            )}
+                        </div>
                         <div className="absolute bottom-1 right-1 flex items-center gap-0.5 bg-black/40 px-1 rounded">
-                             <span className="text-[8px] font-bold text-emerald-400">+{value}</span>
+                             <span className="text-[8px] font-bold text-emerald-400">+{value * item.count}</span>
                         </div>
                         <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <span className="text-[8px] bg-emerald-600 text-white px-1 rounded font-black uppercase">Sell</span>
+                            <span className="text-[8px] bg-emerald-600 text-white px-1 rounded font-black uppercase">Sell All</span>
                         </div>
                     </>
                 )}
@@ -110,12 +117,9 @@ export const TradeModal: React.FC<TradeModalProps> = ({
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
             <div className="flex w-[900px] h-[600px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden relative">
-                
                 <button onClick={onClose} className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white transition-colors">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-
-                {/* LEFT: Merchant Inventory */}
                 <div className="w-1/2 bg-slate-800/50 border-r border-slate-700 flex flex-col">
                     <div className="p-6 border-b border-slate-700 bg-slate-900 flex justify-between items-center">
                         <div>
@@ -127,31 +131,24 @@ export const TradeModal: React.FC<TradeModalProps> = ({
                             <span className="text-white font-mono font-bold">{coins}</span>
                         </div>
                     </div>
-                    
                     <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-slate-900/30">
                         <div className="grid grid-cols-4 gap-3">
                             {MERCHANT_ITEMS.map((item, i) => renderMerchantSlot(item, i))}
                         </div>
                     </div>
                 </div>
-
-                {/* RIGHT: Player Inventory */}
                 <div className="w-1/2 flex flex-col bg-slate-900/95">
                     <div className="p-6 border-b border-slate-700 bg-slate-900">
                         <h2 className="text-xl font-black text-blue-400 uppercase tracking-tighter">Your Belongings</h2>
                         <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Click to sell for gold</p>
                     </div>
-
                     <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-slate-900/50">
                         <div className="grid grid-cols-4 gap-3">
                             {inventory.map((item, i) => renderPlayerSlot(item, i))}
                         </div>
                     </div>
-
                     <div className="p-4 border-t border-slate-700 bg-slate-800 text-center">
-                        <div className="text-[10px] text-slate-500 font-medium tracking-tight uppercase">
-                            Click shop items to buy • Click your items to sell
-                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium tracking-tight uppercase">Click shop items to buy • Click your items to sell</div>
                     </div>
                 </div>
             </div>

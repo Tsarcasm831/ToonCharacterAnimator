@@ -11,18 +11,17 @@ export class BuildingParts {
             case 'foundation':
                 return new THREE.BoxGeometry(GRID_SIZE, 0.4, GRID_SIZE);
             case 'wall':
-                return new THREE.BoxGeometry(GRID_SIZE, 2.75, 0.2);
+                return new THREE.BoxGeometry(GRID_SIZE, 3.3, 0.2); // 2.75 * 1.2 = 3.3
             case 'doorway':
-                // Proportions for a 2.75m tall doorway (increased 10%)
-                // Fits within 1.333m grid
+                // Proportions for a 3.3m tall doorway (20% increase)
+                // Door opening height remains 2.35m
                 const postWidth = 0.26;
                 const totalWidth = GRID_SIZE;
                 const holeWidth = totalWidth - (postWidth * 2); 
-                const totalHeight = 2.75; // Increased from 2.5
-                const lintelHeight = 0.4; // Opening = 2.75 - 0.4 = 2.35m
+                const totalHeight = 3.3; 
+                const lintelHeight = 0.95; // 3.3 - 2.35 = 0.95
                 const depth = 0.2;
                 
-                // CRITICAL: Convert to non-indexed so manual attribute merging works correctly
                 const leftPost = new THREE.BoxGeometry(postWidth, totalHeight, depth).toNonIndexed();
                 leftPost.translate(-(totalWidth/2 - postWidth/2), 0, 0);
                 
@@ -51,7 +50,6 @@ export class BuildingParts {
                     uvs.set(uv, offset * 2);
                     
                     offset += g.attributes.position.count;
-                    // Dispose temp geometries
                     g.dispose();
                 });
 
@@ -61,7 +59,6 @@ export class BuildingParts {
                 return mergedGeo;
 
             case 'door':
-                // Match the doorway opening (2.75m - 0.4m = 2.35m)
                 return new THREE.BoxGeometry(0.8, 2.35, 0.15); 
             case 'roof':
                 const halfSize = GRID_SIZE / 2;
@@ -83,7 +80,6 @@ export class BuildingParts {
     static createStructureMesh(type: StructureType, isGhost: boolean = false): THREE.Object3D {
         const GRID_SIZE = 1.3333;
 
-        // Helper for material
         const getMat = (t: StructureType) => {
             if (isGhost) {
                 return new THREE.MeshStandardMaterial({
@@ -107,14 +103,13 @@ export class BuildingParts {
             const group = new THREE.Group();
             const mat = getMat(type);
             
-            const totalWidth = GRID_SIZE * 2; // 2 Grids wide
+            const totalWidth = GRID_SIZE * 2; 
             const postWidth = 0.3;
-            const totalHeight = 2.75; // Increased from 2.5
+            const totalHeight = 3.3; 
             const depth = 0.2;
-            const lintelHeight = 0.4;
+            const lintelHeight = 0.95;
             const holeWidth = totalWidth - (postWidth * 2);
 
-            // Left Post
             const leftGeo = new THREE.BoxGeometry(postWidth, totalHeight, depth);
             const leftPost = new THREE.Mesh(leftGeo, mat);
             leftPost.position.set(-(totalWidth/2 - postWidth/2), 0, 0);
@@ -123,7 +118,6 @@ export class BuildingParts {
             leftPost.userData = { type: 'hard', material: 'wood', structureType: 'doorway' };
             group.add(leftPost);
 
-            // Right Post
             const rightGeo = new THREE.BoxGeometry(postWidth, totalHeight, depth);
             const rightPost = new THREE.Mesh(rightGeo, mat);
             rightPost.position.set(+(totalWidth/2 - postWidth/2), 0, 0);
@@ -132,7 +126,6 @@ export class BuildingParts {
             rightPost.userData = { type: 'hard', material: 'wood', structureType: 'doorway' };
             group.add(rightPost);
 
-            // Lintel
             const lintelGeo = new THREE.BoxGeometry(holeWidth, lintelHeight, depth);
             const lintel = new THREE.Mesh(lintelGeo, mat);
             lintel.position.set(0, (totalHeight/2) - (lintelHeight/2), 0);
@@ -145,8 +138,7 @@ export class BuildingParts {
         }
 
         if (type === 'door') {
-             // Wider door to fit 2-grid doorway
-             const width = (GRID_SIZE * 2) - 0.6; // Total - 2*Post
+             const width = (GRID_SIZE * 2) - 0.6; 
              const geo = new THREE.BoxGeometry(width, 2.35, 0.15);
              const mat = getMat(type);
              const mesh = new THREE.Mesh(geo, mat);
@@ -163,8 +155,7 @@ export class BuildingParts {
         mesh.castShadow = !isGhost;
         mesh.receiveShadow = !isGhost;
         
-        // Pivot adjustments
-        if (type === 'wall') mesh.position.y = 1.375; 
+        if (type === 'wall') mesh.position.y = 1.65; // 3.3 / 2
         if (type === 'foundation') mesh.position.y = 0.2; 
         if (type === 'roof') mesh.position.y = 0;
 

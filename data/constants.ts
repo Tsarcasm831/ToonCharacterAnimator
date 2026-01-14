@@ -51,35 +51,30 @@ export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
 export const OUTFIT_PRESETS: Record<OutfitType, Partial<PlayerConfig>> = {
   nude: {
     outfit: 'nude',
-    // Added missing blacksmithApron property
     equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false },
     shirtColor: '#ffdbac',
     pantsColor: '#ffdbac'
   },
   naked: {
     outfit: 'naked',
-    // Added missing blacksmithApron property
     equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false },
     shirtColor: '#ffdbac',
     pantsColor: '#3182ce' 
   },
   peasant: {
     outfit: 'peasant',
-    // Added missing blacksmithApron property
     equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false },
     shirtColor: '#8d6e63',
     pantsColor: '#5d4037'
   },
   warrior: {
     outfit: 'warrior',
-    // Added missing blacksmithApron property
     equipment: { helm: true, shoulders: true, shield: true, shirt: true, pants: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false },
     shirtColor: '#607d8b',
     pantsColor: '#37474f'
   },
   noble: {
     outfit: 'noble',
-    // Added missing blacksmithApron property
     equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false },
     shirtColor: '#3f51b5',
     pantsColor: '#1a237e'
@@ -104,5 +99,7 @@ export const ITEM_ICONS: Record<string, string> = {
   'Shoes': '👢',
   'Mask': '😷',
   'Hood': '🧥',
-  'Robe': '🥋'
+  'Robe': '🥋',
+  'Wood': '🪵',
+  'Coal': '🌑'
 };

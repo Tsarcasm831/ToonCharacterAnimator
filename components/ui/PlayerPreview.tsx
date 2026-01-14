@@ -19,47 +19,39 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
     useEffect(() => {
         if (!containerRef.current) return;
 
-        // Setup
         const width = containerRef.current.clientWidth;
         const height = containerRef.current.clientHeight;
 
         const scene = new THREE.Scene();
-        // Transparent background
         scene.background = null; 
         
-        // Adjust camera for portrait character framing
-        // Moved back to 4.6 to fit full body comfortably within the UI panel
         const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 100);
         camera.position.set(0, 0.9, 4.6); 
         camera.lookAt(0, 0.9, 0);
 
         const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setPixelRatio(1); // Performance win in UI
         renderer.setSize(width, height);
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows for UI
+        renderer.shadowMap.type = THREE.PCFShadowMap; 
         containerRef.current.appendChild(renderer.domElement);
 
-        // Lighting (Front-lit for UI)
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
         scene.add(hemiLight);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
         dirLight.position.set(2, 2, 5);
         dirLight.castShadow = true;
-        // Tune shadows for small scale
-        dirLight.shadow.mapSize.width = 1024;
-        dirLight.shadow.mapSize.height = 1024;
-        dirLight.shadow.bias = -0.0001;
+        dirLight.shadow.mapSize.width = 512;
+        dirLight.shadow.mapSize.height = 512;
+        dirLight.shadow.bias = -0.001;
         scene.add(dirLight);
         
-        // Add a back/rim light for better definition against dark bg
         const backLight = new THREE.DirectionalLight(0x4455ff, 0.6);
         backLight.position.set(-2, 2, -5);
         scene.add(backLight);
 
-        // Player Model
         const playerModel = new PlayerModel(config);
-        // Face camera slightly
         playerModel.group.rotation.y = 0.2;
         scene.add(playerModel.group);
 
@@ -67,7 +59,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         modelRef.current = playerModel;
         rendererRef.current = renderer;
 
-        // Mock Player Object for IdleAction
         const mockPlayer = {
             config: config,
             isCombatStance: false,
@@ -76,19 +67,13 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
 
         const animate = () => {
             frameIdRef.current = requestAnimationFrame(animate);
-            
-            // Run Idle Animation
             IdleAction.animate(mockPlayer, playerModel.parts, 0.1, false);
-            
-            // Update hair/physics
             playerModel.update(0.016, new THREE.Vector3(0,0,0));
-
             renderer.render(scene, camera);
         };
 
         animate();
 
-        // Resize Observer
         const handleResize = () => {
             if (!containerRef.current || !rendererRef.current) return;
             const w = containerRef.current.clientWidth;
@@ -111,7 +96,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         };
     }, []);
 
-    // Sync Config changes
     useEffect(() => {
         if (modelRef.current) {
             modelRef.current.sync(config, false);

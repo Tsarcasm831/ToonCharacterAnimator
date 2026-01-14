@@ -14,6 +14,13 @@ import {
     initWorldScatter
 } from './obstacles/ObstaclePopulation';
 
+interface CollectibleLog {
+    mesh: THREE.Mesh;
+    timer: number;
+    maxTime: number;
+    isCollected: boolean;
+}
+
 export class ObstacleManager {
     obstacles: THREE.Object3D[] = [];
     private parent: THREE.Object3D;
@@ -22,6 +29,9 @@ export class ObstacleManager {
     private decorativeItems: THREE.Object3D[] = [];
     private debrisSystem: DebrisSystem;
     private clock = new THREE.Clock();
+
+    private collectibleLogs: CollectibleLog[] = [];
+    public onLogPickedUp?: () => void;
 
     constructor(parent: THREE.Object3D, debrisSystem: DebrisSystem) {
         this.parent = parent;
@@ -32,8 +42,21 @@ export class ObstacleManager {
         const block = ObjectFactory.createBlueBlock();
         this.addObstacle(block);
 
+        // --- BLACKSMITH FORGE ---
+        // Rotated 180 degrees from previous (PI/2 -> -PI/2)
+        // Positioned against the East wall of the blacksmith house
+        const forgePos = new THREE.Vector3(-30.2, 0, 51.5);
+        const { group: forgeGroup, obstacles: forgeObs } = ObjectFactory.createForge(forgePos, -Math.PI / 2);
+        this.parent.add(forgeGroup);
+        this.decorativeItems.push(forgeGroup); // Add to decorative so flames update
+        forgeObs.forEach(o => this.addObstacle(o));
+
         this.createTreeAt(new THREE.Vector2(-5, -4));
         this.createRockAt(new THREE.Vector2(2, 4), 1.0);
+
+        // Add 2 berry bushes on grassy ground
+        this.createBerryBushAt(new THREE.Vector2(3, 2));
+        this.createBerryBushAt(new THREE.Vector2(-4, 3));
 
         const wolfPos = new THREE.Vector3(2.5, PlayerUtils.getTerrainHeight(2.5, 2.5), 2.5);
         const wolf = ObjectFactory.createDeadWolf(wolfPos, Math.PI / 3);
@@ -66,7 +89,21 @@ export class ObstacleManager {
 
     private createRockAt(xz: THREE.Vector2, scale: number = 1.0) {
         const y = PlayerUtils.getTerrainHeight(xz.x, xz.y);
-        this.createRock(new THREE.Vector3(xz.x, y, xz.y), scale);
+        // 20% chance to spawn copper ore rock instead of regular rock
+        if (Math.random() < 0.2) {
+            this.createCopperOreRock(new THREE.Vector3(xz.x, y, xz.y), scale);
+        } else {
+            this.createRock(new THREE.Vector3(xz.x, y, xz.y), scale);
+        }
+    }
+
+    private createBerryBushAt(xz: THREE.Vector2, scale: number = 1.0) {
+        const y = PlayerUtils.getTerrainHeight(xz.x, xz.y);
+        // Adjust position to prevent floating - place slightly above ground
+        const adjustedY = y + 0.05; // Small offset to prevent sinking into ground
+        const berryBush = ObjectFactory.createBerryBush(new THREE.Vector3(xz.x, adjustedY, xz.y), scale);
+        this.parent.add(berryBush);
+        this.decorativeItems.push(berryBush);
     }
 
 
@@ -79,7 +116,16 @@ export class ObstacleManager {
 
     addLogs(logs: THREE.Mesh[]) {
         logs.forEach(log => {
-            this.obstacles.push(log);
+            // logs are not added to obstacles anymore, they are collectibles
+            // log.userData = { type: 'hard', material: 'wood', isLog: true };
+            this.collectibleLogs.push({
+                mesh: log,
+                timer: 2.0, // 2 seconds before being picked up
+                maxTime: 2.0,
+                isCollected: false
+            });
+            
+            // Spawn mushrooms nearby
             const pos = log.position;
             for(let i=0; i<2; i++) {
                 const angle = Math.random() * Math.PI * 2;
@@ -100,6 +146,15 @@ export class ObstacleManager {
         this.obstacles.push(rock);
         this.rocks.set(rock.uuid, {
             id: rock.uuid, mesh: rock, health: 10, shudderTimer: 0, basePosition: group.position.clone()
+        });
+    }
+
+    private createCopperOreRock(position: THREE.Vector3, scale: number = 1.0) {
+        const { group, rock } = ObjectFactory.createCopperOreRock(position, scale);
+        this.parent.add(group);
+        this.obstacles.push(rock);
+        this.rocks.set(rock.uuid, {
+            id: rock.uuid, mesh: rock, health: 15, shudderTimer: 0, basePosition: group.position.clone(), hasOre: true, oreType: 'copper'
         });
     }
 
@@ -172,32 +227,60 @@ export class ObstacleManager {
             ((water as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.uTime.value = time;
         }
 
+        // Handle collectible logs
+        for (let i = this.collectibleLogs.length - 1; i >= 0; i--) {
+            const log = this.collectibleLogs[i];
+            log.timer -= dt;
+
+            // Simple "picked up" visual effect: scale down when near pickup
+            if (log.timer < 0.3) {
+                const s = Math.max(0, log.timer / 0.3);
+                log.mesh.scale.set(s, s, s);
+            }
+
+            if (log.timer <= 0) {
+                this.parent.remove(log.mesh);
+                this.onLogPickedUp?.();
+                this.collectibleLogs.splice(i, 1);
+            }
+        }
+
         this.decorativeItems.forEach(item => {
             if (item instanceof THREE.Group) {
-                item.children.forEach(child => {
-                    if (child.userData.isMote) {
-                        const mPhase = child.userData.phase;
-                        const mSpeed = child.userData.speed;
-                        const originY = child.userData.originY;
-                        child.position.y = originY + Math.sin(time * mSpeed + mPhase) * 0.5;
-                        child.position.x += Math.sin(time * 0.5 + mPhase) * 0.005;
-                    } else if (child.userData.isFlame) {
-                        // High-frequency flame flicker
-                        const fPhase = child.userData.phase;
-                        const bScale = child.userData.baseScale;
-                        const bY = child.userData.baseY;
-                        const flicker = Math.sin(time * 15.0 + fPhase);
-                        const s = bScale * (1.0 + flicker * 0.15);
-                        child.scale.set(s, s * (1.8 + flicker * 0.2), s);
-                        child.position.y = bY + flicker * 0.02;
-                        if (child.material instanceof THREE.MeshStandardMaterial) {
-                            child.material.emissiveIntensity = 2.0 + flicker * 0.8;
-                        }
-                    } else if (child.userData.isFlameLight) {
-                        const lPhase = child.userData.phase;
-                        child.intensity = 1.5 + Math.sin(time * 12.0 + lPhase) * 0.5;
+                // Update berry bushes
+                if (item.userData.type === 'berryBush') {
+                    const berryBushInstance = item.userData.berryBushInstance;
+                    if (berryBushInstance && berryBushInstance.update) {
+                        berryBushInstance.update(dt);
                     }
-                });
+                } else {
+                    item.children.forEach(child => {
+                        if (child.userData.isMote) {
+                            const mPhase = child.userData.phase;
+                            const mSpeed = child.userData.speed;
+                            const originY = child.userData.originY;
+                            child.position.y = originY + Math.sin(time * mSpeed + mPhase) * 0.5;
+                            child.position.x += Math.sin(time * 0.5 + mPhase) * 0.005;
+                        } else if (child.userData.isFlame) {
+                            // High-frequency flame flicker
+                            const fPhase = child.userData.phase;
+                            const bScale = child.userData.baseScale;
+                            const bY = child.userData.baseY;
+                            const flicker = Math.sin(time * 15.0 + fPhase);
+                            const s = bScale * (1.0 + flicker * 0.15);
+                            child.scale.set(s, s * (1.8 + flicker * 0.2), s);
+                            child.position.y = bY + flicker * 0.02;
+                            if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+                                child.material.emissiveIntensity = 2.0 + flicker * 0.8;
+                            }
+                        } else if (child.userData.isFlameLight) {
+                            const lPhase = child.userData.phase;
+                            if (child instanceof THREE.Light) {
+                                child.intensity = 1.5 + Math.sin(time * 12.0 + lPhase) * 0.5;
+                            }
+                        }
+                    });
+                }
             } else {
                 const phase = item.userData.phase || 0;
                 item.rotation.z = Math.sin(time * 1.5 + phase) * 0.05;

@@ -21,6 +21,7 @@ const CATEGORIES = [
         title: "Combat & Action",
         binds: [
             { keys: ["LMB"], label: "Attack / Cast (Fishing)" },
+            { keys: ["R"], label: "Cast Fireball" },
             { keys: ["C"], label: "Combat Stance" },
             { keys: ["E"], label: "Interact / Talk" },
             { keys: ["F"], label: "Pick Up / Skin" },
@@ -32,7 +33,7 @@ const CATEGORIES = [
         title: "Building",
         binds: [
             { keys: ["B"], label: "Toggle Build Mode" },
-            { keys: ["R"], label: "Rotate Ghost (Build Mode)" },
+            { keys: ["T"], label: "Rotate Ghost (Build Mode)" },
             { keys: ["LMB"], label: "Place Structure" },
         ]
     },

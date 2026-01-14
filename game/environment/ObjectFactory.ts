@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { TreeFactory } from './objects/TreeFactory';
 import { PlantFactory } from './objects/PlantFactory';
@@ -9,6 +10,7 @@ import { ScatterFactory } from './objects/ScatterFactory';
 import { VegetationFactory } from './objects/VegetationFactory';
 import { HumanRemnantsFactory } from './objects/HumanRemnantsFactory';
 import { AtmosphereFactory } from './objects/AtmosphereFactory';
+import { ForgeBuilder } from './objects/ForgeBuilder';
 
 export class ObjectFactory {
     // Trees
@@ -53,6 +55,10 @@ export class ObjectFactory {
         return VegetationFactory.createReeds(position);
     }
 
+    static createBerryBush(position: THREE.Vector3, scale: number = 1.0) {
+        return VegetationFactory.createBerryBush(position, scale);
+    }
+
     // Storytelling & Remnants
     static createFence(position: THREE.Vector3, rotationY: number) {
         return HumanRemnantsFactory.createFence(position, rotationY);
@@ -68,6 +74,11 @@ export class ObjectFactory {
 
     static createRoadSign(position: THREE.Vector3, type: 'stop' | 'yield' = 'stop') {
         return HumanRemnantsFactory.createRoadSign(position, type);
+    }
+
+    // Structures
+    static createForge(position: THREE.Vector3, rotationY: number) {
+        return ForgeBuilder.build(position, rotationY);
     }
 
     // Atmosphere
@@ -103,6 +114,10 @@ export class ObjectFactory {
     // Rocks
     static createRock(position: THREE.Vector3, scale: number) {
         return RockFactory.createRock(position, scale);
+    }
+
+    static createCopperOreRock(position: THREE.Vector3, scale: number) {
+        return RockFactory.createCopperOreRock(position, scale);
     }
 
     // Debris / Destruction

@@ -23,12 +23,12 @@ export class HairBuilder {
 
         if (emitters.length === 0) return;
 
-        const HAIR_COUNT = 4000;
+        // Optimization: Further reduce hair count for character performance
+        const HAIR_COUNT = 800;
         const hairLen = 0.055; 
         const hairThick = 0.005; 
 
-        // Tapered cylinder for hair strands
-        const hairGeo = new THREE.CylinderGeometry(0.001, hairThick, hairLen, 3, 3, false);
+        const hairGeo = new THREE.CylinderGeometry(0.001, hairThick, hairLen, 3, 2, false);
         hairGeo.translate(0, hairLen / 2, 0);
 
         const hairMat = material.clone();
@@ -54,32 +54,16 @@ export class HairBuilder {
                 '#include <begin_vertex>',
                 `
                 #include <begin_vertex>
-                
                 float h = clamp(position.y / ${hairLen.toFixed(4)}, 0.0, 1.0);
-                
-                // Use a soft sigmoid-like bend curve
                 float bendFactor = h * h * (3.0 - 2.0 * h); 
-                
-                // 1. Core displacement (Lag + Gravity)
                 vec3 displacement = (uHairInertia + uGravity) * bendFactor;
-                
-                // 2. Multi-Wave Turbulence
-                // Use square root of speed to prevent linear 'spikiness'
                 float speedInfluence = pow(uSpeed * 0.2, 0.6); 
-                
-                // Primary slow flow (low frequency)
                 float wave1 = sin(uTime * 4.0 + position.y * 50.0 + position.x * 100.0) * 0.003;
-                // Secondary wind flutter (high frequency)
                 float wave2 = cos(uTime * 18.0 + position.z * 150.0) * 0.0015;
-                
                 float totalFlutter = (wave1 + wave2) * speedInfluence * h;
-                
                 displacement.x += totalFlutter;
                 displacement.z += totalFlutter * 0.7;
-                
-                // 3. Air Resistance (Push down slightly when moving fast)
                 displacement.y -= speedInfluence * 0.01 * h;
-                
                 transformed += displacement;
                 `
             );
@@ -89,7 +73,7 @@ export class HairBuilder {
         instancedMesh.name = 'HairInstanced';
         instancedMesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
         instancedMesh.castShadow = true;
-        instancedMesh.receiveShadow = true;
+        instancedMesh.frustumCulled = true;
 
         const dummy = new THREE.Object3D();
         const _position = new THREE.Vector3();
@@ -173,13 +157,10 @@ export class HairBuilder {
                 _target.copy(_position).add(_normal);
                 dummy.lookAt(_target);
                 dummy.rotateX(Math.PI / 2);
-                
                 dummy.rotateX((random() - 0.5) * 0.3);
                 dummy.rotateZ((random() - 0.5) * 0.3);
-                
                 const s = 0.9 + random() * 0.2;
                 dummy.scale.set(s, s * (0.8 + random() * 0.4), s);
-
                 dummy.updateMatrix();
                 instancedMesh.setMatrixAt(hairsGenerated, dummy.matrix);
                 hairsGenerated++;
