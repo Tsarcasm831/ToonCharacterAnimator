@@ -52,10 +52,9 @@ export class Game {
     private readonly tempForward = new THREE.Vector3();
     private readonly tempCamDir = new THREE.Vector3();
     private readonly tempLookAt = new THREE.Vector3();
-    private readonly tempCameraOffset = new THREE.Vector3();
-    private readonly camDirBase = new THREE.Vector3(0, 0, 1);
     private readonly axisX = new THREE.Vector3(1, 0, 0);
     private readonly axisY = new THREE.Vector3(0, 1, 0);
+    private readonly camDirBase = new THREE.Vector3(0, 0, 1);
 
     public config: PlayerConfig;
 
@@ -186,6 +185,10 @@ export class Game {
         this.entityManager.setVisibility(sceneName === 'dev');
     }
 
+    spawnAnimal(type: string, count: number) {
+        this.entityManager.spawnAnimalGroup(type, count, this.environment, this.player.mesh.position);
+    }
+
     private buildInitialStructure() {
         if (!this.environment) return;
         const GRID_SIZE = 1.3333;
@@ -239,7 +242,8 @@ export class Game {
         if (this.isFirstPerson && document.pointerLockElement === this.renderManager.renderer.domElement) {
             const sensitivity = 0.002;
             this.fpvYaw -= e.movementX * sensitivity;
-            this.fpvPitch += e.movementY * sensitivity;
+            // Standard non-inverted pitch: move mouse down to look down
+            this.fpvPitch -= e.movementY * sensitivity;
             const limit = Math.PI / 2 - 0.1;
             this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
         }
@@ -259,7 +263,9 @@ export class Game {
         if (this.isFirstPerson) {
             this.renderManager.controls.minDistance = 0.01; this.renderManager.controls.maxDistance = 0.1; 
             this.renderManager.controls.enabled = false;
-            this.fpvYaw = this.player.mesh.rotation.y + Math.PI; this.fpvPitch = 0;
+            // Align POV to character facing direction
+            this.fpvYaw = this.player.mesh.rotation.y; 
+            this.fpvPitch = 0;
             this.renderManager.renderer.domElement.requestPointerLock();
         } else {
             this.renderManager.controls.minDistance = 0.1; this.renderManager.controls.maxDistance = 100; 
@@ -275,16 +281,20 @@ export class Game {
 
     private animate(time: number = 0) {
         this.animationId = requestAnimationFrame(this.animate);
-        // Capped delta at 100ms to handle lag spikes without distorting "real" time
+        // Robust delta time clamping
         const delta = Math.min(this.clock.getDelta(), 0.1);
+        if (delta <= 0) return;
+
         const input = this.inputManager.getInput();
 
         const joyLook = this.inputManager.getJoystickLook();
         if (joyLook.x !== 0 || joyLook.y !== 0) {
             const joySensitivity = 2.5 * delta;
             if (this.isFirstPerson) {
-                this.fpvYaw -= joyLook.x * joySensitivity; this.fpvPitch -= joyLook.y * joySensitivity;
-                const limit = Math.PI / 2 - 0.1; this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
+                this.fpvYaw -= joyLook.x * joySensitivity; 
+                this.fpvPitch += joyLook.y * joySensitivity; // Non-inverted
+                const limit = Math.PI / 2 - 0.1;
+                this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
             } else {
                 const offset = new THREE.Vector3().subVectors(this.renderManager.camera.position, this.renderManager.controls.target);
                 const spherical = new THREE.Spherical().setFromVector3(offset);
@@ -307,7 +317,7 @@ export class Game {
         }
         this.wasAttack1Pressed = !!input.attack1;
 
-        let cameraRotation = this.isFirstPerson ? (this.fpvYaw + Math.PI) : Math.atan2(this.renderManager.camera.position.x - this.renderManager.controls.target.x, this.renderManager.camera.position.z - this.renderManager.controls.target.z);
+        let cameraRotation = this.isFirstPerson ? (this.fpvYaw - Math.PI) : Math.atan2(this.renderManager.camera.position.x - this.renderManager.controls.target.x, this.renderManager.camera.position.z - this.renderManager.controls.target.z);
 
         let currentEnv: any = null;
         let currentEntities: any[] = [];
@@ -325,7 +335,6 @@ export class Game {
         this.particleManager.update(delta);
         
         if (currentEnv) {
-            // Throttled biome check
             if (time - this.lastBiomeCheck > 500) {
                 this.lastBiomeCheck = time;
                 const biome = currentEnv.getBiomeAt(this.player.mesh.position);
@@ -335,7 +344,9 @@ export class Game {
             const playerInput = { ...input };
             if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
             this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities);
-            if (this.isBuilding) this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv, this.renderManager.camera, this.inputManager.mousePosition);
+            if (this.isBuilding && this.inputManager.mousePosition) {
+                this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv, this.renderManager.camera, this.inputManager.mousePosition);
+            }
         }
         this.soundManager.update(this.player, delta);
         
@@ -351,10 +362,17 @@ export class Game {
         if (this.isFirstPerson) {
             const head = this.player.model.parts.head;
             if (head) {
+                // Keep body synced to camera facing even when idle in POV
+                this.player.mesh.rotation.y = this.fpvYaw;
+
+                // Ensure head is hidden (re-apply in case sync() turned it back on)
+                head.visible = false;
+                
                 head.getWorldPosition(this.tempHeadPos);
                 this.player.mesh.getWorldDirection(this.tempForward);
-                this.tempHeadPos.addScaledVector(this.tempForward, 0.14);
-                head.visible = false;
+                // Push camera slightly forward of center to reach eye position
+                this.tempHeadPos.addScaledVector(this.tempForward, 0.1); 
+                
                 this.renderManager.controls.target.copy(this.tempHeadPos);
                 this.tempCamDir.copy(this.camDirBase).applyAxisAngle(this.axisX, this.fpvPitch).applyAxisAngle(this.axisY, this.fpvYaw);
                 this.renderManager.camera.position.copy(this.tempHeadPos);

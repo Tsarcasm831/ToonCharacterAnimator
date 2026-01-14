@@ -168,12 +168,12 @@ export class InputManager {
             attack2: !!(this.manualInput.attack2),
             interact: !!(this.keys['KeyE'] || this.manualInput.interact),
             combat: !!(this.keys['KeyC'] || this.manualInput.combat),
-            toggleFirstPerson: !!(this.manualInput.toggleFirstPerson),
+            toggleFirstPerson: !!(this.keys['KeyV'] || this.manualInput.toggleFirstPerson),
             wave: !!(this.manualInput.wave),
             leftHandWave: !!(this.manualInput.leftHandWave),
             summon: !!(this.keys['KeyL'] || this.manualInput.summon),
             toggleBuilder: !!(this.keys['KeyB']),
-            rotateGhost: !!(this.keys['KeyT']), // Moved rotateGhost to T to make room for Fireball on R
+            rotateGhost: !!(this.keys['KeyT']), 
             fireball: !!(this.keys['KeyR'])
         };
     }

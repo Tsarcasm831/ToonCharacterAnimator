@@ -8,7 +8,8 @@ export class HelmBuilder {
             color: 0x90a4ae, 
             metalness: 0.8, 
             roughness: 0.2,
-            flatShading: false
+            flatShading: false,
+            side: THREE.DoubleSide
         });
         const brassMat = new THREE.MeshStandardMaterial({ 
             color: 0xd4af37, 

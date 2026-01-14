@@ -20,6 +20,7 @@ interface ControlPanelProps {
     handleDeathToggle: () => void;
     triggerAction: (key: keyof PlayerInput) => void;
     onExport: () => void;
+    onSpawnAnimals: () => void;
 }
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({ 
@@ -30,7 +31,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     setManualInput, 
     handleDeathToggle, 
     triggerAction,
-    onExport
+    onExport,
+    onSpawnAnimals
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     
@@ -145,6 +147,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                             handleDeathToggle={handleDeathToggle}
                             triggerAction={triggerAction}
                             onExport={onExport}
+                            onSpawnAnimals={onSpawnAnimals}
                         />
                     </ControlSection>
 

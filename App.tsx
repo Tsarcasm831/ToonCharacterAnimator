@@ -14,6 +14,7 @@ import { MobileControls } from './components/ui/MobileControls.tsx';
 import { KeybindsModal } from './components/ui/KeybindsModal.tsx';
 import { WorldMapModal } from './components/ui/WorldMapModal.tsx';
 import { QuestLogModal } from './components/ui/QuestLogModal.tsx';
+import { SpawnAnimalsModal } from './components/ui/SpawnAnimalsModal.tsx';
 import { Compass } from './components/ui/Compass.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
 import { ModelExporter } from './game/ModelExporter.ts';
@@ -104,6 +105,7 @@ const App: React.FC = () => {
   const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
+  const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
   const [playerPosForMap, setPlayerPosForMap] = useState(new THREE.Vector3());
   
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
@@ -123,6 +125,12 @@ const App: React.FC = () => {
 
   const handleExport = () => {
       if (gameInstance.current) ModelExporter.exportAndDownloadZip(gameInstance.current['player']);
+  };
+
+  const handleSpawnAnimal = (type: string, count: number) => {
+    if (gameInstance.current) {
+        gameInstance.current.spawnAnimal(type, count);
+    }
   };
 
   useEffect(() => {
@@ -315,7 +323,7 @@ const App: React.FC = () => {
           }}
           onToggleWorldMap={handleToggleWorldMap}
           onToggleQuestLog={toggleQuestLog}
-          controlsDisabled={isInventoryOpen || isTradeOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isLoading}
+          controlsDisabled={isInventoryOpen || isTradeOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isLoading || isSpawnModalOpen}
         />
       </div>
 
@@ -377,6 +385,7 @@ const App: React.FC = () => {
             handleDeathToggle={handleDeathToggle}
             triggerAction={triggerAction}
             onExport={handleExport}
+            onSpawnAnimals={() => setIsSpawnModalOpen(true)}
           />
       )}
 
@@ -426,6 +435,12 @@ const App: React.FC = () => {
           isOpen={isQuestLogOpen}
           onClose={() => setIsQuestLogOpen(false)}
           quests={quests}
+      />
+
+      <SpawnAnimalsModal 
+        isOpen={isSpawnModalOpen}
+        onClose={() => setIsSpawnModalOpen(false)}
+        onSpawn={handleSpawnAnimal}
       />
 
       {dialogue && (
