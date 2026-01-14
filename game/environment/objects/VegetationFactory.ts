@@ -1,5 +1,6 @@
 
 import * as THREE from 'three';
+import { BerryBush } from './BerryBush';
 
 export class VegetationFactory {
     static createBush(position: THREE.Vector3, scale: number = 1.0) {
@@ -104,5 +105,10 @@ export class VegetationFactory {
 
         group.userData = { type: 'soft', phase: Math.random() * Math.PI };
         return group;
+    }
+
+    static createBerryBush(position: THREE.Vector3, scale: number = 1.0) {
+        const berryBush = new BerryBush(position, scale);
+        return berryBush.group;
     }
 }

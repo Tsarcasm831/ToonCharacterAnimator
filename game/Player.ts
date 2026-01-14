@@ -59,6 +59,11 @@ export class Player {
     punchTimer: number = 0;
     comboChain: number = 0; 
 
+    // Fireball
+    isFireballCasting: boolean = false;
+    fireballTimer: number = 0;
+    hasSpawnedFireball: boolean = false;
+
     // Climbing
     isLedgeGrabbing: boolean = false;
     ledgeGrabTime: number = 0;
@@ -92,6 +97,9 @@ export class Player {
     canTalk: boolean = false;
     talkingTarget: any = null;
     isTalking: boolean = false;
+    
+    // Generic Interaction
+    interactableTarget: THREE.Object3D | null = null;
     
     // Fishing
     isFishing: boolean = false;
@@ -140,7 +148,9 @@ export class Player {
     get mesh() { return this.model.group; }
 
     // Helpers exposed for Interaction/Game
-    addItem(itemName: string) { return this.inventory.addItem(itemName); }
+    addItem(itemName: string, count: number = 1, skipHotbar: boolean = false) { 
+        return this.inventory.addItem(itemName, count, skipHotbar); 
+    }
     
     toggleHitbox() {
         this.isDebugHitbox = !this.isDebugHitbox;
@@ -149,14 +159,10 @@ export class Player {
 
     toggleSkeletonMode() {
         this.isSkeletonMode = !this.isSkeletonMode;
-        // Hide the model skin/mesh
         this.model.group.visible = !this.isSkeletonMode;
-        
-        // If entering skeleton mode, ensure the skeleton debug draw is active
         if (this.isSkeletonMode) {
             this.isDebugHitbox = true;
         }
-        
         PlayerDebug.updateHitboxVisuals(this);
     }
 
@@ -202,7 +208,6 @@ export class Player {
                 this.waveTimer = 0;
             } else {
                 this.waveTimer += dt;
-                // Extended to 3.0s for the "slow raise" animation
                 if (this.waveTimer > 3.0) {
                     this.isWaving = false;
                     this.waveTimer = 0;
@@ -222,7 +227,6 @@ export class Player {
                 this.leftHandWaveTimer = 0;
             } else {
                 this.leftHandWaveTimer += dt;
-                // Extended to 2.5s for smooth casual wave
                 if (this.leftHandWaveTimer > 2.5) {
                     this.isLeftHandWaving = false;
                     this.leftHandWaveTimer = 0;
@@ -242,7 +246,7 @@ export class Player {
                 this.summonTimer = 0;
             } else {
                 this.summonTimer += dt;
-                if (this.summonTimer > 3.0) { // Extended to 3.0s for full recovery
+                if (this.summonTimer > 3.0) {
                     this.isSummoning = false;
                     this.summonTimer = 0;
                 }
@@ -253,22 +257,18 @@ export class Player {
         if (this.status.isDead) {
             // No physics or actions when dead
         } else {
-            // While recovering, we still disable most inputs but physics might settle
             if (this.status.recoverTimer <= 0) {
                 PlayerInteraction.update(this, dt, input, environment.obstacles, entities);
-                // Pass entities to combat for damage calculation
                 PlayerCombat.update(this, dt, input, environment, particleManager, entities);
                 PlayerPhysics.update(this, dt, input, cameraAngle, environment.obstacles);
             }
         }
 
         // 5. Animation
-        // Determine "isMoving" for animator
         const isMoving = (input.x !== 0 || input.y !== 0) && !this.status.isDead;
         this.animator.animate(this, dt, isMoving, input, environment.obstacles);
 
         // 6. Visual Effects
-        // Update Chakra Network - Only visible in Skeleton Mode (J)
         this.chakra.setVisible(this.isSkeletonMode);
         if (this.isSkeletonMode) {
             this.chakra.update(dt, this.model);
@@ -276,8 +276,6 @@ export class Player {
 
         // 7. Debug Visuals
         if (this.isDebugHitbox) {
-            // Important: If mesh is hidden (Skeleton Mode), we must manually update matrices
-            // so the skeleton bones are in the correct world position.
             if (this.isSkeletonMode) {
                 this.model.group.updateMatrixWorld(true);
             }
@@ -294,8 +292,6 @@ export class Player {
             this.config.weaponStance = 'shoulder';
         }
 
-        // --- BOW STATE SANITATION ---
-        // Force cleanup of bow firing state if the bow is no longer equipped
         if (this.config.selectedItem !== 'Bow' && this.isFiringBow) {
             this.isFiringBow = false;
             this.bowCharge = 0;

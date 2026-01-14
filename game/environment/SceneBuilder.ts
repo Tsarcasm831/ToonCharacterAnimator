@@ -78,12 +78,9 @@ uniform float sunSize;
 void main() {
     float h = vViewDir.y;
     
-    // Gradient Sky
-    // Use a steeper curve for the horizon to prevent whiteout
     float gradientFactor = max(pow(max(h + 0.1, 0.0), 0.8), 0.0);
     vec3 skyColor = mix(bottomColor, topColor, gradientFactor);
     
-    // Sun/Moon Disk
     float sunIntensity = dot(vViewDir, normalize(sunPos));
     float sunGlow = pow(max(sunIntensity, 0.0), 120.0) * 1.5;
     float sunDisk = smoothstep(sunSize, sunSize + 0.005, sunIntensity);
@@ -105,7 +102,6 @@ export class SceneBuilder {
             sunSize: { value: 0.999 }
         };
         
-        // Increased sphere size to 150 for better immersion
         const skyGeo = new THREE.SphereGeometry(150, 32, 16);
         const skyMat = new THREE.ShaderMaterial({
             vertexShader: SKY_VERTEX_SHADER,
@@ -118,18 +114,20 @@ export class SceneBuilder {
         sky.name = 'skysphere';
         parent.add(sky);
 
-        // Terrain
+        // Terrain Optimization: Use LODs for patches
         const patchSize = ENV_CONSTANTS.PATCH_SIZE;
         const biomeSize = ENV_CONSTANTS.BIOME_SIZE;
-        // Increase radius to 7 to cover a 15x15 grid of patches (approx 200 units wide)
         const gridRadius = 7; 
+
+        // Shared geometries for efficiency
+        const highResSharedGeo = new THREE.PlaneGeometry(patchSize, patchSize, 32, 32);
+        const lowResSharedGeo = new THREE.PlaneGeometry(patchSize, patchSize, 1, 1);
 
         for (let x = -gridRadius; x <= gridRadius; x++) {
             for (let z = -gridRadius; z <= gridRadius; z++) {
                 const centerX = x * patchSize;
                 const centerZ = z * patchSize;
                 
-                // Calculate Biome Index based on physical position vs Biome Grid (40x40)
                 const biomeX = Math.round(centerX / biomeSize);
                 const biomeZ = Math.round(centerZ / biomeSize);
                 const biomeKey = `${biomeX},${biomeZ}`;
@@ -137,18 +135,17 @@ export class SceneBuilder {
                 const biomeData = BIOME_DATA[biomeKey] || BIOME_DATA['0,0'];
                 const type = biomeData.type;
                 
-                const geo = new THREE.PlaneGeometry(patchSize, patchSize, 64, 64);
-                const posAttribute = geo.attributes.position;
-                const vertex = new THREE.Vector3();
-
-                // Optimization: Check if patch is near the pond
+                // Only use high resolution if near the pond for vertex deformation
                 const distToPond = Math.sqrt(Math.pow(centerX - ENV_CONSTANTS.POND_X, 2) + Math.pow(centerZ - ENV_CONSTANTS.POND_Z, 2));
-                // Max distance from center of patch to corner is sqrt((size/2)^2 + (size/2)^2)
-                // Patch size 13.33 -> half is ~6.67 -> diag is ~9.43
                 const patchDiagRadius = (patchSize / 2) * 1.414;
                 
-                // Only modify vertices if the patch overlaps with the pond area
+                let geo: THREE.BufferGeometry;
+                
                 if (distToPond < (ENV_CONSTANTS.POND_RADIUS + patchDiagRadius)) {
+                    // NEAR POND: Deformable High-Res
+                    geo = highResSharedGeo.clone();
+                    const posAttribute = geo.attributes.position;
+                    const vertex = new THREE.Vector3();
                     for (let i = 0; i < posAttribute.count; i++) {
                         vertex.fromBufferAttribute(posAttribute, i);
                         const wX = centerX + vertex.x;
@@ -164,13 +161,17 @@ export class SceneBuilder {
                         posAttribute.setZ(i, vertex.z);
                     }
                     geo.computeVertexNormals();
+                } else {
+                    // DISTANT: Static Low-Res
+                    geo = lowResSharedGeo;
                 }
+
                 const texture = TerrainTextureFactory.getTexture(type);
                 const mat = new THREE.MeshStandardMaterial({ 
                     map: texture,
                     color: 0xdddddd,
                     roughness: 0.9,
-                    metalness: (type === 'Metal' || type === 'Obsidian') ? 0.6 : 0.1
+                    metalness: (type === 'Metal' || type === 'Obsidian') ? 0.4 : 0.05
                 });
                 const mesh = new THREE.Mesh(geo, mat);
                 mesh.rotation.x = -Math.PI / 2;
@@ -182,7 +183,7 @@ export class SceneBuilder {
         }
         
         // Water Plane
-        const waterGeo = new THREE.CircleGeometry(ENV_CONSTANTS.POND_RADIUS, 64);
+        const waterGeo = new THREE.CircleGeometry(ENV_CONSTANTS.POND_RADIUS, 32);
         const waterMat = new THREE.ShaderMaterial({
             vertexShader: WATER_VERTEX_SHADER,
             fragmentShader: WATER_FRAGMENT_SHADER,
@@ -200,8 +201,8 @@ export class SceneBuilder {
         water.name = 'pond_water';
         parent.add(water);
     
-        // Grid
-        const grid = new THREE.GridHelper(200, 200, 0x000000, 0x000000); 
+        // Grid helper at low frequency
+        const grid = new THREE.GridHelper(200, 50, 0x000000, 0x000000); 
         if(grid.material instanceof THREE.Material) {
             grid.material.opacity = 0.05;
             grid.material.transparent = true;

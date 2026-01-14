@@ -42,6 +42,11 @@ export class PlayerInteraction {
         const skinnableTarget = this.getSkinnableTargetNearby(player, obstacles);
         player.canSkin = !!skinnableTarget && hasKnife;
 
+        // Generic Interaction Check (Forge, etc.)
+        const interactableTarget = this.getInteractableTargetNearby(player, obstacles);
+        // Set the interactable target on the player
+        player.interactableTarget = interactableTarget;
+
         // Dialogue Check
         this.checkNPCInteraction(player, entities);
 
@@ -144,6 +149,23 @@ export class PlayerInteraction {
             if (dist < minDist) { 
                 minDist = dist;
                 best = sk;
+            }
+        }
+        return best;
+    }
+
+    private static getInteractableTargetNearby(player: Player, obstacles: THREE.Object3D[]): THREE.Object3D | null {
+        const interactables = obstacles.filter(o => o.userData.interactType);
+        let best = null;
+        let minDist = 2.0;
+
+        for (const it of interactables) {
+            const itPos = new THREE.Vector3();
+            it.getWorldPosition(itPos);
+            const dist = player.mesh.position.distanceTo(itPos);
+            if (dist < minDist) { 
+                minDist = dist;
+                best = it;
             }
         }
         return best;

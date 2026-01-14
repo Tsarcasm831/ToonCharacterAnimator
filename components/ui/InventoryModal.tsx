@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { PlayerConfig } from '../../types';
+import { PlayerConfig, InventoryItem } from '../../types';
 import { ITEM_ICONS } from '../../data/constants';
 import { PlayerPreview } from './PlayerPreview';
 
@@ -8,10 +8,10 @@ interface InventoryModalProps {
     isOpen: boolean;
     onClose: () => void;
     config: PlayerConfig;
-    inventory: string[];
+    inventory: (InventoryItem | null)[];
     equipmentSlots: Record<string, string | null>;
     onEquip: (index: number) => void;
-    onInventoryChange: (items: string[]) => void;
+    onInventoryChange: (items: (InventoryItem | null)[]) => void;
     onEquipItem: (item: string, slotId: string) => void;
     onUnequipItem: (slotId: string) => void;
     coins: number;
@@ -19,16 +19,13 @@ interface InventoryModalProps {
 
 const TABS = ['Equipment', 'Consumables', 'Quest'];
 
-// Stats derivation helper
 const getStats = (cfg: PlayerConfig) => {
     let str = 10;
     let dex = 10;
     let int = 10;
-    
     if (cfg.bodyVariant === 'muscular') { str += 5; dex -= 2; }
     if (cfg.bodyVariant === 'slim') { str -= 2; dex += 5; }
     if (cfg.bodyVariant === 'heavy') { str += 8; dex -= 5; }
-    
     return {
         Level: 5,
         Health: 100 + (str * 2),
@@ -50,19 +47,14 @@ const getStats = (cfg: PlayerConfig) => {
 };
 
 const EQUIPMENT_SLOTS = [
-    // Center Column
     { id: 'helm', type: 'helm', icon: '⛑️', label: 'Helm', style: { top: '2%', left: '50%', transform: 'translateX(-50%)' } },
     { id: 'hood', type: 'hood', icon: '🧥', label: 'Hood', style: { top: '8%', left: '30%', transform: 'translateX(-50%)' } },
     { id: 'mask', type: 'mask', icon: '😷', label: 'Mask', style: { top: '13%', left: '50%', transform: 'translateX(-50%)' } },
-    
-    // Left Column
     { id: 'shoulder', type: 'shoulders', icon: '🛡️', label: 'Shoulder', style: { top: '15%', left: '12px' } },
     { id: 'torso', type: 'shirt', icon: '👕', label: 'Torso', style: { top: '27%', left: '12px' } },
     { id: 'legs', type: 'pants', icon: '👖', label: 'Legs', style: { top: '39%', left: '12px' } },
     { id: 'boots', type: 'shoes', icon: '👢', label: 'Boots', style: { top: '51%', left: '12px' } },
     { id: 'mount', type: 'mount', icon: '🐎', label: 'Mount', style: { top: '63%', left: '12px' } },
-
-    // Right Column
     { id: 'amulet', type: 'amulet', icon: '📿', label: 'Amulet', style: { top: '15%', right: '12px' }, tooltipSide: 'left' },
     { id: 'gloves', type: 'gloves', icon: '🧤', label: 'Gloves', style: { top: '27%', right: '12px' }, tooltipSide: 'left' },
     { id: 'ring1', type: 'ring', icon: '💍', label: 'Ring', style: { top: '39%', right: '12px' }, tooltipSide: 'left' },
@@ -88,14 +80,13 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 }) => {
     const [activeTab, setActiveTab] = useState('Equipment');
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-    const [draggedItem, setDraggedItem] = useState<string | null>(null);
+    const [draggedItem, setDraggedItem] = useState<InventoryItem | null>(null);
     
     if (!isOpen) return null;
 
     const stats = getStats(config);
 
-    // --- Drag & Drop Handlers ---
-    const handleDragStart = (e: React.DragEvent, index: number, item: string) => {
+    const handleDragStart = (e: React.DragEvent, index: number, item: InventoryItem) => {
         setDraggedIndex(index);
         setDraggedItem(item);
         e.dataTransfer.effectAllowed = 'move';
@@ -109,13 +100,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     const handleDrop = (e: React.DragEvent, targetIndex: number) => {
         e.preventDefault();
         if (draggedIndex === null || draggedIndex === targetIndex) return;
-
         const newInv = [...inventory];
-        // Swap
         const temp = newInv[draggedIndex];
         newInv[draggedIndex] = newInv[targetIndex];
         newInv[targetIndex] = temp;
-        
         onInventoryChange(newInv);
         setDraggedIndex(null);
         setDraggedItem(null);
@@ -124,36 +112,38 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     const handleDropOnEquip = (e: React.DragEvent, slotId: string) => {
         e.preventDefault();
         if (!draggedItem) return;
-
-        // Verify compatibility
-        const validSlot = ITEM_TO_SLOT_MAP[draggedItem];
+        const validSlot = ITEM_TO_SLOT_MAP[draggedItem.name];
         if (validSlot === slotId) {
-            onEquipItem(draggedItem, slotId);
-            
-            // Remove from inventory
+            onEquipItem(draggedItem.name, slotId);
             if (draggedIndex !== null) {
                 const newInv = [...inventory];
-                newInv[draggedIndex] = ''; // Clear slot
+                const item = newInv[draggedIndex];
+                if (item) {
+                    item.count--;
+                    if (item.count <= 0) newInv[draggedIndex] = null;
+                }
                 onInventoryChange(newInv);
             }
         }
-        
         setDraggedIndex(null);
         setDraggedItem(null);
     };
 
-    const handleRightClickItem = (e: React.MouseEvent, item: string, index: number) => {
+    const handleRightClickItem = (e: React.MouseEvent, item: InventoryItem, index: number) => {
         e.preventDefault();
-        const targetSlot = ITEM_TO_SLOT_MAP[item];
+        const targetSlot = ITEM_TO_SLOT_MAP[item.name];
         if (targetSlot) {
-            onEquipItem(item, targetSlot);
+            onEquipItem(item.name, targetSlot);
             const newInv = [...inventory];
-            newInv[index] = '';
+            const currentItem = newInv[index];
+            if (currentItem) {
+                currentItem.count--;
+                if (currentItem.count <= 0) newInv[index] = null;
+            }
             onInventoryChange(newInv);
         }
     };
 
-    // --- Slot Renderer ---
     const renderSlot = (index: number, isHotbar: boolean = false) => {
         const item = inventory[index];
         return (
@@ -172,11 +162,16 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 } ${isHotbar ? 'border-slate-500/50' : ''}`}
             >
                 {item && (
-                    <>
+                    <div className="flex flex-col items-center justify-center">
                         <span className="text-2xl drop-shadow-md group-hover:scale-110 transition-transform">
-                            {ITEM_ICONS[item] || '📦'}
+                            {ITEM_ICONS[item.name] || '📦'}
                         </span>
-                    </>
+                        {item.count > 1 && (
+                            <div className="absolute top-1 right-1 bg-black/60 rounded px-1 min-w-[12px] text-center border border-white/10 z-10">
+                                <span className="text-[10px] font-black text-white">{item.count}</span>
+                            </div>
+                        )}
+                    </div>
                 )}
                 {isHotbar && (
                     <span className="absolute bottom-1 right-1 text-[8px] font-bold px-1 rounded text-blue-300 bg-blue-900/40">
@@ -189,34 +184,18 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
-            {/* Modal Container */}
             <div className="flex w-[850px] h-[600px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden relative">
-                
-                {/* Close Button */}
-                <button 
-                    onClick={onClose}
-                    className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white transition-colors"
-                >
+                <button onClick={onClose} className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white transition-colors">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-
-                {/* LEFT: Character Preview & Stats */}
                 <div className="w-1/3 bg-slate-800 border-r border-slate-700 flex flex-col relative">
-                    {/* Background Light Effect */}
                     <div className="absolute inset-0 bg-radial-gradient from-slate-700/50 to-slate-900/90 pointer-events-none" />
-                    
                     <div className="flex-1 relative overflow-hidden group">
                         <PlayerPreview config={config} />
-                        
-                        {/* Equipment Overlay Slots */}
                         {EQUIPMENT_SLOTS.map((slot) => {
                             const equippedItem = equipmentSlots[slot.id];
                             const isEquipped = !!equippedItem || config.equipment[slot.type as keyof typeof config.equipment];
-                            
-                            const tooltipPosClass = (slot as any).tooltipSide === 'left' 
-                                ? 'right-full mr-2' 
-                                : 'left-full ml-2';
-                            
+                            const tooltipPosClass = (slot as any).tooltipSide === 'left' ? 'right-full mr-2' : 'left-full ml-2';
                             return (
                                 <div 
                                     key={slot.id}
@@ -230,17 +209,13 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                                     <span className={`text-lg drop-shadow-md transition-opacity ${isEquipped ? 'opacity-100 grayscale-0' : 'opacity-40 grayscale'}`}>
                                         {equippedItem ? (ITEM_ICONS[equippedItem] || slot.icon) : slot.icon}
                                     </span>
-                                    {/* Tooltip */}
                                     <div className={`absolute ${tooltipPosClass} top-1/2 -translate-y-1/2 px-2 py-1 bg-black/90 text-white text-[10px] font-bold rounded opacity-0 group-hover/slot:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-30`}>
                                         {equippedItem || slot.label}
                                     </div>
-                                    {/* Active Glow */}
                                     {isEquipped && <div className="absolute inset-0 rounded shadow-[0_0_10px_rgba(59,130,246,0.3)] animate-pulse" />}
                                 </div>
                             );
                         })}
-
-                        {/* Character Info Overlay */}
                         <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent flex flex-col items-center justify-end h-1/3 pointer-events-none">
                             <h2 className="text-3xl font-black text-white uppercase tracking-tighter drop-shadow-xl">Hero</h2>
                             <div className="flex items-center gap-2 mt-1 opacity-80">
@@ -251,8 +226,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                             </div>
                         </div>
                     </div>
-                    
-                    {/* Stats Panel */}
                     <div className="p-5 bg-slate-900/95 border-t border-slate-700 relative z-10 backdrop-blur-sm shadow-[0_-10px_20px_rgba(0,0,0,0.3)]">
                         <div className="flex items-center justify-between mb-3">
                             <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Attributes</h3>
@@ -270,11 +243,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         </div>
                     </div>
                 </div>
-
-                {/* RIGHT: Inventory Grid */}
                 <div className="w-2/3 flex flex-col bg-slate-900/95">
-                    
-                    {/* Tabs */}
                     <div className="flex border-b border-slate-700 bg-slate-900">
                         {TABS.map(tab => (
                             <button 
@@ -290,8 +259,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                             </button>
                         ))}
                     </div>
-
-                    {/* Main Grid Area (Scrollable) */}
                     <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-slate-900/50">
                         {activeTab === 'Equipment' ? (
                             <div className="grid grid-cols-5 gap-3">
@@ -305,8 +272,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                             </div>
                         )}
                     </div>
-
-                    {/* Quick Access Bar (Hotbar 0-7) */}
                     <div className="bg-slate-800/90 border-t border-slate-700 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.2)] z-10">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
@@ -318,8 +283,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                             {Array.from({ length: 8 }).map((_, i) => renderSlot(i, true))}
                         </div>
                     </div>
-
-                    {/* Footer / Coins */}
                     <div className="px-6 py-3 border-t border-slate-700 flex justify-between items-center bg-slate-800">
                         <div className="text-[10px] text-slate-500 font-medium tracking-tight">
                             Drag & Drop to organize • Right-click to Equip

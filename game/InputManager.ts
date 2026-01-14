@@ -7,7 +7,8 @@ export class InputManager {
     manualInput: PlayerInput = {
         x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false,
         attack1: false, attack2: false, interact: false, combat: false,
-        toggleFirstPerson: false, wave: false, leftHandWave: false, summon: false, toggleBuilder: false, rotateGhost: false
+        toggleFirstPerson: false, wave: false, leftHandWave: false, summon: false, toggleBuilder: false, rotateGhost: false,
+        fireball: false
     };
     isBlocked: boolean = false;
     
@@ -143,7 +144,8 @@ export class InputManager {
             return {
                 x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false,
                 attack1: false, attack2: false, interact: false, combat: false,
-                toggleFirstPerson: false, wave: false, leftHandWave: false, summon: false, toggleBuilder: false, rotateGhost: false
+                toggleFirstPerson: false, wave: false, leftHandWave: false, summon: false, toggleBuilder: false, rotateGhost: false,
+                fireball: false
             };
         }
 
@@ -171,7 +173,8 @@ export class InputManager {
             leftHandWave: !!(this.manualInput.leftHandWave),
             summon: !!(this.keys['KeyL'] || this.manualInput.summon),
             toggleBuilder: !!(this.keys['KeyB']),
-            rotateGhost: !!(this.keys['KeyR']) 
+            rotateGhost: !!(this.keys['KeyT']), // Moved rotateGhost to T to make room for Fireball on R
+            fireball: !!(this.keys['KeyR'])
         };
     }
 

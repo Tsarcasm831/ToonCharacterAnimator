@@ -6,6 +6,11 @@ export type HairStyle = 'bald' | 'crew';
 
 export type QuestStatus = 'active' | 'completed' | 'failed';
 
+export interface InventoryItem {
+  name: string;
+  count: number;
+}
+
 export interface Quest {
   id: string;
   title: string;
@@ -53,7 +58,8 @@ export interface PlayerInput {
   leftHandWave: boolean;
   summon: boolean; 
   toggleBuilder: boolean; 
-  rotateGhost: boolean;   
+  rotateGhost: boolean;
+  fireball: boolean;
 }
 
 export interface PlayerConfig {

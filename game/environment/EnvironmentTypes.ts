@@ -17,6 +17,8 @@ export interface RockData {
     health: number;
     shudderTimer: number;
     basePosition: THREE.Vector3;
+    hasOre?: boolean;
+    oreType?: string;
 }
 
 export interface FallingObject {

@@ -26,7 +26,9 @@ export class PlayerAnimator {
             this.status.animateDeath(player, parts, dt, damp);
             return;
         } 
-        if (player.isFiringBow) {
+        if (player.isFireballCasting) {
+            this.action.animateFireball(player, parts, dt, damp);
+        } else if (player.isFiringBow) {
             this.action.animateFireArrow(player, parts, dt, damp);
         } else if (player.isLedgeGrabbing) {
             this.action.animateClimb(player, parts, dt, damp);

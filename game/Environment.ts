@@ -13,7 +13,7 @@ import { PlayerUtils } from './player/PlayerUtils';
 export class Environment {
     private scene: THREE_LIB.Scene;
     public group: THREE_LIB.Group; // Root group for this environment
-    private obstacleManager: ObstacleManager;
+    public obstacleManager: ObstacleManager;
     private debrisSystem: DebrisSystem;
     private grassManager: GrassManager;
     private snowSystem: SnowSystem;

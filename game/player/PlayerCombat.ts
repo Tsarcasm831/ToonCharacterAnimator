@@ -17,6 +17,14 @@ import { Spider } from '../entities/animal/aggressive/Spider';
 import { Lizard } from '../entities/animal/neutral/Lizard';
 import { Horse } from '../entities/animal/tameable/Horse';
 
+interface Projectile {
+    mesh: THREE.Object3D;
+    velocity: THREE.Vector3;
+    life: number;
+    startPos: THREE.Vector3;
+    type: 'arrow' | 'fireball';
+}
+
 export class PlayerCombat {
     private static _tempBox1 = new THREE.Box3();
     private static _tempBox2 = new THREE.Box3();
@@ -31,8 +39,21 @@ export class PlayerCombat {
             const moveStep = p.velocity.clone().multiplyScalar(dt);
             p.mesh.position.add(moveStep);
             
+            // Fireball visuals
+            if (p.type === 'fireball') {
+                p.mesh.rotation.y += dt * 10;
+                p.mesh.rotation.z += dt * 5;
+                const scale = 1.0 + Math.sin(Date.now() * 0.01) * 0.1;
+                p.mesh.scale.setScalar(scale);
+                
+                // Trail
+                if (Math.random() > 0.4) {
+                    particleManager.emit(p.mesh.position, 1, 'spark');
+                }
+            }
+
             // Check Collision (Environment & Entities)
-            if (this.checkProjectileCollision(p.mesh.position, environment, particleManager, entities)) {
+            if (this.checkProjectileCollision(p, environment, particleManager, entities)) {
                 if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
                 this.activeProjectiles.splice(i, 1);
                 continue;
@@ -53,7 +74,9 @@ export class PlayerCombat {
         }
         
         // Handle Inputs
-        if (player.config.selectedItem === 'Fishing Pole') {
+        if (input.fireball) {
+            this.handleFireballInput(player, dt, input, particleManager);
+        } else if (player.config.selectedItem === 'Fishing Pole') {
             this.handleFishingInput(player, dt, input);
         } else if (player.config.selectedItem === 'Bow') {
             this.handleBowInput(player, dt, input, particleManager);
@@ -88,9 +111,11 @@ export class PlayerCombat {
         this.updateFishing(player, dt);
         this.updateBowLogic(player, dt);
         this.updatePunchCombo(player, dt, input, environment.obstacles);
+        this.updateFireballLogic(player, dt, particleManager);
     }
 
-    private static checkProjectileCollision(pos: THREE.Vector3, environment: any, particleManager: ParticleManager, entities: any[]): boolean {
+    private static checkProjectileCollision(p: Projectile, environment: any, particleManager: ParticleManager, entities: any[]): boolean {
+        const pos = p.mesh.position;
         // 1. Check Obstacles (Trees/Rocks)
         for (const obs of environment.obstacles) {
             const obsPos = new THREE.Vector3();
@@ -99,7 +124,12 @@ export class PlayerCombat {
             const dist = pos.distanceTo(obsPos);
             if (dist < 1.5) {
                 const matType = obs.userData.type === 'hard' ? 'stone' : 'wood';
-                particleManager.emit(pos, 5, matType === 'stone' ? 'spark' : 'wood');
+                if (p.type === 'fireball') {
+                    particleManager.emit(pos, 15, 'spark');
+                    environment.damageObstacle(obs, 2);
+                } else {
+                    particleManager.emit(pos, 5, matType === 'stone' ? 'spark' : 'wood');
+                }
                 return true;
             }
         }
@@ -107,21 +137,26 @@ export class PlayerCombat {
         // 2. Check Entities
         for (const ent of entities) {
             if (ent && ent.hitbox && !ent.isDead) {
-                const arrowPoint = pos;
+                const projectilePoint = pos;
                 let hit = false;
                 ent.hitbox.children.forEach(part => {
                     if (part instanceof THREE.Mesh) {
                         part.updateMatrixWorld(true);
                         this._tempBox1.setFromObject(part);
-                        if (this._tempBox1.containsPoint(arrowPoint)) {
+                        if (this._tempBox1.containsPoint(projectilePoint)) {
                             hit = true;
                         }
                     }
                 });
 
                 if (hit) {
-                    ent.takeDamage(5); 
-                    particleManager.emit(pos, 8, 'wood');
+                    const damage = p.type === 'fireball' ? 15 : 5;
+                    ent.takeDamage(damage); 
+                    if (p.type === 'fireball') {
+                        particleManager.emit(pos, 20, 'spark');
+                    } else {
+                        particleManager.emit(pos, 8, 'wood');
+                    }
                     return true;
                 }
             }
@@ -130,9 +165,81 @@ export class PlayerCombat {
         return false;
     }
 
+    private static handleFireballInput(player: Player, dt: number, input: PlayerInput, particleManager: ParticleManager) {
+        // Fix: Use player.status.isDead instead of player.isDead
+        if (!player.isFireballCasting && !player.status.isDead) {
+            player.isFireballCasting = true;
+            player.fireballTimer = 0;
+            player.hasSpawnedFireball = false;
+        }
+    }
+
+    private static updateFireballLogic(player: Player, dt: number, particleManager: ParticleManager) {
+        if (player.isFireballCasting) {
+            player.fireballTimer += dt;
+            
+            // Energy build particles
+            if (!player.hasSpawnedFireball && player.fireballTimer < 0.4) {
+                if (Math.random() > 0.5) {
+                    const spawnPos = player.mesh.position.clone();
+                    spawnPos.y += 1.3;
+                    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion);
+                    spawnPos.addScaledVector(forward, 0.4);
+                    particleManager.emit(spawnPos, 1, 'spark');
+                }
+            }
+
+            if (!player.hasSpawnedFireball && player.fireballTimer >= 0.4) {
+                this.spawnFireball(player, particleManager);
+                player.hasSpawnedFireball = true;
+            }
+
+            if (player.fireballTimer >= 0.8) {
+                player.isFireballCasting = false;
+                player.fireballTimer = 0;
+            }
+        }
+    }
+
+    private static spawnFireball(player: Player, particleManager: ParticleManager) {
+        const spawnPos = player.mesh.position.clone();
+        spawnPos.y += 1.35; 
+        
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion);
+        spawnPos.addScaledVector(forward, 1.0);
+
+        const fireballGeo = new THREE.SphereGeometry(0.2, 16, 16);
+        const fireballMat = new THREE.MeshStandardMaterial({
+            color: 0xff4400,
+            emissive: 0xff8800,
+            emissiveIntensity: 5.0,
+            transparent: true,
+            opacity: 0.9
+        });
+        
+        const fireball = new THREE.Mesh(fireballGeo, fireballMat);
+        fireball.position.copy(spawnPos);
+        
+        if (player.mesh.parent) {
+            player.mesh.parent.add(fireball);
+        }
+
+        const speed = 25.0;
+        const velocity = forward.clone().normalize().multiplyScalar(speed);
+        
+        this.activeProjectiles.push({
+            mesh: fireball,
+            velocity: velocity,
+            life: 2.0,
+            startPos: spawnPos.clone(),
+            type: 'fireball'
+        });
+
+        particleManager.emit(spawnPos, 10, 'spark'); 
+    }
+
     private static handleBowInput(player: Player, dt: number, input: PlayerInput, particleManager: ParticleManager) {
         // If in release phase, only return if the timer hasn't finished. 
-        // We add a safety check: if they click again during release, we might want to queue the next draw.
         if (player.bowState === 'release' && player.bowTimer < 0.3) {
             return; 
         }
@@ -172,12 +279,7 @@ export class PlayerCombat {
         }
     }
 
-    private static activeProjectiles: { 
-        mesh: THREE.Group, 
-        velocity: THREE.Vector3, 
-        life: number,
-        startPos: THREE.Vector3 
-    }[] = [];
+    private static activeProjectiles: Projectile[] = [];
 
     private static fireArrow(player: Player, particleManager: ParticleManager) {
         const spawnPos = player.mesh.position.clone();
@@ -204,7 +306,8 @@ export class PlayerCombat {
             mesh: arrow,
             velocity: velocity,
             life: 3.0,
-            startPos: spawnPos.clone()
+            startPos: spawnPos.clone(),
+            type: 'arrow'
         });
 
         particleManager.emit(spawnPos, 5, 'spark'); 

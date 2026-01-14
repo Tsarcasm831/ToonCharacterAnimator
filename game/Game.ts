@@ -9,7 +9,7 @@ import { InputManager } from './InputManager';
 import { SoundManager } from './SoundManager';
 import { ParticleManager } from './ParticleManager';
 import { BuilderManager } from './builder/BuilderManager';
-import { PlayerConfig, PlayerInput } from '../types';
+import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
 import { PlayerDebug } from './player/PlayerDebug';
 import { RenderManager } from './core/RenderManager';
 import { EntityManager } from './managers/EntityManager';
@@ -62,7 +62,7 @@ export class Game {
     private _onPointerLockChange: (e: Event) => void;
     private _onMouseMove: (e: MouseEvent) => void;
 
-    onInventoryUpdate?: (items: string[]) => void;
+    onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
     onInteractionUpdate?: (text: string | null, progress: number | null) => void;
     onBuilderToggle?: (active: boolean) => void;
     onBiomeUpdate?: (biome: { name: string, color: string }) => void;
@@ -70,14 +70,16 @@ export class Game {
     onToggleWorldMapCallback?: (pos: THREE.Vector3) => void;
     onDialogueTrigger?: (content: string) => void;
     onTradeTrigger?: (merchantType: string) => void;
+    onForgeTrigger?: () => void;
 
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
     private lastRotationValue = 0;
+    private lastBiomeCheck = 0;
     private readonly rotationUpdateIntervalMs = 100;
     private readonly rotationUpdateEpsilon = 0.01;
 
-    constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: string[], activeScene: 'dev' | 'world') {
+    constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: (InventoryItem | null)[], activeScene: 'dev' | 'world') {
         this.config = initialConfig;
         this.activeScene = activeScene;
         this.renderManager = new RenderManager(container);
@@ -94,15 +96,12 @@ export class Game {
         Object.assign(this.player.config, initialConfig);
         this.player.inventory.setItems(initialInventory);
         
-        // Define standard cell size used for grid labels
         const GRID_CELL_SIZE = 1.3333;
 
         if (activeScene === 'dev') {
             this.environment = new Environment(this.renderManager.scene);
             this.entityManager = new EntityManager(this.renderManager.scene, this.environment, initialConfig);
             
-            // Initial position for Dev at Timber Wharf label [-17, -30]
-            // We multiply the index by cell size to land on the correct label
             const startX = -17 * GRID_CELL_SIZE;
             const startZ = 30 * GRID_CELL_SIZE;
             
@@ -111,12 +110,16 @@ export class Game {
             this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
             
             this.buildInitialStructure();
+
+            // Hook up log pickup event
+            this.environment.obstacleManager.onLogPickedUp = () => {
+                this.player.addItem('Wood', 8, true);
+            };
         } else {
             this.worldEnvironment = new WorldEnvironment(this.renderManager.scene);
             this.entityManager = new EntityManager(this.renderManager.scene, null as any, initialConfig);
             this.entityManager.setVisibility(false);
 
-            // Initial position for World
             this.player.mesh.position.set(0, 5, 0);
             this.renderManager.controls.target.set(0, 6.7, 0);
             this.renderManager.camera.position.set(0, 8.2, 5.0);
@@ -165,7 +168,6 @@ export class Game {
             this.environment?.setVisible(true);
             this.worldEnvironment?.setVisible(false);
 
-            // Teleport to Timber Wharf label [-17, -30] for dev scene
             const startX = -17 * GRID_CELL_SIZE;
             const startZ = 30 * GRID_CELL_SIZE;
             
@@ -176,68 +178,35 @@ export class Game {
             this.environment?.setVisible(false);
             this.worldEnvironment?.setVisible(true);
 
-            // Teleport to the World Scene (spawn at 0, 5, 0 relative to world center)
             this.player.mesh.position.set(0, 5, 0);
             this.renderManager.controls.target.set(0, 6.7, 0);
             this.renderManager.camera.position.set(0, 8.2, 5.0);
         }
         this.prevTargetPos.copy(this.renderManager.controls.target);
-
-        // Hide entities in world scene
         this.entityManager.setVisibility(sceneName === 'dev');
     }
 
     private buildInitialStructure() {
         if (!this.environment) return;
-
         const GRID_SIZE = 1.3333;
-        const startX = -27;
-        const startZ = 36;
-        const size = 5;
-
-        // Foundation is 0.4m tall, centered at 0.2m
+        const startX = -27, startZ = 36, size = 5;
         const foundationTop = 0.4;
-
-        // 1. Build 5x5 Foundation
         for (let x = 0; x < size; x++) {
             for (let z = 0; z < size; z++) {
                 this.placeStructure('foundation', (startX + x) * GRID_SIZE + GRID_SIZE/2, 0.2, (startZ + z) * GRID_SIZE + GRID_SIZE/2, 0);
             }
         }
-
-        // 2. Build Walls and Doorways around the perimeter
-        // Wall/Doorway is 2.75m tall, center is 1.375m. 
-        // If placed on foundation, base is at 0.4m, center is at 0.4 + 1.375 = 1.775m
-        const wallY = foundationTop + 1.375;
-
-        // North (z=0) and South (z=size)
+        const wallY = foundationTop + 1.65;
         for (let x = 0; x < size; x++) {
-            // North wall
-            if (x === 1) {
-                // Doorway at (startX + 1, startZ) - Doorway is 2 grids wide, centers on line
-                this.placeStructure('doorway', (startX + x + 1.0) * GRID_SIZE, wallY, (startZ) * GRID_SIZE, 0);
-                x++; // Skip next cell since doorway is 2 grids wide
-            } else {
-                this.placeStructure('wall', (startX + x) * GRID_SIZE + GRID_SIZE/2, wallY, (startZ) * GRID_SIZE, 0);
-            }
+            if (x === 1) { this.placeStructure('doorway', (startX + x + 1.0) * GRID_SIZE, wallY, (startZ) * GRID_SIZE, 0); x++; } 
+            else this.placeStructure('wall', (startX + x) * GRID_SIZE + GRID_SIZE/2, wallY, (startZ) * GRID_SIZE, 0);
         }
-
         for (let x = 0; x < size; x++) {
-            // South wall
-            if (x === 3) {
-                // Doorway at (startX + 3, startZ + size)
-                this.placeStructure('doorway', (startX + x + 1.0) * GRID_SIZE, wallY, (startZ + size) * GRID_SIZE, 0);
-                x++; // Skip next cell
-            } else {
-                 this.placeStructure('wall', (startX + x) * GRID_SIZE + GRID_SIZE/2, wallY, (startZ + size) * GRID_SIZE, 0);
-            }
+            if (x === 3) { this.placeStructure('doorway', (startX + x + 1.0) * GRID_SIZE, wallY, (startZ + size) * GRID_SIZE, 0); x++; } 
+            else this.placeStructure('wall', (startX + x) * GRID_SIZE + GRID_SIZE/2, wallY, (startZ + size) * GRID_SIZE, 0);
         }
-
-        // West (x=0) and East (x=size)
         for (let z = 0; z < size; z++) {
-            // West wall
             this.placeStructure('wall', (startX) * GRID_SIZE, wallY, (startZ + z) * GRID_SIZE + GRID_SIZE/2, Math.PI / 2);
-            // East wall
             this.placeStructure('wall', (startX + size) * GRID_SIZE, wallY, (startZ + z) * GRID_SIZE + GRID_SIZE/2, Math.PI / 2);
         }
     }
@@ -246,16 +215,7 @@ export class Game {
         const mesh = BuildingParts.createStructureMesh(type, false);
         mesh.position.set(x, y, z);
         mesh.rotation.y = rotation;
-
-        const applyUserData = (obj: THREE.Object3D) => {
-            obj.userData = { 
-                ...obj.userData,
-                type: 'hard', 
-                material: 'wood',
-                structureType: type 
-            };
-        };
-
+        const applyUserData = (obj: THREE.Object3D) => { obj.userData = { ...obj.userData, type: 'hard', material: 'wood', structureType: type }; };
         if (mesh instanceof THREE.Group) {
             mesh.traverse(applyUserData);
             mesh.children.forEach(child => this.environment?.obstacles.push(child));
@@ -263,7 +223,6 @@ export class Game {
             applyUserData(mesh);
             this.environment?.obstacles.push(mesh);
         }
-        
         this.renderManager.scene.add(mesh);
     }
 
@@ -275,9 +234,7 @@ export class Game {
     }
 
     setBuildingType(type: any) { this.builderManager.setType(type); }
-
     private onPointerLockChange() { if (document.pointerLockElement !== this.renderManager.renderer.domElement && this.isFirstPerson) this.toggleFirstPerson(false); }
-
     private onMouseMove(e: MouseEvent) {
         if (this.isFirstPerson && document.pointerLockElement === this.renderManager.renderer.domElement) {
             const sensitivity = 0.002;
@@ -289,20 +246,10 @@ export class Game {
     }
 
     setManualInput(input: Partial<PlayerInput>) { this.inputManager.setManualInput(input); }
-
-    setConfig(config: PlayerConfig) {
-        this.config = config;
-        Object.assign(this.player.config, config);
-        this.soundManager.setVolume(config.globalVolume);
-    }
-
-    setInventory(items: string[]) { this.player.inventory.setItems(items); }
+    setConfig(config: PlayerConfig) { this.config = config; Object.assign(this.player.config, config); this.soundManager.setVolume(config.globalVolume); }
+    setInventory(items: (InventoryItem | null)[]) { this.player.inventory.setItems(items); }
     setSlotSelectCallback(cb: (index: number) => void) { this.inputManager.onSlotSelect = cb; }
-    setControlsActive(active: boolean) { 
-        this.renderManager.controls.enabled = active; 
-        this.inputManager.setBlocked(!active); 
-    }
-
+    setControlsActive(active: boolean) { this.renderManager.controls.enabled = active; this.inputManager.setBlocked(!active); }
     private toggleCameraFocus() { if (this.isFirstPerson) this.toggleFirstPerson(false); this.cameraFocusMode = (this.cameraFocusMode + 1) % 3; }
 
     private toggleFirstPerson(forceState?: boolean) {
@@ -310,31 +257,26 @@ export class Game {
         if (nextState === this.isFirstPerson) return;
         this.isFirstPerson = nextState;
         if (this.isFirstPerson) {
-            this.renderManager.controls.minDistance = 0.01; 
-            this.renderManager.controls.maxDistance = 0.1; 
+            this.renderManager.controls.minDistance = 0.01; this.renderManager.controls.maxDistance = 0.1; 
             this.renderManager.controls.enabled = false;
-            this.fpvYaw = this.player.mesh.rotation.y + Math.PI; 
-            this.fpvPitch = 0;
+            this.fpvYaw = this.player.mesh.rotation.y + Math.PI; this.fpvPitch = 0;
             this.renderManager.renderer.domElement.requestPointerLock();
         } else {
-            this.renderManager.controls.minDistance = 0.1; 
-            this.renderManager.controls.maxDistance = 100; 
+            this.renderManager.controls.minDistance = 0.1; this.renderManager.controls.maxDistance = 100; 
             this.renderManager.controls.enabled = true;
             if (document.pointerLockElement === this.renderManager.renderer.domElement) document.exitPointerLock();
             if (this.player.model.parts.head) this.player.model.parts.head.visible = true;
-            
             const dir = new THREE.Vector3().subVectors(this.renderManager.camera.position, this.renderManager.controls.target).normalize();
             this.renderManager.camera.position.copy(this.renderManager.controls.target).addScaledVector(dir, 4.0);
         }
     }
 
-    resize() {
-        this.renderManager.resize();
-    }
+    resize() { this.renderManager.resize(); }
 
     private animate(time: number = 0) {
         this.animationId = requestAnimationFrame(this.animate);
-        const delta = Math.min(this.clock.getDelta(), 0.02);
+        // Capped delta at 100ms to handle lag spikes without distorting "real" time
+        const delta = Math.min(this.clock.getDelta(), 0.1);
         const input = this.inputManager.getInput();
 
         const joyLook = this.inputManager.getJoystickLook();
@@ -367,46 +309,38 @@ export class Game {
 
         let cameraRotation = this.isFirstPerson ? (this.fpvYaw + Math.PI) : Math.atan2(this.renderManager.camera.position.x - this.renderManager.controls.target.x, this.renderManager.camera.position.z - this.renderManager.controls.target.z);
 
-        // Update correct environment
         let currentEnv: any = null;
         let currentEntities: any[] = [];
 
         if (this.activeScene === 'dev' && this.environment) {
             this.environment.update(delta, this.config, this.player.mesh.position);
-            
-            // Entities only in dev scene for now
             this.entityManager.update(delta, this.config, this.player.mesh.position, this.environment);
             currentEntities = this.entityManager.getAllEntities();
             currentEnv = this.environment;
         } else if (this.activeScene === 'world' && this.worldEnvironment) {
             currentEnv = this.worldEnvironment;
             this.worldEnvironment.update(delta, this.config, this.player.mesh.position);
-            // No entities in World Scene yet
         }
 
         this.particleManager.update(delta);
         
         if (currentEnv) {
-            const biome = currentEnv.getBiomeAt(this.player.mesh.position);
-            if (biome.name !== this.currentBiomeName) { this.currentBiomeName = biome.name; this.onBiomeUpdate?.(biome); }
+            // Throttled biome check
+            if (time - this.lastBiomeCheck > 500) {
+                this.lastBiomeCheck = time;
+                const biome = currentEnv.getBiomeAt(this.player.mesh.position);
+                if (biome.name !== this.currentBiomeName) { this.currentBiomeName = biome.name; this.onBiomeUpdate?.(biome); }
+            }
             
             const playerInput = { ...input };
             if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
-            
             this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities);
-            
             if (this.isBuilding) this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv, this.renderManager.camera, this.inputManager.mousePosition);
         }
         this.soundManager.update(this.player, delta);
         
-        // Push Camera Rotation to UI (Compass now reflects looking direction)
-        const now = time;
-        if (
-            now - this.lastRotationUpdate >= this.rotationUpdateIntervalMs ||
-            Math.abs(cameraRotation - this.lastRotationValue) >= this.rotationUpdateEpsilon
-        ) {
-            this.lastRotationUpdate = now;
-            this.lastRotationValue = cameraRotation;
+        if (time - this.lastRotationUpdate >= this.rotationUpdateIntervalMs || Math.abs(cameraRotation - this.lastRotationValue) >= this.rotationUpdateEpsilon) {
+            this.lastRotationUpdate = time; this.lastRotationValue = cameraRotation;
             this.onRotationUpdate?.(cameraRotation);
         }
 
@@ -428,21 +362,10 @@ export class Game {
                 this.renderManager.camera.lookAt(this.tempLookAt);
             }
         } else {
-            // Rigid Follow Camera Logic
-            // 1. Snapshot the current target
             this.prevTargetPos.copy(this.renderManager.controls.target);
-            
-            // 2. HARD LOCK the controls target to the player's new position
-            // This eliminates lag/float and syncing issues between player physics and camera lerp
             this.renderManager.controls.target.copy(this.tempTargetPos);
-            
-            // 3. Calculate exact shift vector
             this.tempDeltaPos.subVectors(this.renderManager.controls.target, this.prevTargetPos);
-            
-            // 4. Shift the camera by the EXACT same amount to maintain relative orbit
             this.renderManager.camera.position.add(this.tempDeltaPos);
-            
-            // 5. Update OrbitControls (handles rotation smooth damping if enabled, but translation is now rigid)
             this.renderManager.controls.update();
         }
   
@@ -454,22 +377,20 @@ export class Game {
             if (input.interact) { 
                 this.player.isTalking = true; 
                 const target = this.player.talkingTarget;
-                if (target instanceof LowLevelCityGuard) {
-                    // Start wave on the guard
-                    target.isLeftHandWaving = true;
-                    target.leftHandWaveTimer = 0;
-                    this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); 
-                } else if (target instanceof Blacksmith) {
-                    this.onTradeTrigger?.("blacksmith");
-                } else {
-                    this.onDialogueTrigger?.("Greetings, traveler.");
-                }
+                if (target instanceof LowLevelCityGuard) { target.isLeftHandWaving = true; target.leftHandWaveTimer = 0; this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); } 
+                else if (target instanceof Blacksmith) this.onTradeTrigger?.("blacksmith");
+                else this.onDialogueTrigger?.("Greetings, traveler.");
             }
         } else if (this.player.canSkin) this.onInteractionUpdate?.('Press F to Skin', null);
-        else this.onInteractionUpdate?.(null, null);
-  
+        else {
+            const target = this.player.interactableTarget;
+            if (target) {
+                const label = target.userData.interactType === 'forge' ? 'Press E to Forge' : 'Interact';
+                this.onInteractionUpdate?.(label, null);
+                if (input.interact && target.userData.interactType === 'forge') this.onForgeTrigger?.();
+            } else this.onInteractionUpdate?.(null, null);
+        }
         if (this.player.inventory.isDirty) { this.onInventoryUpdate?.([...this.player.inventory.items]); this.player.inventory.isDirty = false; }
-        
         this.renderManager.render();
     }
 }
