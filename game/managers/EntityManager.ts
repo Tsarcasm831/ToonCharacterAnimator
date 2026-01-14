@@ -20,6 +20,7 @@ import { Environment } from '../Environment';
 import { PlayerConfig } from '../../types';
 
 export class EntityManager {
+    public scene: THREE.Scene;
     public npc: NPC;
     public blacksmith: Blacksmith;
     public assassin: Assassin;
@@ -27,10 +28,10 @@ export class EntityManager {
     public guard: LowLevelCityGuard;
     
     // Animals
-    public wolf: Wolf;
-    public bear: Bear;
-    public owl: Owl;
-    public yeti: Yeti;
+    public wolf: Wolf; // Keep the default one
+    public bears: Bear[] = [];
+    public owls: Owl[] = [];
+    public yetis: Yeti[] = [];
     public deers: Deer[] = [];
     public chickens: Chicken[] = [];
     public pigs: Pig[] = [];
@@ -78,6 +79,7 @@ export class EntityManager {
     ];
 
     constructor(scene: THREE.Scene, environment: Environment | null, initialConfig: PlayerConfig) {
+        this.scene = scene;
         // NPC
         this.npc = new NPC(scene, { bodyType: 'female', outfit: 'peasant' }, new THREE.Vector3(-3, 0, 2));
         this.blacksmith = new Blacksmith(scene, new THREE.Vector3(-35, 0.4, 53));
@@ -89,67 +91,76 @@ export class EntityManager {
         this.archer = new Archer(scene, new THREE.Vector3(-5, 0, 4));
         this.archer.config.isAssassinHostile = initialConfig.isAssassinHostile;
 
-        // Animals
+        // One Wolf by default
         this.wolf = new Wolf(scene, new THREE.Vector3(10, 0, 10));
         environment?.addObstacle(this.wolf.hitbox);
-
-        this.bear = new Bear(scene, new THREE.Vector3(-15, 0, 15));
-        environment?.addObstacle(this.bear.hitbox);
-
-        this.owl = new Owl(scene, new THREE.Vector3(5, 5, -5));
-        environment?.addObstacle(this.owl.hitbox);
-
-        this.yeti = new Yeti(scene, new THREE.Vector3(0, 0, -50));
-        environment?.addObstacle(this.yeti.hitbox);
-
-        // Groups
-        for(let i=0; i<3; i++) {
-            const deer = new Deer(scene, new THREE.Vector3(35 + i*2, 0, -35));
-            this.deers.push(deer);
-            environment?.addObstacle(deer.hitbox);
-        }
-
-        for(let i=0; i<4; i++) {
-            const chicken = new Chicken(scene, new THREE.Vector3(-5 + i*2, 0, -5));
-            this.chickens.push(chicken);
-            environment?.addObstacle(chicken.hitbox);
-        }
-
-        for(let i=0; i<2; i++) {
-            const pig = new Pig(scene, new THREE.Vector3(5 + i*3, 0, 5));
-            this.pigs.push(pig);
-            environment?.addObstacle(pig.hitbox);
-        }
-
-        for(let i=0; i<3; i++) {
-            const sheep = new Sheep(scene, new THREE.Vector3(-15 + i*3, 0, -10));
-            this.sheeps.push(sheep);
-            environment?.addObstacle(sheep.hitbox);
-        }
-
-        for(let i=0; i<2; i++) {
-            const spider = new Spider(scene, new THREE.Vector3(-35, 0, -35 + i*5));
-            this.spiders.push(spider);
-            environment?.addObstacle(spider.hitbox);
-        }
-
-        for(let i=0; i<3; i++) {
-            const lizard = new Lizard(scene, new THREE.Vector3(35, 0, 35 + i*4));
-            this.lizards.push(lizard);
-            environment?.addObstacle(lizard.hitbox);
-        }
-
-        for(let i=0; i<2; i++) {
-            const horse = new Horse(scene, new THREE.Vector3(-30, 0, 30 + i*6));
-            this.horses.push(horse);
-            environment?.addObstacle(horse.hitbox);
-        }
 
         // Guards
         this.guard = new LowLevelCityGuard(scene, new THREE.Vector3(-8, 0, -2));
         this.foundryGuard = new LowLevelCityGuard(scene, new THREE.Vector3(-42, 0, -42), 0, '#4ade80');
         this.foundryAssassin = new Assassin(scene, new THREE.Vector3(-38, 0, -38), '#ef4444');
         this.foundryAssassin.config.isAssassinHostile = true;
+    }
+
+    spawnAnimalGroup(type: string, count: number, environment: Environment | null, spawnCenter: THREE.Vector3) {
+        for (let i = 0; i < count; i++) {
+            const offset = new THREE.Vector3((Math.random() - 0.5) * 10, 0, (Math.random() - 0.5) * 10);
+            const pos = spawnCenter.clone().add(offset);
+            
+            let animal: any = null;
+            switch (type.toLowerCase()) {
+                case 'wolf':
+                    // Additional wolves besides the default
+                    const extraWolf = new Wolf(this.scene, pos);
+                    this.bears.push(extraWolf as any); // We can reuse arrays or create a multi-list
+                    environment?.addObstacle(extraWolf.hitbox);
+                    break;
+                case 'bear':
+                    animal = new Bear(this.scene, pos);
+                    this.bears.push(animal);
+                    break;
+                case 'owl':
+                    animal = new Owl(this.scene, pos);
+                    this.owls.push(animal);
+                    break;
+                case 'yeti':
+                    animal = new Yeti(this.scene, pos);
+                    this.yetis.push(animal);
+                    break;
+                case 'deer':
+                    animal = new Deer(this.scene, pos);
+                    this.deers.push(animal);
+                    break;
+                case 'chicken':
+                    animal = new Chicken(this.scene, pos);
+                    this.chickens.push(animal);
+                    break;
+                case 'pig':
+                    animal = new Pig(this.scene, pos);
+                    this.pigs.push(animal);
+                    break;
+                case 'sheep':
+                    animal = new Sheep(this.scene, pos);
+                    this.sheeps.push(animal);
+                    break;
+                case 'spider':
+                    animal = new Spider(this.scene, pos);
+                    this.spiders.push(animal);
+                    break;
+                case 'lizard':
+                    animal = new Lizard(this.scene, pos);
+                    this.lizards.push(animal);
+                    break;
+                case 'horse':
+                    animal = new Horse(this.scene, pos);
+                    this.horses.push(animal);
+                    break;
+            }
+
+            if (animal && animal.hitbox) {
+                environment?.addObstacle(animal.hitbox);
+            }
+        }
     }
 
     update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, environment: Environment | null) {
@@ -206,8 +217,11 @@ export class EntityManager {
             this.archerTargets[1].position.copy(this.npc.position);
             this.archerTargets[2].position.copy(this.wolf.position);
             this.archerTargets[2].isDead = this.wolf.isDead;
-            this.archerTargets[3].position.copy(this.bear.position);
-            this.archerTargets[3].isDead = this.bear.isDead;
+            // Simplified check for bear target
+            if (this.bears.length > 0) {
+                this.archerTargets[3].position.copy(this.bears[0].position);
+                this.archerTargets[3].isDead = this.bears[0].isDead;
+            }
             this.archer.update(delta, environment as any, this.archerTargets as any, skipAnimation);
         } else if (entity === this.foundryGuard || entity === this.foundryAssassin) {
              if (entity === this.foundryGuard) {
@@ -217,17 +231,7 @@ export class EntityManager {
                 this.foundryAssassinTargets[0].position.copy(this.foundryGuard.position);
                 this.foundryAssassin.update(delta, environment as any, this.foundryAssassinTargets as any, skipAnimation);
              }
-        } else if (entity instanceof Wolf) {
-            this.animalTargets[0].position.copy(this.tempPlayerPos);
-            this.animalTargets[1].position.copy(this.archer.position);
-            this.animalTargets[2].position.copy(this.npc.position);
-            entity.update(delta, environment as any, this.animalTargets as any, skipAnimation);
-        } else if (entity instanceof Bear) {
-            this.animalTargets[0].position.copy(this.tempPlayerPos);
-            this.animalTargets[1].position.copy(this.archer.position);
-            this.animalTargets[2].position.copy(this.npc.position);
-            entity.update(delta, environment as any, this.animalTargets as any, skipAnimation);
-        } else if (entity instanceof Owl) {
+        } else if (entity instanceof Wolf || entity instanceof Bear || entity instanceof Owl) {
             this.animalTargets[0].position.copy(this.tempPlayerPos);
             this.animalTargets[1].position.copy(this.archer.position);
             this.animalTargets[2].position.copy(this.npc.position);
@@ -251,11 +255,12 @@ export class EntityManager {
     }
 
     getAllEntities() {
-        return [
+        const list = [
             this.npc, this.blacksmith, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin, 
-            this.wolf, this.bear, this.owl, this.yeti, ...this.deers, ...this.chickens, ...this.pigs, 
+            this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
         ];
+        return list.filter(e => e !== null);
     }
 
     private refreshRangeCache() {

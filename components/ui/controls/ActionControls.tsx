@@ -11,6 +11,7 @@ interface ActionControlsProps {
     handleDeathToggle: () => void;
     triggerAction: (key: keyof PlayerInput) => void;
     onExport: () => void;
+    onSpawnAnimals: () => void;
 }
 
 export const ActionControls: React.FC<ActionControlsProps> = ({
@@ -21,7 +22,8 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
     setManualInput,
     handleDeathToggle,
     triggerAction,
-    onExport
+    onExport,
+    onSpawnAnimals
 }) => {
     const toggleInput = (key: keyof PlayerInput) => {
         setManualInput(prev => ({ ...prev, [key]: !prev[key] }));
@@ -98,6 +100,18 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
                     title={config?.selectedItem ? "Unequip items to summon" : "Summoning Skill (L)"}
                 >
                     <span>✨ Summon (L)</span>
+                </button>
+            </div>
+
+            <div className="pt-2 border-t border-gray-100">
+                <button 
+                    onClick={onSpawnAnimals} 
+                    className="w-full py-2.5 rounded-lg font-black uppercase tracking-widest text-[10px] bg-emerald-600 text-white shadow-lg hover:bg-emerald-500 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Manage Animals
                 </button>
             </div>
 
