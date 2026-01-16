@@ -92,7 +92,8 @@ void main() {
 `;
 
 export class SceneBuilder {
-    static build(parent: THREE.Object3D) {
+    static async buildAsync(parent: THREE.Object3D, batchSize: number = 10) {
+        const yieldFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         // Sky
         const uniforms = {
             topColor: { value: new THREE.Color(0x0077ff) },
@@ -123,8 +124,13 @@ export class SceneBuilder {
         const highResSharedGeo = new THREE.PlaneGeometry(patchSize, patchSize, 32, 32);
         const lowResSharedGeo = new THREE.PlaneGeometry(patchSize, patchSize, 1, 1);
 
-        for (let x = -gridRadius; x <= gridRadius; x++) {
-            for (let z = -gridRadius; z <= gridRadius; z++) {
+        let x = -gridRadius;
+        let z = -gridRadius;
+        const totalPatches = (gridRadius * 2 + 1) ** 2;
+        let created = 0;
+        while (x <= gridRadius) {
+            let batchCount = 0;
+            while (x <= gridRadius && batchCount < batchSize) {
                 const centerX = x * patchSize;
                 const centerZ = z * patchSize;
                 
@@ -179,6 +185,17 @@ export class SceneBuilder {
                 mesh.receiveShadow = true;
                 mesh.userData = { type: 'terrain', terrainType: type };
                 parent.add(mesh);
+
+                created++;
+                batchCount++;
+                z++;
+                if (z > gridRadius) {
+                    z = -gridRadius;
+                    x++;
+                }
+            }
+            if (created < totalPatches) {
+                await yieldFrame();
             }
         }
         

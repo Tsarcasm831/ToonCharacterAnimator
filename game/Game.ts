@@ -15,6 +15,7 @@ import { RenderManager } from './core/RenderManager';
 import { EntityManager } from './managers/EntityManager';
 import { LowLevelCityGuard } from './entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from './entities/npc/friendly/Blacksmith';
+import { HouseBlueprints, Blueprint } from './builder/HouseBlueprints';
 
 export class Game {
     private renderManager: RenderManager;
@@ -70,6 +71,7 @@ export class Game {
     onDialogueTrigger?: (content: string) => void;
     onTradeTrigger?: (merchantType: string) => void;
     onForgeTrigger?: () => void;
+    onEnvironmentReady?: () => void;
 
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
@@ -108,12 +110,17 @@ export class Game {
             this.renderManager.controls.target.set(startX, 1.7, startZ);
             this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
             
-            this.buildInitialStructure();
+            this.buildStructures();
 
-            // Hook up log pickup event
             this.environment.obstacleManager.onLogPickedUp = () => {
                 this.player.addItem('Wood', 8, true);
             };
+
+            requestAnimationFrame(() => {
+                this.environment?.buildAsync().then(() => {
+                    this.onEnvironmentReady?.();
+                });
+            });
         } else {
             this.worldEnvironment = new WorldEnvironment(this.renderManager.scene);
             this.entityManager = new EntityManager(this.renderManager.scene, null as any, initialConfig);
@@ -122,6 +129,10 @@ export class Game {
             this.player.mesh.position.set(0, 5, 0);
             this.renderManager.controls.target.set(0, 6.7, 0);
             this.renderManager.camera.position.set(0, 8.2, 5.0);
+
+            requestAnimationFrame(() => {
+                this.onEnvironmentReady?.();
+            });
         }
 
         this.prevTargetPos.copy(this.renderManager.controls.target);
@@ -189,33 +200,80 @@ export class Game {
         this.entityManager.spawnAnimalGroup(type, count, this.environment, this.player.mesh.position);
     }
 
-    private buildInitialStructure() {
+    private buildStructures() {
         if (!this.environment) return;
-        const GRID_SIZE = 1.3333;
-        const startX = -27, startZ = 36, size = 5;
-        const foundationTop = 0.4;
-        for (let x = 0; x < size; x++) {
-            for (let z = 0; z < size; z++) {
-                this.placeStructure('foundation', (startX + x) * GRID_SIZE + GRID_SIZE/2, 0.2, (startZ + z) * GRID_SIZE + GRID_SIZE/2, 0);
-            }
-        }
-        const wallY = foundationTop + 1.65;
-        for (let x = 0; x < size; x++) {
-            if (x === 1) { this.placeStructure('doorway', (startX + x + 1.0) * GRID_SIZE, wallY, (startZ) * GRID_SIZE, 0); x++; } 
-            else this.placeStructure('wall', (startX + x) * GRID_SIZE + GRID_SIZE/2, wallY, (startZ) * GRID_SIZE, 0);
-        }
-        for (let x = 0; x < size; x++) {
-            if (x === 3) { this.placeStructure('doorway', (startX + x + 1.0) * GRID_SIZE, wallY, (startZ + size) * GRID_SIZE, 0); x++; } 
-            else this.placeStructure('wall', (startX + x) * GRID_SIZE + GRID_SIZE/2, wallY, (startZ + size) * GRID_SIZE, 0);
-        }
-        for (let z = 0; z < size; z++) {
-            this.placeStructure('wall', (startX) * GRID_SIZE, wallY, (startZ + z) * GRID_SIZE + GRID_SIZE/2, Math.PI / 2);
-            this.placeStructure('wall', (startX + size) * GRID_SIZE, wallY, (startZ + z) * GRID_SIZE + GRID_SIZE/2, Math.PI / 2);
-        }
+        
+        const build = (blueprint: Blueprint, originX: number, originZ: number, rotation: number = 0, color?: number) => {
+             const GRID = 1.3333;
+             blueprint.forEach(part => {
+                 const rx = part.x * Math.cos(rotation) - part.z * Math.sin(rotation);
+                 const rz = part.x * Math.sin(rotation) + part.z * Math.cos(rotation);
+                 
+                 const wx = originX + (rx * GRID);
+                 const wz = originZ + (rz * GRID);
+                 
+                 let finalX = wx;
+                 let finalZ = wz;
+                 let finalRot = (part.rotation || 0) + rotation;
+
+                 if (part.type === 'foundation' || part.type === 'roof' || part.type === 'round_foundation' || part.type === 'round_wall') {
+                     finalX += GRID / 2;
+                     finalZ += GRID / 2;
+                 } else if (part.type === 'pillar') {
+                     // Pillars exact at grid nodes
+                 } else {
+                     // Walls/Doors: Centered on edges
+                     const localX = part.x + (part.rotation === Math.PI/2 ? 0 : 0.5);
+                     const localZ = part.z + (part.rotation === Math.PI/2 ? 0.5 : 0);
+                     const rotX = localX * Math.cos(rotation) - localZ * Math.sin(rotation);
+                     const rotZ = localX * Math.sin(rotation) + localZ * Math.cos(rotation);
+                     finalX = originX + (rotX * GRID);
+                     finalZ = originZ + (rotZ * GRID);
+                 }
+
+                 const FOUNDATION_HEIGHT = 0.4;
+                 let y = 0;
+                 if (part.type === 'foundation' || part.type === 'round_foundation') {
+                     y = 0.2; 
+                 } else if (part.type === 'wall' || part.type === 'pillar') {
+                     y = FOUNDATION_HEIGHT + 1.65; 
+                 } else if (part.type === 'doorway') {
+                     y = FOUNDATION_HEIGHT + 1.65;
+                 } else if (part.type === 'round_wall') {
+                     y = FOUNDATION_HEIGHT; // Geometry includes Y offset
+                 } else if (part.type === 'door') {
+                     y = FOUNDATION_HEIGHT + 1.175;
+                 } else if (part.type === 'roof') {
+                     y = FOUNDATION_HEIGHT + 3.3; 
+                 }
+                 
+                 this.placeStructure(part.type, finalX, y, finalZ, finalRot, color);
+             });
+        };
+        
+        const GRID = 1.3333;
+
+        // 1. The Forge (Blacksmith) - Default (Wood/Dark)
+        build(HouseBlueprints.getTheForge(), -27 * GRID, 36 * GRID);
+
+        // 2. The Cottage - Blue
+        build(HouseBlueprints.getCottage(), -20 * GRID, 45 * GRID, Math.PI / 2, 0x64b5f6);
+
+        // 3. The Longhouse - Green
+        build(HouseBlueprints.getLonghouse(), -10 * GRID, 35 * GRID, 0, 0x81c784);
+
+        // 4. L-Shape - Red
+        build(HouseBlueprints.getLShape(), -38 * GRID, 30 * GRID, 0, 0xe57373);
+
+        // 5. The Roundhouse - Purple
+        build(HouseBlueprints.getRoundhouse(), -50 * GRID, 45 * GRID, 0, 0x9575cd);
+
+        // 6. Gatehouse - Orange/Yellow
+        build(HouseBlueprints.getGatehouse(), -15 * GRID, 20 * GRID, 0, 0xffb74d);
     }
 
-    private placeStructure(type: any, x: number, y: number, z: number, rotation: number) {
-        const mesh = BuildingParts.createStructureMesh(type, false);
+    private placeStructure(type: any, x: number, y: number, z: number, rotation: number, color?: number) {
+        const mesh = BuildingParts.createStructureMesh(type, false, color);
         mesh.position.set(x, y, z);
         mesh.rotation.y = rotation;
         const applyUserData = (obj: THREE.Object3D) => { obj.userData = { ...obj.userData, type: 'hard', material: 'wood', structureType: type }; };
@@ -242,7 +300,6 @@ export class Game {
         if (this.isFirstPerson && document.pointerLockElement === this.renderManager.renderer.domElement) {
             const sensitivity = 0.002;
             this.fpvYaw -= e.movementX * sensitivity;
-            // Standard non-inverted pitch: move mouse down to look down
             this.fpvPitch -= e.movementY * sensitivity;
             const limit = Math.PI / 2 - 0.1;
             this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
@@ -263,7 +320,6 @@ export class Game {
         if (this.isFirstPerson) {
             this.renderManager.controls.minDistance = 0.01; this.renderManager.controls.maxDistance = 0.1; 
             this.renderManager.controls.enabled = false;
-            // Align POV to character facing direction
             this.fpvYaw = this.player.mesh.rotation.y; 
             this.fpvPitch = 0;
             this.renderManager.renderer.domElement.requestPointerLock();
@@ -281,7 +337,6 @@ export class Game {
 
     private animate(time: number = 0) {
         this.animationId = requestAnimationFrame(this.animate);
-        // Robust delta time clamping
         const delta = Math.min(this.clock.getDelta(), 0.1);
         if (delta <= 0) return;
 
@@ -292,7 +347,7 @@ export class Game {
             const joySensitivity = 2.5 * delta;
             if (this.isFirstPerson) {
                 this.fpvYaw -= joyLook.x * joySensitivity; 
-                this.fpvPitch += joyLook.y * joySensitivity; // Non-inverted
+                this.fpvPitch += joyLook.y * joySensitivity; 
                 const limit = Math.PI / 2 - 0.1;
                 this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
             } else {
@@ -362,17 +417,11 @@ export class Game {
         if (this.isFirstPerson) {
             const head = this.player.model.parts.head;
             if (head) {
-                // Keep body synced to camera facing even when idle in POV
                 this.player.mesh.rotation.y = this.fpvYaw;
-
-                // Ensure head is hidden (re-apply in case sync() turned it back on)
                 head.visible = false;
-                
                 head.getWorldPosition(this.tempHeadPos);
                 this.player.mesh.getWorldDirection(this.tempForward);
-                // Push camera slightly forward of center to reach eye position
                 this.tempHeadPos.addScaledVector(this.tempForward, 0.1); 
-                
                 this.renderManager.controls.target.copy(this.tempHeadPos);
                 this.tempCamDir.copy(this.camDirBase).applyAxisAngle(this.axisX, this.fpvPitch).applyAxisAngle(this.axisY, this.fpvYaw);
                 this.renderManager.camera.position.copy(this.tempHeadPos);

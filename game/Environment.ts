@@ -9,17 +9,20 @@ import { SnowSystem } from './environment/SnowSystem';
 import { WorldGridManager } from './environment/WorldGridManager';
 import { PlayerConfig } from '../types';
 import { PlayerUtils } from './player/PlayerUtils';
+import { TerrainTextureFactory } from './environment/TerrainTextureFactory';
 
 export class Environment {
     private scene: THREE_LIB.Scene;
     public group: THREE_LIB.Group; // Root group for this environment
     public obstacleManager: ObstacleManager;
     private debrisSystem: DebrisSystem;
-    private grassManager: GrassManager;
-    private snowSystem: SnowSystem;
+    private grassManager: GrassManager | null = null;
+    private snowSystem: SnowSystem | null = null;
     private worldGrid: WorldGridManager;
     private sunLight: THREE_LIB.DirectionalLight;
     private hemiLight: THREE_LIB.HemisphereLight;
+    private isBuilt = false;
+    private isBuilding = false;
     
     private cycleTimer: number = 0;
     private readonly CYCLE_DURATION = 600; 
@@ -43,10 +46,7 @@ export class Environment {
         });
         
         this.obstacleManager = new ObstacleManager(this.group, this.debrisSystem);
-        this.grassManager = new GrassManager(this.group);
-        this.snowSystem = new SnowSystem(this.group);
         this.worldGrid = new WorldGridManager(this.group);
-        this.build();
     }
 
     setVisible(visible: boolean) {
@@ -84,8 +84,8 @@ export class Environment {
 
         this.debrisSystem.update(dt);
         this.obstacleManager.update(dt);
-        this.grassManager.update(dt);
-        this.snowSystem.update(dt, playerPosition);
+        this.grassManager?.update(dt);
+        this.snowSystem?.update(dt, playerPosition);
         this.worldGrid.update(playerPosition);
         this.updateDayNight(dt, config);
     }
@@ -172,8 +172,23 @@ export class Environment {
         return this.obstacleManager.damageObstacle(object, amount);
     }
 
-    private build() {
-        SceneBuilder.build(this.group);
-        this.obstacleManager.init();
+    async buildAsync() {
+        if (this.isBuilt || this.isBuilding) return;
+        this.isBuilding = true;
+        
+        // Build basic scene geometry
+        await SceneBuilder.buildAsync(this.group, 10);
+        
+        // Initialize obstacles
+        await this.obstacleManager.initAsync(20);
+        
+        // Wait for all asynchronously generating biome textures to finish
+        await TerrainTextureFactory.allLoaded();
+        
+        if (!this.grassManager) this.grassManager = new GrassManager(this.group);
+        if (!this.snowSystem) this.snowSystem = new SnowSystem(this.group);
+        
+        this.isBuilt = true;
+        this.isBuilding = false;
     }
 }

@@ -14,10 +14,10 @@ export const AnimalPreview: React.FC<AnimalPreviewProps> = ({ type }) => {
     useEffect(() => {
         if (!containerRef.current) return;
 
-        const width = 200; // Fixed size for preview capture
+        const width = 200;
         const height = 200;
 
-        // Use a temporary offscreen canvas for rendering
+        // Use a temporary canvas
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
@@ -31,7 +31,7 @@ export const AnimalPreview: React.FC<AnimalPreviewProps> = ({ type }) => {
             canvas,
             alpha: true, 
             antialias: true,
-            preserveDrawingBuffer: true // Required for toDataURL
+            preserveDrawingBuffer: true 
         });
         renderer.setSize(width, height);
         renderer.setPixelRatio(1);
@@ -60,21 +60,15 @@ export const AnimalPreview: React.FC<AnimalPreviewProps> = ({ type }) => {
             }
 
             if (model) {
-                // Adjust position for framing
                 model.position.y = 0;
                 if (t === 'owl') model.position.y = 0.5;
                 if (t === 'yeti') model.scale.setScalar(0.7);
                 if (t === 'horse' || t === 'deer') model.scale.setScalar(0.8);
-                
-                // Static rotation for better silhouette
                 model.rotation.y = Math.PI / 4;
                 scene.add(model);
             }
 
-            // Render single frame
             renderer.render(scene, camera);
-            
-            // Capture image
             setPreviewUrl(canvas.toDataURL('image/png'));
 
         } catch (err) {
@@ -104,7 +98,6 @@ export const AnimalPreview: React.FC<AnimalPreviewProps> = ({ type }) => {
                     src={previewUrl} 
                     alt={type} 
                     className="w-full h-full object-contain animate-fade-in"
-                    loading="lazy"
                 />
             ) : (
                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin opacity-40" />

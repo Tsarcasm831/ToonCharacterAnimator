@@ -22,6 +22,7 @@ export interface Quest {
     target: number;
   }[];
   reward: string;
+  rewardClaimed?: boolean;
 }
 
 export interface EquipmentState {

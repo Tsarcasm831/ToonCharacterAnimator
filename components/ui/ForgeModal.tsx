@@ -304,7 +304,7 @@ export const ForgeModal: React.FC<ForgeModalProps> = ({
                         </div>
                     </div>
                     <div className="p-4 border-t border-slate-700 bg-slate-800 text-center">
-                        <div className="text-[10px] text-slate-500 font-medium tracking-tight uppercase">Wood stack Smelting: 4 logs -> 1 coal</div>
+                        <div className="text-[10px] text-slate-500 font-medium tracking-tight uppercase">Wood stack Smelting: 4 logs {'->'} 1 coal</div>
                     </div>
                 </div>
             </div>
