@@ -3,8 +3,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 
-// Patch pointer capture methods to suppress InvalidStateError
-// This error occurs in Three.js/OrbitControls when capturing a pointer that is no longer active.
+// Patch setPointerCapture and releasePointerCapture to suppress InvalidStateError
+// This error commonly occurs in Three.js/React applications (OrbitControls, etc.) when 
+// controls are disabled or components unmount while a pointer interaction is active.
 if (typeof Element !== 'undefined') {
   const patch = (methodName: string) => {
     const original = (Element.prototype as any)[methodName];
@@ -13,7 +14,10 @@ if (typeof Element !== 'undefined') {
         try {
           original.call(this, pointerId);
         } catch (e: any) {
-          if (e.name !== 'InvalidStateError') throw e;
+          // Only suppress InvalidStateError, rethrow others for debugging
+          if (e.name !== 'InvalidStateError') {
+            throw e;
+          }
         }
       };
     }
@@ -23,11 +27,18 @@ if (typeof Element !== 'undefined') {
 }
 
 const rootElement = document.getElementById('root');
-if (rootElement) {
-  const root = ReactDOM.createRoot(rootElement);
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
+
+if (!rootElement) {
+  console.error("Failed to find the root element. Ensure index.html has a <div id='root'></div>");
+} else {
+  try {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+  } catch (err) {
+    console.error("React rendering error:", err);
+  }
 }

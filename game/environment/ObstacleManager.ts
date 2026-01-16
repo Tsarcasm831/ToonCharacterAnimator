@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { TreeData, RockData } from './EnvironmentTypes';
+import { TreeData, RockData, ENV_CONSTANTS } from './EnvironmentTypes';
 import { ObjectFactory } from './ObjectFactory';
 import { DebrisSystem } from './DebrisSystem';
 import { PlayerUtils } from '../player/PlayerUtils';
@@ -39,22 +39,25 @@ export class ObstacleManager {
     }
 
     init() {
+        void this.initAsync();
+    }
+
+    async initAsync(batchSize: number = 20) {
+        const yieldFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const shouldYield = batchSize > 0;
         const block = ObjectFactory.createBlueBlock();
         this.addObstacle(block);
 
         // --- BLACKSMITH FORGE ---
-        // Rotated 180 degrees from previous (PI/2 -> -PI/2)
-        // Positioned against the East wall of the blacksmith house
         const forgePos = new THREE.Vector3(-30.2, 0, 51.5);
         const { group: forgeGroup, obstacles: forgeObs } = ObjectFactory.createForge(forgePos, -Math.PI / 2);
         this.parent.add(forgeGroup);
-        this.decorativeItems.push(forgeGroup); // Add to decorative so flames update
+        this.decorativeItems.push(forgeGroup);
         forgeObs.forEach(o => this.addObstacle(o));
 
         this.createTreeAt(new THREE.Vector2(-5, -4));
         this.createRockAt(new THREE.Vector2(2, 4), 1.0);
 
-        // Add 2 berry bushes on grassy ground
         this.createBerryBushAt(new THREE.Vector2(3, 2));
         this.createBerryBushAt(new THREE.Vector2(-4, 3));
 
@@ -64,7 +67,7 @@ export class ObstacleManager {
         this.obstacles.push(wolf.obstacle);
 
         const initContext: ObstacleInitContext = {
-            scene: this.parent as THREE.Scene, // This cast is a bit hacky but works since Scene is Object3D
+            scene: this.parent as THREE.Scene,
             obstacles: this.obstacles,
             trees: this.trees,
             rocks: this.rocks,
@@ -74,12 +77,18 @@ export class ObstacleManager {
             createDeadTree: this.createDeadTree.bind(this),
             createRockAt: this.createRockAt.bind(this)
         };
-        initPondDecorations(initContext);
-        initBiomes(initContext);
-        initWorldScatter(initContext);
-        initMidLevelFillers(initContext);
-        initStorytellingRemnants(initContext);
-        initAtmosphericEffects(initContext);
+        if (shouldYield) await yieldFrame();
+        await initPondDecorations(initContext, { yieldEvery: batchSize, yieldFrame });
+        if (shouldYield) await yieldFrame();
+        await initBiomes(initContext, { yieldEvery: batchSize, yieldFrame });
+        if (shouldYield) await yieldFrame();
+        await initWorldScatter(initContext, { yieldEvery: batchSize, yieldFrame });
+        if (shouldYield) await yieldFrame();
+        await initMidLevelFillers(initContext, { yieldEvery: batchSize, yieldFrame });
+        if (shouldYield) await yieldFrame();
+        await initStorytellingRemnants(initContext, { yieldEvery: batchSize, yieldFrame });
+        if (shouldYield) await yieldFrame();
+        await initAtmosphericEffects(initContext, { yieldEvery: batchSize, yieldFrame });
     }
 
     private createTreeAt(xz: THREE.Vector2) {
@@ -89,7 +98,6 @@ export class ObstacleManager {
 
     private createRockAt(xz: THREE.Vector2, scale: number = 1.0) {
         const y = PlayerUtils.getTerrainHeight(xz.x, xz.y);
-        // 20% chance to spawn copper ore rock instead of regular rock
         if (Math.random() < 0.2) {
             this.createCopperOreRock(new THREE.Vector3(xz.x, y, xz.y), scale);
         } else {
@@ -99,13 +107,11 @@ export class ObstacleManager {
 
     private createBerryBushAt(xz: THREE.Vector2, scale: number = 1.0) {
         const y = PlayerUtils.getTerrainHeight(xz.x, xz.y);
-        // Adjust position to prevent floating - place slightly above ground
-        const adjustedY = y + 0.05; // Small offset to prevent sinking into ground
+        const adjustedY = y + 0.05;
         const berryBush = ObjectFactory.createBerryBush(new THREE.Vector3(xz.x, adjustedY, xz.y), scale);
         this.parent.add(berryBush);
         this.decorativeItems.push(berryBush);
     }
-
 
     addObstacle(obj: THREE.Object3D) {
         if (!obj.parent) {
@@ -116,16 +122,13 @@ export class ObstacleManager {
 
     addLogs(logs: THREE.Mesh[]) {
         logs.forEach(log => {
-            // logs are not added to obstacles anymore, they are collectibles
-            // log.userData = { type: 'hard', material: 'wood', isLog: true };
             this.collectibleLogs.push({
                 mesh: log,
-                timer: 2.0, // 2 seconds before being picked up
+                timer: 2.0,
                 maxTime: 2.0,
                 isCollected: false
             });
             
-            // Spawn mushrooms nearby
             const pos = log.position;
             for(let i=0; i<2; i++) {
                 const angle = Math.random() * Math.PI * 2;
@@ -227,12 +230,10 @@ export class ObstacleManager {
             ((water as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.uTime.value = time;
         }
 
-        // Handle collectible logs
         for (let i = this.collectibleLogs.length - 1; i >= 0; i--) {
             const log = this.collectibleLogs[i];
             log.timer -= dt;
 
-            // Simple "picked up" visual effect: scale down when near pickup
             if (log.timer < 0.3) {
                 const s = Math.max(0, log.timer / 0.3);
                 log.mesh.scale.set(s, s, s);
@@ -246,8 +247,11 @@ export class ObstacleManager {
         }
 
         this.decorativeItems.forEach(item => {
+            // Optimization: Skip InstancedMesh objects, they shouldn't be globally rotated 
+            // from origin (0,0,0) as it creates floating bugs for distant objects.
+            if (item instanceof THREE.InstancedMesh) return;
+
             if (item instanceof THREE.Group) {
-                // Update berry bushes
                 if (item.userData.type === 'berryBush') {
                     const berryBushInstance = item.userData.berryBushInstance;
                     if (berryBushInstance && berryBushInstance.update) {
@@ -262,7 +266,6 @@ export class ObstacleManager {
                             child.position.y = originY + Math.sin(time * mSpeed + mPhase) * 0.5;
                             child.position.x += Math.sin(time * 0.5 + mPhase) * 0.005;
                         } else if (child.userData.isFlame) {
-                            // High-frequency flame flicker
                             const fPhase = child.userData.phase;
                             const bScale = child.userData.baseScale;
                             const bY = child.userData.baseY;
@@ -282,8 +285,11 @@ export class ObstacleManager {
                     });
                 }
             } else {
-                const phase = item.userData.phase || 0;
-                item.rotation.z = Math.sin(time * 1.5 + phase) * 0.05;
+                // Only apply swaying rotation to objects that have a specific phase
+                if (item.userData.phase !== undefined) {
+                    const phase = item.userData.phase || 0;
+                    item.rotation.z = Math.sin(time * 1.5 + phase) * 0.05;
+                }
             }
         });
 

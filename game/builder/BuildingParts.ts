@@ -1,7 +1,7 @@
 
 import * as THREE from 'three';
 
-export type StructureType = 'foundation' | 'wall' | 'doorway' | 'door' | 'roof';
+export type StructureType = 'foundation' | 'wall' | 'doorway' | 'door' | 'roof' | 'pillar' | 'round_foundation' | 'round_wall';
 
 export class BuildingParts {
     static getGeometry(type: StructureType): THREE.BufferGeometry {
@@ -10,16 +10,46 @@ export class BuildingParts {
         switch (type) {
             case 'foundation':
                 return new THREE.BoxGeometry(GRID_SIZE, 0.4, GRID_SIZE);
+            case 'round_foundation':
+                // Covers approx 3x3 grid
+                return new THREE.CylinderGeometry(2.5, 2.5, 0.4, 32);
             case 'wall':
-                return new THREE.BoxGeometry(GRID_SIZE, 3.3, 0.2); // 2.75 * 1.2 = 3.3
+                return new THREE.BoxGeometry(GRID_SIZE, 3.3, 0.2); 
+            case 'round_wall':
+                // A segment of a cylinder wall
+                // Radius matches foundation (2.5). 
+                // 8 segments = 45 degrees each.
+                const innerR = 2.3;
+                const outerR = 2.5;
+                const height = 3.3;
+                // Create arc
+                const shape = new THREE.Shape();
+                const angle = Math.PI / 4; // 45 deg
+                
+                // Outer arc
+                shape.absarc(0, 0, outerR, -angle/2, angle/2, false);
+                // Inner arc
+                shape.absarc(0, 0, innerR, angle/2, -angle/2, true);
+                
+                const extrudeSettings = {
+                    depth: height,
+                    bevelEnabled: false,
+                    curveSegments: 8
+                };
+                const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                // Rotate to stand up (Extrude is along Z) -> Rotate X -90
+                geo.rotateX(-Math.PI / 2);
+                // Center Y
+                geo.translate(0, height/2, 0);
+                return geo;
+            case 'pillar':
+                return new THREE.BoxGeometry(0.3, 3.3, 0.3);
             case 'doorway':
-                // Proportions for a 3.3m tall doorway (20% increase)
-                // Door opening height remains 2.35m
                 const postWidth = 0.26;
                 const totalWidth = GRID_SIZE;
                 const holeWidth = totalWidth - (postWidth * 2); 
                 const totalHeight = 3.3; 
-                const lintelHeight = 0.95; // 3.3 - 2.35 = 0.95
+                const lintelHeight = 0.95; 
                 const depth = 0.2;
                 
                 const leftPost = new THREE.BoxGeometry(postWidth, totalHeight, depth).toNonIndexed();
@@ -77,9 +107,7 @@ export class BuildingParts {
         }
     }
 
-    static createStructureMesh(type: StructureType, isGhost: boolean = false): THREE.Object3D {
-        const GRID_SIZE = 1.3333;
-
+    static createStructureMesh(type: StructureType, isGhost: boolean = false, customColor?: number): THREE.Object3D {
         const getMat = (t: StructureType) => {
             if (isGhost) {
                 return new THREE.MeshStandardMaterial({
@@ -89,7 +117,17 @@ export class BuildingParts {
                     wireframe: true
                 });
             } else {
-                const color = t === 'foundation' ? 0x795548 : (t === 'roof' ? 0x4e342e : 0x8d6e63);
+                let color = 0x8d6e63; // Default Wood
+                
+                if (customColor !== undefined && (t === 'wall' || t === 'round_wall' || t === 'doorway' || t === 'pillar')) {
+                    color = customColor;
+                } else {
+                    // Standard structural colors
+                    if (t === 'foundation' || t === 'round_foundation') color = 0x795548;
+                    if (t === 'roof') color = 0x4e342e;
+                    if (t === 'pillar') color = 0x5d4037;
+                }
+
                 return new THREE.MeshStandardMaterial({
                     color: color,
                     roughness: 0.8,
@@ -99,66 +137,13 @@ export class BuildingParts {
             }
         };
 
-        if (type === 'doorway') {
-            const group = new THREE.Group();
-            const mat = getMat(type);
-            
-            const totalWidth = GRID_SIZE * 2; 
-            const postWidth = 0.3;
-            const totalHeight = 3.3; 
-            const depth = 0.2;
-            const lintelHeight = 0.95;
-            const holeWidth = totalWidth - (postWidth * 2);
-
-            const leftGeo = new THREE.BoxGeometry(postWidth, totalHeight, depth);
-            const leftPost = new THREE.Mesh(leftGeo, mat);
-            leftPost.position.set(-(totalWidth/2 - postWidth/2), 0, 0);
-            leftPost.castShadow = !isGhost;
-            leftPost.receiveShadow = !isGhost;
-            leftPost.userData = { type: 'hard', material: 'wood', structureType: 'doorway' };
-            group.add(leftPost);
-
-            const rightGeo = new THREE.BoxGeometry(postWidth, totalHeight, depth);
-            const rightPost = new THREE.Mesh(rightGeo, mat);
-            rightPost.position.set(+(totalWidth/2 - postWidth/2), 0, 0);
-            rightPost.castShadow = !isGhost;
-            rightPost.receiveShadow = !isGhost;
-            rightPost.userData = { type: 'hard', material: 'wood', structureType: 'doorway' };
-            group.add(rightPost);
-
-            const lintelGeo = new THREE.BoxGeometry(holeWidth, lintelHeight, depth);
-            const lintel = new THREE.Mesh(lintelGeo, mat);
-            lintel.position.set(0, (totalHeight/2) - (lintelHeight/2), 0);
-            lintel.castShadow = !isGhost;
-            lintel.receiveShadow = !isGhost;
-            lintel.userData = { type: 'hard', material: 'wood', structureType: 'doorway' };
-            group.add(lintel);
-
-            return group;
-        }
-
-        if (type === 'door') {
-             const width = (GRID_SIZE * 2) - 0.6; 
-             const geo = new THREE.BoxGeometry(width, 2.35, 0.15);
-             const mat = getMat(type);
-             const mesh = new THREE.Mesh(geo, mat);
-             mesh.position.y = 1.175;
-             mesh.castShadow = !isGhost;
-             mesh.receiveShadow = !isGhost;
-             return mesh;
-        }
-
-        const geo = this.getGeometry(type);
         const mat = getMat(type);
+        const geo = this.getGeometry(type);
 
         const mesh = new THREE.Mesh(geo, mat);
         mesh.castShadow = !isGhost;
         mesh.receiveShadow = !isGhost;
         
-        if (type === 'wall') mesh.position.y = 1.65; // 3.3 / 2
-        if (type === 'foundation') mesh.position.y = 0.2; 
-        if (type === 'roof') mesh.position.y = 0;
-
         return mesh;
     }
 }

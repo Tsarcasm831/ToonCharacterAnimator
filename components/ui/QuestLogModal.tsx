@@ -6,9 +6,10 @@ interface QuestLogModalProps {
   isOpen: boolean;
   onClose: () => void;
   quests: Quest[];
+  onClaimReward: (questId: string) => void;
 }
 
-export const QuestLogModal: React.FC<QuestLogModalProps> = ({ isOpen, onClose, quests }) => {
+export const QuestLogModal: React.FC<QuestLogModalProps> = ({ isOpen, onClose, quests, onClaimReward }) => {
   const [selectedQuestId, setSelectedQuestId] = useState<string | null>(quests[0]?.id || null);
 
   if (!isOpen) return null;
@@ -49,6 +50,9 @@ export const QuestLogModal: React.FC<QuestLogModalProps> = ({ isOpen, onClose, q
                     <span className={`text-[10px] font-black uppercase tracking-wider ${q.status === 'completed' ? 'text-green-400' : 'text-blue-400'}`}>
                       {q.status}
                     </span>
+                    {q.status === 'completed' && !q.rewardClaimed && (
+                      <span className="w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
+                    )}
                   </div>
                   <h3 className="text-white text-sm font-bold truncate">{q.title}</h3>
                 </button>
@@ -85,9 +89,26 @@ export const QuestLogModal: React.FC<QuestLogModalProps> = ({ isOpen, onClose, q
 
                 <div className="pt-4 border-t border-white/5">
                   <h3 className="text-yellow-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Reward</h3>
-                  <div className="bg-yellow-500/10 rounded-lg p-3 border border-yellow-500/20 text-yellow-200 text-xs font-bold flex items-center gap-2">
-                    <span>🎁</span> {selectedQuest.reward}
-                  </div>
+                  {selectedQuest.status === 'completed' && !selectedQuest.rewardClaimed ? (
+                    <button 
+                      onClick={() => onClaimReward(selectedQuest.id)}
+                      className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-[0.1em] py-4 rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all active:scale-95 flex items-center justify-center gap-3 group"
+                    >
+                      <span className="text-xl group-hover:rotate-12 transition-transform">🎁</span>
+                      Claim {selectedQuest.reward}
+                    </button>
+                  ) : selectedQuest.rewardClaimed ? (
+                    <div className="bg-green-500/10 rounded-lg p-4 border border-green-500/20 text-green-400 text-xs font-bold flex items-center justify-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Reward Claimed: {selectedQuest.reward}
+                    </div>
+                  ) : (
+                    <div className="bg-white/5 rounded-lg p-3 border border-white/5 text-slate-500 text-xs font-bold flex items-center gap-2 italic">
+                      <span>🔒</span> {selectedQuest.reward}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (

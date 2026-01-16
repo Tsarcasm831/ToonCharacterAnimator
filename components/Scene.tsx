@@ -16,6 +16,7 @@ interface SceneProps {
   onSlotSelect?: (slotIndex: number) => void;
   onInteractionUpdate?: (text: string | null, progress: number | null) => void;
   onGameReady?: (game: Game) => void;
+  onEnvironmentReady?: () => void;
   onToggleWorldMap?: (pos: THREE.Vector3) => void;
   onToggleQuestLog?: () => void;
   controlsDisabled?: boolean;
@@ -30,6 +31,7 @@ const Scene: React.FC<SceneProps> = ({
     onSlotSelect, 
     onInteractionUpdate, 
     onGameReady,
+    onEnvironmentReady,
     onToggleWorldMap,
     onToggleQuestLog,
     controlsDisabled = false
@@ -46,6 +48,9 @@ const Scene: React.FC<SceneProps> = ({
     gameRef.current = game;
     
     if (onGameReady) onGameReady(game);
+    if (onEnvironmentReady) {
+        game.onEnvironmentReady = onEnvironmentReady;
+    }
 
     // Hook up callbacks
     // Fixed: onInventoryUpdate now correctly matches the Game instance property type
@@ -53,9 +58,8 @@ const Scene: React.FC<SceneProps> = ({
     game.onInteractionUpdate = onInteractionUpdate;
     if (onSlotSelect) {
         game.setSlotSelectCallback(onSlotSelect);
-    }
-    if (onToggleWorldMap) {
-        game.onToggleWorldMapCallback = onToggleWorldMap;
+        if (onToggleWorldMap) game.onToggleWorldMapCallback = onToggleWorldMap;
+        if (onEnvironmentReady) game.onEnvironmentReady = onEnvironmentReady;
     }
 
     game.start();
@@ -92,7 +96,7 @@ const Scene: React.FC<SceneProps> = ({
       // Input Manager specific callbacks
       game['inputManager'].onToggleQuestLog = onToggleQuestLog;
 
-  }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onToggleQuestLog, controlsDisabled]);
+  }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onToggleQuestLog, onEnvironmentReady, controlsDisabled]);
 
   return <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />;
 };
