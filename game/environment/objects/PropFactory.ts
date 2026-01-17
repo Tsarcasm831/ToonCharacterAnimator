@@ -123,7 +123,8 @@ export class PropFactory {
         const mat = this.getMaterial(0x0000ff, 'prop_blueblock');
         
         const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(-4, height / 2, 0); 
+        // Moved from Z=0 to Z=20 (20 meters South based on world orientation)
+        mesh.position.set(-4, height / 2, 20); 
         mesh.castShadow = true;
         mesh.userData = { type: 'hard', material: 'stone' };
         return mesh;

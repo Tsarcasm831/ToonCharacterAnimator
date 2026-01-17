@@ -203,44 +203,44 @@ export class Game {
     private buildStructures() {
         if (!this.environment) return;
         
-        const build = (blueprint: Blueprint, originX: number, originZ: number, rotation: number = 0, color?: number) => {
+        const build = (blueprint: Blueprint, originX: number, originZ: number, blueprintRotation: number = 0, color?: number) => {
              const GRID = 1.3333;
              blueprint.forEach(part => {
-                 const rx = part.x * Math.cos(rotation) - part.z * Math.sin(rotation);
-                 const rz = part.x * Math.sin(rotation) + part.z * Math.cos(rotation);
-                 
-                 const wx = originX + (rx * GRID);
-                 const wz = originZ + (rz * GRID);
-                 
-                 let finalX = wx;
-                 let finalZ = wz;
-                 let finalRot = (part.rotation || 0) + rotation;
+                 let localX = part.x;
+                 let localZ = part.z;
 
+                 // Calculate refined local offsets for part alignment within the grid cell
                  if (part.type === 'foundation' || part.type === 'roof' || part.type === 'round_foundation' || part.type === 'round_wall') {
-                     finalX += GRID / 2;
-                     finalZ += GRID / 2;
+                     localX += 0.5;
+                     localZ += 0.5;
                  } else if (part.type === 'pillar') {
-                     // Pillars exact at grid nodes
+                     // Pillars stay at nodes
                  } else {
-                     // Walls/Doors: Centered on edges
-                     const localX = part.x + (part.rotation === Math.PI/2 ? 0 : 0.5);
-                     const localZ = part.z + (part.rotation === Math.PI/2 ? 0.5 : 0);
-                     const rotX = localX * Math.cos(rotation) - localZ * Math.sin(rotation);
-                     const rotZ = localX * Math.sin(rotation) + localZ * Math.cos(rotation);
-                     finalX = originX + (rotX * GRID);
-                     finalZ = originZ + (rotZ * GRID);
+                     // Walls/Doorways centered on edges
+                     // part.rotation relative to blueprint: 0 = horizontal (Z-edge), PI/2 = vertical (X-edge)
+                     if (part.rotation === Math.PI / 2) {
+                         localZ += 0.5;
+                     } else {
+                         localX += 0.5;
+                     }
                  }
+
+                 // Apply blueprint-level rotation to the local offsets
+                 const rx = localX * Math.cos(blueprintRotation) - localZ * Math.sin(blueprintRotation);
+                 const rz = localX * Math.sin(blueprintRotation) + localZ * Math.cos(blueprintRotation);
+                 
+                 const finalX = originX + (rx * GRID);
+                 const finalZ = originZ + (rz * GRID);
+                 const finalRot = (part.rotation || 0) + blueprintRotation;
 
                  const FOUNDATION_HEIGHT = 0.4;
                  let y = 0;
                  if (part.type === 'foundation' || part.type === 'round_foundation') {
                      y = 0.2; 
-                 } else if (part.type === 'wall' || part.type === 'pillar') {
+                 } else if (part.type === 'wall' || part.type === 'pillar' || part.type === 'round_wall') {
                      y = FOUNDATION_HEIGHT + 1.65; 
                  } else if (part.type === 'doorway') {
                      y = FOUNDATION_HEIGHT + 1.65;
-                 } else if (part.type === 'round_wall') {
-                     y = FOUNDATION_HEIGHT; // Geometry includes Y offset
                  } else if (part.type === 'door') {
                      y = FOUNDATION_HEIGHT + 1.175;
                  } else if (part.type === 'roof') {
@@ -276,10 +276,25 @@ export class Game {
         const mesh = BuildingParts.createStructureMesh(type, false, color);
         mesh.position.set(x, y, z);
         mesh.rotation.y = rotation;
-        const applyUserData = (obj: THREE.Object3D) => { obj.userData = { ...obj.userData, type: 'hard', material: 'wood', structureType: type }; };
+        
+        const applyUserData = (obj: THREE.Object3D) => { 
+            obj.userData = { 
+                ...obj.userData, 
+                type: 'hard', 
+                material: 'wood', 
+                structureType: type 
+            }; 
+        };
+
+        // Important: Doorways are now Groups with sub-meshes for posts/lintel
         if (mesh instanceof THREE.Group) {
             mesh.traverse(applyUserData);
-            mesh.children.forEach(child => this.environment?.obstacles.push(child));
+            // Add all visual children that are meshes to the obstacle list for collision
+            mesh.traverse(child => {
+                if (child instanceof THREE.Mesh && child.userData.type === 'hard') {
+                    this.environment?.obstacles.push(child);
+                }
+            });
         } else {
             applyUserData(mesh);
             this.environment?.obstacles.push(mesh);
