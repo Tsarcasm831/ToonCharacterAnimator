@@ -11,41 +11,32 @@ export class BuildingParts {
             case 'foundation':
                 return new THREE.BoxGeometry(GRID_SIZE, 0.4, GRID_SIZE);
             case 'round_foundation':
-                // Covers approx 3x3 grid
                 return new THREE.CylinderGeometry(2.5, 2.5, 0.4, 32);
             case 'wall':
                 return new THREE.BoxGeometry(GRID_SIZE, 3.3, 0.2); 
             case 'round_wall':
-                // A segment of a cylinder wall
-                // Radius matches foundation (2.5). 
-                // 8 segments = 45 degrees each.
                 const innerR = 2.3;
                 const outerR = 2.5;
                 const height = 3.3;
-                // Create arc
                 const shape = new THREE.Shape();
-                const angle = Math.PI / 4; // 45 deg
-                
-                // Outer arc
+                const angle = Math.PI / 4; 
                 shape.absarc(0, 0, outerR, -angle/2, angle/2, false);
-                // Inner arc
                 shape.absarc(0, 0, innerR, angle/2, -angle/2, true);
-                
                 const extrudeSettings = {
                     depth: height,
                     bevelEnabled: false,
                     curveSegments: 8
                 };
                 const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-                // Rotate to stand up (Extrude is along Z) -> Rotate X -90
+                // Center vertically like standard walls
+                geo.translate(0, 0, -height/2);
                 geo.rotateX(-Math.PI / 2);
-                // Center Y
-                geo.translate(0, height/2, 0);
                 return geo;
             case 'pillar':
                 return new THREE.BoxGeometry(0.3, 3.3, 0.3);
             case 'doorway':
-                const postWidth = 0.26;
+                // This is used for the Ghost / Merged representation
+                const postWidth = 0.15; // Thinner posts = wider doorway
                 const totalWidth = GRID_SIZE;
                 const holeWidth = totalWidth - (postWidth * 2); 
                 const totalHeight = 3.3; 
@@ -74,11 +65,9 @@ export class BuildingParts {
                     const pos = g.attributes.position.array;
                     const norm = g.attributes.normal.array;
                     const uv = g.attributes.uv.array;
-                    
                     positions.set(pos, offset * 3);
                     normals.set(norm, offset * 3);
                     uvs.set(uv, offset * 2);
-                    
                     offset += g.attributes.position.count;
                     g.dispose();
                 });
@@ -117,17 +106,14 @@ export class BuildingParts {
                     wireframe: true
                 });
             } else {
-                let color = 0x8d6e63; // Default Wood
-                
+                let color = 0x8d6e63; 
                 if (customColor !== undefined && (t === 'wall' || t === 'round_wall' || t === 'doorway' || t === 'pillar')) {
                     color = customColor;
                 } else {
-                    // Standard structural colors
                     if (t === 'foundation' || t === 'round_foundation') color = 0x795548;
                     if (t === 'roof') color = 0x4e342e;
                     if (t === 'pillar') color = 0x5d4037;
                 }
-
                 return new THREE.MeshStandardMaterial({
                     color: color,
                     roughness: 0.8,
@@ -138,8 +124,43 @@ export class BuildingParts {
         };
 
         const mat = getMat(type);
-        const geo = this.getGeometry(type);
 
+        if (type === 'doorway' && !isGhost) {
+            // Build as a Group to allow per-component collision checking
+            const GRID_SIZE = 1.3333;
+            const postWidth = 0.15; // Match geometry postWidth
+            const totalWidth = GRID_SIZE;
+            const holeWidth = totalWidth - (postWidth * 2); 
+            const totalHeight = 3.3; 
+            const lintelHeight = 0.95; 
+            const depth = 0.25; 
+
+            const group = new THREE.Group();
+            
+            const postGeo = new THREE.BoxGeometry(postWidth, totalHeight, depth);
+            const lPost = new THREE.Mesh(postGeo, mat);
+            lPost.position.x = -(totalWidth/2 - postWidth/2);
+            lPost.castShadow = true;
+            lPost.receiveShadow = true;
+            group.add(lPost);
+
+            const rPost = new THREE.Mesh(postGeo, mat);
+            rPost.position.x = +(totalWidth/2 - postWidth/2);
+            rPost.castShadow = true;
+            rPost.receiveShadow = true;
+            group.add(rPost);
+
+            const lintelGeo = new THREE.BoxGeometry(holeWidth, lintelHeight, depth);
+            const lintel = new THREE.Mesh(lintelGeo, mat);
+            lintel.position.y = (totalHeight/2 - lintelHeight/2);
+            lintel.castShadow = true;
+            lintel.receiveShadow = true;
+            group.add(lintel);
+
+            return group;
+        }
+
+        const geo = this.getGeometry(type);
         const mesh = new THREE.Mesh(geo, mat);
         mesh.castShadow = !isGhost;
         mesh.receiveShadow = !isGhost;
