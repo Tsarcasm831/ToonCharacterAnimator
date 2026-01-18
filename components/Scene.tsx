@@ -2,16 +2,13 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { Game } from "../game/Game";
-// Added InventoryItem to imports to resolve prop type mismatches
 import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
 
 interface SceneProps {
-  activeScene: 'dev' | 'world';
+  activeScene: 'dev' | 'world' | 'combat';
   config: PlayerConfig;
   manualInput: Partial<PlayerInput>;
-  // Fixed type from string[] to (InventoryItem | null)[] to match Game class constructor and App state
   initialInventory: (InventoryItem | null)[];
-  // Fixed type from string[] to (InventoryItem | null)[] to match Game class onInventoryUpdate callback
   onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
   onSlotSelect?: (slotIndex: number) => void;
   onInteractionUpdate?: (text: string | null, progress: number | null) => void;
@@ -43,7 +40,6 @@ const Scene: React.FC<SceneProps> = ({
     if (!containerRef.current) return;
 
     // Initialize Game
-    // Fixed: initialInventory is now correctly typed as (InventoryItem | null)[]
     const game = new Game(containerRef.current, config, manualInput, initialInventory, activeScene);
     gameRef.current = game;
     
@@ -53,7 +49,6 @@ const Scene: React.FC<SceneProps> = ({
     }
 
     // Hook up callbacks
-    // Fixed: onInventoryUpdate now correctly matches the Game instance property type
     game.onInventoryUpdate = onInventoryUpdate;
     game.onInteractionUpdate = onInteractionUpdate;
     if (onSlotSelect) {
@@ -67,8 +62,17 @@ const Scene: React.FC<SceneProps> = ({
     const handleResize = () => game.resize();
     window.addEventListener('resize', handleResize);
 
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+        resizeObserver = new ResizeObserver(() => handleResize());
+        resizeObserver.observe(containerRef.current);
+    }
+
+    requestAnimationFrame(() => handleResize());
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      resizeObserver?.disconnect();
       game.stop();
     };
   }, []); // Run once on mount
@@ -77,23 +81,24 @@ const Scene: React.FC<SceneProps> = ({
   useEffect(() => {
       const game = gameRef.current;
       if (!game) return;
+      
+      // Handle scene switching
+      // We check private property access pattern or expose a getter, but for now 
+      // we can infer it needs switching if prop changed.
+      // Actually, Scene component is re-mounted if key changes in App, which forces reconstruction.
+      // But if App uses same key, we must switch manually. App uses `key={activeScene}` so this is handled by re-mount.
+      
       game.setConfig(config);
       game.setManualInput(manualInput);
       
-      // Update inventory from React state if it changes (e.g. drag & drop)
-      // Fixed: initialInventory is now correctly typed as (InventoryItem | null)[]
       game.setInventory(initialInventory);
       
-      // Update callbacks
-      // Fixed: onInventoryUpdate now correctly matches the Game instance property type
       game.onInventoryUpdate = onInventoryUpdate;
       game.onInteractionUpdate = onInteractionUpdate;
       if (onSlotSelect) game.setSlotSelectCallback(onSlotSelect);
       
-      // Sync Control State
       game.setControlsActive(!controlsDisabled);
 
-      // Input Manager specific callbacks
       game['inputManager'].onToggleQuestLog = onToggleQuestLog;
 
   }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onToggleQuestLog, onEnvironmentReady, controlsDisabled]);

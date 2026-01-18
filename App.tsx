@@ -5,9 +5,11 @@ import { PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest, InventoryItem, QuestS
 import { Header } from './components/ui/Header.tsx';
 import { InteractionOverlay } from './components/ui/InteractionOverlay.tsx';
 import { Hotbar } from './components/ui/Hotbar.tsx';
+import { PlayerBench } from './components/ui/PlayerBench.tsx';
 import { ControlPanel } from './components/ui/ControlPanel.tsx';
 import { InventoryModal } from './components/ui/InventoryModal.tsx';
 import { TradeModal } from './components/ui/TradeModal.tsx';
+import { ShopkeeperChatModal } from './components/ui/ShopkeeperChatModal.tsx';
 import { ForgeModal } from './components/ui/ForgeModal.tsx';
 import { BuilderUI } from './components/ui/BuilderUI.tsx';
 import { MobileControls } from './components/ui/MobileControls.tsx';
@@ -20,7 +22,7 @@ import { MainMenu } from './components/ui/MainMenu.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
 import { ModelExporter } from './game/ModelExporter.ts';
 import { Game } from './game/Game.ts';
-import { BuildType } from './game/builder/BuildingBlueprints.ts';
+import { StructureType } from './game/builder/BuildingParts.ts';
 import * as THREE from 'three';
 
 const INITIAL_QUESTS: Quest[] = [
@@ -70,13 +72,14 @@ const App: React.FC = () => {
   });
   
   const [isBuilderMode, setIsBuilderMode] = useState(false);
-  const [activeStructure, setActiveStructure] = useState<BuildType>('foundation');
+  const [activeStructure, setActiveStructure] = useState<StructureType>('foundation');
   const [currentBiome, setCurrentBiome] = useState({ name: 'Verdant Meadows', color: '#4ade80' });
   const [playerRotation, setPlayerRotation] = useState(0);
   const [isTravelOpen, setIsTravelOpen] = useState(false);
-  const [activeScene, setActiveScene] = useState<'dev' | 'world'>('dev');
+  const [activeScene, setActiveScene] = useState<'dev' | 'world' | 'combat'>('dev');
   const [notification, setNotification] = useState<string | null>(null);
 
+  // Main Inventory for Dev/World scenes
   const [inventory, setInventory] = useState<(InventoryItem | null)[]>(() => {
     const inv = Array(32).fill(null);
     inv[1] = { name: 'Axe', count: 1 };
@@ -98,6 +101,9 @@ const App: React.FC = () => {
     inv[22] = { name: 'Bow', count: 1 }; 
     return inv;
   });
+
+  // Separate Bench Inventory for Combat Arena
+  const [bench, setBench] = useState<(InventoryItem | null)[]>(Array(13).fill(null));
   
   const [equipmentSlots, setEquipmentSlots] = useState<Record<string, string | null>>({
       helm: null, mask: null, hood: null, shoulder: null, torso: null, legs: null, boots: null, mount: null, amulet: null, gloves: null, ring1: null, ring2: null, focus: null
@@ -110,6 +116,7 @@ const App: React.FC = () => {
   const [coins, setCoins] = useState(1250);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isTradeOpen, setIsTradeOpen] = useState(false);
+  const [isShopkeeperChatOpen, setIsShopkeeperChatOpen] = useState(false);
   const [isForgeOpen, setIsForgeOpen] = useState(false);
   const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
@@ -243,7 +250,7 @@ const App: React.FC = () => {
     else setIsWorldMapOpen(false);
   };
 
-  const handleSelectStructure = (type: BuildType) => {
+  const handleSelectStructure = (type: StructureType) => {
       setActiveStructure(type);
       if (gameInstance.current) gameInstance.current.setBuildingType(type);
   };
@@ -341,7 +348,7 @@ const App: React.FC = () => {
     if (gameInstance.current) gameInstance.current['player'].isTalking = false;
   };
 
-  const handleTravel = (scene: 'dev' | 'world') => {
+  const handleTravel = (scene: 'dev' | 'world' | 'combat') => {
       if (scene === activeScene) { setIsTravelOpen(false); return; }
       setIsEnvironmentBuilt(false);
       setIsVisualLoadingDone(false);
@@ -368,7 +375,7 @@ const App: React.FC = () => {
       setGameState('PLAYING');
   };
 
-  const isHUDDisabled = isInventoryOpen || isTradeOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || gameState !== 'PLAYING';
+  const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || gameState !== 'PLAYING';
 
   return (
     <div className="w-screen h-screen relative bg-gray-900 overflow-hidden font-sans">
@@ -393,6 +400,7 @@ const App: React.FC = () => {
                 g.onBiomeUpdate = (b) => setCurrentBiome(b);
                 g.onDialogueTrigger = (content) => setDialogue(content);
                 g.onTradeTrigger = () => setIsTradeOpen(true);
+                g.onShopkeeperTrigger = () => setIsShopkeeperChatOpen(true);
                 g.onForgeTrigger = () => setIsForgeOpen(true);
                 g.onRotationUpdate = (r) => setPlayerRotation(r);
             }}
@@ -460,20 +468,42 @@ const App: React.FC = () => {
 
                     {isTravelOpen && (
                         <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-48 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1 animate-fade-in-down">
-                            <button onClick={() => handleTravel('dev')} className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'dev' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>Dev Scene{activeScene === 'dev' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}</button>
-                            <button onClick={() => handleTravel('world')} className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'world' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>World Scene{activeScene === 'world' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}</button>
+                            <button onClick={() => handleTravel('dev')} className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'dev' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
+                                Dev Scene{activeScene === 'dev' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                            </button>
+                            <button onClick={() => handleTravel('world')} className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'world' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
+                                World Scene{activeScene === 'world' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                            </button>
+                            <button onClick={() => handleTravel('combat')} className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'combat' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
+                                Combat Arena{activeScene === 'combat' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
+                            </button>
                         </div>
                     )}
                 </div>
             </div>
 
             <InteractionOverlay text={interactionText} progress={progress} />
-            {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={setSelectedSlot} />}
-            {isBuilderMode && !isInventoryOpen && !isTradeOpen && !isForgeOpen && <BuilderUI activeType={activeStructure} onSelectType={handleSelectStructure} />}
-            {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <ControlPanel config={config} manualInput={manualInput} isDeadUI={isDeadUI} setConfig={setConfig} setManualInput={setManualInput} handleDeathToggle={handleDeathToggle} triggerAction={triggerAction} onExport={handleExport} onSpawnAnimals={() => setIsSpawnModalOpen(true)} />}
-            {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
+            
+            {/* Standard Hotbar for Dev/World scenes */}
+            {(activeScene === 'dev' || activeScene === 'world') && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && (
+                <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={setSelectedSlot} />
+            )}
+
+            {/* Separate PlayerBench for Combat Scene */}
+            {activeScene === 'combat' && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && (
+                <PlayerBench inventory={bench} selectedSlot={selectedSlot} onSelectSlot={(i) => { /* No-op or selection logic for bench if needed */ }} />
+            )}
+            
+            {isBuilderMode && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && <BuilderUI activeType={activeStructure} onSelectType={handleSelectStructure} />}
+            {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <ControlPanel config={config} manualInput={manualInput} isDeadUI={isDeadUI} setConfig={setConfig} setManualInput={setManualInput} handleDeathToggle={handleDeathToggle} triggerAction={triggerAction} onExport={handleExport} onSpawnAnimals={() => setIsSpawnModalOpen(true)} />}
+            {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
             <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} config={config} inventory={inventory} equipmentSlots={equipmentSlots} onEquip={setSelectedSlot} onInventoryChange={setInventory} onEquipItem={handleEquipItem} onUnequipItem={handleUnequipItem} coins={coins} />
             <TradeModal isOpen={isTradeOpen} onClose={() => { setIsTradeOpen(false); if(gameInstance.current) gameInstance.current['player'].isTalking = false; }} inventory={inventory} coins={coins} onBuy={handleBuy} onSell={handleSell} />
+            <ShopkeeperChatModal
+                isOpen={isShopkeeperChatOpen}
+                onCancel={() => { setIsShopkeeperChatOpen(false); if (gameInstance.current) gameInstance.current['player'].isTalking = false; }}
+                onTrade={() => { setIsShopkeeperChatOpen(false); setIsTradeOpen(true); }}
+            />
             <ForgeModal isOpen={isForgeOpen} onClose={() => setIsForgeOpen(false)} inventory={inventory} onInventoryChange={setInventory} />
             <KeybindsModal isOpen={isKeybindsOpen} onClose={() => setIsKeybindsOpen(false)} />
             <WorldMapModal isOpen={isWorldMapOpen} onClose={() => setIsWorldMapOpen(false)} playerPos={playerPosForMap} />

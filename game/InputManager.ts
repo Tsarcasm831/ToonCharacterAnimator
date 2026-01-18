@@ -108,12 +108,18 @@ export class InputManager {
         if (e.code === 'KeyB') this.onToggleBuilder?.();
         if (e.code === 'KeyT') this.onToggleGrid?.(); 
 
+        // Handle Slot Selection (1-9, 0, -, =, Backspace for 13 slots)
         if (e.code.startsWith('Digit')) {
             const num = parseInt(e.code.replace('Digit', ''));
-            if (num >= 1 && num <= 8) {
-                this.onSlotSelect?.(num - 1);
+            if (num >= 1 && num <= 9) {
+                this.onSlotSelect?.(num - 1); // 0-8
+            } else if (num === 0) {
+                this.onSlotSelect?.(9); // 9
             }
         }
+        if (e.code === 'Minus') this.onSlotSelect?.(10);
+        if (e.code === 'Equal') this.onSlotSelect?.(11);
+        if (e.code === 'Backspace') this.onSlotSelect?.(12);
     }
     
     private handleKeyUp(e: KeyboardEvent) { 

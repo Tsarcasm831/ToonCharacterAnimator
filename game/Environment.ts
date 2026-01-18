@@ -175,20 +175,55 @@ export class Environment {
     async buildAsync() {
         if (this.isBuilt || this.isBuilding) return;
         this.isBuilding = true;
-        
-        // Build basic scene geometry
-        await SceneBuilder.buildAsync(this.group, 10);
-        
-        // Initialize obstacles
-        await this.obstacleManager.initAsync(20);
-        
-        // Wait for all asynchronously generating biome textures to finish
-        await TerrainTextureFactory.allLoaded();
-        
-        if (!this.grassManager) this.grassManager = new GrassManager(this.group);
-        if (!this.snowSystem) this.snowSystem = new SnowSystem(this.group);
-        
-        this.isBuilt = true;
-        this.isBuilding = false;
+
+        const buildStart = performance.now();
+
+        try {
+            // Build basic scene geometry in controllable batches
+            await SceneBuilder.buildAsync(this.group, 10);
+
+            // Kick off downstream systems in parallel
+            const textureStatusPromise = this.waitForTextures(1500);
+            const obstaclesPromise = this.obstacleManager.initAsync(20);
+
+            const textureStatus = await textureStatusPromise;
+            await obstaclesPromise;
+
+            if (!this.grassManager) this.grassManager = new GrassManager(this.group);
+            if (!this.snowSystem) this.snowSystem = new SnowSystem(this.group);
+
+            this.isBuilt = true;
+
+            const totalMs = Math.round(performance.now() - buildStart);
+            console.debug(`[Environment] buildAsync completed in ${totalMs}ms (textures: ${textureStatus}).`);
+        } finally {
+            this.isBuilding = false;
+        }
+    }
+
+    private async waitForTextures(timeoutMs: number = 1500): Promise<'ready' | 'timeout'> {
+        const texturesPromise = TerrainTextureFactory.allLoaded();
+        let timeoutId: number | null = null;
+
+        const timeoutPromise = new Promise<'timeout'>(resolve => {
+            timeoutId = window.setTimeout(() => resolve('timeout'), timeoutMs);
+        });
+
+        const result = await Promise.race([
+            texturesPromise.then(() => 'ready' as const),
+            timeoutPromise
+        ]);
+
+        if (timeoutId !== null) {
+            window.clearTimeout(timeoutId);
+        }
+
+        if (result === 'timeout') {
+            texturesPromise
+                .then(() => console.debug('[Environment] Deferred texture generation finished.'))
+                .catch((err) => console.warn('[Environment] Texture generation failed after timeout.', err));
+        }
+
+        return result;
     }
 }
