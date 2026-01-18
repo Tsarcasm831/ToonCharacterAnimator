@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { Environment } from '../../../Environment';
 import { ObjectFactory } from '../../../environment/ObjectFactory';
@@ -7,7 +6,10 @@ import { PlayerUtils } from '../../../player/PlayerUtils';
 export enum SpiderState { IDLE, PATROL, CHASE, ATTACK, DEAD }
 
 export class Spider {
-    scene: THREE.Scene; group: THREE.Group; model: any; position: THREE.Vector3 = new THREE.Vector3(); rotationY: number = 0; state: SpiderState = SpiderState.PATROL; stateTimer: number = 0; targetPos: THREE.Vector3 = new THREE.Vector3(); currentTarget: { position: THREE.Vector3, isDead?: boolean } | null = null; isDead: boolean = false; isSkinned: boolean = false; maxHealth: number = 30; health: number = 30; hitbox: THREE.Group; private healthBarGroup: THREE.Group; private healthBarFill: THREE.Mesh; private walkTime: number = 0; private attackCooldown: number = 0; private moveSpeedVal: number = 2.0; private readonly collisionSize = new THREE.Vector3(1.2, 0.9, 1.4); private stuckTimer: number = 0; private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
+    scene: THREE.Scene; group: THREE.Group; model: any; position: THREE.Vector3 = new THREE.Vector3(); rotationY: number = 0; state: SpiderState = SpiderState.PATROL; stateTimer: number = 0; targetPos: THREE.Vector3 = new THREE.Vector3(); currentTarget: { position: THREE.Vector3, isDead?: boolean } | null = null; isDead: boolean = false; isSkinned: boolean = false; maxHealth: number = 30; health: number = 30; hitbox: THREE.Group; 
+    private healthBarGroup: THREE.Group; 
+    private uiRefs: any;
+    private walkTime: number = 0; private attackCooldown: number = 0; private moveSpeedVal: number = 2.0; private readonly collisionSize = new THREE.Vector3(1.2, 0.9, 1.4); private stuckTimer: number = 0; private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene; this.position.copy(initialPos); this.lastStuckPos.copy(this.position);
@@ -34,7 +36,12 @@ export class Spider {
         headBox.userData = { type: 'creature' };
         this.hitbox.add(headBox);
 
-        this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 1.8, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.15), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(0.96, 0.11); fgGeo.translate(0.48, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.48, 0, 0.01); this.healthBarGroup.add(this.healthBarFill); this.group.add(this.healthBarGroup);
+        // Enhanced Health Bar
+        this.healthBarGroup = new THREE.Group(); 
+        this.healthBarGroup.position.set(0, 1.8, 0); 
+        this.uiRefs = PlayerUtils.createHealthBar(this.healthBarGroup, this.maxHealth, 0x1a1a1a, 'Spider');
+        this.group.add(this.healthBarGroup);
+
         this.group.position.copy(this.position); this.scene.add(this.group);
     }
 
@@ -60,7 +67,17 @@ export class Spider {
 
     private findPatrolPoint() { const range = 15; this.targetPos.set(this.position.x + (Math.random() - 0.5) * range, 0, this.position.z + (Math.random() - 0.5) * range); if (!PlayerUtils.isWithinBounds(this.targetPos)) this.targetPos.set(0, 0, 0); }
     private animate(dt: number, moveSpeed: number) { const parts = this.model.parts; const time = this.walkTime * 4.0; if (moveSpeed > 0) { if (parts.legL1) { const groupA = Math.sin(time), groupB = Math.sin(time + Math.PI), lift = 0.5; parts.legL1.rotation.x = groupA * lift; parts.legR2.rotation.x = groupA * lift; parts.legL3.rotation.x = groupA * lift; parts.legR4.rotation.x = groupA * lift; parts.legR1.rotation.x = groupB * lift; parts.legL2.rotation.x = groupB * lift; parts.legR3.rotation.x = groupB * lift; parts.legL4.rotation.x = groupB * lift; } if(parts.body) parts.body.position.y = 0.5 + Math.abs(Math.cos(time * 2)) * 0.05; } else { const breath = Math.sin(this.stateTimer * 2.0) * 0.02; if(parts.abdomen) parts.abdomen.scale.set(1 + breath, 1 + breath, 1 + breath); } }
-    takeDamage(amount: number) { if (this.isDead) return; this.health -= amount; this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth); const mainPart = this.model.parts.body || this.model.parts.abdomen; if(mainPart && mainPart.material) { mainPart.material.emissive.setHex(0xff0000); mainPart.material.emissiveIntensity = 0.5; } if (this.health <= 0) this.die(); else setTimeout(() => { if (!this.isDead && mainPart && mainPart.material) mainPart.material.emissiveIntensity = 0; }, 100); }
+    
+    takeDamage(amount: number) { 
+        if (this.isDead) return; 
+        this.health -= amount; 
+        PlayerUtils.updateHealthBar(this.uiRefs, this.health, this.maxHealth);
+        const mainPart = this.model.parts.body || this.model.parts.abdomen; 
+        if(mainPart && mainPart.material) { mainPart.material.emissive.setHex(0xff0000); mainPart.material.emissiveIntensity = 0.5; } 
+        if (this.health <= 0) this.die(); 
+        else setTimeout(() => { if (!this.isDead && mainPart && mainPart.material) mainPart.material.emissiveIntensity = 0; }, 100); 
+    }
+    
     private die() { this.isDead = true; this.state = SpiderState.DEAD; this.healthBarGroup.visible = false; this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'silk'; this.model.group.rotation.x = Math.PI; this.model.group.position.y = 0.5; this.hitbox.position.y = -0.5; }
-    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.hitbox.userData.type = 'soft'; this.hitbox.children.forEach(child => { child.userData.isSkinnable = false; child.userData.type = 'soft'; }); this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.setHex(0x000000); if (obj.material.emissive) obj.material.emissive.setHex(0x000000); } }); }
+    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.setHex(0x555555); } }); }
 }

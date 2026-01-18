@@ -14,12 +14,31 @@ export class CombatEnvironment {
     private readonly HEX_HEIGHT = 0.5;
 
     private gridLabelsGroup: THREE.Group | null = null;
+    
+    // Pre-calculated spacing
+    private readonly WIDTH: number;
+    private readonly HEIGHT: number;
+    private readonly HORIZ_DIST: number;
+    private readonly VERT_DIST: number;
+    private readonly OFFSET_X: number;
+    private readonly OFFSET_Z: number;
 
     constructor(scene: THREE.Scene) {
         this.scene = scene;
         this.group = new THREE.Group();
         this.group.visible = false; // Hidden by default
         this.scene.add(this.group);
+        
+        // Init constants
+        this.WIDTH = Math.sqrt(3) * this.HEX_SIZE;
+        this.HEIGHT = 2 * this.HEX_SIZE;
+        this.HORIZ_DIST = this.WIDTH;
+        this.VERT_DIST = 0.75 * this.HEIGHT;
+        const totalWidth = this.GRID_COLS * this.HORIZ_DIST + (this.HORIZ_DIST / 2);
+        const totalHeight = this.GRID_ROWS * this.VERT_DIST;
+        this.OFFSET_X = -totalWidth / 2 + (this.HORIZ_DIST / 2);
+        this.OFFSET_Z = -totalHeight / 2 + (this.VERT_DIST / 2);
+
         this.buildGrid();
     }
 
@@ -39,24 +58,36 @@ export class CombatEnvironment {
         }
     }
 
+    public snapToGrid(position: THREE.Vector3): THREE.Vector3 {
+        // Find nearest hex center
+        let minDesc = Infinity;
+        let bestPos = position.clone();
+
+        // Brute force nearest neighbor search against the grid (since grid is small 8x8)
+        // A standard axial coordinate conversion is faster for infinite grids, but this is safer for our specific offset layout
+        for (let r = 0; r < this.GRID_ROWS; r++) {
+            for (let c = 0; c < this.GRID_COLS; c++) {
+                const xPos = c * this.HORIZ_DIST + ((r % 2) * (this.HORIZ_DIST / 2)) + this.OFFSET_X;
+                const zPos = r * this.VERT_DIST + this.OFFSET_Z;
+                
+                const distSq = (position.x - xPos) ** 2 + (position.z - zPos) ** 2;
+                if (distSq < minDesc) {
+                    minDesc = distSq;
+                    bestPos.set(xPos, position.y, zPos);
+                }
+            }
+        }
+        return bestPos;
+    }
+
     private buildGridLabels() {
         this.gridLabelsGroup = new THREE.Group();
         this.group.add(this.gridLabelsGroup);
 
-        const width = Math.sqrt(3) * this.HEX_SIZE;
-        const height = 2 * this.HEX_SIZE;
-        const horizDist = width;
-        const vertDist = 0.75 * height;
-
-        const totalWidth = this.GRID_COLS * horizDist + (horizDist / 2);
-        const totalHeight = this.GRID_ROWS * vertDist;
-        const offsetX = -totalWidth / 2 + (horizDist / 2);
-        const offsetZ = -totalHeight / 2 + (vertDist / 2);
-
         for (let r = 0; r < this.GRID_ROWS; r++) {
             for (let c = 0; c < this.GRID_COLS; c++) {
-                const xPos = c * horizDist + ((r % 2) * (horizDist / 2)) + offsetX;
-                const zPos = r * vertDist + offsetZ;
+                const xPos = c * this.HORIZ_DIST + ((r % 2) * (this.HORIZ_DIST / 2)) + this.OFFSET_X;
+                const zPos = r * this.VERT_DIST + this.OFFSET_Z;
 
                 const canvas = document.createElement('canvas');
                 canvas.width = 128;
@@ -85,38 +116,19 @@ export class CombatEnvironment {
     }
 
     private buildGrid() {
-        // Hexagon math (Pointy topped)
-        // Width = sqrt(3) * size
-        // Height = 2 * size
-        // Horiz spacing = Width
-        // Vert spacing = 3/4 * Height
-        
-        const width = Math.sqrt(3) * this.HEX_SIZE;
-        const height = 2 * this.HEX_SIZE;
-        const horizDist = width;
-        const vertDist = 0.75 * height;
-
         const hexGeo = new THREE.CylinderGeometry(this.HEX_SIZE, this.HEX_SIZE, this.HEX_HEIGHT, 6);
         
         const matRed = new THREE.MeshStandardMaterial({ color: 0x662222, roughness: 0.7, flatShading: true });
         const matGreen = new THREE.MeshStandardMaterial({ color: 0x224422, roughness: 0.7, flatShading: true });
         const matBorder = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.9 });
 
-        // Center the grid around (0,0)
-        // Offset calculation for odd-r layout
-        const totalWidth = this.GRID_COLS * horizDist + (horizDist / 2);
-        const totalHeight = this.GRID_ROWS * vertDist;
-        const offsetX = -totalWidth / 2 + (horizDist / 2);
-        const offsetZ = -totalHeight / 2 + (vertDist / 2);
-
         for (let r = 0; r < this.GRID_ROWS; r++) {
             for (let c = 0; c < this.GRID_COLS; c++) {
                 const hexGroup = new THREE.Group();
                 
                 // Calculate position
-                // Offset odd rows
-                const xPos = c * horizDist + ((r % 2) * (horizDist / 2)) + offsetX;
-                const zPos = r * vertDist + offsetZ;
+                const xPos = c * this.HORIZ_DIST + ((r % 2) * (this.HORIZ_DIST / 2)) + this.OFFSET_X;
+                const zPos = r * this.VERT_DIST + this.OFFSET_Z;
 
                 hexGroup.position.set(xPos, 0, zPos);
 
@@ -156,7 +168,10 @@ export class CombatEnvironment {
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
         floor.position.y = -10;
+        // Make floor intersectable for dragging logic raycasts
+        floor.userData = { type: 'ground' }; 
         this.group.add(floor);
+        this.obstacles.push(floor);
         
         // Add some arena lighting
         const arenaLight = new THREE.PointLight(0x00ffff, 0.5, 50);
@@ -166,8 +181,6 @@ export class CombatEnvironment {
 
     update(dt: number, config: PlayerConfig, playerPos: THREE.Vector3) {
         if (!this.group.visible) return;
-        
-        // Potential future logic: Highlight hex under player
     }
 
     // Interface compatibility with Environment

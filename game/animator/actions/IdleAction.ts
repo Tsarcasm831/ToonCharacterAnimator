@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { playerModelResetFeet, animateBreathing, applyFootRot } from '../AnimationUtils';
 
@@ -66,13 +65,16 @@ export class IdleAction {
         parts.neck.rotation.y = lerp(parts.neck.rotation.y, 0.2, damp);
         parts.head.rotation.y = lerp(parts.head.rotation.y, 0, damp);
 
+        // LEFT LEG (Forward Leg)
         parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.7, damp);
-        const lThighZ = 0.2;
+        // Move left foot further to the left (lateral) to fix the "too far right" issue
+        const lThighZ = 0.45; 
         parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, lThighZ, damp); 
         parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.8, damp);
         
+        // RIGHT LEG (Rear Leg)
         parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.35, damp);
-        const rThighZ = -0.2;
+        const rThighZ = -0.3;
         parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, rThighZ, damp); 
         parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.15, damp); 
 
@@ -100,6 +102,7 @@ export class IdleAction {
         const lerp = THREE.MathUtils.lerp;
         const holdingItem = player.config.selectedItem;
         const isBow = holdingItem === 'Bow';
+        const isStaff = holdingItem === 'Staff';
         const stance = player.config.weaponStance;
 
         // LEFT ARM LOGIC
@@ -110,6 +113,13 @@ export class IdleAction {
             parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.2, damp);
             parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.4, damp);
             parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, damp);
+        } else if (isStaff) {
+            // Staff Support Stance (Left Hand near center for balance)
+            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.6, damp);
+            parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, -0.6, damp);
+            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.3, damp);
+            parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -1.2, damp);
+            parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI / 2, damp);
         } else {
             parts.leftArm.rotation.set(Math.sin(t)*0.03, 0, 0.15);
             parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.15, damp);
@@ -127,6 +137,20 @@ export class IdleAction {
                  parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.15, damp);
                  parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI / 2, damp);
                  parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, 0, damp);
+             } else if (isStaff) {
+                // Vertical Staff Stance: Holding it out in front vertically
+                const staffPulse = Math.sin(t * 1.5) * 0.05;
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.8 + staffPulse, damp);
+                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0.5, damp);
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.2, damp);
+                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -1.4, damp);
+                
+                // Adjust hand to make staff vertical
+                // Staff is along hand X-axis (forward). We need to point hand forward so staff is vertical?
+                // Actually, forearm is bent up, hand needs to be angled back to point staff UP.
+                parts.rightHand.rotation.x = lerp(parts.rightHand.rotation.x, -Math.PI / 2, damp);
+                parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI / 2, damp);
+                parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, 0, damp);
              } else if (stance === 'shoulder') {
                 parts.rightArm.rotation.set(-0.5 + Math.sin(t)*0.03, 0, -0.1);
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -2.2, damp);

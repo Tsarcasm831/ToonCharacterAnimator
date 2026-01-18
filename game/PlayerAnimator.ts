@@ -16,68 +16,93 @@ export class PlayerAnimator {
         const parts = player.model.parts;
         const damp = 10 * dt;
 
-        // 1. Full Body Overrides
+        // 1. Core Status Overrides (Ragdoll, Death, Ledge)
         if (player.isDragged || player.status.recoverTimer > 0) {
             this.status.animateRagdoll(player, parts, dt);
-            this.animateFace(player, dt); // Face still runs in ragdoll
+            this.animateFace(player, dt);
             return;
         } 
         if (player.status.isDead) {
             this.status.animateDeath(player, parts, dt, damp);
             return;
         } 
-        if (player.isFireballCasting) {
-            this.action.animateFireball(player, parts, dt, damp);
-        } else if (player.isFiringBow) {
-            this.action.animateFireArrow(player, parts, dt, damp);
-        } else if (player.isLedgeGrabbing) {
+        if (player.isLedgeGrabbing) {
             this.action.animateClimb(player, parts, dt, damp);
             this.animateFace(player, dt);
             return;
         }
+
+        // 2. Action Overrides (Priority Over Movement)
+        if (player.isFireballCasting) {
+            this.action.animateFireball(player, parts, dt, damp);
+            this.animateFace(player, dt);
+            return; // Full body override
+        } 
         
-        // Actions that override movement
+        if (player.isFiringBow) {
+            this.action.animateFireArrow(player, parts, dt, damp);
+            // Bow allows moving, so we don't return here yet, 
+            // but we MUST ensure base layer doesn't overwrite arms.
+        }
+
         if (player.isPickingUp) {
             this.action.animatePickup(player, parts, dt, damp);
-        } else if (player.isSkinning) {
+            this.animateFace(player, dt);
+            return;
+        } 
+        if (player.isSkinning) {
             this.action.animateSkinning(player, parts, dt, damp);
-        } else if (player.isSummoning) {
+            this.animateFace(player, dt);
+            return;
+        } 
+        if (player.isSummoning) {
             this.action.animateSummon(player, parts, dt, damp);
-        } else if (player.isFishing) {
+            this.animateFace(player, dt);
+            return;
+        } 
+        if (player.isFishing) {
             this.action.animateFishing(player, parts, dt, damp, obstacles);
-        } else if (player.isWaving) {
+            this.animateFace(player, dt);
+            return;
+        } 
+        if (player.isWaving) {
             this.action.animateWave(player, parts, dt, damp);
-        } else if (player.isLeftHandWaving) {
+            this.animateFace(player, dt);
+            return;
+        } 
+        if (player.isLeftHandWaving) {
             this.action.animateLeftHandWave(player, parts, dt, damp);
+            this.animateFace(player, dt);
+            return;
+        }
+
+        // 3. Base Locomotion Layer
+        // If holding pole but not fishing, ensure it stays in hand correctly
+        if (player.config.selectedItem === 'Fishing Pole') {
+            FishingAction.reset(player, dt);
+        }
+
+        const isRightArmAction = player.isPunch || player.isAxeSwing || player.isInteracting;
+        const skipArms = player.isFiringBow || isRightArmAction;
+
+        if (player.isJumping) {
+            this.locomotion.animateJump(player, parts, dt, damp, input, skipArms);
+        } else if (isMoving) {
+            this.locomotion.animateMovement(player, parts, dt, damp, input, skipArms);
         } else {
-            // Check if we need to reset fishing bobber (if holding pole but not fishing)
-            if (player.config.selectedItem === 'Fishing Pole') {
-                FishingAction.reset(player, dt);
-            }
+            this.locomotion.animateIdle(player, parts, damp, skipArms);
+        }
 
-            // 2. Determine Action Layer State
-            const isRightArmAction = player.isPunch || player.isAxeSwing || player.isInteracting;
-
-            // 3. Locomotion Layer
-            if (player.isJumping) {
-                this.locomotion.animateJump(player, parts, dt, damp, input, isRightArmAction);
-            } else if (isMoving) {
-                this.locomotion.animateMovement(player, parts, dt, damp, input, isRightArmAction);
-            } else {
-                this.locomotion.animateIdle(player, parts, damp, isRightArmAction);
-            }
-
-            // 4. Action Layer
-            if (player.isAxeSwing) {
-                this.action.animateAxeSwing(player, parts, dt, damp, isMoving);
-            } else if (player.isPunch) {
-                this.action.animatePunch(player, parts, dt, damp, isMoving);
-            } else if (player.isInteracting) {
-                this.action.animateInteract(player, parts, dt, damp);
-            }
+        // 4. Combat / Interaction Overlay Layer
+        if (player.isAxeSwing) {
+            this.action.animateAxeSwing(player, parts, dt, damp, isMoving);
+        } else if (player.isPunch) {
+            this.action.animatePunch(player, parts, dt, damp, isMoving);
+        } else if (player.isInteracting) {
+            this.action.animateInteract(player, parts, dt, damp);
         }
         
-        // 0. Facial Animation & Look At Camera
+        // 5. Head Tracking & Expressions
         this.animateFace(player, dt);
     }
 
@@ -105,7 +130,6 @@ export class PlayerAnimator {
             blinkAlpha = Math.sin((timeInBlink / blinkDur) * Math.PI); 
         }
 
-        // Force closed if dragged or unconscious
         if (player.isDragged || player.status.recoverTimer > 0.5) {
             blinkAlpha = 1.0;
         }
@@ -124,7 +148,6 @@ export class PlayerAnimator {
         }
 
         // === GAZE & HEAD TRACKING ===
-        // Skip gaze logic if unconscious
         if (player.isDragged || player.status.recoverTimer > 0.5) {
             const eyes = player.model.eyes as THREE.Mesh[];
             if (eyes && eyes.length === 2) {
@@ -134,7 +157,6 @@ export class PlayerAnimator {
             return;
         }
         
-        // 1. Update Standard Random Gaze
         const gazeDamp = dt * 8;
         cam.eyeMoveTimer -= dt;
         if (cam.eyeMoveTimer <= 0) {
@@ -150,7 +172,6 @@ export class PlayerAnimator {
         cam.eyeLookCurrent.x = lerp(cam.eyeLookCurrent.x, cam.eyeLookTarget.x, gazeDamp);
         cam.eyeLookCurrent.y = lerp(cam.eyeLookCurrent.y, cam.eyeLookTarget.y, gazeDamp);
         
-        // 2. Blending Logic
         const weight = cam.headLookWeight;
         
         let finalEyeYaw = cam.eyeLookCurrent.x;
@@ -160,7 +181,6 @@ export class PlayerAnimator {
         const neck = player.model.parts.neck;
         const mouth = player.model.parts.mouth;
 
-        // Apply Blending if active
         if (weight > 0 && head && neck) {
             this._tempObj.position.copy(cam.cameraWorldPosition);
             neck.worldToLocal(this._tempObj.position);
@@ -174,11 +194,9 @@ export class PlayerAnimator {
             const clampedYaw = THREE.MathUtils.clamp(camYaw, -limitYaw, limitYaw);
             const clampedPitch = THREE.MathUtils.clamp(camPitch, -limitPitch, limitPitch);
             
-            // Blend Head Rotation
             head.rotation.y = lerp(head.rotation.y, clampedYaw, weight);
             head.rotation.x = lerp(head.rotation.x, clampedPitch, weight);
             
-            // Blend Mouth (Smile)
             if (mouth) {
                 const currentScaleX = mouth.scale.x;
                 const currentScaleY = mouth.scale.y;
@@ -189,7 +207,6 @@ export class PlayerAnimator {
                 mouth.rotation.x = lerp(currentRotX, -0.2, weight);
             }
             
-            // Blend Eyes (Random Gaze -> Centered on Camera)
             finalEyeYaw = lerp(finalEyeYaw, 0, weight);
             finalEyePitch = lerp(finalEyePitch, 0, weight);
         }

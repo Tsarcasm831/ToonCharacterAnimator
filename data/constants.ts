@@ -87,6 +87,7 @@ export const OUTFIT_PRESETS: Record<OutfitType, Partial<PlayerConfig>> = {
 export const ITEM_ICONS: Record<string, string> = {
   'Axe': '🪓',
   'Sword': '⚔️',
+  'Staff': '✨',
   'Pickaxe': '⛏️',
   'Knife': '🔪',
   'Halberd': '🔱',

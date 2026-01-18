@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { TreeData, RockData, ENV_CONSTANTS } from '../EnvironmentTypes';
 import { ObjectFactory } from '../ObjectFactory';
@@ -169,7 +168,10 @@ export async function initWorldScatter(ctx: ObstacleInitContext, options?: Popul
             if (isInsideHouse(sx, sz)) continue;
 
             if (Math.random() > 0.4) {
-                const grass = ObjectFactory.createGrass(new THREE.Vector3(sx, sy, sz), 'short');
+                // Use new dense tufts occasionally
+                const grass = Math.random() > 0.6 
+                    ? ObjectFactory.createGrassTuft(new THREE.Vector3(sx, sy, sz))
+                    : ObjectFactory.createGrass(new THREE.Vector3(sx, sy, sz), 'short');
                 ctx.scene.add(grass);
                 ctx.decorativeItems.push(grass);
             }
@@ -206,6 +208,12 @@ export async function initWorldScatter(ctx: ObstacleInitContext, options?: Popul
                 color: colorVal,
                 rotation: new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
             });
+
+            if (Math.random() > 0.8) {
+                const grass = ObjectFactory.createGrassTuft(new THREE.Vector3(sx, sy, sz));
+                ctx.scene.add(grass);
+                ctx.decorativeItems.push(grass);
+            }
         }
         await maybeYield(rockIndex, options);
     }
@@ -216,10 +224,9 @@ export async function initWorldScatter(ctx: ObstacleInitContext, options?: Popul
         if (isInsideHouse(x, z)) continue;
         const y = PlayerUtils.getTerrainHeight(x, z);
         if (y > -0.1) {
-            const grass = ObjectFactory.createGrass(
-                new THREE.Vector3(x, y, z),
-                Math.random() > 0.8 ? 'tall' : 'short'
-            );
+            const grass = Math.random() > 0.5 
+                ? ObjectFactory.createGrassTuft(new THREE.Vector3(x, y, z))
+                : ObjectFactory.createGrass(new THREE.Vector3(x, y, z), Math.random() > 0.8 ? 'tall' : 'short');
             ctx.scene.add(grass);
             ctx.decorativeItems.push(grass);
         }

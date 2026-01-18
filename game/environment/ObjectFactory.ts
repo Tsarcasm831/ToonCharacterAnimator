@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { TreeFactory } from './objects/TreeFactory';
 import { PlantFactory } from './objects/PlantFactory';
@@ -185,6 +184,10 @@ export class ObjectFactory {
     // Scatter
     static createGrass(position: THREE.Vector3, type: 'tall' | 'short' | 'dry' = 'short') {
         return ScatterFactory.createGrassClump(position, type);
+    }
+
+    static createGrassTuft(position: THREE.Vector3) {
+        return ScatterFactory.createGrassTuft(position);
     }
 
     static createPebble(position: THREE.Vector3) {

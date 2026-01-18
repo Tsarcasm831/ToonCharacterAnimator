@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 
 export class ScatterFactory {
@@ -123,6 +122,48 @@ export class ScatterFactory {
             blade.rotation.z = (Math.random() - 0.5) * 0.4;
             blade.rotation.x = (Math.random() - 0.5) * 0.4;
             
+            group.add(blade);
+        }
+
+        group.userData = { type: 'soft', phase: Math.random() * Math.PI * 2 };
+        return group;
+    }
+
+    static createGrassTuft(position: THREE.Vector3) {
+        const group = new THREE.Group();
+        group.position.copy(position);
+
+        // Density requested: 20-35 blades
+        const bladeCount = 20 + Math.floor(Math.random() * 16);
+        const color = 0x4ade80; // Vibrant Meadows Green
+        const mat = this.getMaterial(color, 'grass_tuft');
+
+        const geoKey = 'grass_blade_tuft_geo';
+        let baseGeo = this.geometries.get(geoKey);
+        if (!baseGeo) {
+            baseGeo = new THREE.ConeGeometry(0.06, 1.0, 3);
+            baseGeo.translate(0, 0.5, 0); // Pivot at base
+            this.geometries.set(geoKey, baseGeo);
+        }
+
+        for (let i = 0; i < bladeCount; i++) {
+            const hScale = 0.25 + Math.random() * 0.35;
+            const wScale = 0.6 + Math.random() * 1.4;
+
+            const blade = new THREE.Mesh(baseGeo, mat);
+            blade.scale.set(wScale, hScale, wScale);
+            
+            // Cluster logic
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * 0.22; // Keep it in a bunch
+            blade.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
+            
+            blade.rotation.y = Math.random() * Math.PI;
+            // Fan out from center
+            blade.rotation.z = (Math.cos(angle)) * (0.2 + Math.random() * 0.35);
+            blade.rotation.x = (Math.sin(angle)) * (0.2 + Math.random() * 0.35);
+            
+            blade.castShadow = true;
             group.add(blade);
         }
 
