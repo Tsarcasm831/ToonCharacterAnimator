@@ -12,7 +12,7 @@ export class Shopkeeper extends NPC {
                 hairStyle: 'crew',
                 shirtColor: '#6a4c93',
                 pantsColor: '#4a2f7a',
-                // Explicitly satisfy required EquipmentState for custom NPC config
+                // Added missing bracers, cape, belt to equipment
                 equipment: {
                     helm: false,
                     shoulders: false,
@@ -29,7 +29,10 @@ export class Shopkeeper extends NPC {
                     plateMail: false,
                     robe: true,
                     blacksmithApron: false,
-                    mageHat: false
+                    mageHat: false,
+                    bracers: false,
+                    cape: true,
+                    belt: true
                 }
             },
             initialPos

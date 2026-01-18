@@ -1,9 +1,9 @@
-
 import React, { useEffect, useState, useRef, CSSProperties } from 'react';
 import * as THREE from 'three';
 import { PlayerModel } from '../../game/PlayerModel';
 import { MovementAction } from '../../game/animator/actions/MovementAction';
 import { DEFAULT_CONFIG } from '../../types';
+import { EnemyCache } from '../../game/EnemyCache';
 
 interface LoadingScreenProps {
     isVisible: boolean;
@@ -50,8 +50,14 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
         const mountNode = mountRef.current;
         if (!mountNode) return;
 
-        const width = mountNode.clientWidth;
-        const height = mountNode.clientHeight;
+        // Force explicit dimensions for the mount node if they aren't set
+        if (mountNode.clientWidth === 0) {
+            mountNode.style.width = '100px';
+            mountNode.style.height = '100px';
+        }
+
+        const width = mountNode.clientWidth || 100;
+        const height = mountNode.clientHeight || 100;
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
@@ -124,13 +130,18 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
     return (
         <div 
             ref={mountRef} 
-            className={`pointer-events-none z-10 ${className}`}
+            className={`z-10 ${className}`}
             style={{ 
                 position: 'absolute',
                 left: `${clamped}%`,
                 bottom: '100%',
                 transform: 'translateX(-50%)',
                 transition: 'left 0.12s linear',
+                width: '96px',
+                height: '96px',
+                display: 'block',
+                visibility: 'visible',
+                pointerEvents: 'none',
                 ...style
             }}
         />
@@ -141,6 +152,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
     const [runnerProgress, setRunnerProgress] = useState(0);
     const [messageIndex, setMessageIndex] = useState(0);
     const [shouldRender, setShouldRender] = useState(isVisible);
+    const [isEnemiesPreloaded, setIsEnemiesPreloaded] = useState(false);
     const hasCalledFinished = useRef(false);
 
     useEffect(() => {
@@ -149,6 +161,15 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
             setRunnerProgress(0);
             setMessageIndex(0);
             hasCalledFinished.current = false;
+            setIsEnemiesPreloaded(false);
+
+            // Preload enemies
+            EnemyCache.preloadAllEnemies().then(() => {
+                setIsEnemiesPreloaded(true);
+            }).catch(() => {
+                // Fail gracefully so we don't block the screen
+                setIsEnemiesPreloaded(true);
+            });
 
             // Runner progress simulation
             const interval = setInterval(() => {
@@ -175,7 +196,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
 
     // Check completion gate
     useEffect(() => {
-        if (runnerProgress >= 100 && isSystemReady && !hasCalledFinished.current) {
+        if (runnerProgress >= 100 && isSystemReady && isEnemiesPreloaded && !hasCalledFinished.current) {
             // Add a small artificial delay to ensure everything is settled visually
             const settleTimeout = setTimeout(() => {
                 hasCalledFinished.current = true;
@@ -183,7 +204,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
             }, 500);
             return () => clearTimeout(settleTimeout);
         }
-    }, [runnerProgress, isSystemReady, onFinished]);
+    }, [runnerProgress, isSystemReady, isEnemiesPreloaded, onFinished]);
 
     if (!shouldRender) return null;
 
@@ -193,10 +214,6 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                 
                 {/* Secondary Loading Track with Runner */}
                 <div className="relative w-full h-1.5 bg-white/5 rounded-full mb-12">
-                    <div className="absolute -top-6 left-0 text-[8px] font-black text-blue-500/50 uppercase tracking-widest">
-                        Secondary Runner Track
-                    </div>
-
                     <div 
                         className="absolute inset-y-0 left-0 bg-blue-500/20 blur-sm transition-all duration-300"
                         style={{ width: `${runnerProgress}%` }}
@@ -226,6 +243,10 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                     <div className="flex items-center gap-4">
                         <div className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${isSystemReady ? 'text-green-500' : 'text-slate-600'}`}>
                             Assets: {isSystemReady ? 'Loaded' : 'Mounting...'}
+                        </div>
+                        <div className="w-[1px] h-3 bg-white/10" />
+                        <div className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${isEnemiesPreloaded ? 'text-green-500' : 'text-slate-600'}`}>
+                            Bestiary: {isEnemiesPreloaded ? 'Preloaded' : 'Indexing...'}
                         </div>
                         <div className="w-[1px] h-3 bg-white/10" />
                         <div className="text-blue-500 font-mono text-[9px] font-bold uppercase tracking-widest">

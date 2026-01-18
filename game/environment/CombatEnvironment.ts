@@ -13,6 +13,8 @@ export class CombatEnvironment {
     private readonly HEX_SIZE = 2.5; // Slightly larger hexes for better arena feel
     private readonly HEX_HEIGHT = 0.5;
 
+    private gridLabelsGroup: THREE.Group | null = null;
+
     constructor(scene: THREE.Scene) {
         this.scene = scene;
         this.group = new THREE.Group();
@@ -23,6 +25,63 @@ export class CombatEnvironment {
 
     setVisible(visible: boolean) {
         this.group.visible = visible;
+        if (!visible && this.gridLabelsGroup) {
+            this.gridLabelsGroup.visible = false;
+        }
+    }
+
+    public toggleGridLabels(visible: boolean) {
+        if (!this.gridLabelsGroup) {
+            this.buildGridLabels();
+        }
+        if (this.gridLabelsGroup) {
+            this.gridLabelsGroup.visible = visible;
+        }
+    }
+
+    private buildGridLabels() {
+        this.gridLabelsGroup = new THREE.Group();
+        this.group.add(this.gridLabelsGroup);
+
+        const width = Math.sqrt(3) * this.HEX_SIZE;
+        const height = 2 * this.HEX_SIZE;
+        const horizDist = width;
+        const vertDist = 0.75 * height;
+
+        const totalWidth = this.GRID_COLS * horizDist + (horizDist / 2);
+        const totalHeight = this.GRID_ROWS * vertDist;
+        const offsetX = -totalWidth / 2 + (horizDist / 2);
+        const offsetZ = -totalHeight / 2 + (vertDist / 2);
+
+        for (let r = 0; r < this.GRID_ROWS; r++) {
+            for (let c = 0; c < this.GRID_COLS; c++) {
+                const xPos = c * horizDist + ((r % 2) * (horizDist / 2)) + offsetX;
+                const zPos = r * vertDist + offsetZ;
+
+                const canvas = document.createElement('canvas');
+                canvas.width = 128;
+                canvas.height = 128;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.font = 'bold 40px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`${r},${c}`, 64, 64);
+                }
+
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ 
+                    map: texture,
+                    transparent: true,
+                    depthTest: false
+                });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.position.set(xPos, 1.0, zPos);
+                sprite.scale.set(1.5, 1.5, 1);
+                this.gridLabelsGroup.add(sprite);
+            }
+        }
     }
 
     private buildGrid() {
@@ -39,8 +98,8 @@ export class CombatEnvironment {
 
         const hexGeo = new THREE.CylinderGeometry(this.HEX_SIZE, this.HEX_SIZE, this.HEX_HEIGHT, 6);
         
-        const matA = new THREE.MeshStandardMaterial({ color: 0x37474f, roughness: 0.7, flatShading: true });
-        const matB = new THREE.MeshStandardMaterial({ color: 0x455a64, roughness: 0.7, flatShading: true });
+        const matRed = new THREE.MeshStandardMaterial({ color: 0x662222, roughness: 0.7, flatShading: true });
+        const matGreen = new THREE.MeshStandardMaterial({ color: 0x224422, roughness: 0.7, flatShading: true });
         const matBorder = new THREE.MeshStandardMaterial({ color: 0x263238, roughness: 0.9 });
 
         // Center the grid around (0,0)
@@ -61,9 +120,9 @@ export class CombatEnvironment {
 
                 hexGroup.position.set(xPos, 0, zPos);
 
-                // Main Tile
-                const isEven = (r + c) % 2 === 0;
-                const mesh = new THREE.Mesh(hexGeo, isEven ? matA : matB);
+                // Main Tile - Top half (r < rows/2) is red, bottom half is green
+                const isTopHalf = r < this.GRID_ROWS / 2;
+                const mesh = new THREE.Mesh(hexGeo, isTopHalf ? matRed : matGreen);
                 mesh.position.y = -this.HEX_HEIGHT / 2; // Top surface at y=0
                 mesh.receiveShadow = true;
                 

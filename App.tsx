@@ -26,6 +26,7 @@ const KeybindsModal = lazy(() => import('./components/ui/KeybindsModal.tsx').the
 const WorldMapModal = lazy(() => import('./components/ui/WorldMapModal.tsx').then(m => ({ default: m.WorldMapModal })));
 const QuestLogModal = lazy(() => import('./components/ui/QuestLogModal.tsx').then(m => ({ default: m.QuestLogModal })));
 const SpawnAnimalsModal = lazy(() => import('./components/ui/SpawnAnimalsModal.tsx').then(m => ({ default: m.SpawnAnimalsModal })));
+const EnemiesModal = lazy(() => import('./components/ui/EnemiesModal').then(m => ({ default: m.EnemiesModal })));
 
 const INITIAL_QUESTS: Quest[] = [
   {
@@ -80,6 +81,7 @@ const App: React.FC = () => {
   const [isTravelOpen, setIsTravelOpen] = useState(false);
   const [activeScene, setActiveScene] = useState<'dev' | 'world' | 'combat'>('dev');
   const [notification, setNotification] = useState<string | null>(null);
+  const [showGrid, setShowGrid] = useState(false);
 
   // Main Inventory for Dev/World scenes
   const [inventory, setInventory] = useState<(InventoryItem | null)[]>(() => {
@@ -124,6 +126,7 @@ const App: React.FC = () => {
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
   const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
+  const [isEnemiesModalOpen, setIsEnemiesModalOpen] = useState(false);
   const [playerPosForMap, setPlayerPosForMap] = useState(new THREE.Vector3());
   
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
@@ -359,10 +362,13 @@ const App: React.FC = () => {
       setTimeout(() => setActiveScene(scene), 100);
   };
 
-  const handleEnterWorld = () => {
+  const handleEnterWorld = (startInCombat: boolean = false) => {
       setIsEnvironmentBuilt(false);
       setIsVisualLoadingDone(false);
       setGameState('LOADING');
+      if (startInCombat) {
+          setActiveScene('combat');
+      }
   };
 
   const handleEnvironmentReady = () => {
@@ -377,7 +383,7 @@ const App: React.FC = () => {
       setGameState('PLAYING');
   };
 
-  const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || gameState !== 'PLAYING';
+  const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || gameState !== 'PLAYING';
 
   return (
     <div className="w-screen h-screen relative bg-gray-900 overflow-hidden font-sans">
@@ -410,11 +416,27 @@ const App: React.FC = () => {
             onToggleWorldMap={handleToggleWorldMap}
             onToggleQuestLog={toggleQuestLog}
             controlsDisabled={isHUDDisabled}
+            showGrid={showGrid}
             />
         </div>
       )}
 
-      {gameState === 'MENU' && <MainMenu onStart={handleEnterWorld} />}
+            {gameState === 'MENU' && (
+                <div className="fixed inset-0 z-[100]">
+                    <MainMenu 
+                        onStart={handleEnterWorld} 
+                        onShowEnemies={() => setIsEnemiesModalOpen(true)} 
+                    />
+                    {isEnemiesModalOpen && (
+                        <Suspense fallback={null}>
+                            <EnemiesModal 
+                                isOpen={isEnemiesModalOpen} 
+                                onClose={() => setIsEnemiesModalOpen(false)} 
+                            />
+                        </Suspense>
+                    )}
+                </div>
+            )}
 
       <LoadingScreen 
         isVisible={gameState === 'LOADING'} 
@@ -454,10 +476,10 @@ const App: React.FC = () => {
 
       {gameState === 'PLAYING' && (
         <>
-            {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <Header biome={currentBiome} />}
-            {!isInventoryOpen && !isTradeOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <Compass rotation={playerRotation} />}
+            {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && !isEnemiesModalOpen && <Header biome={currentBiome} />}
+            {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && !isEnemiesModalOpen && <Compass rotation={playerRotation} />}
 
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[50]">
+            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-4">
                 <div className="relative">
                     <button 
                         onClick={() => setIsTravelOpen(!isTravelOpen)}
@@ -482,6 +504,14 @@ const App: React.FC = () => {
                         </div>
                     )}
                 </div>
+
+                <button 
+                    onClick={() => setIsEnemiesModalOpen(true)}
+                    className="px-6 py-2 bg-black/40 backdrop-blur-md border-2 border-white/20 rounded-full text-white font-black uppercase tracking-[0.2em] text-xs hover:bg-red-600/80 hover:border-red-400 transition-all shadow-xl active:scale-95 flex items-center gap-2"
+                >
+                    <span className="text-lg">👹</span>
+                    Enemies
+                </button>
             </div>
 
             <InteractionOverlay text={interactionText} progress={progress} />
@@ -492,8 +522,24 @@ const App: React.FC = () => {
             )}
 
             {/* Separate PlayerBench for Combat Scene */}
-            {activeScene === 'combat' && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && (
-                <PlayerBench inventory={bench} selectedSlot={selectedSlot} onSelectSlot={(i) => { /* No-op or selection logic for bench if needed */ }} />
+            {activeScene === 'combat' && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && !isEnemiesModalOpen && (
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-4 w-full max-w-4xl px-4">
+                    <div className="flex items-center gap-4 mb-2">
+                        <button 
+                            onClick={() => setShowGrid(!showGrid)}
+                            className={`px-4 py-2 rounded-full backdrop-blur-md border-2 transition-all shadow-xl group flex items-center gap-2 ${showGrid ? 'bg-blue-600/40 border-blue-400' : 'bg-black/40 border-white/20 hover:border-white/40'}`}
+                            title={showGrid ? "Hide Grid Labels" : "Show Grid Labels"}
+                        >
+                            <div className={`p-1 rounded-lg transition-colors ${showGrid ? 'bg-blue-500' : 'bg-white/10 group-hover:bg-white/20'}`}>
+                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                </svg>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Grid Labels</span>
+                        </button>
+                    </div>
+                    <PlayerBench inventory={bench} selectedSlot={selectedSlot} onSelectSlot={(i) => { /* No-op or selection logic for bench if needed */ }} />
+                </div>
             )}
             
             {isBuilderMode && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && <BuilderUI activeType={activeStructure} onSelectType={handleSelectStructure} />}
@@ -507,12 +553,8 @@ const App: React.FC = () => {
                 {isWorldMapOpen && <WorldMapModal isOpen={isWorldMapOpen} onClose={() => setIsWorldMapOpen(false)} playerPos={playerPosForMap} />}
                 {isQuestLogOpen && <QuestLogModal isOpen={isQuestLogOpen} onClose={() => setIsQuestLogOpen(false)} quests={quests} onClaimReward={claimQuestReward} />}
                 {isSpawnModalOpen && <SpawnAnimalsModal isOpen={isSpawnModalOpen} onClose={() => setIsSpawnModalOpen(false)} onSpawn={handleSpawnAnimal} />}
+                {isEnemiesModalOpen && <EnemiesModal isOpen={isEnemiesModalOpen} onClose={() => setIsEnemiesModalOpen(false)} />}
             </Suspense>
-            <ShopkeeperChatModal
-                isOpen={isShopkeeperChatOpen}
-                onCancel={() => { setIsShopkeeperChatOpen(false); if (gameInstance.current) gameInstance.current['player'].isTalking = false; }}
-                onTrade={() => { setIsShopkeeperChatOpen(false); setIsTradeOpen(true); }}
-            />
         </>
       )}
 

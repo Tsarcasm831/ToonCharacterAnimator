@@ -10,3 +10,4 @@ export class Blacksmith {
     model: PlayerModel;
     animator: PlayerAnimator;
     config: PlayerConfig;
+}

@@ -32,11 +32,11 @@ export class Blacksmith {
             ...DEFAULT_CONFIG,
             bodyType: 'male', bodyVariant: 'muscular', skinColor: '#ffdbac', hairStyle: 'bald', 
             shirtColor: '#000000', pantsColor: '#808080', bootsColor: '#000000', apronColor: '#4e342e', apronDetailColor: '#3e2723',
-            // Added missing mageHat property
+            // Added missing bracers, cape, belt to equipment
             equipment: {
                 helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false,
                 quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: true,
-                mageHat: false
+                mageHat: false, bracers: false, cape: false, belt: true
             },
             selectedItem: null, weaponStance: 'side'
         };

@@ -45,8 +45,8 @@ export class Assassin {
         this.position.copy(initialPos);
         this.lastFramePos.copy(initialPos);
         this.lastStuckPos.copy(this.position);
-        // Added missing mageHat property
-        this.config = { ...DEFAULT_CONFIG, bodyType: 'male', bodyVariant: 'slim', outfit: 'warrior', skinColor: '#d7ccc8', shirtColor: '#000000', pantsColor: '#000000', hairStyle: 'bald', equipment: { helm: false, shoulders: true, shield: false, shirt: true, pants: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false }, selectedItem: 'Knife', weaponStance: 'side', isAssassinHostile: false, tintColor: tint };
+        // Added missing bracers, cape, belt to equipment
+        this.config = { ...DEFAULT_CONFIG, bodyType: 'male', bodyVariant: 'slim', outfit: 'warrior', skinColor: '#d7ccc8', shirtColor: '#000000', pantsColor: '#000000', hairStyle: 'bald', equipment: { helm: false, shoulders: true, shield: false, shirt: true, pants: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, cape: false, belt: true }, selectedItem: 'Knife', weaponStance: 'side', isAssassinHostile: false, tintColor: tint };
         this.model = new PlayerModel(this.config);
         this.animator = new PlayerAnimator();
         this.model.group.position.copy(this.position);

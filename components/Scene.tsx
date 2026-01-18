@@ -17,6 +17,7 @@ interface SceneProps {
   onToggleWorldMap?: (pos: THREE.Vector3) => void;
   onToggleQuestLog?: () => void;
   controlsDisabled?: boolean;
+  showGrid?: boolean;
 }
 
 const Scene: React.FC<SceneProps> = ({ 
@@ -31,7 +32,8 @@ const Scene: React.FC<SceneProps> = ({
     onEnvironmentReady,
     onToggleWorldMap,
     onToggleQuestLog,
-    controlsDisabled = false
+    controlsDisabled = false,
+    showGrid = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
@@ -99,9 +101,11 @@ const Scene: React.FC<SceneProps> = ({
       
       game.setControlsActive(!controlsDisabled);
 
+      game.toggleGrid(showGrid);
+
       game['inputManager'].onToggleQuestLog = onToggleQuestLog;
 
-  }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onToggleQuestLog, onEnvironmentReady, controlsDisabled]);
+  }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onToggleQuestLog, onEnvironmentReady, controlsDisabled, showGrid]);
 
   return <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />;
 };

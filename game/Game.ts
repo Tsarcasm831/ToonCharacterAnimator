@@ -169,6 +169,12 @@ export class Game {
         this.inputManager.dispose();
     }
 
+    public toggleGrid(visible: boolean) {
+        if (this.combatEnvironment) {
+            this.combatEnvironment.toggleGridLabels(visible);
+        }
+    }
+
     public switchScene(sceneName: 'dev' | 'world' | 'combat', isInit: boolean = false) {
         this.activeScene = sceneName;
         const GRID_CELL_SIZE = 1.3333;
