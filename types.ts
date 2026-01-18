@@ -41,6 +41,7 @@ export interface EquipmentState {
   ringMail: boolean;
   plateMail: boolean;
   robe: boolean;
+  mageHat: boolean;
 }
 
 export interface PlayerInput {
@@ -128,6 +129,15 @@ export interface PlayerConfig {
   apronStrapRotZOffset?: number; 
   tintColor?: string; // Optional faction tint
   
+  // Mage Hat
+  mageHatColor: string;
+  mageHatBandColor: string;
+  mageHatX: number;
+  mageHatY: number;
+  mageHatZ: number;
+  mageHatRotX: number;
+  mageHatScale: number;
+
   // Detailed Proportions
   headScale: number;
   neckHeight: number;
@@ -301,6 +311,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     plateMail: false,
     robe: false,
     blacksmithApron: false,
+    mageHat: false,
   },
   selectedItem: null,
   weaponStance: 'side',
@@ -352,6 +363,14 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   apronStrapRotX: -1.7,
   apronStrapRotY: 0,
   apronStrapRotZ: 0,
+
+  mageHatColor: '#1a1a1a',
+  mageHatBandColor: '#6a1b9a',
+  mageHatX: 0,
+  mageHatY: 0.12,
+  mageHatZ: -0.02,
+  mageHatRotX: -0.15,
+  mageHatScale: 1.0,
 
   headScale: 1.0,
   neckHeight: 0.75,

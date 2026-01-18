@@ -1,11 +1,10 @@
-
 import * as THREE from 'three';
 import type { Player } from '../Player';
 import { PlayerInput } from '../../types';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
-// Fix: Casing mismatch for Shopkeeper import
-import { Shopkeeper } from '../entities/NPC/friendly/Shopkeeper';
+// Standardized to lowercase npc folder
+import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 
 export class PlayerInteraction {
 
@@ -40,7 +39,6 @@ export class PlayerInteraction {
         }
 
         // Skinning Check & Logic
-        // Fix: Ensure variable name is consistent
         const hasKnife = player.config.selectedItem === 'Knife';
         const skinnableTarget = this.getSkinnableTargetNearby(player, obstacles);
         player.canSkin = !!skinnableTarget && hasKnife;
@@ -80,7 +78,6 @@ export class PlayerInteraction {
                     // Mark as harvested so it can't be skinned again
                     if (skinnableTarget) {
                         // Check if it's a living entity like a Wolf
-                        // Entities store themselves in the group's userData.parent
                         const entityRoot = skinnableTarget.parent?.userData.type === 'creature' ? skinnableTarget.parent : skinnableTarget;
                         const entity = entityRoot.userData.parent;
 
@@ -192,7 +189,7 @@ export class PlayerInteraction {
             // Check Blacksmith
             if (entity instanceof Blacksmith) {
                 const dist = player.mesh.position.distanceTo(entity.position);
-                if (dist < 2.5) { // Slightly larger interaction radius for the shopkeeper
+                if (dist < 2.5) { 
                     player.canTalk = true;
                     player.talkingTarget = entity;
                     break;

@@ -82,6 +82,7 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                 <div className="grid grid-cols-3 gap-2">
                     <button onClick={() => handleEquipmentChange('helm')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.helm ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Helm</button>
                     <button onClick={() => handleEquipmentChange('hood')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.hood ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Hood</button>
+                    <button onClick={() => handleEquipmentChange('mageHat')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.mageHat ? 'bg-indigo-100 border-indigo-500 text-indigo-800' : 'bg-white border-gray-200 text-gray-400'}`}>Mage Hat</button>
                     <button onClick={() => handleEquipmentChange('mask')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.mask ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Mask</button>
                     <button onClick={() => handleEquipmentChange('shoulders')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.shoulders ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-gray-400'}`}>Pads</button>
                     <button onClick={() => handleEquipmentChange('shield')} className={`py-1.5 text-[10px] font-bold rounded border ${config.equipment.shield ? 'bg-amber-100 border-amber-500 text-amber-800' : 'bg-white border-gray-200 text-amber-400'}`}>Shield</button>
@@ -104,6 +105,12 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                     <>
                         <ColorPicker label="Robe Color" value={config.robeColor} onChange={(v) => handleConfigChange('robeColor', v)} />
                         <ColorPicker label="Robe Trim" value={config.robeTrimColor} onChange={(v) => handleConfigChange('robeTrimColor', v)} />
+                    </>
+                )}
+                {config.equipment.mageHat && (
+                    <>
+                        <ColorPicker label="Hat Color" value={config.mageHatColor} onChange={(v) => handleConfigChange('mageHatColor', v)} />
+                        <ColorPicker label="Band Color" value={config.mageHatBandColor} onChange={(v) => handleConfigChange('mageHatBandColor', v)} />
                     </>
                 )}
                 <ColorPicker label="Shirt Base" value={config.shirtColor} onChange={(v) => handleConfigChange('shirtColor', v)} />

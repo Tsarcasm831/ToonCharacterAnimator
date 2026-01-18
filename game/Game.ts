@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { BuildingParts } from './builder/BuildingParts';
@@ -16,8 +15,8 @@ import { RenderManager } from './core/RenderManager';
 import { EntityManager } from './managers/EntityManager';
 import { LowLevelCityGuard } from './entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from './entities/npc/friendly/Blacksmith';
-// Fix: Use correct casing for Shopkeeper import
-import { Shopkeeper } from './entities/NPC/friendly/Shopkeeper';
+// Fix casing conflict by importing from the consistent lowercase npc folder
+import { Shopkeeper } from './entities/npc/friendly/Shopkeeper';
 import { HouseBlueprints, Blueprint } from './builder/HouseBlueprints';
 
 export class Game {
@@ -95,6 +94,7 @@ export class Game {
         this.soundManager = new SoundManager();
         this.soundManager.setVolume(initialConfig.globalVolume);
 
+        this.particleManager = new ParticleManager(this.renderManager.scene);
         this.particleManager = new ParticleManager(this.renderManager.scene);
         this.builderManager = new BuilderManager(this.renderManager.scene);
 

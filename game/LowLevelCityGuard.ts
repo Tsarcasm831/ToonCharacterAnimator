@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../types';
 import { PlayerModel } from './PlayerModel';
@@ -13,7 +12,8 @@ export class LowLevelCityGuard {
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, initialRot: number = 0, tint?: string) {
         this.scene = scene; this.position.copy(initialPos); this.patrolTarget.copy(initialPos); this.rotationY = initialRot; this.lastStuckPos.copy(this.position);
-        this.config = { ...DEFAULT_CONFIG, bodyType: 'male', bodyVariant: 'average', skinColor: '#ffdbac', hairStyle: 'crew', hairColor: '#3e2723', shirtColor: '#4a3728', pantsColor: '#718096', bootsColor: '#8d6e63', equipment: { helm: true, shoulders: true, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: true, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false }, selectedItem: 'Halberd', weaponStance: 'shoulder', tintColor: tint };
+        // Added missing mageHat property
+        this.config = { ...DEFAULT_CONFIG, bodyType: 'male', bodyVariant: 'average', skinColor: '#ffdbac', hairStyle: 'crew', hairColor: '#3e2723', shirtColor: '#4a3728', pantsColor: '#718096', bootsColor: '#8d6e63', equipment: { helm: true, shoulders: true, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: true, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false }, selectedItem: 'Halberd', weaponStance: 'shoulder', tintColor: tint };
         this.model = new PlayerModel(this.config); this.animator = new PlayerAnimator(); this.model.group.position.copy(this.position); this.model.group.rotation.y = this.rotationY; this.scene.add(this.model.group); this.model.sync(this.config, false);
     }
 

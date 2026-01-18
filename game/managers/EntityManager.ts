@@ -1,8 +1,8 @@
-
 import * as THREE from 'three';
 import { NPC } from '../entities/npc/friendly/NPC';
 import { Assassin } from '../entities/npc/enemy/Assassin';
 import { Archer } from '../entities/npc/enemy/Archer';
+import { Mage } from '../entities/npc/enemy/Mage';
 import { Wolf } from '../entities/animal/aggressive/Wolf';
 import { Bear } from '../entities/animal/aggressive/Bear';
 import { Owl } from '../entities/animal/neutral/Owl';
@@ -14,8 +14,8 @@ import { Sheep } from '../entities/animal/neutral/Sheep';
 import { Spider } from '../entities/animal/aggressive/Spider';
 import { Lizard } from '../entities/animal/neutral/Lizard';
 import { Horse } from '../entities/animal/tameable/Horse';
-// Fix: Use correct casing for Shopkeeper import
-import { Shopkeeper } from '../entities/NPC/friendly/Shopkeeper';
+// Fix: Use consistent lowercase casing for Shopkeeper import
+import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
 import { Environment } from '../Environment';
@@ -28,6 +28,7 @@ export class EntityManager {
     public shopkeeper: Shopkeeper;
     public assassin: Assassin;
     public archer: Archer;
+    public mage: Mage;
     public guard: LowLevelCityGuard;
     
     // Animals
@@ -70,6 +71,10 @@ export class EntityManager {
         { position: new THREE.Vector3(), isWolf: true, isDead: false },
         { position: new THREE.Vector3(), isWolf: true, isDead: false }
     ];
+    private readonly mageTargets = [
+        { position: new THREE.Vector3() },
+        { position: new THREE.Vector3() }
+    ];
     private readonly assassinTargets = [
         { position: new THREE.Vector3() },
         { position: new THREE.Vector3() }
@@ -95,6 +100,9 @@ export class EntityManager {
         
         this.archer = new Archer(scene, new THREE.Vector3(-5, 0, 4));
         this.archer.config.isAssassinHostile = initialConfig.isAssassinHostile;
+
+        this.mage = new Mage(scene, new THREE.Vector3(0, 0, 15), '#6366f1');
+        this.mage.config.isAssassinHostile = initialConfig.isAssassinHostile;
 
         // One Wolf by default
         this.wolf = new Wolf(scene, new THREE.Vector3(10, 0, 10));
@@ -226,6 +234,11 @@ export class EntityManager {
                 this.archerTargets[3].isDead = this.bears[0].isDead;
             }
             this.archer.update(delta, environment as any, this.archerTargets as any, skipAnimation);
+        } else if (entity === this.mage && config.showAssassin) {
+            this.mage.config.isAssassinHostile = config.isAssassinHostile;
+            this.mageTargets[0].position.copy(this.tempPlayerPos);
+            this.mageTargets[1].position.copy(this.npc.position);
+            this.mage.update(delta, environment as any, this.mageTargets as any, skipAnimation);
         } else if (entity === this.foundryGuard || entity === this.foundryAssassin) {
              if (entity === this.foundryGuard) {
                 this.foundryGuardTargets[0].position.copy(this.foundryAssassin.position);
@@ -258,7 +271,7 @@ export class EntityManager {
 
     getAllEntities() {
         const list = [
-            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin, 
+            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.foundryGuard, this.foundryAssassin, 
             this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
         ];

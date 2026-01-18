@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
 import { PlayerEquipment } from './PlayerEquipment';
@@ -7,6 +8,7 @@ export class EquipmentManager {
         helm?: THREE.Object3D;
         mask?: THREE.Object3D;
         hood?: THREE.Object3D;
+        mageHat?: THREE.Object3D;
         leftPauldron?: THREE.Object3D;
         rightPauldron?: THREE.Object3D;
         shield?: THREE.Object3D;
@@ -44,6 +46,24 @@ export class EquipmentManager {
         if (this.equippedMeshes.hood) {
             this.equippedMeshes.hood.position.set(config.hoodX, config.hoodY, config.hoodZ);
             this.equippedMeshes.hood.scale.setScalar(config.hoodScale);
+        }
+        if (this.equippedMeshes.mageHat) {
+            this.equippedMeshes.mageHat.position.set(config.mageHatX, config.mageHatY, config.mageHatZ);
+            this.equippedMeshes.mageHat.rotation.x = config.mageHatRotX;
+            this.equippedMeshes.mageHat.scale.setScalar(config.mageHatScale);
+            
+            // Update colors in real-time
+            this.equippedMeshes.mageHat.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    if (child.material instanceof THREE.MeshStandardMaterial) {
+                        if (child.geometry.type === 'CylinderGeometry' && child.position.y > 0) {
+                            child.material.color.set(config.mageHatBandColor);
+                        } else if (child.geometry.type !== 'BoxGeometry' && child.geometry.type !== 'ConeGeometry') {
+                            child.material.color.set(config.mageHatColor);
+                        }
+                    }
+                }
+            });
         }
         if (this.equippedMeshes.mask) {
             this.equippedMeshes.mask.position.set(config.maskX, config.maskY, config.maskZ);

@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
@@ -68,6 +67,7 @@ export class LowLevelCityGuard {
             shirtColor: '#4a3728', 
             pantsColor: '#718096', 
             bootsColor: '#8d6e63', 
+            // Added missing mageHat property
             equipment: { 
                 helm: true, 
                 shoulders: true, 
@@ -83,7 +83,8 @@ export class LowLevelCityGuard {
                 ringMail: false, 
                 plateMail: false, 
                 robe: false, 
-                blacksmithApron: false 
+                blacksmithApron: false,
+                mageHat: false
             }, 
             selectedItem: 'Halberd', 
             weaponStance: 'shoulder', 

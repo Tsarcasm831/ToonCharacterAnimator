@@ -1,4 +1,3 @@
-
 import { BodyVariant, PlayerConfig, OutfitType } from '../types';
 
 export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
@@ -14,11 +13,13 @@ export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
     hairColor: '#3e2723'
   },
   muscular: {
-    torsoWidth: 1.35, torsoHeight: 1.1, 
-    armScale: 1.15, legScale: 1.08, 
-    headScale: 0.95, footWidth: 1.1, 
-    neckHeight: 0.55, neckThickness: 1.1,
-    chinSize: 0.9, chinLength: 1.1,
+    torsoWidth: 1.2, torsoHeight: 1.1, 
+    armScale: 1.1, legScale: 1.1, 
+    headScale: 0.9, footWidth: 1.1, 
+    neckHeight: 0.6, neckThickness: 0.7,
+    chinSize: 0.7, chinLength: 1.1,
+    irisScale: 0.5, pupilScale: 0.4,
+    noseHeight: 0, noseForward: -0.02,
     buttScale: 1.1,
     shirtColor: '#2d3748',
     hairStyle: 'bald',
@@ -36,11 +37,13 @@ export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
     hairColor: '#d7ccc8'
   },
   heavy: {
-    torsoWidth: 1.45, torsoHeight: 1.0, 
-    armScale: 1.1, legScale: 0.95, 
-    headScale: 1.05, footWidth: 1.25, 
-    neckHeight: 0.5, neckThickness: 1.0,
-    chinSize: 0.85, chinLength: 0.9,
+    torsoWidth: 1.4, torsoHeight: 1.0, 
+    armScale: 1.1, legScale: 0.9, 
+    headScale: 1.1, footWidth: 1.25, 
+    neckHeight: 0.6, neckThickness: 0.7,
+    chinSize: 0.65, chinLength: 0.9,
+    irisScale: 0.5, pupilScale: 0.4,
+    noseHeight: 0, noseForward: -0.02,
     buttScale: 1.3,
     shirtColor: '#d69e2e',
     hairStyle: 'crew',
@@ -51,31 +54,31 @@ export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
 export const OUTFIT_PRESETS: Record<OutfitType, Partial<PlayerConfig>> = {
   nude: {
     outfit: 'nude',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false },
+    equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false },
     shirtColor: '#ffdbac',
     pantsColor: '#ffdbac'
   },
   naked: {
     outfit: 'naked',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false },
+    equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false },
     shirtColor: '#ffdbac',
     pantsColor: '#3182ce' 
   },
   peasant: {
     outfit: 'peasant',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false },
+    equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false },
     shirtColor: '#8d6e63',
     pantsColor: '#5d4037'
   },
   warrior: {
     outfit: 'warrior',
-    equipment: { helm: true, shoulders: true, shield: true, shirt: true, pants: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false },
+    equipment: { helm: true, shoulders: true, shield: true, shirt: true, pants: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false },
     shirtColor: '#607d8b',
     pantsColor: '#37474f'
   },
   noble: {
     outfit: 'noble',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false },
+    equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false, mageHat: false },
     shirtColor: '#3f51b5',
     pantsColor: '#1a237e'
   }

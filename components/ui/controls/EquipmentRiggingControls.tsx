@@ -30,6 +30,17 @@ export const EquipmentRiggingControls: React.FC<EquipmentRiggingControlsProps> =
                 </div>
             )}
 
+            {config.equipment.mageHat && (
+                <div className="space-y-2 border-b border-gray-100 pb-4">
+                    <h5 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Mage Hat Rigging</h5>
+                    <Slider label="Hat X" value={config.mageHatX} min={-0.1} max={0.1} step={0.002} onChange={(v) => handleConfigChange('mageHatX', v)} />
+                    <Slider label="Hat Y" value={config.mageHatY} min={0.0} max={0.25} step={0.002} onChange={(v) => handleConfigChange('mageHatY', v)} />
+                    <Slider label="Hat Z" value={config.mageHatZ} min={-0.1} max={0.1} step={0.002} onChange={(v) => handleConfigChange('mageHatZ', v)} />
+                    <Slider label="Hat Rot X" value={config.mageHatRotX} min={-0.8} max={0.2} step={0.02} onChange={(v) => handleConfigChange('mageHatRotX', v)} />
+                    <Slider label="Hat Scale" value={config.mageHatScale} min={0.5} max={1.5} step={0.02} onChange={(v) => handleConfigChange('mageHatScale', v)} />
+                </div>
+            )}
+
             {config.equipment.hood && (
                 <div className="space-y-2 border-b border-gray-100 pb-4">
                     <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Hood Rigging</h5>
@@ -133,7 +144,7 @@ export const EquipmentRiggingControls: React.FC<EquipmentRiggingControlsProps> =
                 </div>
             )}
 
-            {!config.equipment.helm && !config.equipment.mask && !config.equipment.hood && !config.equipment.shoulders && !config.equipment.shield && !hasShirt && (
+            {!config.equipment.helm && !config.equipment.mask && !config.equipment.hood && !config.equipment.mageHat && !config.equipment.shoulders && !config.equipment.shield && !hasShirt && (
                 <div className="text-center py-6 text-gray-400 italic text-[10px]">
                     Equip armor items to see rigging controls
                 </div>
