@@ -8,6 +8,9 @@ import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
 import { HairBuilder } from './mesh/HairBuilder';
 import { ApronBuilder } from './mesh/ApronBuilder';
+import { CapeBuilder } from './equipment/CapeBuilder';
+import { BeltBuilder } from './equipment/BeltBuilder';
+import { BracersBuilder } from './equipment/BracersBuilder';
 
 export class BodyMorpher {
     private parts: any;
@@ -32,10 +35,16 @@ export class BodyMorpher {
     private pantsMeshes: THREE.Object3D[] = [];
     private robeMeshes: THREE.Object3D[] = [];
     private apronMeshes: THREE.Object3D[] = [];
+    private capeMeshes: THREE.Object3D[] = [];
+    private beltMeshes: THREE.Object3D[] = [];
+    private bracerMeshes: THREE.Object3D[] = [];
     private lastShirtConfigHash: string = '';
     private lastPantsConfigHash: string = '';
     private lastRobeConfigHash: string = '';
     private lastApronConfigHash: string = '';
+    private lastCapeConfigHash: string = '';
+    private lastBeltConfigHash: string = '';
+    private lastBracersConfigHash: string = '';
     private lastShoeState: boolean | null = null;
     private lastHairHash: string = '';
 
@@ -313,6 +322,9 @@ export class BodyMorpher {
         
         this.updateRobe(config);
         this.updateApron(config);
+        this.updateCape(config);
+        this.updateBelt(config);
+        this.updateBracers(config);
         this.updateHair(config);
 
         const hairMesh = this.parts.head?.getObjectByName('HairInstanced') as THREE.InstancedMesh;
@@ -464,5 +476,65 @@ export class BodyMorpher {
         }
 
         HairBuilder.build(this.parts, config, this.materials.hair);
+    }
+
+    private updateCape(config: PlayerConfig) {
+        const hash = `${config.equipment.cape}_${config.robeColor}`;
+        if (hash === this.lastCapeConfigHash) return;
+        this.lastCapeConfigHash = hash;
+
+        this.capeMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if (m instanceof THREE.Mesh && m.geometry) m.geometry.dispose();
+        });
+        this.capeMeshes = [];
+
+        const result = CapeBuilder.build(this.parts, config);
+        if (result) {
+            this.capeMeshes = result.meshes;
+        }
+    }
+
+    private updateBelt(config: PlayerConfig) {
+        const hash = `${config.equipment.belt}`;
+        if (hash === this.lastBeltConfigHash) return;
+        this.lastBeltConfigHash = hash;
+
+        this.beltMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if (m instanceof THREE.Mesh && m.geometry) m.geometry.dispose();
+        });
+        this.beltMeshes = [];
+
+        const result = BeltBuilder.build(this.parts, config);
+        if (result) {
+            this.beltMeshes = result.meshes;
+        }
+    }
+
+    private updateBracers(config: PlayerConfig) {
+        const hash = `${config.equipment.bracers}`;
+        if (hash === this.lastBracersConfigHash) return;
+        this.lastBracersConfigHash = hash;
+
+        this.bracerMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if (m instanceof THREE.Mesh && m.geometry) m.geometry.dispose();
+        });
+        this.bracerMeshes = [];
+
+        if (!config.equipment.bracers) return;
+
+        // Add bracers to forearms
+        if (this.parts.rightForeArm) {
+            const rightBracer = BracersBuilder.build(false, config);
+            this.parts.rightForeArm.add(rightBracer);
+            this.bracerMeshes.push(rightBracer);
+        }
+        if (this.parts.leftForeArm) {
+            const leftBracer = BracersBuilder.build(true, config);
+            this.parts.leftForeArm.add(leftBracer);
+            this.bracerMeshes.push(leftBracer);
+        }
     }
 }

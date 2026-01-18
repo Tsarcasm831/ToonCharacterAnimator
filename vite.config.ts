@@ -18,6 +18,34 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
+      },
+      build: {
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              'three': ['three'],
+              'react-vendor': ['react', 'react-dom'],
+              'game-core': [
+                './game/Game.ts',
+                './game/Player.ts',
+                './game/PlayerModel.ts',
+                './game/PlayerAnimator.ts'
+              ],
+              'game-entities': [
+                './game/managers/EntityManager.ts'
+              ],
+              'ui-components': [
+                './components/ui/ControlPanel.tsx',
+                './components/ui/InventoryModal.tsx',
+                './components/ui/TradeModal.tsx'
+              ]
+            }
+          }
+        },
+        chunkSizeWarningLimit: 1000
+      },
+      optimizeDeps: {
+        include: ['three', 'react', 'react-dom']
       }
     };
 });

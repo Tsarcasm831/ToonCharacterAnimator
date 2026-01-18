@@ -3,6 +3,11 @@ import { NPC } from '../entities/npc/friendly/NPC';
 import { Assassin } from '../entities/npc/enemy/Assassin';
 import { Archer } from '../entities/npc/enemy/Archer';
 import { Mage } from '../entities/npc/enemy/Mage';
+import { Bandit } from '../entities/npc/enemy/Bandit';
+import { Knight } from '../entities/npc/enemy/Knight';
+import { Rogue } from '../entities/npc/enemy/Rogue';
+import { Berserker } from '../entities/npc/enemy/Berserker';
+import { Warlock } from '../entities/npc/enemy/Warlock';
 import { Wolf } from '../entities/animal/aggressive/Wolf';
 import { Bear } from '../entities/animal/aggressive/Bear';
 import { Owl } from '../entities/animal/neutral/Owl';
@@ -14,7 +19,6 @@ import { Sheep } from '../entities/animal/neutral/Sheep';
 import { Spider } from '../entities/animal/aggressive/Spider';
 import { Lizard } from '../entities/animal/neutral/Lizard';
 import { Horse } from '../entities/animal/tameable/Horse';
-// Fix: Use consistent lowercase casing for Shopkeeper import
 import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
@@ -30,6 +34,13 @@ export class EntityManager {
     public archer: Archer;
     public mage: Mage;
     public guard: LowLevelCityGuard;
+    
+    // New enemy types
+    public bandit: Bandit;
+    public knight: Knight;
+    public rogue: Rogue;
+    public berserker: Berserker;
+    public warlock: Warlock;
     
     // Animals
     public wolf: Wolf; 
@@ -103,6 +114,13 @@ export class EntityManager {
 
         this.mage = new Mage(scene, new THREE.Vector3(0, 0, 15), '#6366f1');
         this.mage.config.isAssassinHostile = initialConfig.isAssassinHostile;
+
+        // New enemy types - spread around the map
+        this.bandit = new Bandit(scene, new THREE.Vector3(20, 0, -15));
+        this.knight = new Knight(scene, new THREE.Vector3(-25, 0, 20));
+        this.rogue = new Rogue(scene, new THREE.Vector3(15, 0, 25));
+        this.berserker = new Berserker(scene, new THREE.Vector3(-30, 0, -20));
+        this.warlock = new Warlock(scene, new THREE.Vector3(25, 0, -25));
 
         // One Wolf by default
         this.wolf = new Wolf(scene, new THREE.Vector3(10, 0, 10));
@@ -271,7 +289,8 @@ export class EntityManager {
 
     getAllEntities() {
         const list = [
-            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.foundryGuard, this.foundryAssassin, 
+            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.foundryGuard, this.foundryAssassin,
+            this.bandit, this.knight, this.rogue, this.berserker, this.warlock,
             this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
         ];

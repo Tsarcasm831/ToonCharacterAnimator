@@ -164,57 +164,58 @@ export class HeavyLeatherArmorBuilder {
         const collarR = 0.14;
         addStuds(chestPlate, chestH/2 - 0.02, collarR, collarR * torsoDepthScale + 0.05, 12, false);
 
-        // 4. PAULDRONS (Shoulders)
-        const createPauldron = () => {
+        // 4. PAULDRONS (Leather Shoulder Guards)
+        const createLeatherPauldron = (isLeft: boolean) => {
             const pGroup = new THREE.Group();
-            const plateGeo = new THREE.SphereGeometry(0.2, 16, 16, 0, Math.PI, 0, 1.2); 
-            // Flatten slightly
-            plateGeo.scale(1, 0.6, 1);
             
-            // 3 Layers
-            for(let i=0; i<3; i++) {
-                const plate = new THREE.Mesh(plateGeo, darkLeatherMat);
-                plate.position.y = -i * 0.06;
-                plate.scale.setScalar(1.0 - i * 0.05);
-                plate.rotation.y = -Math.PI / 2; // Face out
-                pGroup.add(plate);
+            // Main leather dome
+            const domeGeo = new THREE.SphereGeometry(0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55);
+            domeGeo.scale(1.1, 0.65, 1.0);
+            const dome = new THREE.Mesh(domeGeo, darkLeatherMat);
+            dome.rotation.x = Math.PI;
+            dome.castShadow = true;
+            pGroup.add(dome);
+            
+            // Layered leather strips
+            for (let i = 0; i < 3; i++) {
+                const stripGeo = new THREE.BoxGeometry(0.18 - i * 0.03, 0.025, 0.12 - i * 0.02);
+                const strip = new THREE.Mesh(stripGeo, leatherMat);
+                strip.position.y = -0.03 - i * 0.035;
+                strip.position.x = isLeft ? 0.02 : -0.02;
+                strip.rotation.z = isLeft ? 0.15 : -0.15;
+                strip.castShadow = true;
+                pGroup.add(strip);
                 
-                // Add studs to rim of each plate
-                const rimR = 0.19 * (1.0 - i * 0.05);
-                for(let k=0; k<7; k++) {
-                    const a = (k/6) * Math.PI; // 0 to PI
-                    // Parametric equation for rim of sphere slice
-                    // x=r*sin(phi)*cos(theta), y=r*cos(phi), z=r*sin(phi)*sin(theta)
-                    // Here geometry is rotated. Rim is at bottom of the slice roughly.
-                    // Simplified: Arc along local X/Z plane at edge
-                    const sx = Math.cos(a) * rimR;
-                    const sz = Math.sin(a) * rimR;
+                // Gold studs on each strip
+                [-1, 1].forEach(side => {
                     const stud = new THREE.Mesh(studGeo, studMat);
-                    // Adjust position to sit on the edge of the shell
-                    stud.position.set(0, 0.05, 0); // Local to plate surface? No, plate is mesh.
-                    // Manually position on rim
-                    // Plate is rot Y=-PI/2. so local X is world Z, local Z is world X.
-                    
-                    // Let's just place them relative to plate center
-                    stud.position.set(sz, 0.02, sx);
-                    plate.add(stud);
-                }
+                    stud.position.set(side * (0.06 - i * 0.01), 0.015, 0);
+                    strip.add(stud);
+                });
             }
+            
+            // Edge binding
+            const bindingGeo = new THREE.TorusGeometry(0.12, 0.015, 6, 20, Math.PI);
+            const binding = new THREE.Mesh(bindingGeo, darkLeatherMat);
+            binding.rotation.x = Math.PI / 2;
+            binding.rotation.z = isLeft ? -Math.PI / 2 : Math.PI / 2;
+            binding.position.y = 0.01;
+            binding.position.x = isLeft ? 0.05 : -0.05;
+            pGroup.add(binding);
+            
             return pGroup;
         };
 
-        const leftPauldron = createPauldron();
-        // Adjust for Left
-        leftPauldron.position.set(0.05, 0.08, 0); 
-        leftPauldron.rotation.z = -0.2;
+        const leftPauldron = createLeatherPauldron(true);
+        leftPauldron.position.set(0.02, 0.06, 0); 
+        leftPauldron.rotation.z = -0.15;
         parts.leftShoulderMount.add(leftPauldron);
         createdMeshes.push(leftPauldron);
-        refs.details.push(leftPauldron); // Track for cleanup if needed
+        refs.details.push(leftPauldron);
 
-        const rightPauldron = createPauldron();
-        rightPauldron.position.set(-0.05, 0.08, 0);
-        rightPauldron.rotation.z = 0.2;
-        rightPauldron.scale.x = -1; // Mirror
+        const rightPauldron = createLeatherPauldron(false);
+        rightPauldron.position.set(-0.02, 0.06, 0);
+        rightPauldron.rotation.z = 0.15;
         parts.rightShoulderMount.add(rightPauldron);
         createdMeshes.push(rightPauldron);
         refs.details.push(rightPauldron);
