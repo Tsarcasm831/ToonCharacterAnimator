@@ -48,8 +48,9 @@ export class Blacksmith {
     }
 
     update(dt: number, targetEyePosition: THREE.Vector3, environment: Environment, skipAnimation: boolean = false) {
-        const groundHeight = PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles);
-        this.position.y = Math.max(groundHeight, 0.4); 
+        // Use getLandingHeight to avoid roof snapping
+        const groundHeight = PlayerUtils.getLandingHeight(this.position, this.config, environment.obstacles);
+        this.position.y = groundHeight; 
         this.model.group.position.copy(this.position);
 
         const distToPlayer = this.position.distanceTo(targetEyePosition);

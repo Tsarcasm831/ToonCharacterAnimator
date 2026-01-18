@@ -5,6 +5,7 @@ import { BuildingParts } from './builder/BuildingParts';
 import { Player } from './Player';
 import { Environment } from './Environment';
 import { WorldEnvironment } from './WorldEnvironment';
+import { CombatEnvironment } from './environment/CombatEnvironment';
 import { InputManager } from './InputManager';
 import { SoundManager } from './SoundManager';
 import { ParticleManager } from './ParticleManager';
@@ -15,6 +16,7 @@ import { RenderManager } from './core/RenderManager';
 import { EntityManager } from './managers/EntityManager';
 import { LowLevelCityGuard } from './entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from './entities/npc/friendly/Blacksmith';
+import { Shopkeeper } from './entities/npc/friendly/Shopkeeper';
 import { HouseBlueprints, Blueprint } from './builder/HouseBlueprints';
 
 export class Game {
@@ -25,7 +27,8 @@ export class Game {
     private entityManager: EntityManager;
     private environment: Environment | null = null;
     private worldEnvironment: WorldEnvironment | null = null;
-    private activeScene: 'dev' | 'world';
+    private combatEnvironment: CombatEnvironment | null = null;
+    private activeScene: 'dev' | 'world' | 'combat';
 
     private inputManager: InputManager;
     private soundManager: SoundManager;
@@ -70,6 +73,7 @@ export class Game {
     onToggleWorldMapCallback?: (pos: THREE.Vector3) => void;
     onDialogueTrigger?: (content: string) => void;
     onTradeTrigger?: (merchantType: string) => void;
+    onShopkeeperTrigger?: () => void;
     onForgeTrigger?: () => void;
     onEnvironmentReady?: () => void;
 
@@ -80,7 +84,7 @@ export class Game {
     private readonly rotationUpdateIntervalMs = 100;
     private readonly rotationUpdateEpsilon = 0.01;
 
-    constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: (InventoryItem | null)[], activeScene: 'dev' | 'world') {
+    constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: (InventoryItem | null)[], activeScene: 'dev' | 'world' | 'combat') {
         this.config = initialConfig;
         this.activeScene = activeScene;
         this.renderManager = new RenderManager(container);
@@ -99,41 +103,31 @@ export class Game {
         
         const GRID_CELL_SIZE = 1.3333;
 
-        if (activeScene === 'dev') {
-            this.environment = new Environment(this.renderManager.scene);
-            this.entityManager = new EntityManager(this.renderManager.scene, this.environment, initialConfig);
-            
-            const startX = -17 * GRID_CELL_SIZE;
-            const startZ = 30 * GRID_CELL_SIZE;
-            
-            this.player.mesh.position.set(startX, 0, startZ);
-            this.renderManager.controls.target.set(startX, 1.7, startZ);
-            this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
-            
-            this.buildStructures();
+        // Initialize Scenes
+        this.environment = new Environment(this.renderManager.scene);
+        this.worldEnvironment = new WorldEnvironment(this.renderManager.scene);
+        this.combatEnvironment = new CombatEnvironment(this.renderManager.scene);
+        
+        // Entity Manager shares the scene but we might need to hide entities in combat/world differently
+        // For now, entities are primarily in 'dev' environment
+        this.entityManager = new EntityManager(this.renderManager.scene, this.environment, initialConfig);
 
-            this.environment.obstacleManager.onLogPickedUp = () => {
-                this.player.addItem('Wood', 8, true);
-            };
+        this.switchScene(activeScene, true);
 
-            requestAnimationFrame(() => {
-                this.environment?.buildAsync().then(() => {
-                    this.onEnvironmentReady?.();
-                });
+        // Pre-build dev environment content
+        this.buildStructures();
+        this.environment.obstacleManager.onLogPickedUp = () => {
+            this.player.addItem('Wood', 8, true);
+        };
+        
+        // Trigger Async Build for main env
+        requestAnimationFrame(() => {
+            this.environment?.buildAsync().then(() => {
+                if (this.activeScene === 'dev') this.onEnvironmentReady?.();
             });
-        } else {
-            this.worldEnvironment = new WorldEnvironment(this.renderManager.scene);
-            this.entityManager = new EntityManager(this.renderManager.scene, null as any, initialConfig);
-            this.entityManager.setVisibility(false);
-
-            this.player.mesh.position.set(0, 5, 0);
-            this.renderManager.controls.target.set(0, 6.7, 0);
-            this.renderManager.camera.position.set(0, 8.2, 5.0);
-
-            requestAnimationFrame(() => {
-                this.onEnvironmentReady?.();
-            });
-        }
+            // If starting in other scenes, trigger ready immediately as they are synchronous/simple
+            if (this.activeScene !== 'dev') this.onEnvironmentReady?.();
+        });
 
         this.prevTargetPos.copy(this.renderManager.controls.target);
         this.clock = new THREE.Clock();
@@ -141,7 +135,11 @@ export class Game {
         this.inputManager.onToggleHitbox = () => this.player.toggleHitbox();
         this.inputManager.onToggleObstacleHitboxes = () => {
             this.showObstacleHitboxes = !this.showObstacleHitboxes;
-            const obstacles = this.activeScene === 'dev' ? this.environment?.obstacles : this.worldEnvironment?.obstacles;
+            let obstacles: THREE.Object3D[] = [];
+            if (this.activeScene === 'dev') obstacles = this.environment?.obstacles || [];
+            else if (this.activeScene === 'world') obstacles = this.worldEnvironment?.obstacles || [];
+            else if (this.activeScene === 'combat') obstacles = this.combatEnvironment?.obstacles || [];
+            
             if (obstacles) PlayerDebug.updateObstacleHitboxVisuals(obstacles, this.showObstacleHitboxes);
         };
         this.inputManager.onToggleCamera = () => this.toggleCameraFocus();
@@ -170,34 +168,57 @@ export class Game {
         this.inputManager.dispose();
     }
 
-    public switchScene(sceneName: 'dev' | 'world') {
+    public switchScene(sceneName: 'dev' | 'world' | 'combat', isInit: boolean = false) {
         this.activeScene = sceneName;
         const GRID_CELL_SIZE = 1.3333;
 
-        if (sceneName === 'dev') {
-            this.environment?.setVisible(true);
-            this.worldEnvironment?.setVisible(false);
+        // Visibility
+        this.environment?.setVisible(sceneName === 'dev');
+        this.worldEnvironment?.setVisible(sceneName === 'world');
+        this.combatEnvironment?.setVisible(sceneName === 'combat');
+        
+        // Entities are bound to Dev scene currently
+        this.entityManager.setVisibility(sceneName === 'dev');
 
+        if (sceneName === 'dev') {
             const startX = -17 * GRID_CELL_SIZE;
             const startZ = 30 * GRID_CELL_SIZE;
-            
             this.player.mesh.position.set(startX, 0, startZ);
             this.renderManager.controls.target.set(startX, 1.7, startZ);
             this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
-        } else {
-            this.environment?.setVisible(false);
-            this.worldEnvironment?.setVisible(true);
-
+        } else if (sceneName === 'world') {
             this.player.mesh.position.set(0, 5, 0);
             this.renderManager.controls.target.set(0, 6.7, 0);
             this.renderManager.camera.position.set(0, 8.2, 5.0);
+        } else if (sceneName === 'combat') {
+            // Center of the arena (0,0), player starts at bottom edge
+            this.player.mesh.position.set(0, 0, 10);
+            this.player.mesh.rotation.y = Math.PI; // Face North (assuming Z- is North)
+            this.renderManager.controls.target.set(0, 1.0, 10);
+            // More top-down camera for tactics
+            this.renderManager.camera.position.set(0, 15, 20);
+            this.renderManager.camera.lookAt(0, 0, 0);
         }
-        this.prevTargetPos.copy(this.renderManager.controls.target);
-        this.entityManager.setVisibility(sceneName === 'dev');
+
+        if (!isInit) {
+            this.prevTargetPos.copy(this.renderManager.controls.target);
+            // Reset player physics state when teleporting
+            this.player.velocity.set(0,0,0);
+            this.player.jumpVelocity = 0;
+            this.player.isJumping = false;
+            
+            // Allow environment to signal readiness
+            if (sceneName !== 'dev') {
+                setTimeout(() => this.onEnvironmentReady?.(), 100);
+            }
+        }
     }
 
     spawnAnimal(type: string, count: number) {
-        this.entityManager.spawnAnimalGroup(type, count, this.environment, this.player.mesh.position);
+        // Only spawn in dev scene for now
+        if (this.activeScene === 'dev') {
+            this.entityManager.spawnAnimalGroup(type, count, this.environment, this.player.mesh.position);
+        }
     }
 
     private buildStructures() {
@@ -209,15 +230,11 @@ export class Game {
                  let localX = part.x;
                  let localZ = part.z;
 
-                 // Calculate refined local offsets for part alignment within the grid cell
                  if (part.type === 'foundation' || part.type === 'roof' || part.type === 'round_foundation' || part.type === 'round_wall') {
                      localX += 0.5;
                      localZ += 0.5;
                  } else if (part.type === 'pillar') {
-                     // Pillars stay at nodes
                  } else {
-                     // Walls/Doorways centered on edges
-                     // part.rotation relative to blueprint: 0 = horizontal (Z-edge), PI/2 = vertical (X-edge)
                      if (part.rotation === Math.PI / 2) {
                          localZ += 0.5;
                      } else {
@@ -225,7 +242,6 @@ export class Game {
                      }
                  }
 
-                 // Apply blueprint-level rotation to the local offsets
                  const rx = localX * Math.cos(blueprintRotation) - localZ * Math.sin(blueprintRotation);
                  const rz = localX * Math.sin(blueprintRotation) + localZ * Math.cos(blueprintRotation);
                  
@@ -253,22 +269,11 @@ export class Game {
         
         const GRID = 1.3333;
 
-        // 1. The Forge (Blacksmith) - Default (Wood/Dark)
         build(HouseBlueprints.getTheForge(), -27 * GRID, 36 * GRID);
-
-        // 2. The Cottage - Blue
         build(HouseBlueprints.getCottage(), -20 * GRID, 45 * GRID, Math.PI / 2, 0x64b5f6);
-
-        // 3. The Longhouse - Green
         build(HouseBlueprints.getLonghouse(), -10 * GRID, 35 * GRID, 0, 0x81c784);
-
-        // 4. L-Shape - Red
         build(HouseBlueprints.getLShape(), -38 * GRID, 30 * GRID, 0, 0xe57373);
-
-        // 5. The Roundhouse - Purple
         build(HouseBlueprints.getRoundhouse(), -50 * GRID, 45 * GRID, 0, 0x9575cd);
-
-        // 6. Gatehouse - Orange/Yellow
         build(HouseBlueprints.getGatehouse(), -15 * GRID, 20 * GRID, 0, 0xffb74d);
     }
 
@@ -286,10 +291,8 @@ export class Game {
             }; 
         };
 
-        // Important: Doorways are now Groups with sub-meshes for posts/lintel
         if (mesh instanceof THREE.Group) {
             mesh.traverse(applyUserData);
-            // Add all visual children that are meshes to the obstacle list for collision
             mesh.traverse(child => {
                 if (child instanceof THREE.Mesh && child.userData.type === 'hard') {
                     this.environment?.obstacles.push(child);
@@ -299,7 +302,8 @@ export class Game {
             applyUserData(mesh);
             this.environment?.obstacles.push(mesh);
         }
-        this.renderManager.scene.add(mesh);
+        // Add to environment group so it hides/shows correctly
+        this.environment?.group.add(mesh);
     }
 
     private toggleBuilder() {
@@ -379,7 +383,8 @@ export class Game {
         if (input.rotateGhost && !this.wasRotateKeyPressed) this.builderManager.rotate();
         this.wasRotateKeyPressed = !!input.rotateGhost;
         if (this.isBuilding && input.attack1 && !this.wasAttack1Pressed) {
-            const currentEnv = this.activeScene === 'dev' ? this.environment : this.worldEnvironment;
+            const currentEnv = this.activeScene === 'dev' ? this.environment : (this.activeScene === 'world' ? this.worldEnvironment : null);
+            // Builder only supported in Dev/World for now
             if (currentEnv) {
                 this.builderManager.build(currentEnv);
                 if (this.showObstacleHitboxes) PlayerDebug.updateObstacleHitboxVisuals(currentEnv.obstacles, true);
@@ -400,6 +405,9 @@ export class Game {
         } else if (this.activeScene === 'world' && this.worldEnvironment) {
             currentEnv = this.worldEnvironment;
             this.worldEnvironment.update(delta, this.config, this.player.mesh.position);
+        } else if (this.activeScene === 'combat' && this.combatEnvironment) {
+            currentEnv = this.combatEnvironment;
+            this.combatEnvironment.update(delta, this.config, this.player.mesh.position);
         }
 
         this.particleManager.update(delta);
@@ -455,12 +463,18 @@ export class Game {
         else if (this.player.isSkinning) this.onInteractionUpdate?.(null, this.player.skinningProgress);
         else if (this.player.isChargingFishing) this.onInteractionUpdate?.('Power', this.player.fishingCharge);
         else if (this.player.canTalk) {
-            this.onInteractionUpdate?.('Press E to Talk', null);
+            const target = this.player.talkingTarget;
+            const label = target instanceof Shopkeeper
+                ? 'Press E to Chat'
+                : target instanceof Blacksmith
+                    ? 'Press E to Trade'
+                    : 'Press E to Talk';
+            this.onInteractionUpdate?.(label, null);
             if (input.interact) { 
                 this.player.isTalking = true; 
-                const target = this.player.talkingTarget;
                 if (target instanceof LowLevelCityGuard) { target.isLeftHandWaving = true; target.leftHandWaveTimer = 0; this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); } 
                 else if (target instanceof Blacksmith) this.onTradeTrigger?.("blacksmith");
+                else if (target instanceof Shopkeeper) this.onShopkeeperTrigger?.();
                 else this.onDialogueTrigger?.("Greetings, traveler.");
             }
         } else if (this.player.canSkin) this.onInteractionUpdate?.('Press F to Skin', null);

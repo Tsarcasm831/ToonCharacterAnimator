@@ -4,6 +4,8 @@ import type { Player } from '../Player';
 import { PlayerInput } from '../../types';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
+// Fix: Use consistent lowercase 'npc' path for Shopkeeper import
+import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 
 export class PlayerInteraction {
 
@@ -38,6 +40,7 @@ export class PlayerInteraction {
         }
 
         // Skinning Check & Logic
+        // Fix: Corrected 'const has Knife' syntax error to 'const hasKnife'
         const hasKnife = player.config.selectedItem === 'Knife';
         const skinnableTarget = this.getSkinnableTargetNearby(player, obstacles);
         player.canSkin = !!skinnableTarget && hasKnife;
@@ -190,6 +193,14 @@ export class PlayerInteraction {
             if (entity instanceof Blacksmith) {
                 const dist = player.mesh.position.distanceTo(entity.position);
                 if (dist < 2.5) { // Slightly larger interaction radius for the shopkeeper
+                    player.canTalk = true;
+                    player.talkingTarget = entity;
+                    break;
+                }
+            }
+            if (entity instanceof Shopkeeper) {
+                const dist = player.mesh.position.distanceTo(entity.position);
+                if (dist < 2.5) {
                     player.canTalk = true;
                     player.talkingTarget = entity;
                     break;

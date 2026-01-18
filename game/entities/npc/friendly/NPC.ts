@@ -51,8 +51,10 @@ export class NPC {
     }
 
     update(dt: number, targetEyePosition: THREE.Vector3, environment: Environment, skipAnimation: boolean = false) {
-        const groundHeight = PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles);
+        // Use getLandingHeight instead of getGroundHeight to prevent roof-snapping
+        const groundHeight = PlayerUtils.getLandingHeight(this.position, this.config, environment.obstacles);
         this.position.y = groundHeight;
+        
         if (!PlayerUtils.isWithinBounds(this.position)) {
             const limit = PlayerUtils.WORLD_LIMIT - 1.0;
             this.position.x = THREE.MathUtils.clamp(this.position.x, -limit, limit);

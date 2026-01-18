@@ -36,7 +36,7 @@ export class BuildingParts {
                 return new THREE.BoxGeometry(0.3, 3.3, 0.3);
             case 'doorway':
                 // This is used for the Ghost / Merged representation
-                const postWidth = 0.15; // Thinner posts = wider doorway
+                const postWidth = 0.05; // Significant clearance
                 const totalWidth = GRID_SIZE;
                 const holeWidth = totalWidth - (postWidth * 2); 
                 const totalHeight = 3.3; 
@@ -78,7 +78,7 @@ export class BuildingParts {
                 return mergedGeo;
 
             case 'door':
-                return new THREE.BoxGeometry(0.8, 2.35, 0.15); 
+                return new THREE.BoxGeometry(1.23, 2.35, 0.15); // Much wider door to fit the wider gap
             case 'roof':
                 const halfSize = GRID_SIZE / 2;
                 const roofGeo = new THREE.BufferGeometry();
@@ -128,7 +128,7 @@ export class BuildingParts {
         if (type === 'doorway' && !isGhost) {
             // Build as a Group to allow per-component collision checking
             const GRID_SIZE = 1.3333;
-            const postWidth = 0.15; // Match geometry postWidth
+            const postWidth = 0.05; // Thin posts
             const totalWidth = GRID_SIZE;
             const holeWidth = totalWidth - (postWidth * 2); 
             const totalHeight = 3.3; 

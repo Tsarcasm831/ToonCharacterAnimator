@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { NPC } from '../entities/npc/friendly/NPC';
 import { Assassin } from '../entities/npc/enemy/Assassin';
@@ -14,6 +13,7 @@ import { Sheep } from '../entities/animal/neutral/Sheep';
 import { Spider } from '../entities/animal/aggressive/Spider';
 import { Lizard } from '../entities/animal/neutral/Lizard';
 import { Horse } from '../entities/animal/tameable/Horse';
+import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
 import { Environment } from '../Environment';
@@ -23,12 +23,13 @@ export class EntityManager {
     public scene: THREE.Scene;
     public npc: NPC;
     public blacksmith: Blacksmith;
+    public shopkeeper: Shopkeeper;
     public assassin: Assassin;
     public archer: Archer;
     public guard: LowLevelCityGuard;
     
     // Animals
-    public wolf: Wolf; // Keep the default one
+    public wolf: Wolf; 
     public bears: Bear[] = [];
     public owls: Owl[] = [];
     public yetis: Yeti[] = [];
@@ -50,7 +51,7 @@ export class EntityManager {
     private lastRangeCheck = -Infinity;
     
     private readonly nearCache = new WeakMap<object, boolean>();
-    private readonly visibleCache = new WeakMap<object, boolean>();
+    private readonly visibilityCache = new WeakMap<object, boolean>();
 
     private readonly tempPlayerPos = new THREE.Vector3();
     private readonly tempEyePos = new THREE.Vector3();
@@ -83,6 +84,8 @@ export class EntityManager {
         // NPC
         this.npc = new NPC(scene, { bodyType: 'female', outfit: 'peasant' }, new THREE.Vector3(-3, 0, 2));
         this.blacksmith = new Blacksmith(scene, new THREE.Vector3(-35, 0.4, 53));
+        const GRID = 1.3333;
+        this.shopkeeper = new Shopkeeper(scene, new THREE.Vector3(-50 * GRID, 0, 45 * GRID));
         
         // Hostiles
         this.assassin = new Assassin(scene, new THREE.Vector3(30, 0, 0));
@@ -110,9 +113,8 @@ export class EntityManager {
             let animal: any = null;
             switch (type.toLowerCase()) {
                 case 'wolf':
-                    // Additional wolves besides the default
                     const extraWolf = new Wolf(this.scene, pos);
-                    this.bears.push(extraWolf as any); // We can reuse arrays or create a multi-list
+                    this.bears.push(extraWolf as any);
                     environment?.addObstacle(extraWolf.hitbox);
                     break;
                 case 'bear':
@@ -172,10 +174,9 @@ export class EntityManager {
             this.refreshRangeCache();
         }
 
-        const isVisible = (entity: { position: THREE.Vector3 }) => this.visibleCache.get(entity as any) ?? false;
+        const isVisible = (entity: { position: THREE.Vector3 }) => this.visibilityCache.get(entity as any) ?? false;
         const isNear = (entity: { position: THREE.Vector3 }) => this.nearCache.get(entity as any) ?? false;
 
-        // Update Visibilities & Logic
         const allEntities = this.getAllEntities();
         allEntities.forEach(entity => {
             if (!entity) return;
@@ -183,12 +184,10 @@ export class EntityManager {
             const visible = isVisible(entity);
             const animate = isNear(entity);
             
-            // Set basic visibility
             if (entity.model && entity.model.group) {
                 entity.model.group.visible = visible;
             }
 
-            // Only run logic if visible
             if (visible) {
                 this.updateEntity(entity, delta, config, animate, environment);
             }
@@ -204,6 +203,9 @@ export class EntityManager {
         } else if (entity === this.blacksmith && config.showNPC) {
             this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);
             this.blacksmith.update(delta, this.tempEyePos, environment as any, skipAnimation);
+        } else if (entity === this.shopkeeper && config.showNPC) {
+            this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);
+            this.shopkeeper.update(delta, this.tempEyePos, environment as any, skipAnimation);
         } else if (entity === this.guard && config.showGuard) {
             this.guard.update(delta, this.tempPlayerPos, environment as any, [], skipAnimation);
         } else if (entity === this.assassin && config.showAssassin) {
@@ -217,7 +219,6 @@ export class EntityManager {
             this.archerTargets[1].position.copy(this.npc.position);
             this.archerTargets[2].position.copy(this.wolf.position);
             this.archerTargets[2].isDead = this.wolf.isDead;
-            // Simplified check for bear target
             if (this.bears.length > 0) {
                 this.archerTargets[3].position.copy(this.bears[0].position);
                 this.archerTargets[3].isDead = this.bears[0].isDead;
@@ -239,7 +240,6 @@ export class EntityManager {
         } else if (entity instanceof Yeti) {
             entity.update(delta, environment as any, skipAnimation);
         } else {
-            // General group entities (Deer, Chicken, Pig, Sheep, Spider, Lizard, Horse)
             this.playerOnlyTarget[0].position.copy(this.tempPlayerPos);
             entity.update(delta, environment as any, this.playerOnlyTarget as any, skipAnimation);
         }
@@ -256,7 +256,7 @@ export class EntityManager {
 
     getAllEntities() {
         const list = [
-            this.npc, this.blacksmith, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin, 
+            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.foundryGuard, this.foundryAssassin, 
             this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
         ];
@@ -269,7 +269,7 @@ export class EntityManager {
             if (!entity) return;
             const distSq = entity.position.distanceToSquared(this.tempPlayerPos);
             this.nearCache.set(entity as any, distSq <= this.animationRangeSq);
-            this.visibleCache.set(entity as any, distSq <= this.visibilityRangeSq);
+            this.visibilityCache.set(entity as any, distSq <= this.visibilityRangeSq);
         });
     }
 }

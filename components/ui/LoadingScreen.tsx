@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, CSSProperties } from 'react';
 import * as THREE from 'three';
 import { PlayerModel } from '../../game/PlayerModel';
 import { MovementAction } from '../../game/animator/actions/MovementAction';
@@ -22,7 +22,21 @@ const MESSAGES = [
     "System Synchronized."
 ];
 
-const LoadingRunner: React.FC<{ progress: number }> = ({ progress }) => {
+interface LoadingRunnerProps {
+    progress: number;
+    progressScale?: number;
+    mirror?: boolean;
+    className?: string;
+    style?: CSSProperties;
+}
+
+const LoadingRunner: React.FC<LoadingRunnerProps> = ({ 
+    progress, 
+    progressScale = 1, 
+    mirror = false, 
+    className = '', 
+    style = {}
+}) => {
     const mountRef = useRef<HTMLDivElement>(null);
     const sceneRef = useRef<{
         renderer: THREE.WebGLRenderer;
@@ -33,10 +47,11 @@ const LoadingRunner: React.FC<{ progress: number }> = ({ progress }) => {
     } | null>(null);
 
     useEffect(() => {
-        if (!mountRef.current) return;
+        const mountNode = mountRef.current;
+        if (!mountNode) return;
 
-        const width = mountRef.current.clientWidth;
-        const height = mountRef.current.clientHeight;
+        const width = mountNode.clientWidth;
+        const height = mountNode.clientHeight;
 
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
@@ -46,7 +61,7 @@ const LoadingRunner: React.FC<{ progress: number }> = ({ progress }) => {
         const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
         renderer.setSize(width, height);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        mountRef.current.appendChild(renderer.domElement);
+        mountNode.appendChild(renderer.domElement);
 
         scene.add(new THREE.AmbientLight(0xffffff, 1.2));
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -62,8 +77,8 @@ const LoadingRunner: React.FC<{ progress: number }> = ({ progress }) => {
             skinColor: '#ffdbac'
         };
         const model = new PlayerModel(config);
-        // Face forward progress (Right)
-        model.group.rotation.y = Math.PI / 2;
+        // Face progress direction
+        model.group.rotation.y = mirror ? -Math.PI / 2 : Math.PI / 2;
         scene.add(model.group);
 
         const clock = new THREE.Clock();
@@ -98,20 +113,25 @@ const LoadingRunner: React.FC<{ progress: number }> = ({ progress }) => {
         return () => {
             cancelAnimationFrame(frameId);
             renderer.dispose();
-            if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
-                mountRef.current.removeChild(renderer.domElement);
+            if (renderer.domElement.parentNode === mountNode) {
+                mountNode.removeChild(renderer.domElement);
             }
         };
-    }, []);
+    }, [mirror]);
+
+    const clamped = Math.min(100, Math.max(0, progress * progressScale));
 
     return (
         <div 
             ref={mountRef} 
-            className="absolute top-[-100px] w-32 h-32 pointer-events-none z-10"
+            className={`pointer-events-none z-10 ${className}`}
             style={{ 
-                left: `${progress}%`,
+                position: 'absolute',
+                left: `${clamped}%`,
+                bottom: '100%',
                 transform: 'translateX(-50%)',
-                transition: 'left 0.1s linear'
+                transition: 'left 0.12s linear',
+                ...style
             }}
         />
     );
@@ -186,11 +206,14 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                         style={{ width: `${runnerProgress}%` }}
                     />
                     
-                    <LoadingRunner progress={runnerProgress} />
+                    <LoadingRunner 
+                        progress={runnerProgress} 
+                        className="w-24 h-24" 
+                    />
                 </div>
 
                 {/* Primary System Status Bar */}
-                <div className="relative w-72 h-1 bg-white/10 rounded-full overflow-hidden mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/5">
+                <div className="relative w-72 h-1 bg-white/10 rounded-full mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/5">
                     <div 
                         className={`absolute inset-y-0 left-0 transition-all duration-1000 ease-out ${isSystemReady ? 'bg-green-500 shadow-[0_0_15px_#22c55e] w-full' : 'bg-blue-400 w-4/5 animate-pulse'}`}
                     />
@@ -210,6 +233,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                         </div>
                     </div>
                 </div>
+
             </div>
 
             <div className="absolute bottom-12 flex flex-col items-center gap-4 opacity-30">
