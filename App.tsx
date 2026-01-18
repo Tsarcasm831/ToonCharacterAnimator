@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import Scene from './components/Scene.tsx';
 import { PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest, InventoryItem, QuestStatus } from './types.ts';
 import { Header } from './components/ui/Header.tsx';
@@ -7,16 +7,9 @@ import { InteractionOverlay } from './components/ui/InteractionOverlay.tsx';
 import { Hotbar } from './components/ui/Hotbar.tsx';
 import { PlayerBench } from './components/ui/PlayerBench.tsx';
 import { ControlPanel } from './components/ui/ControlPanel.tsx';
-import { InventoryModal } from './components/ui/InventoryModal.tsx';
-import { TradeModal } from './components/ui/TradeModal.tsx';
 import { ShopkeeperChatModal } from './components/ui/ShopkeeperChatModal.tsx';
-import { ForgeModal } from './components/ui/ForgeModal.tsx';
 import { BuilderUI } from './components/ui/BuilderUI.tsx';
 import { MobileControls } from './components/ui/MobileControls.tsx';
-import { KeybindsModal } from './components/ui/KeybindsModal.tsx';
-import { WorldMapModal } from './components/ui/WorldMapModal.tsx';
-import { QuestLogModal } from './components/ui/QuestLogModal.tsx';
-import { SpawnAnimalsModal } from './components/ui/SpawnAnimalsModal.tsx';
 import { Compass } from './components/ui/Compass.tsx';
 import { MainMenu } from './components/ui/MainMenu.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
@@ -24,6 +17,15 @@ import { ModelExporter } from './game/ModelExporter.ts';
 import { Game } from './game/Game.ts';
 import { StructureType } from './game/builder/BuildingParts.ts';
 import * as THREE from 'three';
+
+// Lazy load heavy modal components for better initial load performance
+const InventoryModal = lazy(() => import('./components/ui/InventoryModal.tsx').then(m => ({ default: m.InventoryModal })));
+const TradeModal = lazy(() => import('./components/ui/TradeModal.tsx').then(m => ({ default: m.TradeModal })));
+const ForgeModal = lazy(() => import('./components/ui/ForgeModal.tsx').then(m => ({ default: m.ForgeModal })));
+const KeybindsModal = lazy(() => import('./components/ui/KeybindsModal.tsx').then(m => ({ default: m.KeybindsModal })));
+const WorldMapModal = lazy(() => import('./components/ui/WorldMapModal.tsx').then(m => ({ default: m.WorldMapModal })));
+const QuestLogModal = lazy(() => import('./components/ui/QuestLogModal.tsx').then(m => ({ default: m.QuestLogModal })));
+const SpawnAnimalsModal = lazy(() => import('./components/ui/SpawnAnimalsModal.tsx').then(m => ({ default: m.SpawnAnimalsModal })));
 
 const INITIAL_QUESTS: Quest[] = [
   {
@@ -497,18 +499,20 @@ const App: React.FC = () => {
             {isBuilderMode && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && <BuilderUI activeType={activeStructure} onSelectType={handleSelectStructure} />}
             {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <ControlPanel config={config} manualInput={manualInput} isDeadUI={isDeadUI} setConfig={setConfig} setManualInput={setManualInput} handleDeathToggle={handleDeathToggle} triggerAction={triggerAction} onExport={handleExport} onSpawnAnimals={() => setIsSpawnModalOpen(true)} />}
             {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
-            <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} config={config} inventory={inventory} equipmentSlots={equipmentSlots} onEquip={setSelectedSlot} onInventoryChange={setInventory} onEquipItem={handleEquipItem} onUnequipItem={handleUnequipItem} coins={coins} />
-            <TradeModal isOpen={isTradeOpen} onClose={() => { setIsTradeOpen(false); if(gameInstance.current) gameInstance.current['player'].isTalking = false; }} inventory={inventory} coins={coins} onBuy={handleBuy} onSell={handleSell} />
+            <Suspense fallback={null}>
+                {isInventoryOpen && <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} config={config} inventory={inventory} equipmentSlots={equipmentSlots} onEquip={setSelectedSlot} onInventoryChange={setInventory} onEquipItem={handleEquipItem} onUnequipItem={handleUnequipItem} coins={coins} />}
+                {isTradeOpen && <TradeModal isOpen={isTradeOpen} onClose={() => { setIsTradeOpen(false); if(gameInstance.current) gameInstance.current['player'].isTalking = false; }} inventory={inventory} coins={coins} onBuy={handleBuy} onSell={handleSell} />}
+                {isForgeOpen && <ForgeModal isOpen={isForgeOpen} onClose={() => setIsForgeOpen(false)} inventory={inventory} onInventoryChange={setInventory} />}
+                {isKeybindsOpen && <KeybindsModal isOpen={isKeybindsOpen} onClose={() => setIsKeybindsOpen(false)} />}
+                {isWorldMapOpen && <WorldMapModal isOpen={isWorldMapOpen} onClose={() => setIsWorldMapOpen(false)} playerPos={playerPosForMap} />}
+                {isQuestLogOpen && <QuestLogModal isOpen={isQuestLogOpen} onClose={() => setIsQuestLogOpen(false)} quests={quests} onClaimReward={claimQuestReward} />}
+                {isSpawnModalOpen && <SpawnAnimalsModal isOpen={isSpawnModalOpen} onClose={() => setIsSpawnModalOpen(false)} onSpawn={handleSpawnAnimal} />}
+            </Suspense>
             <ShopkeeperChatModal
                 isOpen={isShopkeeperChatOpen}
                 onCancel={() => { setIsShopkeeperChatOpen(false); if (gameInstance.current) gameInstance.current['player'].isTalking = false; }}
                 onTrade={() => { setIsShopkeeperChatOpen(false); setIsTradeOpen(true); }}
             />
-            <ForgeModal isOpen={isForgeOpen} onClose={() => setIsForgeOpen(false)} inventory={inventory} onInventoryChange={setInventory} />
-            <KeybindsModal isOpen={isKeybindsOpen} onClose={() => setIsKeybindsOpen(false)} />
-            <WorldMapModal isOpen={isWorldMapOpen} onClose={() => setIsWorldMapOpen(false)} playerPos={playerPosForMap} />
-            <QuestLogModal isOpen={isQuestLogOpen} onClose={() => setIsQuestLogOpen(false)} quests={quests} onClaimReward={claimQuestReward} />
-            <SpawnAnimalsModal isOpen={isSpawnModalOpen} onClose={() => setIsSpawnModalOpen(false)} onSpawn={handleSpawnAnimal} />
         </>
       )}
 

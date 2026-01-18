@@ -352,26 +352,35 @@ export class PlateMailBuilder {
             refs.sleeves.push(up);
         });
 
-        [parts.rightForeArm, parts.leftForeArm].forEach(fore => {
+        [parts.rightForeArm, parts.leftForeArm].forEach((fore, index) => {
             if (!fore) return;
             const down = createArmPlate(false);
-            down.position.y = -0.02;
+            down.position.y = -0.08;
             fore.add(down);
             createdMeshes.push(down);
             refs.sleeves.push(down);
             
-            // Elbow Couter (Cup)
-            const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 12, 0, Math.PI*2, 0, Math.PI*0.4), metalMat);
-            elbow.position.set(0, 0.0, -0.02); // Back of elbow
-            elbow.rotation.x = -Math.PI/2;
+            // Elbow Couter (Cup) - positioned at top of forearm (elbow joint)
+            const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12, 0, Math.PI*2, 0, Math.PI*0.5), metalMat);
+            elbow.position.set(0, 0.02, -0.03);
+            elbow.rotation.x = -Math.PI/2 - 0.3;
+            elbow.castShadow = true;
             fore.add(elbow);
             createdMeshes.push(elbow);
             
             // Elbow Spike
-            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.08, 8), brassMat);
-            spike.rotation.x = -Math.PI/2;
-            spike.position.set(0, 0, 0.08); // Sticking out of elbow cup
+            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.06, 8), brassMat);
+            spike.rotation.x = Math.PI/2;
+            spike.position.set(0, 0.04, 0);
             elbow.add(spike);
+            
+            // Wrist guard
+            const wristGeo = new THREE.CylinderGeometry(0.055, 0.05, 0.04, 12, 1, true);
+            const wrist = new THREE.Mesh(wristGeo, metalMat);
+            wrist.position.y = -0.22;
+            wrist.castShadow = true;
+            fore.add(wrist);
+            createdMeshes.push(wrist);
         });
 
         return { meshes: createdMeshes, refs };

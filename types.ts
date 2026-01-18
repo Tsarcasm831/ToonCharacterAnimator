@@ -42,6 +42,9 @@ export interface EquipmentState {
   plateMail: boolean;
   robe: boolean;
   mageHat: boolean;
+  bracers: boolean;
+  cape: boolean;
+  belt: boolean;
 }
 
 export interface PlayerInput {
@@ -312,6 +315,9 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     robe: false,
     blacksmithApron: false,
     mageHat: false,
+    bracers: false,
+    cape: false,
+    belt: false,
   },
   selectedItem: null,
   weaponStance: 'side',
