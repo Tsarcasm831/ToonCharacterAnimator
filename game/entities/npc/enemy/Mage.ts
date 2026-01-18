@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum MageState { IDLE, PATROL, CHASE, ATTACK, RETREAT }
 
@@ -54,6 +56,7 @@ export class Mage {
             robeColor: '#000000',
             robeTrimColor: '#111111',
             hairStyle: 'bald', 
+            stats: { ...CLASS_STATS.mage },
             // Added missing bracers, cape, belt to equipment
             equipment: { 
                 helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false, mageHat: false, bracers: false, cape: true, belt: true

@@ -127,6 +127,39 @@ export class PlayerUtils {
         return highest;
     }
 
+    /**
+     * Finds a valid, empty position 1-4 meters away from the given origin.
+     * Used for teleporting stuck entities.
+     */
+    static findUnstuckPosition(origin: THREE.Vector3, obstacles: THREE.Object3D[]): THREE.Vector3 | null {
+        // Try 8 different random positions
+        for(let i = 0; i < 8; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 1.0 + Math.random() * 3.0; // 1m to 4m
+            
+            const candidate = new THREE.Vector3(
+                origin.x + Math.cos(angle) * dist,
+                origin.y + 0.5, // Start slightly up
+                origin.z + Math.sin(angle) * dist
+            );
+
+            // Basic bounds check
+            if (!this.isWithinBounds(candidate)) continue;
+
+            // Check if position is inside an obstacle
+            // We use a small generic box size for AI (0.6 width, 2.0 height)
+            const collisionSize = new THREE.Vector3(0.6, 2.0, 0.6);
+            if (this.checkBoxCollision(candidate, collisionSize, obstacles)) continue;
+
+            // Find valid ground height
+            const groundY = this.getGroundHeight(candidate, { torsoWidth: 1.0 } as any, obstacles);
+            candidate.y = groundY;
+            
+            return candidate;
+        }
+        return null;
+    }
+
     // --- UI Helpers ---
 
     static createTextTexture(text: string, color: string = 'white', bgColor: string | null = null, fontSize: number = 40): THREE.CanvasTexture {

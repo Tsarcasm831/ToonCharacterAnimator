@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum SentinelState { IDLE, PATROL, INTERCEPT, GUARD, ATTACK }
 
@@ -57,6 +59,7 @@ export class Sentinel {
             pantsColor: '#2f4f4f',
             bootsColor: '#1c1c1c',
             hairStyle: 'bald',
+            stats: { ...CLASS_STATS.sentinel },
             equipment: { 
                 helm: true, shoulders: true, shield: true, shirt: true, pants: true, shoes: true, 
                 mask: true, hood: false, quiltedArmor: false, leatherArmor: false, 

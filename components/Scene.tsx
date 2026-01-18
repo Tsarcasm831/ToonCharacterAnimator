@@ -18,6 +18,7 @@ interface SceneProps {
   onToggleQuestLog?: () => void;
   controlsDisabled?: boolean;
   showGrid?: boolean;
+  isCombatActive?: boolean;
 }
 
 const Scene: React.FC<SceneProps> = ({ 
@@ -33,7 +34,8 @@ const Scene: React.FC<SceneProps> = ({
     onToggleWorldMap,
     onToggleQuestLog,
     controlsDisabled = false,
-    showGrid = false
+    showGrid = false,
+    isCombatActive = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
@@ -84,12 +86,6 @@ const Scene: React.FC<SceneProps> = ({
       const game = gameRef.current;
       if (!game) return;
       
-      // Handle scene switching
-      // We check private property access pattern or expose a getter, but for now 
-      // we can infer it needs switching if prop changed.
-      // Actually, Scene component is re-mounted if key changes in App, which forces reconstruction.
-      // But if App uses same key, we must switch manually. App uses `key={activeScene}` so this is handled by re-mount.
-      
       game.setConfig(config);
       game.setManualInput(manualInput);
       
@@ -102,10 +98,11 @@ const Scene: React.FC<SceneProps> = ({
       game.setControlsActive(!controlsDisabled);
 
       game.toggleGrid(showGrid);
+      game.setCombatActive(isCombatActive);
 
       game['inputManager'].onToggleQuestLog = onToggleQuestLog;
 
-  }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onToggleQuestLog, onEnvironmentReady, controlsDisabled, showGrid]);
+  }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onToggleQuestLog, onEnvironmentReady, controlsDisabled, showGrid, isCombatActive]);
 
   return <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />;
 };

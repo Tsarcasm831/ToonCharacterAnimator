@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum MonkState { IDLE, PATROL, CHASE, FLURRY, RECOVER }
 
@@ -58,6 +60,7 @@ export class Monk {
             robeColor: '#ff8c00',
             robeTrimColor: '#8b0000',
             hairStyle: 'bald',
+            stats: { ...CLASS_STATS.monk },
             equipment: { 
                 helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: false, 
                 mask: false, hood: false, quiltedArmor: false, leatherArmor: false, 

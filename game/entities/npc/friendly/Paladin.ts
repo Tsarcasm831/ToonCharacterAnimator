@@ -4,8 +4,10 @@ import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
-enum PaladinState { IDLE, PATROL, CHASE, DUEL, ATTACK, HEAL }
+// Add missing RETREAT state to fix compilation errors
+enum PaladinState { IDLE, PATROL, CHASE, DUEL, ATTACK, HEAL, RETREAT }
 
 export class Paladin {
     scene: THREE.Scene;
@@ -44,7 +46,6 @@ export class Paladin {
         this.lastFramePos.copy(initialPos);
         this.lastStuckPos.copy(this.position);
         
-        // Paladins are noble warriors - muscular builds with holy armor
         this.config = { 
             ...DEFAULT_CONFIG, 
             bodyType: 'male', 
@@ -56,11 +57,14 @@ export class Paladin {
             bootsColor: '#8b7355',
             hairStyle: 'crew',
             hairColor: '#d4af37',
+            stats: { ...CLASS_STATS.paladin },
+            // Fix: Added missing properties to EquipmentState
             equipment: { 
                 helm: true, shoulders: true, shield: true, shirt: true, pants: true, shoes: true, 
-                mask: false, hood: false, quiltedArmor: false, leatherArmor: false, 
-                heavyLeatherArmor: false, ringMail: true, plateMail: false, robe: false, 
-                blacksmithApron: false, mageHat: false, bracers: true, cape: true, belt: true
+                mask: false, hood: false, quiltedArmor: false,
+                blacksmithApron: false, leatherArmor: false, heavyLeatherArmor: false,
+                ringMail: false, plateMail: true, robe: false, mageHat: false,
+                bracers: true, cape: true, belt: true
             }, 
             selectedItem: 'Sword',
             weaponStance: 'side',
@@ -82,7 +86,7 @@ export class Paladin {
         this.isStriking = (newState === PaladinState.ATTACK);
         if (this.isStriking) this.strikeTimer = 0;
         if (newState === PaladinState.DUEL) {
-            this.duelTimer = 1.2 + Math.random() * 1.5;
+            this.duelTimer = 1.5 + Math.random() * 2.0;
             this.strafeDir = Math.random() > 0.5 ? 1 : -1;
         }
     }
@@ -116,7 +120,7 @@ export class Paladin {
             }
             if (this.state === PaladinState.CHASE) {
                 if (distToTarget < 4.0) this.setState(PaladinState.DUEL);
-                else if (distToTarget > 28.0) this.setState(PaladinState.PATROL);
+                else if (distToTarget > 30.0) this.setState(PaladinState.PATROL);
                 else this.targetPos.copy(this.currentTarget!.position);
             }
             if (this.state === PaladinState.DUEL) {
@@ -125,9 +129,12 @@ export class Paladin {
                 if (distToTarget > 5.5) this.setState(PaladinState.CHASE);
                 else if (this.duelTimer <= 0 && this.attackCooldown <= 0) this.setState(PaladinState.ATTACK);
             }
-            if (this.state === PaladinState.ATTACK && this.strikeTimer > 0.75) {
-                this.setState(PaladinState.DUEL);
-                this.attackCooldown = 1.5 + Math.random();
+            if (this.state === PaladinState.ATTACK && this.strikeTimer > 0.8) {
+                this.setState(PaladinState.RETREAT);
+                this.attackCooldown = 1.8 + Math.random();
+            }
+            if (this.state === PaladinState.RETREAT) {
+                if (this.stateTimer > 0.7) this.setState(PaladinState.DUEL);
             }
         } else if (this.state !== PaladinState.PATROL && this.state !== PaladinState.IDLE) {
             this.setState(PaladinState.PATROL);
@@ -136,22 +143,22 @@ export class Paladin {
         let moveSpeed = 0;
         switch (this.state) {
             case PaladinState.PATROL:
-                moveSpeed = 2.2;
-                if (this.position.distanceTo(this.targetPos) < 1.5 || this.stateTimer > 22.0) {
+                moveSpeed = 2.0;
+                if (this.position.distanceTo(this.targetPos) < 1.5 || this.stateTimer > 25.0) {
                     this.findPatrolPoint(environment);
                     this.stateTimer = 0;
                 }
                 break;
             case PaladinState.CHASE:
-                moveSpeed = 4.5;
+                moveSpeed = 4.0;
                 break;
             case PaladinState.DUEL:
-                moveSpeed = 1.5;
+                moveSpeed = 1.8;
                 const toTargetDuel = new THREE.Vector3().subVectors(this.currentTarget!.position, this.position).normalize();
                 const right = new THREE.Vector3(0, 1, 0).cross(toTargetDuel).normalize();
-                const strafeVec = right.multiplyScalar(this.strafeDir * 1.5);
-                if (distToTarget < 2.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(-1.0));
-                else if (distToTarget > 3.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(1.0));
+                const strafeVec = right.multiplyScalar(this.strafeDir * 1.8);
+                if (distToTarget < 2.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(-1.2));
+                else if (distToTarget > 3.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(1.2));
                 const duelNext = this.position.clone().add(strafeVec.multiplyScalar(dt));
                 if (!PlayerUtils.checkCollision(duelNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(duelNext)) {
                     this.position.x = duelNext.x;
@@ -160,22 +167,35 @@ export class Paladin {
                 break;
             case PaladinState.ATTACK:
                 this.strikeTimer += dt;
-                if (this.strikeTimer < 0.25) {
+                if (this.strikeTimer < 0.3) {
                     const step = new THREE.Vector3(0, 0, 1)
                         .applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationY)
-                        .multiplyScalar(5.5 * dt);
+                        .multiplyScalar(5.0 * dt);
                     const next = this.position.clone().add(step);
                     if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) {
                         this.position.copy(next);
                     }
                 }
                 break;
+            case PaladinState.RETREAT:
+                if (this.currentTarget) {
+                    const step = new THREE.Vector3()
+                        .subVectors(this.position, this.currentTarget.position)
+                        .normalize()
+                        .multiplyScalar(2.5 * dt);
+                    const next = this.position.clone().add(step);
+                    if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                        this.position.copy(next);
+                    }
+                }
+                moveSpeed = -2.5;
+                break;
         }
 
         if (moveSpeed !== 0) {
-            if (this.position.distanceTo(this.lastStuckPos) < 0.001) {
+            if (this.position.distanceTo(this.lastStuckPos) < 0.05) {
                 this.stuckTimer += dt;
-                if (this.stuckTimer > 1.8) {
+                if (this.stuckTimer > 1.5) {
                     this.setState(PaladinState.PATROL);
                     this.findPatrolPoint(environment);
                     this.stuckTimer = 0;
@@ -186,11 +206,11 @@ export class Paladin {
             }
         }
 
-        if (this.state !== PaladinState.DUEL && this.state !== PaladinState.ATTACK) {
+        if (this.state !== PaladinState.DUEL && this.state !== PaladinState.ATTACK && this.state !== PaladinState.RETREAT) {
             const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
             toGoal.y = 0;
             if (toGoal.length() > 0.1) {
-                this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 7.0 * dt);
+                this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 6.0 * dt);
                 if (moveSpeed > 0) {
                     const step = moveSpeed * dt;
                     const next = this.position.clone().add(
@@ -224,14 +244,13 @@ export class Paladin {
             this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, 0.0, dt * 4.0);
         }
 
-        let targetSpeedAnim = (this.state === PaladinState.DUEL) ? 1.5 : moveSpeed;
-        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, targetSpeedAnim, dt * 6);
+        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, moveSpeed, dt * 6);
         const animX = (this.state === PaladinState.DUEL) ? this.strafeDir : 0;
         const animY = Math.abs(this.speedFactor) > 0.1 ? -1 : 0;
 
         const animContext = {
             config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
-            isCombatStance: (this.state === PaladinState.DUEL || this.state === PaladinState.ATTACK),
+            isCombatStance: (this.state === PaladinState.DUEL || this.state === PaladinState.ATTACK || this.state === PaladinState.RETREAT),
             isJumping: false, isAxeSwing: this.isStriking, axeSwingTimer: this.strikeTimer, isPunch: false,
             isPickingUp: false, pickUpTime: 0, isInteracting: false, isWaving: false, isSkinning: false,
             isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false

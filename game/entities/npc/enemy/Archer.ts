@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum ArcherState { IDLE, PATROL, CHASE, DUEL, ATTACK, RETREAT }
 
@@ -40,7 +42,7 @@ export class Archer {
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
         this.scene = scene; this.position.copy(initialPos); this.lastFramePos.copy(initialPos); this.lastStuckPos.copy(this.position);
-        // Added missing bracers, cape, belt to equipment
+        
         this.config = { 
             ...DEFAULT_CONFIG, 
             bodyType: 'male', 
@@ -51,6 +53,7 @@ export class Archer {
             pantsColor: '#1b5e20', 
             hoodColor: '#2e7d32', 
             hairStyle: 'bald', 
+            stats: { ...CLASS_STATS.archer },
             equipment: { 
                 helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: true, quiltedArmor: false, leatherArmor: true, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, cape: false, belt: true
             }, 

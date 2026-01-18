@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum WarlockState { IDLE, PATROL, CHASE, CAST, RETREAT }
 
@@ -62,6 +64,7 @@ export class Warlock {
             mageHatBandColor: '#9333ea',
             hairStyle: isFemale ? 'crew' : 'bald',
             hairColor: '#1a1a1a',
+            stats: { ...CLASS_STATS.warlock },
             equipment: { 
                 helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, 
                 mask: false, hood: Math.random() > 0.5, quiltedArmor: false, leatherArmor: false, 

@@ -173,16 +173,17 @@ export class PlayerMeshBuilder {
 
         // 7. Mounts
         const rightHandMount = new THREE.Group();
-        // Position: centered vertically on palm, slight forward into palm side
-        // Pinned to the "Gold" section (Outside/Back of hand = Z-) but higher up (Y towards 0)
-        rightHandMount.position.set(0, -0.04, -0.04); 
+        // Position: centered vertically on palm (y=-0.06), inside palm cup (z=0.03)
+        // Hand Coordinates: Y- is fingers direction. Z+ is Palm direction.
+        rightHandMount.position.set(0, -0.06, 0.03); 
         rightHandMount.rotation.set(0, 0, 0); 
         rightHand.add(rightHandMount);
 
-        // Left hand mount: mirror of right hand for bow
+        // Left hand mount: mirror of right hand
         const leftHandMount = new THREE.Group();
-        leftHandMount.position.set(0, -0.04, -0.04);
-        leftHandMount.rotation.set(0, 0, 0);
+        leftHandMount.position.set(0, -0.06, 0.03);
+        // Flip Y so its local axes match the right-hand mount (X points towards thumb on both)
+        leftHandMount.rotation.set(0, Math.PI, 0);
         leftHand.add(leftHandMount);
 
         const rightShoulderMount = new THREE.Group(); rightShoulderMount.position.y = 0.05; rightArm.add(rightShoulderMount);

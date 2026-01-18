@@ -1,13 +1,10 @@
+
 import * as THREE from 'three';
 import { NPC } from '../entities/npc/friendly/NPC';
 import { Assassin } from '../entities/npc/enemy/Assassin';
 import { Archer } from '../entities/npc/enemy/Archer';
 import { Mage } from '../entities/npc/enemy/Mage';
 import { Bandit } from '../entities/npc/enemy/Bandit';
-import { Knight } from '../entities/npc/enemy/Knight';
-import { Rogue } from '../entities/npc/enemy/Rogue';
-import { Berserker } from '../entities/npc/enemy/Berserker';
-import { Warlock } from '../entities/npc/enemy/Warlock';
 import { Wolf } from '../entities/animal/aggressive/Wolf';
 import { Bear } from '../entities/animal/aggressive/Bear';
 import { Owl } from '../entities/animal/neutral/Owl';
@@ -23,20 +20,23 @@ import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
 import { Environment } from '../Environment';
+import { CombatEnvironment } from '../environment/CombatEnvironment';
 import { PlayerConfig } from '../../types';
 
 export class EntityManager {
     public scene: THREE.Scene;
+    
+    // Static Scene Entities (Dev Scene)
     public npc: NPC;
     public blacksmith: Blacksmith;
     public shopkeeper: Shopkeeper;
+    public guard: LowLevelCityGuard;
     public assassin: Assassin;
     public archer: Archer;
     public mage: Mage;
-    public guard: LowLevelCityGuard;
-    
-    // Animals
     public wolf: Wolf; 
+
+    // Dynamic Entities
     public bears: Bear[] = [];
     public owls: Owl[] = [];
     public yetis: Yeti[] = [];
@@ -47,13 +47,10 @@ export class EntityManager {
     public spiders: Spider[] = [];
     public lizards: Lizard[] = [];
     public horses: Horse[] = [];
+    public bandits: Bandit[] = [];
 
-    // Foundry
-    public foundryGuard: LowLevelCityGuard;
-    public foundryAssassin: Assassin;
-
-    private readonly animationRangeSq = 20 * 20;
-    private readonly visibilityRangeSq = 100 * 100;
+    private readonly animationRangeSq = 40 * 40;
+    private readonly visibilityRangeSq = 120 * 120;
     private readonly rangeCheckIntervalMs = 100;
     private lastRangeCheck = -Infinity;
     
@@ -63,73 +60,91 @@ export class EntityManager {
     private readonly tempPlayerPos = new THREE.Vector3();
     private readonly tempEyePos = new THREE.Vector3();
     private readonly eyeOffset = new THREE.Vector3(0, 1.7, 0);
-    private readonly playerOnlyTarget = [{ position: new THREE.Vector3() }];
-    private readonly animalTargets = [
-        { position: new THREE.Vector3() },
-        { position: new THREE.Vector3() },
-        { position: new THREE.Vector3() }
-    ];
-    private readonly archerTargets = [
-        { position: new THREE.Vector3() },
-        { position: new THREE.Vector3() },
-        { position: new THREE.Vector3(), isWolf: true, isDead: false },
-        { position: new THREE.Vector3(), isWolf: true, isDead: false }
-    ];
-    private readonly mageTargets = [
-        { position: new THREE.Vector3() },
-        { position: new THREE.Vector3() }
-    ];
-    private readonly assassinTargets = [
-        { position: new THREE.Vector3() },
-        { position: new THREE.Vector3() }
-    ];
-    private readonly foundryGuardTargets = [
-        { position: new THREE.Vector3(), isDead: false }
-    ];
-    private readonly foundryAssassinTargets = [
-        { position: new THREE.Vector3(), isDead: false }
-    ];
 
-    constructor(scene: THREE.Scene, environment: Environment | null, initialConfig: PlayerConfig) {
+    constructor(scene: THREE.Scene, environment: any | null, initialConfig: PlayerConfig) {
         this.scene = scene;
-        // NPC
+        
+        // Initialize Dev Scene NPCs
         this.npc = new NPC(scene, { bodyType: 'female', outfit: 'peasant' }, new THREE.Vector3(-3, 0, 2));
         this.blacksmith = new Blacksmith(scene, new THREE.Vector3(-35, 0.4, 53));
         const GRID = 1.3333;
         this.shopkeeper = new Shopkeeper(scene, new THREE.Vector3(-50 * GRID, 0, 45 * GRID));
-        
-        // Hostiles
-        this.assassin = new Assassin(scene, new THREE.Vector3(30, 0, 0));
-        this.assassin.config.isAssassinHostile = initialConfig.isAssassinHostile;
-        
-        this.archer = new Archer(scene, new THREE.Vector3(-5, 0, 4));
-        this.archer.config.isAssassinHostile = initialConfig.isAssassinHostile;
-
-        this.mage = new Mage(scene, new THREE.Vector3(0, 0, 15), '#6366f1');
-        this.mage.config.isAssassinHostile = initialConfig.isAssassinHostile;
-
-        // One Wolf by default
-        this.wolf = new Wolf(scene, new THREE.Vector3(10, 0, 10));
-        environment?.addObstacle(this.wolf.hitbox);
-
-        // Guards
         this.guard = new LowLevelCityGuard(scene, new THREE.Vector3(-8, 0, -2));
-        this.foundryGuard = new LowLevelCityGuard(scene, new THREE.Vector3(-42, 0, -42), 0, '#4ade80');
-        this.foundryAssassin = new Assassin(scene, new THREE.Vector3(-38, 0, -38), '#ef4444');
-        this.foundryAssassin.config.isAssassinHostile = true;
+        
+        this.assassin = new Assassin(scene, new THREE.Vector3(30, 0, 0));
+        this.archer = new Archer(scene, new THREE.Vector3(-5, 0, 4));
+        this.mage = new Mage(scene, new THREE.Vector3(0, 0, 15), '#6366f1');
+
+        this.wolf = new Wolf(scene, new THREE.Vector3(40, 0, -40));
+        environment?.addObstacle(this.wolf.hitbox);
+    }
+
+    /**
+     * Clears all dynamic entities from the scene graph and tracking arrays.
+     */
+    clearDynamicEntities() {
+        const disposeEntity = (entity: any) => {
+            if (entity && entity.group && entity.group.parent) {
+                entity.group.parent.remove(entity.group);
+            }
+            if (entity && entity.model?.group && entity.model.group.parent) {
+                entity.model.group.parent.remove(entity.model.group);
+            }
+        };
+
+        [...this.bandits, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, 
+         ...this.chickens, ...this.pigs, ...this.sheeps, ...this.spiders, 
+         ...this.lizards, ...this.horses].forEach(disposeEntity);
+
+        this.bandits = [];
+        this.bears = [];
+        this.owls = [];
+        this.yetis = [];
+        this.deers = [];
+        this.chickens = [];
+        this.pigs = [];
+        this.sheeps = [];
+        this.spiders = [];
+        this.lizards = [];
+        this.horses = [];
+    }
+
+    spawnCombatEncounter(type: string, count: number, arena: CombatEnvironment | null) {
+        if (!arena) return;
+        
+        for (let i = 0; i < count; i++) {
+            // Enemy side of the hex grid (rows 0-3)
+            const row = Math.floor(Math.random() * 2) + 1; // Row 1 or 2
+            const col = Math.floor(Math.random() * 4) + 2; // Middle columns
+            
+            const worldPos = new THREE.Vector3(
+                (col - 4) * 4, 
+                0, 
+                -(row + 1) * 4
+            );
+            
+            const snappedPos = arena.snapToGrid(worldPos);
+
+            if (type.toLowerCase() === 'bandit') {
+                const bandit = new Bandit(this.scene, snappedPos);
+                bandit.rotationY = 0; // Face player
+                this.bandits.push(bandit);
+            } else {
+                this.spawnAnimalGroup(type, 1, null, snappedPos);
+            }
+        }
     }
 
     spawnAnimalGroup(type: string, count: number, environment: Environment | null, spawnCenter: THREE.Vector3) {
         for (let i = 0; i < count; i++) {
-            const offset = new THREE.Vector3((Math.random() - 0.5) * 10, 0, (Math.random() - 0.5) * 10);
+            const offset = new THREE.Vector3((Math.random() - 0.5) * 5, 0, (Math.random() - 0.5) * 5);
             const pos = spawnCenter.clone().add(offset);
             
             let animal: any = null;
             switch (type.toLowerCase()) {
                 case 'wolf':
-                    const extraWolf = new Wolf(this.scene, pos);
-                    this.bears.push(extraWolf as any);
-                    environment?.addObstacle(extraWolf.hitbox);
+                    animal = new Wolf(this.scene, pos);
+                    this.bears.push(animal as any);
                     break;
                 case 'bear':
                     animal = new Bear(this.scene, pos);
@@ -179,37 +194,55 @@ export class EntityManager {
         }
     }
 
-    update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, environment: Environment | null) {
+    update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, environment: any | null, activeScene: string, isCombatActive: boolean, onAttackHit?: (type: string, count: number) => void) {
         const now = performance.now();
         this.tempPlayerPos.copy(playerPosition);
         
         if (now - this.lastRangeCheck >= this.rangeCheckIntervalMs) {
             this.lastRangeCheck = now;
-            this.refreshRangeCache();
+            this.refreshRangeCache(activeScene);
         }
 
-        const isVisible = (entity: { position: THREE.Vector3 }) => this.visibilityCache.get(entity as any) ?? false;
-        const isNear = (entity: { position: THREE.Vector3 }) => this.nearCache.get(entity as any) ?? false;
+        const isVisible = (entity: any) => this.visibilityCache.get(entity) ?? false;
+        const isNear = (entity: any) => this.nearCache.get(entity) ?? false;
 
-        const allEntities = this.getAllEntities();
-        allEntities.forEach(entity => {
+        const sceneEntities = this.getEntitiesForScene(activeScene);
+        sceneEntities.forEach((entity: any) => {
             if (!entity) return;
+            // In Combat Scene, we usually want entities always updated if they are nearby, 
+            // but for a small arena, we can just update all of them.
+            const visible = activeScene === 'combat' ? true : isVisible(entity);
+            const animate = activeScene === 'combat' ? true : isNear(entity);
             
-            const visible = isVisible(entity);
-            const animate = isNear(entity);
+            if (entity.model?.group) entity.model.group.visible = visible;
             
-            if (entity.model && entity.model.group) {
-                entity.model.group.visible = visible;
-            }
-
             if (visible) {
-                this.updateEntity(entity, delta, config, animate, environment);
+                // Check if we should run AI or just idle animation
+                if (activeScene === 'combat' && !isCombatActive) {
+                    // Just update visual model and idle animation
+                    if (entity.model) entity.model.update(delta, new THREE.Vector3(0, 0, 0));
+                    if (entity.animator) {
+                        const mockInput = { x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false, attack1: false, attack2: false, interact: false, combat: false };
+                        entity.animator.animate(entity, delta, false, mockInput, []);
+                    }
+                } else {
+                    this.updateEntity(entity, delta, config, animate, environment, onAttackHit);
+                }
+            }
+        });
+        
+        // Hide non-scene entities
+        this.getAllEntities().forEach((entity: any) => {
+            if (!(sceneEntities as any[]).includes(entity)) {
+                if (entity.model?.group) entity.model.group.visible = false;
+                if (entity.group) entity.group.visible = false;
             }
         });
     }
 
-    private updateEntity(entity: any, delta: number, config: PlayerConfig, animate: boolean, environment: Environment | null) {
+    private updateEntity(entity: any, delta: number, config: PlayerConfig, animate: boolean, environment: any | null, onAttackHit?: (type: string, count: number) => void) {
         const skipAnimation = !animate;
+        const targets = [{ position: this.tempPlayerPos }];
 
         if (entity === this.npc && config.showNPC) {
             this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);
@@ -224,71 +257,49 @@ export class EntityManager {
             this.guard.update(delta, this.tempPlayerPos, environment as any, [], skipAnimation);
         } else if (entity === this.assassin && config.showAssassin) {
             this.assassin.config.isAssassinHostile = config.isAssassinHostile;
-            this.assassinTargets[0].position.copy(this.tempPlayerPos);
-            this.assassinTargets[1].position.copy(this.npc.position);
-            this.assassin.update(delta, environment as any, this.assassinTargets as any, skipAnimation);
+            this.assassin.update(delta, environment as any, targets, skipAnimation);
         } else if (entity === this.archer && config.showAssassin) {
             this.archer.config.isAssassinHostile = config.isAssassinHostile;
-            this.archerTargets[0].position.copy(this.tempPlayerPos);
-            this.archerTargets[1].position.copy(this.npc.position);
-            this.archerTargets[2].position.copy(this.wolf.position);
-            this.archerTargets[2].isDead = this.wolf.isDead;
-            if (this.bears.length > 0) {
-                this.archerTargets[3].position.copy(this.bears[0].position);
-                this.archerTargets[3].isDead = this.bears[0].isDead;
-            }
-            this.archer.update(delta, environment as any, this.archerTargets as any, skipAnimation);
+            this.archer.update(delta, environment as any, targets, skipAnimation);
         } else if (entity === this.mage && config.showAssassin) {
             this.mage.config.isAssassinHostile = config.isAssassinHostile;
-            this.mageTargets[0].position.copy(this.tempPlayerPos);
-            this.mageTargets[1].position.copy(this.npc.position);
-            this.mage.update(delta, environment as any, this.mageTargets as any, skipAnimation);
-        } else if (entity === this.foundryGuard || entity === this.foundryAssassin) {
-             if (entity === this.foundryGuard) {
-                this.foundryGuardTargets[0].position.copy(this.foundryAssassin.position);
-                this.foundryGuard.update(delta, this.tempPlayerPos, environment as any, this.foundryGuardTargets as any, skipAnimation);
-             } else {
-                this.foundryAssassinTargets[0].position.copy(this.foundryGuard.position);
-                this.foundryAssassin.update(delta, environment as any, this.foundryAssassinTargets as any, skipAnimation);
-             }
-        } else if (entity instanceof Wolf || entity instanceof Bear || entity instanceof Owl) {
-            this.animalTargets[0].position.copy(this.tempPlayerPos);
-            this.animalTargets[1].position.copy(this.archer.position);
-            this.animalTargets[2].position.copy(this.npc.position);
-            entity.update(delta, environment as any, this.animalTargets as any, skipAnimation);
-        } else if (entity instanceof Yeti) {
-            entity.update(delta, environment as any, skipAnimation);
-        } else {
-            this.playerOnlyTarget[0].position.copy(this.tempPlayerPos);
-            entity.update(delta, environment as any, this.playerOnlyTarget as any, skipAnimation);
+            this.mage.update(delta, environment as any, targets, skipAnimation);
+        } else if (entity instanceof Bandit) {
+            entity.update(delta, environment as any, targets, skipAnimation);
+        } else if (entity instanceof Wolf || entity instanceof Bear) {
+            entity.update(delta, environment as any, targets, onAttackHit, skipAnimation);
+        } else if (entity.update) {
+            entity.update(delta, environment as any, targets, skipAnimation);
         }
     }
 
-    setVisibility(visible: boolean) {
-        const entities = this.getAllEntities();
-        entities.forEach(entity => {
-            if (entity && entity.model && entity.model.group) {
-                entity.model.group.visible = visible;
-            }
-        });
+    getEntitiesForScene(sceneName: string): any[] {
+        if (sceneName === 'combat') {
+            return [...this.bandits];
+        } else if (sceneName === 'dev') {
+            return [
+                this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage,
+                this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
+                ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
+            ].filter(e => e !== null);
+        }
+        return [];
     }
 
-    getAllEntities() {
-        const list = [
-            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.foundryGuard, this.foundryAssassin,
+    getAllEntities(): any[] {
+        return [
+            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage,
             this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
-            ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
-        ];
-        return list.filter(e => e !== null);
+            ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses, ...this.bandits
+        ].filter(e => e !== null);
     }
 
-    private refreshRangeCache() {
-        const entities = this.getAllEntities();
-        entities.forEach(entity => {
-            if (!entity) return;
+    private refreshRangeCache(activeScene: string) {
+        const relevant = this.getEntitiesForScene(activeScene);
+        relevant.forEach(entity => {
             const distSq = entity.position.distanceToSquared(this.tempPlayerPos);
-            this.nearCache.set(entity as any, distSq <= this.animationRangeSq);
-            this.visibilityCache.set(entity as any, distSq <= this.visibilityRangeSq);
+            this.nearCache.set(entity, distSq <= this.animationRangeSq);
+            this.visibilityCache.set(entity, distSq <= this.visibilityRangeSq);
         });
     }
 }

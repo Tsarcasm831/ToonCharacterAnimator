@@ -7,6 +7,8 @@ export enum BearState { IDLE, PATROL, CHASE, ATTACK, DEAD }
 
 export class Bear {
     scene: THREE.Scene; group: THREE.Group; model: any; position: THREE.Vector3 = new THREE.Vector3(); rotationY: number = 0; state: BearState = BearState.PATROL; stateTimer: number = 0; targetPos: THREE.Vector3 = new THREE.Vector3(); currentTarget: { position: THREE.Vector3, isDead?: boolean } | null = null; isDead: boolean = false; isSkinned: boolean = false; maxHealth: number = 50; health: number = 50; hitbox: THREE.Group; 
+    public stackCount: number = Math.floor(Math.random() * 2) + 1;
+    private hitRegistered: boolean = false;
     private healthBarGroup: THREE.Group; 
     private uiRefs: any;
     private walkTime: number = 0; private attackCooldown: number = 0; private readonly collisionSize = new THREE.Vector3(1.4, 1.4, 2.2); private stuckTimer: number = 0; private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
@@ -20,7 +22,6 @@ export class Bear {
         this.group.add(this.hitbox);
         const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
         
-        // Detailed Bear Hull
         const mainBody = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.3, 1.8), hitboxMat); 
         mainBody.position.y = 0.9; 
         mainBody.userData = { type: 'creature' }; 
@@ -42,21 +43,75 @@ export class Bear {
         snoutBox.userData = { type: 'creature' }; 
         this.hitbox.add(snoutBox);
 
-        // Enhanced Health Bar
         this.healthBarGroup = new THREE.Group(); 
         this.healthBarGroup.position.set(0, 2.5, 0); 
         this.uiRefs = PlayerUtils.createHealthBar(this.healthBarGroup, this.maxHealth, 0x5C4033, 'Bear');
+        PlayerUtils.updateHealthBar(this.uiRefs, this.health, this.maxHealth, this.stackCount);
         this.group.add(this.healthBarGroup);
 
         this.group.position.copy(this.position); this.scene.add(this.group);
     }
 
-    update(dt: number, environment: Environment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], onAttackHit?: (type: string, count: number) => void, skipAnimation: boolean = false) {
         if (this.isDead) return; this.stateTimer += dt; if (this.attackCooldown > 0) this.attackCooldown -= dt;
-        if (this.state !== BearState.PATROL) { this.state = BearState.PATROL; this.findPatrolPoint(); }
+        
+        let bestTarget = null;
+        let bestDist = 12.0;
+        for (const t of potentialTargets) {
+            if (t.isDead) continue;
+            const d = this.position.distanceTo(t.position);
+            if (d < bestDist) {
+                bestDist = d;
+                bestTarget = t;
+            }
+        }
+        this.currentTarget = bestTarget;
+        const distToTarget = bestTarget ? bestDist : Infinity;
+
+        if (bestTarget) {
+            if (this.state === BearState.PATROL || this.state === BearState.IDLE) {
+                this.state = BearState.CHASE;
+                this.stateTimer = 0;
+            }
+
+            if (this.state === BearState.CHASE) {
+                if (distToTarget < 3.5 && this.attackCooldown <= 0) {
+                    this.state = BearState.ATTACK;
+                    this.stateTimer = 0;
+                    this.hitRegistered = false;
+                } else {
+                    this.targetPos.copy(bestTarget.position);
+                }
+            } else if (this.state === BearState.ATTACK) {
+                if (!this.hitRegistered && this.stateTimer > 0.6 && this.stateTimer < 0.8 && distToTarget < 2.5) {
+                    this.hitRegistered = true;
+                    if (onAttackHit) onAttackHit('bear', 1);
+                }
+
+                if (this.stateTimer > 1.5) {
+                    this.state = BearState.CHASE;
+                    this.attackCooldown = 2.0 + Math.random();
+                    this.stateTimer = 0;
+                }
+            }
+        } else {
+            if (this.state !== BearState.PATROL && this.state !== BearState.IDLE) {
+                this.state = BearState.PATROL;
+                this.stateTimer = 0;
+                this.findPatrolPoint();
+            }
+        }
 
         let moveSpeed = 0;
-        if (this.state === BearState.PATROL) { moveSpeed = 1.5; if (this.position.distanceTo(this.targetPos) < 1.0 || this.stateTimer > 15.0) { this.findPatrolPoint(); this.stateTimer = 0; } }
+        if (this.state === BearState.PATROL) { 
+            moveSpeed = 1.5; 
+            if (this.position.distanceTo(this.targetPos) < 1.0 || this.stateTimer > 15.0) { 
+                this.findPatrolPoint(); 
+                this.stateTimer = 0; 
+            } 
+        } else if (this.state === BearState.CHASE) {
+            moveSpeed = 4.0;
+        }
 
         if (moveSpeed > 0) {
             const toTarget = new THREE.Vector3().subVectors(this.targetPos, this.position); toTarget.y = 0;
@@ -66,9 +121,36 @@ export class Bear {
                 if (PlayerUtils.isWithinBounds(nextPos) && !PlayerUtils.checkBoxCollision(nextPos, this.collisionSize, environment.obstacles)) { this.position.x = nextPos.x; this.position.z = nextPos.z; }
             }
             this.walkTime += dt * moveSpeed;
-            if (this.position.distanceTo(this.lastStuckPos) < 0.001) { this.stuckTimer += dt; if (this.stuckTimer > 1.5) { this.findPatrolPoint(); this.stuckTimer = 0; this.stateTimer = 0; } }
-            else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
-        } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
+
+            // --- STUCK LOGIC ---
+            if (this.position.distanceTo(this.lastStuckPos) < 0.05) { 
+                this.stuckTimer += dt; 
+                
+                // Hard Unstuck (Teleport) - 10s
+                if (this.stuckTimer > 10.0) {
+                    const escape = PlayerUtils.findUnstuckPosition(this.position, environment.obstacles);
+                    if (escape) {
+                        this.position.copy(escape);
+                        this.stuckTimer = 0;
+                        this.state = BearState.PATROL; // Reset state
+                        this.findPatrolPoint();
+                    }
+                } 
+                // Soft Unstuck (Repath) - 1.5s
+                else if (this.stuckTimer > 1.5) { 
+                     if (this.stuckTimer % 3.0 < dt) {
+                         this.findPatrolPoint();
+                         this.stateTimer = 0;
+                     }
+                } 
+            } else { 
+                this.stuckTimer = 0; 
+                this.lastStuckPos.copy(this.position); 
+            }
+        } else { 
+            this.stuckTimer = 0; 
+            this.lastStuckPos.copy(this.position); 
+        }
 
         this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
         this.group.position.copy(this.position); this.group.rotation.y = this.rotationY;
@@ -83,7 +165,7 @@ export class Bear {
     takeDamage(amount: number) { 
         if (this.isDead) return; 
         this.health -= amount; 
-        PlayerUtils.updateHealthBar(this.uiRefs, this.health, this.maxHealth);
+        PlayerUtils.updateHealthBar(this.uiRefs, this.health, this.maxHealth, this.stackCount);
         this.model.parts.body.material.emissive.setHex(0xff0000); 
         this.model.parts.body.material.emissiveIntensity = 0.5; 
         if (this.health <= 0) this.die(); 

@@ -11,19 +11,10 @@ interface CharacterStatsModalProps {
 export const CharacterStatsModal: React.FC<CharacterStatsModalProps> = ({ isOpen, onClose, config }) => {
     if (!isOpen) return null;
 
-    // Derived stats for demo purposes
-    const stats = {
-        level: 5,
-        health: 450,
-        maxHealth: 500,
-        chakra: 120,
-        maxChakra: 200,
-        experience: 1540,
-        nextLevelXp: 2000,
-        str: config.bodyVariant === 'muscular' ? 18 : 12,
-        dex: config.bodyVariant === 'slim' ? 18 : 12,
-        int: 14
-    };
+    const stats = config.stats;
+    const experience = 1540;
+    const nextLevelXp = 2000;
+    const level = 1;
 
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4" onContextMenu={(e) => e.preventDefault()}>
@@ -33,7 +24,7 @@ export const CharacterStatsModal: React.FC<CharacterStatsModalProps> = ({ isOpen
                     <div className="flex justify-between items-start">
                         <div>
                             <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Character Status</h2>
-                            <p className="text-blue-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Level {stats.level} {config.bodyType === 'male' ? 'Hero' : 'Heroine'}</p>
+                            <p className="text-blue-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Level {level} {config.bodyType === 'male' ? 'Hero' : 'Heroine'}</p>
                         </div>
                         <button 
                             onClick={onClose}
@@ -46,16 +37,16 @@ export const CharacterStatsModal: React.FC<CharacterStatsModalProps> = ({ isOpen
 
                 {/* Body */}
                 <div className="p-8 space-y-6">
-                    {/* Bars */}
+                    {/* Primary Bars */}
                     <div className="space-y-4">
                         {/* Health */}
                         <div>
                             <div className="flex justify-between mb-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-red-400">Health</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-red-400">Vitality</span>
                                 <span className="text-[10px] font-mono text-slate-400">{stats.health} / {stats.maxHealth}</span>
                             </div>
-                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-red-600 to-red-500" style={{ width: `${(stats.health / stats.maxHealth) * 100}%` }} />
+                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden border border-white/5">
+                                <div className="h-full bg-gradient-to-r from-red-600 to-red-500 shadow-[0_0_10px_rgba(220,38,38,0.5)]" style={{ width: `${(stats.health / stats.maxHealth) * 100}%` }} />
                             </div>
                         </div>
 
@@ -65,36 +56,34 @@ export const CharacterStatsModal: React.FC<CharacterStatsModalProps> = ({ isOpen
                                 <span className="text-[10px] font-black uppercase tracking-widest text-blue-400">Chakra</span>
                                 <span className="text-[10px] font-mono text-slate-400">{stats.chakra} / {stats.maxChakra}</span>
                             </div>
-                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-400" style={{ width: `${(stats.chakra / stats.maxChakra) * 100}%` }} />
+                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden border border-white/5">
+                                <div className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 shadow-[0_0_10px_rgba(37,99,235,0.5)]" style={{ width: `${(stats.chakra / stats.maxChakra) * 100}%` }} />
                             </div>
                         </div>
 
                         {/* Experience */}
                         <div>
                             <div className="flex justify-between mb-1">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">Experience</span>
-                                <span className="text-[10px] font-mono text-slate-400">{stats.experience} / {stats.nextLevelXp}</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-yellow-400">Progression</span>
+                                <span className="text-[10px] font-mono text-slate-400">{experience} / {nextLevelXp}</span>
                             </div>
-                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400" style={{ width: `${(stats.experience / stats.nextLevelXp) * 100}%` }} />
+                            <div className="h-2 bg-slate-800 rounded-full overflow-hidden border border-white/5">
+                                <div className="h-full bg-gradient-to-r from-yellow-600 to-yellow-400 shadow-[0_0_10px_rgba(202,138,4,0.5)]" style={{ width: `${(experience / nextLevelXp) * 100}%` }} />
                             </div>
                         </div>
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-4 pt-4 border-t border-white/5">
-                        <div className="bg-white/5 rounded-lg p-3 text-center">
-                            <div className="text-2xl font-black text-white">{stats.str}</div>
-                            <div className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Strength</div>
+                    <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/5">
+                        <div className="space-y-3">
+                            <StatRow label="Strength" value={stats.strength} color="text-orange-400" />
+                            <StatRow label="Dexterity" value={stats.dexterity} color="text-emerald-400" />
+                            <StatRow label="Damage" value={stats.damage} color="text-red-300" />
                         </div>
-                        <div className="bg-white/5 rounded-lg p-3 text-center">
-                            <div className="text-2xl font-black text-white">{stats.dex}</div>
-                            <div className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Dexterity</div>
-                        </div>
-                        <div className="bg-white/5 rounded-lg p-3 text-center">
-                            <div className="text-2xl font-black text-white">{stats.int}</div>
-                            <div className="text-[8px] font-bold uppercase tracking-widest text-slate-500">Intellect</div>
+                        <div className="space-y-3">
+                            <StatRow label="Defense" value={stats.defense} color="text-slate-300" />
+                            <StatRow label="Evasion" value={stats.evasion} color="text-blue-300" />
+                            <StatRow label="Soak" value={stats.soak} color="text-indigo-300" />
                         </div>
                     </div>
                 </div>
@@ -102,3 +91,10 @@ export const CharacterStatsModal: React.FC<CharacterStatsModalProps> = ({ isOpen
         </div>
     );
 };
+
+const StatRow: React.FC<{ label: string, value: number, color: string }> = ({ label, value, color }) => (
+    <div className="flex items-center justify-between group">
+        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500 group-hover:text-slate-300 transition-colors">{label}</span>
+        <span className={`text-sm font-black font-mono ${color}`}>{value}</span>
+    </div>
+);

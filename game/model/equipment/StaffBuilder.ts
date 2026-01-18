@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 
 export class StaffBuilder {
@@ -54,6 +55,23 @@ export class StaffBuilder {
             ring.position.y = yOffset + (segH - ringH);
             shaftGroup.add(ring);
         }
+
+        // 1. POLE (Inner Handle Core)
+        // Use shaft dimensions for the core pole
+        const poleGeo = new THREE.CylinderGeometry(shaftRad * 0.9, shaftRad * 0.9, shaftH, 8);
+        // Align to Y axis and shift so (0,0,0) is at the grip point
+        poleGeo.translate(0, (shaftH / 2) - buttLen, 0);
+        
+        const pole = new THREE.Mesh(poleGeo, creamMat);
+        pole.castShadow = true;
+        group.add(pole);
+
+        // Decorative leather grip wrap at the origin (Hand position)
+        const gripMat = new THREE.MeshStandardMaterial({ color: 0x3e2723, roughness: 0.9 });
+        const gripGeo = new THREE.CylinderGeometry(shaftRad * 1.25, shaftRad * 1.25, 0.4 * s, 8);
+        const grip = new THREE.Mesh(gripGeo, gripMat);
+        grip.position.set(0, 0, 0); 
+        group.add(grip);
 
         // --- TOP HEAD ASSEMBLY ---
         const headGroup = new THREE.Group();
@@ -120,7 +138,7 @@ export class StaffBuilder {
         buttEnd.position.y = -buttLen;
         group.add(buttEnd);
 
-        // Rotate to align with hand mount axis (X-forward)
+        // Rotate entire group so Y-axis (length of staff) becomes X-axis (aligned with Hand Grip)
         group.rotation.z = -Math.PI / 2;
         group.name = 'Staff';
         return group;
