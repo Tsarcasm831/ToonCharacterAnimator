@@ -85,7 +85,7 @@ export class HoodBuilder {
         hoodGeo.computeVertexNormals();
         
         const hoodMat = new THREE.MeshStandardMaterial({ 
-            color: 0x111111, 
+            color: new THREE.Color(config.hoodColor || '#111111'), 
             roughness: 0.95, 
             metalness: 0.05,
             side: THREE.DoubleSide,

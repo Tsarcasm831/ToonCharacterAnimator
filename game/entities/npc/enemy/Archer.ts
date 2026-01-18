@@ -41,7 +41,21 @@ export class Archer {
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
         this.scene = scene; this.position.copy(initialPos); this.lastFramePos.copy(initialPos); this.lastStuckPos.copy(this.position);
-        this.config = { ...DEFAULT_CONFIG, bodyType: 'male', bodyVariant: 'slim', outfit: 'warrior', skinColor: '#d7ccc8', shirtColor: '#2e7d32', pantsColor: '#1b5e20', hairStyle: 'bald', equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: true, quiltedArmor: false, leatherArmor: true, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false }, selectedItem: 'Bow', weaponStance: 'side', isAssassinHostile: false, tintColor: tint };
+        this.config = { 
+            ...DEFAULT_CONFIG, 
+            bodyType: 'male', 
+            bodyVariant: 'slim', 
+            outfit: 'warrior', 
+            skinColor: '#d7ccc8', 
+            shirtColor: '#2e7d32', 
+            pantsColor: '#1b5e20', 
+            hoodColor: '#2e7d32', 
+            hairStyle: 'bald', 
+            equipment: { 
+                helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: true, quiltedArmor: false, leatherArmor: true, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false 
+            }, 
+            selectedItem: 'Bow', weaponStance: 'side', isAssassinHostile: false, tintColor: tint 
+        };
         this.model = new PlayerModel(this.config); this.animator = new PlayerAnimator(); this.model.group.position.copy(this.position); this.scene.add(this.model.group); this.model.sync(this.config, true);
     }
 

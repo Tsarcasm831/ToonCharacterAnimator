@@ -100,6 +100,7 @@ export interface PlayerConfig {
   hairStyle: HairStyle;
   robeColor: string;
   robeTrimColor: string;
+  hoodColor: string;
   apronColor: string;
   apronDetailColor: string;
   apronX: number;
@@ -269,6 +270,7 @@ export interface PlayerConfig {
   bulgeRotX: number;
   bulgeRotY: number;
   bulgeRotZ: number;
+  bulgeRotZOffset?: number;
   bulgeScale: number;
 
   // Brain
@@ -325,6 +327,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   hairStyle: 'bald',
   robeColor: '#2c2c2c',
   robeTrimColor: '#d4af37',
+  hoodColor: '#111111',
   apronColor: '#4e342e',
   apronDetailColor: '#212121',
   apronX: 0,
