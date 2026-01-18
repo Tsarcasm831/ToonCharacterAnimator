@@ -4,6 +4,7 @@ import { HelmBuilder } from './equipment/HelmBuilder';
 import { MaskBuilder } from './equipment/MaskBuilder';
 import { PauldronBuilder } from './equipment/PauldronBuilder';
 import { ShieldBuilder } from './equipment/ShieldBuilder';
+import { MageHatBuilder } from './equipment/MageHatBuilder';
 import { updateHeldItem as updateHeldItemEquipment } from './equipment/HeldItemEquipment';
 import { PlayerConfig } from '../../types';
 
@@ -18,7 +19,7 @@ export class PlayerEquipment {
     }
 
     static updateArmor(config: PlayerConfig, parts: any, equippedMeshes: any) {
-        const { helm, shoulders, shield, mask, hood } = config.equipment;
+        const { helm, shoulders, shield, mask, hood, mageHat } = config.equipment;
         
         if (helm && !equippedMeshes.helm) {
             const helmGroup = HelmBuilder.build();
@@ -36,6 +37,15 @@ export class PlayerEquipment {
         } else if (!hood && equippedMeshes.hood) {
             parts.headMount.remove(equippedMeshes.hood);
             delete equippedMeshes.hood;
+        }
+
+        if (mageHat && !equippedMeshes.mageHat) {
+            const h = MageHatBuilder.build(config);
+            parts.headMount.add(h);
+            equippedMeshes.mageHat = h;
+        } else if (!mageHat && equippedMeshes.mageHat) {
+            parts.headMount.remove(equippedMeshes.mageHat);
+            delete equippedMeshes.mageHat;
         }
 
         if (mask && !equippedMeshes.mask) {
