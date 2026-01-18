@@ -16,7 +16,8 @@ import { RenderManager } from './core/RenderManager';
 import { EntityManager } from './managers/EntityManager';
 import { LowLevelCityGuard } from './entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from './entities/npc/friendly/Blacksmith';
-import { Shopkeeper } from './entities/npc/friendly/Shopkeeper';
+// Fix: Use correct casing for Shopkeeper import
+import { Shopkeeper } from './entities/NPC/friendly/Shopkeeper';
 import { HouseBlueprints, Blueprint } from './builder/HouseBlueprints';
 
 export class Game {

@@ -4,8 +4,8 @@ import type { Player } from '../Player';
 import { PlayerInput } from '../../types';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
-// Fix: Use consistent lowercase 'npc' path for Shopkeeper import
-import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
+// Fix: Casing mismatch for Shopkeeper import
+import { Shopkeeper } from '../entities/NPC/friendly/Shopkeeper';
 
 export class PlayerInteraction {
 
@@ -40,7 +40,7 @@ export class PlayerInteraction {
         }
 
         // Skinning Check & Logic
-        // Fix: Corrected 'const has Knife' syntax error to 'const hasKnife'
+        // Fix: Ensure variable name is consistent
         const hasKnife = player.config.selectedItem === 'Knife';
         const skinnableTarget = this.getSkinnableTargetNearby(player, obstacles);
         player.canSkin = !!skinnableTarget && hasKnife;

@@ -1,5 +1,7 @@
+
 import * as THREE from 'three';
-import { NPC } from './NPC';
+// Fix: Use correct casing for directory when importing NPC
+import { NPC } from '../../npc/friendly/NPC';
 
 export class Shopkeeper extends NPC {
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {

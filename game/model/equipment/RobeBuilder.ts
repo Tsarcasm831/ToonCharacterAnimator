@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { PlayerConfig } from '../../../types';
 
@@ -15,8 +16,8 @@ export class RobeBuilder {
         const ctx = canvas.getContext('2d');
         if (!ctx) return null;
 
-        const baseColor = config.robeColor || '#2c2c2c'; // Dark grey default
-        const trimColor = config.robeTrimColor || '#d4af37'; // Gold default
+        const baseColor = config.robeColor || '#2d3c50'; 
+        const trimColor = config.robeTrimColor || '#d4af37'; 
         
         // Base Fabric
         ctx.fillStyle = baseColor;
@@ -45,6 +46,17 @@ export class RobeBuilder {
         const robeMat = new THREE.MeshToonMaterial({ 
             map: robeTex,
             side: THREE.DoubleSide // Important for open sleeves/skirt
+        });
+
+        const trimMat = new THREE.MeshStandardMaterial({
+            color: trimColor,
+            roughness: 0.6,
+            metalness: 0.3
+        });
+        
+        const sashMat = new THREE.MeshStandardMaterial({ 
+            color: baseColor, 
+            roughness: 1.0
         });
 
         const scaleUVs = (mesh: THREE.Mesh, radius: number, height: number) => {
@@ -100,7 +112,7 @@ export class RobeBuilder {
                 }
             }
 
-            // Taper neck in to ensure it goes under hood
+            // Taper neck in to ensure it goes under hood/mantle
             if (v.y > robeLen/2 - 0.1) {
                 const t = (v.y - (robeLen/2 - 0.1)) / 0.1;
                 v.x *= (1.0 - t * 0.1);
@@ -119,14 +131,55 @@ export class RobeBuilder {
         parts.torsoContainer.add(robeTorso);
         createdMeshes.push(robeTorso);
 
+        // --- SHOULDER MANTLE & COLLAR ---
+        // Covers shoulders like a cape/mantle, leaving neck open
+        const mantleRadius = torsoRadiusTop * 1.05; // Base on top radius
+        const neckOpeningAngle = 0.3; // Hole size at top (Radians)
+        const mantleDropAngle = Math.PI * 0.45; // How far down the shoulder it goes
+        
+        const mantleGeo = new THREE.SphereGeometry(
+            mantleRadius, 
+            32, 12, 
+            0, Math.PI * 2, 
+            neckOpeningAngle, 
+            mantleDropAngle - neckOpeningAngle
+        );
+        
+        // Flatten and Scale
+        // Apply layerScale here to match the rest of the robe sizing
+        mantleGeo.scale(layerScale, 0.55 * layerScale, torsoDepthScale * layerScale);
+
+        const mantle = new THREE.Mesh(mantleGeo, robeMat);
+        mantle.position.y = robeLen / 2 - 0.02; // Sit on top of cylinder
+        robeTorso.add(mantle);
+        createdMeshes.push(mantle);
+        scaleUVs(mantle, mantleRadius * layerScale, mantleRadius * layerScale);
+
+        // Collar Trim (The rim of the neck hole)
+        // Calculate the radius of the hole in local space
+        // Sin(opening) * Radius * ScaleX
+        const rAtNeck = Math.sin(neckOpeningAngle) * mantleRadius * layerScale;
+        
+        const collarGeo = new THREE.TorusGeometry(rAtNeck, 0.04, 8, 32);
+        // Flatten to match body depth
+        collarGeo.scale(1, 1, torsoDepthScale);
+        
+        const collar = new THREE.Mesh(collarGeo, trimMat);
+        collar.rotation.x = Math.PI / 2;
+        
+        // Calculate Y offset of the hole lip
+        // Cos(opening) * Radius * ScaleY
+        const yOffset = Math.cos(neckOpeningAngle) * mantleRadius * (0.55 * layerScale);
+        collar.position.y = mantle.position.y + yOffset;
+        
+        robeTorso.add(collar);
+        createdMeshes.push(collar);
+
         // --- SASH (BELT) ---
         // Thick cloth belt to hide the seam between upper/lower and cinch the waist
         const sashGeo = new THREE.TorusGeometry(torsoRadiusBottom * layerScale * 0.95, 0.06, 8, 32);
         sashGeo.scale(1, 1, torsoDepthScale);
-        const sashMat = new THREE.MeshStandardMaterial({ 
-            color: baseColor, // Same as robe but darker/standard mat for contrast
-            roughness: 1.0
-        });
+        
         const sash = new THREE.Mesh(sashGeo, sashMat);
         sash.position.y = -robeLen/2 + 0.05;
         sash.rotation.x = Math.PI/2;
@@ -148,9 +201,6 @@ export class RobeBuilder {
 
             const sleeve = new THREE.Mesh(sleeveGeo, robeMat);
             sleeve.castShadow = true;
-            
-            // Rotate sleeve slightly back to simulate gravity if arms are T-pose
-            // If arms animate, this moves with them.
             
             scaleUVs(sleeve, (sRadTop+sRadBot)/2, sLen);
             arm.add(sleeve);

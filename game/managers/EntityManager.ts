@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { NPC } from '../entities/npc/friendly/NPC';
 import { Assassin } from '../entities/npc/enemy/Assassin';
@@ -13,7 +14,8 @@ import { Sheep } from '../entities/animal/neutral/Sheep';
 import { Spider } from '../entities/animal/aggressive/Spider';
 import { Lizard } from '../entities/animal/neutral/Lizard';
 import { Horse } from '../entities/animal/tameable/Horse';
-import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
+// Fix: Use correct casing for Shopkeeper import
+import { Shopkeeper } from '../entities/NPC/friendly/Shopkeeper';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
 import { Environment } from '../Environment';
