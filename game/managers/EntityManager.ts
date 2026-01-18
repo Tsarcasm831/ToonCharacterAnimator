@@ -35,13 +35,6 @@ export class EntityManager {
     public mage: Mage;
     public guard: LowLevelCityGuard;
     
-    // New enemy types
-    public bandit: Bandit;
-    public knight: Knight;
-    public rogue: Rogue;
-    public berserker: Berserker;
-    public warlock: Warlock;
-    
     // Animals
     public wolf: Wolf; 
     public bears: Bear[] = [];
@@ -114,13 +107,6 @@ export class EntityManager {
 
         this.mage = new Mage(scene, new THREE.Vector3(0, 0, 15), '#6366f1');
         this.mage.config.isAssassinHostile = initialConfig.isAssassinHostile;
-
-        // New enemy types - spread around the map
-        this.bandit = new Bandit(scene, new THREE.Vector3(20, 0, -15));
-        this.knight = new Knight(scene, new THREE.Vector3(-25, 0, 20));
-        this.rogue = new Rogue(scene, new THREE.Vector3(15, 0, 25));
-        this.berserker = new Berserker(scene, new THREE.Vector3(-30, 0, -20));
-        this.warlock = new Warlock(scene, new THREE.Vector3(25, 0, -25));
 
         // One Wolf by default
         this.wolf = new Wolf(scene, new THREE.Vector3(10, 0, 10));
@@ -290,7 +276,6 @@ export class EntityManager {
     getAllEntities() {
         const list = [
             this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.foundryGuard, this.foundryAssassin,
-            this.bandit, this.knight, this.rogue, this.berserker, this.warlock,
             this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
         ];

@@ -40,7 +40,7 @@ export class Archer {
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
         this.scene = scene; this.position.copy(initialPos); this.lastFramePos.copy(initialPos); this.lastStuckPos.copy(this.position);
-        // Added missing mageHat property
+        // Added missing bracers, cape, belt to equipment
         this.config = { 
             ...DEFAULT_CONFIG, 
             bodyType: 'male', 
@@ -52,7 +52,7 @@ export class Archer {
             hoodColor: '#2e7d32', 
             hairStyle: 'bald', 
             equipment: { 
-                helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: true, quiltedArmor: false, leatherArmor: true, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false
+                helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: true, quiltedArmor: false, leatherArmor: true, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, cape: false, belt: true
             }, 
             selectedItem: 'Bow', weaponStance: 'side', isAssassinHostile: false, tintColor: tint 
         };

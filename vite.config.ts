@@ -16,7 +16,8 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+          // Replaced __dirname with '.' for resolve path
+          '@': path.resolve('.'),
         }
       },
       build: {

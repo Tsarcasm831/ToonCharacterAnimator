@@ -67,7 +67,7 @@ export class LowLevelCityGuard {
             shirtColor: '#4a3728', 
             pantsColor: '#718096', 
             bootsColor: '#8d6e63', 
-            // Added missing mageHat property
+            // Added missing bracers, cape, belt to equipment
             equipment: { 
                 helm: true, 
                 shoulders: true, 
@@ -84,7 +84,10 @@ export class LowLevelCityGuard {
                 plateMail: false, 
                 robe: false, 
                 blacksmithApron: false,
-                mageHat: false
+                mageHat: false,
+                bracers: true,
+                cape: false,
+                belt: true
             }, 
             selectedItem: 'Halberd', 
             weaponStance: 'shoulder', 
