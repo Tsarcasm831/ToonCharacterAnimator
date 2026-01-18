@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState, useRef, CSSProperties } from 'react';
 import * as THREE from 'three';
 import { PlayerModel } from '../../game/PlayerModel';
@@ -215,11 +216,11 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                 {/* Secondary Loading Track with Runner */}
                 <div className="relative w-full h-1.5 bg-white/5 rounded-full mb-12">
                     <div 
-                        className="absolute inset-y-0 left-0 bg-blue-500/20 blur-sm transition-all duration-300"
+                        className="absolute inset-y-0 left-0 bg-blue-500/20 blur-sm transition-[width] duration-[120ms] ease-linear"
                         style={{ width: `${runnerProgress}%` }}
                     />
                     <div 
-                        className="absolute inset-y-0 left-0 bg-blue-600 transition-all duration-300 shadow-[0_0_10px_#2563eb]"
+                        className="absolute inset-y-0 left-0 bg-blue-600 transition-[width] duration-[120ms] ease-linear shadow-[0_0_10px_#2563eb]"
                         style={{ width: `${runnerProgress}%` }}
                     />
                     

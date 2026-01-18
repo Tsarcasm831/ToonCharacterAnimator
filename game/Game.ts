@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { BuildingParts } from './builder/BuildingParts';
@@ -55,6 +56,7 @@ export class Game {
     private dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     private dragOffset = new THREE.Vector3();
     private raycaster = new THREE.Raycaster();
+    private isCombatActive: boolean = false;
 
     private fpvYaw: number = 0;
     private fpvPitch: number = 0;
@@ -87,6 +89,7 @@ export class Game {
     onForgeTrigger?: () => void;
     onEnvironmentReady?: () => void;
     onShowCharacterStats?: () => void;
+    onAttackHit?: (type: string, count: number) => void;
 
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
@@ -290,6 +293,10 @@ export class Game {
         }
     }
 
+    public setCombatActive(active: boolean) {
+        this.isCombatActive = active;
+    }
+
     public switchScene(sceneName: 'dev' | 'world' | 'combat', isInit: boolean = false) {
         this.activeScene = sceneName;
         const GRID_CELL_SIZE = 1.3333;
@@ -299,13 +306,14 @@ export class Game {
         this.worldEnvironment?.setVisible(sceneName === 'world');
         this.combatEnvironment?.setVisible(sceneName === 'combat');
         
-        // Entities are bound to Dev scene currently
-        this.entityManager.setVisibility(sceneName === 'dev');
+        // Reset dynamic entities when switching scenes
+        this.entityManager.clearDynamicEntities();
 
         // Reset Combat Selection
         this.isPlayerSelected = false;
         this.isDraggingPlayer = false;
         this.setPlayerHighlight(false);
+        this.isCombatActive = false;
 
         if (sceneName === 'dev') {
             const startX = -17 * GRID_CELL_SIZE;
@@ -327,6 +335,9 @@ export class Game {
             if(this.combatEnvironment) {
                 const snap = this.combatEnvironment.snapToGrid(this.player.mesh.position);
                 this.player.mesh.position.copy(snap);
+                
+                // Spawn 2 Bandits on the red side for arena
+                this.entityManager.spawnCombatEncounter('bandit', 2, this.combatEnvironment);
             }
             this.player.mesh.rotation.y = Math.PI; 
             this.renderManager.controls.target.set(0, 0, 0);
@@ -465,8 +476,6 @@ export class Game {
              const panSpeed = 15.0 * delta;
              const panDelta = new THREE.Vector3();
              
-             // Fixed W/S inversion: input.y is (S - W). 
-             // If W is pressed, input.y = -1. We want camera to move ALONG camForward.
              if (Math.abs(input.y) > 0.1) panDelta.addScaledVector(camForward, -input.y * panSpeed);
              if (Math.abs(input.x) > 0.1) panDelta.addScaledVector(camRight, input.x * panSpeed);
 
@@ -475,7 +484,6 @@ export class Game {
                  this.renderManager.controls.target.add(panDelta);
              }
 
-             // Prevent player from moving or attacking with WASD/Mouse in Combat Scene
              input.x = 0;
              input.y = 0;
              input.isRunning = false;
@@ -521,8 +529,8 @@ export class Game {
 
         if (this.activeScene === 'dev' && this.environment) {
             this.environment.update(delta, this.config, this.player.mesh.position);
-            this.entityManager.update(delta, this.config, this.player.mesh.position, this.environment);
-            currentEntities = this.entityManager.getAllEntities();
+            this.entityManager.update(delta, this.config, this.player.mesh.position, this.environment, this.activeScene, true);
+            currentEntities = this.entityManager.getEntitiesForScene(this.activeScene);
             currentEnv = this.environment;
         } else if (this.activeScene === 'world' && this.worldEnvironment) {
             currentEnv = this.worldEnvironment;
@@ -530,6 +538,8 @@ export class Game {
         } else if (this.activeScene === 'combat' && this.combatEnvironment) {
             currentEnv = this.combatEnvironment;
             this.combatEnvironment.update(delta, this.config, this.player.mesh.position);
+            this.entityManager.update(delta, this.config, this.player.mesh.position, this.combatEnvironment, this.activeScene, this.isCombatActive, this.onAttackHit);
+            currentEntities = this.entityManager.getEntitiesForScene(this.activeScene);
         }
 
         this.particleManager.update(delta);

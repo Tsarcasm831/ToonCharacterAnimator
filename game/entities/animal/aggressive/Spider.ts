@@ -54,8 +54,28 @@ export class Spider {
             const toTarget = new THREE.Vector3().subVectors(this.targetPos, this.position); toTarget.y = 0;
             if (toTarget.length() > 0.1) { this.rotationY += (Math.atan2(toTarget.x, toTarget.z) - this.rotationY) * 5.0 * dt; const step = currentSpeed * dt; const nextPos = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)); if (PlayerUtils.isWithinBounds(nextPos) && !PlayerUtils.checkBoxCollision(nextPos, this.collisionSize, environment.obstacles)) { this.position.x = nextPos.x; this.position.z = nextPos.z; } }
             this.walkTime += dt * currentSpeed;
-            if (this.position.distanceTo(this.lastStuckPos) < 0.001) { this.stuckTimer += dt; if (this.stuckTimer > 1.5) { this.findPatrolPoint(); this.stuckTimer = 0; this.stateTimer = 0; } }
-            else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
+            
+            // --- STUCK LOGIC ---
+            if (this.position.distanceTo(this.lastStuckPos) < 0.05) { 
+                this.stuckTimer += dt; 
+                if (this.stuckTimer > 10.0) {
+                     const escape = PlayerUtils.findUnstuckPosition(this.position, environment.obstacles);
+                     if (escape) {
+                         this.position.copy(escape);
+                         this.stuckTimer = 0;
+                         this.state = SpiderState.PATROL;
+                         this.findPatrolPoint();
+                     }
+                } else if (this.stuckTimer > 1.5) { 
+                     if (this.stuckTimer % 3.0 < dt) {
+                        this.findPatrolPoint(); 
+                        this.stateTimer = 0; 
+                     }
+                } 
+            } else { 
+                this.stuckTimer = 0; 
+                this.lastStuckPos.copy(this.position); 
+            }
         } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
 
         this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);

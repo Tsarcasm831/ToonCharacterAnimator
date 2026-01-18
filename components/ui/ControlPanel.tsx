@@ -121,11 +121,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     </div>
 
                     {/* CENTER: CLEAR SPACE FOR CHARACTER VIEW */}
-                    <div className="flex-1 flex items-center justify-center">
-                        <div className="text-white/5 text-9xl font-black uppercase pointer-events-none select-none -rotate-12">
-                            PREVIEW
-                        </div>
-                    </div>
+                    <div className="flex-1 flex items-center justify-center pointer-events-none" />
 
                     {/* RIGHT PANEL: Content & Settings */}
                     <div className="w-[450px] h-full bg-slate-950/90 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden pointer-events-auto">

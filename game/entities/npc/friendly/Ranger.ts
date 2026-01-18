@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum RangerState { IDLE, PATROL, STALK, ATTACK, REPOSITION }
 
@@ -57,6 +59,7 @@ export class Ranger {
             hoodColor: '#228b22',
             hairStyle: isFemale ? 'crew' : 'bald',
             hairColor: '#8b4513',
+            stats: { ...CLASS_STATS.ranger },
             equipment: { 
                 helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, 
                 mask: false, hood: true, quiltedArmor: false, leatherArmor: true, 

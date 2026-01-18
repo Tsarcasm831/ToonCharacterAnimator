@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum BerserkerState { IDLE, PATROL, RAGE, ATTACK, RECOVER }
 
@@ -58,6 +60,7 @@ export class Berserker {
             bootsColor: '#2d1a1a',
             hairStyle: Math.random() > 0.5 ? 'bald' : 'crew',
             hairColor: '#8b0000',
+            stats: { ...CLASS_STATS.berserker },
             equipment: { 
                 helm: false, shoulders: Math.random() > 0.5, shield: false, shirt: true, pants: true, shoes: true, 
                 mask: false, hood: false, quiltedArmor: false, leatherArmor: false, 

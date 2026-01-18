@@ -63,8 +63,6 @@ export class CombatEnvironment {
         let minDesc = Infinity;
         let bestPos = position.clone();
 
-        // Brute force nearest neighbor search against the grid (since grid is small 8x8)
-        // A standard axial coordinate conversion is faster for infinite grids, but this is safer for our specific offset layout
         for (let r = 0; r < this.GRID_ROWS; r++) {
             for (let c = 0; c < this.GRID_COLS; c++) {
                 const xPos = c * this.HORIZ_DIST + ((r % 2) * (this.HORIZ_DIST / 2)) + this.OFFSET_X;
@@ -84,6 +82,8 @@ export class CombatEnvironment {
         this.gridLabelsGroup = new THREE.Group();
         this.group.add(this.gridLabelsGroup);
 
+        const labelGeo = new THREE.PlaneGeometry(1.5, 1.5);
+
         for (let r = 0; r < this.GRID_ROWS; r++) {
             for (let c = 0; c < this.GRID_COLS; c++) {
                 const xPos = c * this.HORIZ_DIST + ((r % 2) * (this.HORIZ_DIST / 2)) + this.OFFSET_X;
@@ -94,23 +94,36 @@ export class CombatEnvironment {
                 canvas.height = 128;
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.font = 'bold 40px Arial';
+                    // Draw a subtle dark circle background for better readability
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(64, 64, 60, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Draw text
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                    ctx.font = 'bold 54px Arial';
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
                     ctx.fillText(`${r},${c}`, 64, 64);
                 }
 
                 const texture = new THREE.CanvasTexture(canvas);
-                const spriteMaterial = new THREE.SpriteMaterial({ 
+                const mat = new THREE.MeshBasicMaterial({ 
                     map: texture,
                     transparent: true,
-                    depthTest: false
+                    depthTest: true,
+                    depthWrite: false, 
+                    side: THREE.DoubleSide
                 });
-                const sprite = new THREE.Sprite(spriteMaterial);
-                sprite.position.set(xPos, 1.0, zPos);
-                sprite.scale.set(1.5, 1.5, 1);
-                this.gridLabelsGroup.add(sprite);
+
+                const mesh = new THREE.Mesh(labelGeo, mat);
+                // Positioned slightly above the hex surface (surface is at 0)
+                mesh.position.set(xPos, 0.02, zPos);
+                // Rotate to lie flat on the ground
+                mesh.rotation.x = -Math.PI / 2;
+                
+                this.gridLabelsGroup.add(mesh);
             }
         }
     }

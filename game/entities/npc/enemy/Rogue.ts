@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum RogueState { IDLE, PATROL, STALK, CHASE, ATTACK, RETREAT }
 
@@ -57,6 +59,7 @@ export class Rogue {
             hoodColor: '#1a1a1a',
             hairStyle: isFemale ? 'crew' : 'bald',
             hairColor: isFemale ? '#2d1810' : '#1a1a1a',
+            stats: { ...CLASS_STATS.rogue },
             equipment: { 
                 helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, 
                 mask: true, hood: true, quiltedArmor: false, leatherArmor: true, 

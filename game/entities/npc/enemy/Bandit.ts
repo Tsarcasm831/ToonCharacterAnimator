@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum BanditState { IDLE, PATROL, CHASE, ATTACK, RETREAT }
 
@@ -57,6 +59,7 @@ export class Bandit {
             bootsColor: '#1a1a1a',
             hairStyle: Math.random() > 0.5 ? 'bald' : 'crew',
             hairColor: '#2d2d2d',
+            stats: { ...CLASS_STATS.bandit },
             equipment: { 
                 helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, 
                 mask: Math.random() > 0.6, hood: Math.random() > 0.5, quiltedArmor: false, 
@@ -168,14 +171,23 @@ export class Bandit {
                 break;
         }
 
-        // Stuck detection
+        // --- STUCK LOGIC ---
         if (moveSpeed !== 0) {
-            if (this.position.distanceTo(this.lastStuckPos) < 0.001) {
+            if (this.position.distanceTo(this.lastStuckPos) < 0.05) {
                 this.stuckTimer += dt;
-                if (this.stuckTimer > 1.5) {
-                    this.setState(BanditState.PATROL);
-                    this.findPatrolPoint(environment);
-                    this.stuckTimer = 0;
+                if (this.stuckTimer > 10.0) {
+                    const escape = PlayerUtils.findUnstuckPosition(this.position, environment.obstacles);
+                    if (escape) {
+                        this.position.copy(escape);
+                        this.stuckTimer = 0;
+                        this.setState(BanditState.PATROL);
+                        this.findPatrolPoint(environment);
+                    }
+                } else if (this.stuckTimer > 1.5) {
+                     if (this.stuckTimer % 3.0 < dt) {
+                         this.setState(BanditState.PATROL);
+                         this.findPatrolPoint(environment);
+                     }
                 }
             } else {
                 this.stuckTimer = 0;

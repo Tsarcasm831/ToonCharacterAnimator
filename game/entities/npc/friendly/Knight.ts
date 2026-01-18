@@ -1,9 +1,11 @@
+
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../PlayerModel';
 import { PlayerAnimator } from '../../../PlayerAnimator';
 import { Environment } from '../../../Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { CLASS_STATS } from '../../../../data/stats';
 
 enum KnightState { IDLE, PATROL, CHASE, DUEL, ATTACK, RETREAT }
 
@@ -58,6 +60,7 @@ export class Knight {
             pantsColor: '#263238',
             bootsColor: '#1a1a1a',
             hairStyle: 'bald',
+            stats: { ...CLASS_STATS.knight },
             equipment: { 
                 helm: true, shoulders: true, shield: true, shirt: true, pants: true, shoes: true, 
                 mask: false, hood: false, quiltedArmor: false, leatherArmor: false, 
@@ -191,14 +194,23 @@ export class Knight {
                 break;
         }
 
-        // Stuck detection
+        // --- STUCK LOGIC ---
         if (moveSpeed !== 0) {
-            if (this.position.distanceTo(this.lastStuckPos) < 0.001) {
+            if (this.position.distanceTo(this.lastStuckPos) < 0.05) {
                 this.stuckTimer += dt;
-                if (this.stuckTimer > 2.0) {
-                    this.setState(KnightState.PATROL);
-                    this.findPatrolPoint(environment);
-                    this.stuckTimer = 0;
+                if (this.stuckTimer > 10.0) {
+                    const escape = PlayerUtils.findUnstuckPosition(this.position, environment.obstacles);
+                    if (escape) {
+                        this.position.copy(escape);
+                        this.stuckTimer = 0;
+                        this.setState(KnightState.PATROL);
+                        this.findPatrolPoint(environment);
+                    }
+                } else if (this.stuckTimer > 2.0) {
+                     if (this.stuckTimer % 3.0 < dt) {
+                         this.setState(KnightState.PATROL);
+                         this.findPatrolPoint(environment);
+                     }
                 }
             } else {
                 this.stuckTimer = 0;
@@ -249,7 +261,7 @@ export class Knight {
         let targetSpeedAnim = (this.state === KnightState.DUEL) ? 1.5 : moveSpeed;
         this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, targetSpeedAnim, dt * 6);
         const animX = (this.state === KnightState.DUEL) ? this.strafeDir : 0;
-        const animY = (this.state === KnightState.RETREAT) ? 1 : (Math.abs(this.speedFactor) > 0.1 ? -1 : 0);
+        const animY = Math.abs(this.speedFactor) > 0.1 ? -1 : 0;
 
         const animContext = {
             config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,

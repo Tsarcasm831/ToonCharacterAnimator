@@ -6,16 +6,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ biome }) => (
-    <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none flex flex-col md:flex-row md:items-start justify-between">
-        <div>
-            <h1 className="text-4xl font-black text-gray-800 tracking-tighter drop-shadow-sm opacity-80">
-              ANIMATOR<span className="text-blue-600">3D</span>
-            </h1>
-            <p className="text-gray-600 font-medium text-sm mt-1 max-w-md">
-              W/A/S/D move, SHIFT run, SPACE jump, X focus, V POV, 1-8 items.
-            </p>
-        </div>
-
+    <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none flex flex-col md:flex-row md:items-start justify-end">
         {biome && (
             <div className="mt-4 md:mt-0 flex items-center gap-3 animate-[fadeIn_0.5s_ease-out]">
                 <div className="flex flex-col items-end">

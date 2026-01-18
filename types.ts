@@ -11,6 +11,19 @@ export interface InventoryItem {
   count: number;
 }
 
+export interface EntityStats {
+  health: number;
+  maxHealth: number;
+  chakra: number;
+  maxChakra: number;
+  strength: number;
+  dexterity: number;
+  defense: number;
+  evasion: number;
+  damage: number;
+  soak: number;
+}
+
 export interface Quest {
   id: string;
   title: string;
@@ -76,6 +89,9 @@ export interface PlayerConfig {
   selectedItem: string | null;
   weaponStance: WeaponStance;
   
+  // Stats
+  stats: EntityStats;
+
   // Settings
   globalVolume: number;
   
@@ -321,6 +337,19 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   },
   selectedItem: null,
   weaponStance: 'side',
+
+  stats: {
+    health: 100,
+    maxHealth: 100,
+    chakra: 50,
+    maxChakra: 50,
+    strength: 10,
+    dexterity: 10,
+    defense: 10,
+    evasion: 10,
+    damage: 10,
+    soak: 2
+  },
   
   globalVolume: 0.5,
   showNPC: true,

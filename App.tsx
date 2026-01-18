@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import Scene from './components/Scene.tsx';
 import { PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest, InventoryItem, QuestStatus } from './types.ts';
 import { Header } from './components/ui/Header.tsx';
@@ -12,10 +12,13 @@ import { BuilderUI } from './components/ui/BuilderUI.tsx';
 import { MobileControls } from './components/ui/MobileControls.tsx';
 import { Compass } from './components/ui/Compass.tsx';
 import { MainMenu } from './components/ui/MainMenu.tsx';
+import { GameHUD } from './components/ui/GameHUD.tsx';
+import { CombatLogEntry } from './components/ui/CombatLog.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
 import { ModelExporter } from './game/ModelExporter.ts';
 import { Game } from './game/Game.ts';
 import { StructureType } from './game/builder/BuildingParts.ts';
+import { CLASS_STATS } from './data/stats.ts';
 import * as THREE from 'three';
 
 // Lazy load heavy modal components for better initial load performance
@@ -64,7 +67,10 @@ const App: React.FC = () => {
   const [isEnvironmentBuilt, setIsEnvironmentBuilt] = useState(false);
   const [isVisualLoadingDone, setIsVisualLoadingDone] = useState(false);
 
-  const [config, setConfig] = useState<PlayerConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<PlayerConfig>({
+      ...DEFAULT_CONFIG,
+      stats: { ...CLASS_STATS.hero }
+  });
   const [manualInput, setManualInput] = useState<Partial<PlayerInput>>({
     isRunning: false,
     jump: false,
@@ -83,6 +89,8 @@ const App: React.FC = () => {
   const [activeScene, setActiveScene] = useState<'dev' | 'world' | 'combat'>('dev');
   const [notification, setNotification] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(false);
+  const [isCombatActive, setIsCombatActive] = useState(false);
+  const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
 
   // Main Inventory for Dev/World scenes
   const [inventory, setInventory] = useState<(InventoryItem | null)[]>(() => {
@@ -137,10 +145,16 @@ const App: React.FC = () => {
 
   const gameInstance = useRef<Game | null>(null);
 
+  const addCombatLog = useCallback((text: string, type: CombatLogEntry['type'] = 'info') => {
+      setCombatLog(prev => [
+          ...prev.slice(-20), // Keep last 20 entries
+          { id: Math.random().toString(36).substr(2, 9), text, type, timestamp: Date.now() }
+      ]);
+  }, []);
+
   // Sync effect: Move to READY only when environment is built AND visual runner finished
   useEffect(() => {
     if (gameState === 'LOADING' && isEnvironmentBuilt && isVisualLoadingDone) {
-        // Final sanity check delay to let any last-millisecond GPU updates settle
         const t = setTimeout(() => {
             setGameState('READY');
         }, 300);
@@ -187,9 +201,8 @@ const App: React.FC = () => {
         if (emptyIdx !== -1) nextInv[emptyIdx] = { name: 'Steel Axe', count: 1 };
         setInventory(nextInv);
         setNotification(`Claimed rewards for ${quest.title}! (+500 Gold, +Steel Axe)`);
+        setQuests(prev => prev.map(q => q.id === questId ? { ...q, rewardClaimed: true } : q));
     }
-
-    setQuests(prev => prev.map(q => q.id === questId ? { ...q, rewardClaimed: true } : q));
   };
 
   useEffect(() => {
@@ -222,12 +235,6 @@ const App: React.FC = () => {
         return q;
     }));
   }, [inventory]);
-
-  useEffect(() => {
-    const preventContextMenu = (e: MouseEvent) => { e.preventDefault(); e.stopPropagation(); return false; };
-    window.addEventListener('contextmenu', preventContextMenu, true);
-    return () => window.removeEventListener('contextmenu', preventContextMenu, true);
-  }, []);
 
   const handleExport = () => { if (gameInstance.current) ModelExporter.exportAndDownloadZip(gameInstance.current['player']); };
   const handleSpawnAnimal = (type: string, count: number) => { if (gameInstance.current) gameInstance.current.spawnAnimal(type, count); };
@@ -360,14 +367,17 @@ const App: React.FC = () => {
       if (scene === activeScene) { setIsTravelOpen(false); return; }
       setIsEnvironmentBuilt(false);
       setIsVisualLoadingDone(false);
+      setIsCombatActive(false);
       setGameState('LOADING');
       setIsTravelOpen(false);
+      setCombatLog([]); // Clear log on transition
       setTimeout(() => setActiveScene(scene), 100);
   };
 
   const handleEnterWorld = (startInCombat: boolean = false) => {
       setIsEnvironmentBuilt(false);
       setIsVisualLoadingDone(false);
+      setIsCombatActive(false);
       setGameState('LOADING');
       if (startInCombat) {
           setActiveScene('combat');
@@ -415,12 +425,18 @@ const App: React.FC = () => {
                 g.onForgeTrigger = () => setIsForgeOpen(true);
                 g.onRotationUpdate = (r) => setPlayerRotation(r);
                 g.onShowCharacterStats = () => setIsCharacterStatsOpen(true);
+                
+                // Add combat-specific listeners
+                g.onAttackHit = (type, count) => {
+                    addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
+                };
             }}
             onEnvironmentReady={handleEnvironmentReady}
             onToggleWorldMap={handleToggleWorldMap}
             onToggleQuestLog={toggleQuestLog}
             controlsDisabled={isHUDDisabled}
             showGrid={showGrid}
+            isCombatActive={isCombatActive}
             />
         </div>
       )}
@@ -480,8 +496,27 @@ const App: React.FC = () => {
 
       {gameState === 'PLAYING' && (
         <>
-            {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && !isEnemiesModalOpen && <Header biome={currentBiome} />}
-            {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && !isEnemiesModalOpen && <Compass rotation={playerRotation} />}
+            <GameHUD 
+                activeScene={activeScene}
+                currentBiome={currentBiome}
+                playerRotation={playerRotation}
+                inventory={inventory}
+                bench={bench}
+                selectedSlot={selectedSlot}
+                onSelectSlot={setSelectedSlot}
+                interactionText={interactionText}
+                interactionProgress={progress}
+                showGrid={showGrid}
+                setShowGrid={setShowGrid}
+                isCombatActive={isCombatActive}
+                setIsCombatActive={(active) => {
+                    setIsCombatActive(active);
+                    if (active) addCombatLog("Engagement Protocol Initiated.", "system");
+                }}
+                stats={config.stats}
+                isFemale={config.bodyType === 'female'}
+                combatLog={combatLog}
+            />
 
             <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-4">
                 <div className="relative">
@@ -495,7 +530,7 @@ const App: React.FC = () => {
                     </button>
 
                     {isTravelOpen && (
-                        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-48 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1 animate-fade-in-down">
+                        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-48 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1 animate-fade-in-down pointer-events-auto">
                             <button onClick={() => handleTravel('dev')} className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'dev' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
                                 Dev Scene{activeScene === 'dev' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
                             </button>
@@ -518,34 +553,6 @@ const App: React.FC = () => {
                 </button>
             </div>
 
-            <InteractionOverlay text={interactionText} progress={progress} />
-            
-            {/* Standard Hotbar for Dev/World scenes */}
-            {(activeScene === 'dev' || activeScene === 'world') && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && (
-                <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={setSelectedSlot} />
-            )}
-
-            {/* Separate PlayerBench for Combat Scene */}
-            {activeScene === 'combat' && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && !isEnemiesModalOpen && !isCharacterStatsOpen && (
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-4 w-full max-w-4xl px-4">
-                    <div className="flex items-center gap-4 mb-2">
-                        <button 
-                            onClick={() => setShowGrid(!showGrid)}
-                            className={`px-4 py-2 rounded-full backdrop-blur-md border-2 transition-all shadow-xl group flex items-center gap-2 ${showGrid ? 'bg-blue-600/40 border-blue-400' : 'bg-black/40 border-white/20 hover:border-white/40'}`}
-                            title={showGrid ? "Hide Grid Labels" : "Show Grid Labels"}
-                        >
-                            <div className={`p-1 rounded-lg transition-colors ${showGrid ? 'bg-blue-500' : 'bg-white/10 group-hover:bg-white/20'}`}>
-                                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                                </svg>
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/80">Grid Labels</span>
-                        </button>
-                    </div>
-                    <PlayerBench inventory={bench} selectedSlot={selectedSlot} onSelectSlot={(i) => { /* No-op or selection logic for bench if needed */ }} />
-                </div>
-            )}
-            
             {isBuilderMode && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && <BuilderUI activeType={activeStructure} onSelectType={handleSelectStructure} />}
             {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <ControlPanel config={config} manualInput={manualInput} isDeadUI={isDeadUI} setConfig={setConfig} setManualInput={setManualInput} handleDeathToggle={handleDeathToggle} triggerAction={triggerAction} onExport={handleExport} onSpawnAnimals={() => setIsSpawnModalOpen(true)} />}
             {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
