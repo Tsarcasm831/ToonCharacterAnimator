@@ -74,9 +74,13 @@ export class PlayerCombat {
         }
         
         // Handle Inputs
-        if (input.fireball) {
+        const isFireballPressed = !!input.fireball;
+        if (isFireballPressed && !player.wasFireballKeyPressed) {
             this.handleFireballInput(player, dt, input, particleManager);
-        } else if (player.config.selectedItem === 'Fishing Pole') {
+        }
+        player.wasFireballKeyPressed = isFireballPressed;
+
+        if (player.config.selectedItem === 'Fishing Pole') {
             this.handleFishingInput(player, dt, input);
         } else if (player.config.selectedItem === 'Bow') {
             this.handleBowInput(player, dt, input, particleManager);
@@ -166,7 +170,6 @@ export class PlayerCombat {
     }
 
     private static handleFireballInput(player: Player, dt: number, input: PlayerInput, particleManager: ParticleManager) {
-        // Fix: Use player.status.isDead instead of player.isDead
         if (!player.isFireballCasting && !player.status.isDead) {
             player.isFireballCasting = true;
             player.fireballTimer = 0;

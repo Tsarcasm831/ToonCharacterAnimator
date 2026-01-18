@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
 
@@ -126,5 +125,125 @@ export class PlayerUtils {
             }
         }
         return highest;
+    }
+
+    // --- UI Helpers ---
+
+    static createTextTexture(text: string, color: string = 'white', bgColor: string | null = null, fontSize: number = 40): THREE.CanvasTexture {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            if (bgColor) {
+                ctx.fillStyle = bgColor;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            ctx.fillStyle = color;
+            ctx.font = `bold ${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+        }
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    static createIconTexture(colorHex: number, letter: string): THREE.CanvasTexture {
+        const canvas = document.createElement('canvas');
+        canvas.width = 128;
+        canvas.height = 128;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            // Circle Background
+            const color = '#' + new THREE.Color(colorHex).getHexString();
+            ctx.beginPath();
+            ctx.arc(64, 64, 60, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = 'white';
+            ctx.stroke();
+
+            // Letter
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 80px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(letter.charAt(0).toUpperCase(), 64, 68);
+        }
+        return new THREE.CanvasTexture(canvas);
+    }
+
+    static createHealthBar(parent: THREE.Group, maxHealth: number, color: number, name: string): any {
+        // Container for bar
+        const container = new THREE.Group();
+        parent.add(container);
+
+        // 1. Background Bar
+        const bgGeo = new THREE.PlaneGeometry(1.0, 0.15);
+        const bgMat = new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide });
+        const bgMesh = new THREE.Mesh(bgGeo, bgMat);
+        container.add(bgMesh);
+
+        // 2. Foreground Bar (Green)
+        const fgGeo = new THREE.PlaneGeometry(0.96, 0.11);
+        fgGeo.translate(0.48, 0, 0); // Pivot left
+        const fgMat = new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide });
+        const fgMesh = new THREE.Mesh(fgGeo, fgMat);
+        fgMesh.position.set(-0.48, 0, 0.01);
+        container.add(fgMesh);
+
+        // 3. Text Value (e.g., "100/100")
+        const textTex = this.createTextTexture(`${maxHealth}/${maxHealth}`);
+        const textMat = new THREE.SpriteMaterial({ map: textTex });
+        const textSprite = new THREE.Sprite(textMat);
+        textSprite.scale.set(1.5, 0.375, 1);
+        textSprite.position.set(0, 0.25, 0); // Above bar
+        container.add(textSprite);
+
+        // 4. Icon Preview (Left)
+        const iconTex = this.createIconTexture(color, name);
+        const iconMat = new THREE.SpriteMaterial({ map: iconTex });
+        const iconSprite = new THREE.Sprite(iconMat);
+        iconSprite.scale.set(0.4, 0.4, 1);
+        iconSprite.position.set(-0.7, 0, 0); // Left of bar
+        container.add(iconSprite);
+
+        // 5. Stack Count (Below Icon)
+        const stackTex = this.createTextTexture("x1", "#cccccc", null, 30);
+        const stackMat = new THREE.SpriteMaterial({ map: stackTex });
+        const stackSprite = new THREE.Sprite(stackMat);
+        stackSprite.scale.set(0.8, 0.2, 1);
+        stackSprite.position.set(-0.7, -0.25, 0);
+        container.add(stackSprite);
+
+        return { fgMesh, textSprite, stackSprite };
+    }
+
+    static updateHealthBar(refs: any, current: number, max: number, stackCount: number = 1) {
+        if (!refs) return;
+        
+        // Update Bar
+        const pct = Math.max(0, current / max);
+        if (refs.fgMesh) refs.fgMesh.scale.x = pct;
+
+        // Update Text
+        if (refs.textSprite) {
+            const newTex = this.createTextTexture(`${Math.ceil(current)}/${max}`);
+            const oldTex = refs.textSprite.material.map;
+            refs.textSprite.material.map = newTex;
+            if (oldTex) oldTex.dispose();
+        }
+
+        // Update Stack
+        if (refs.stackSprite) {
+            const stackStr = `x${stackCount}`;
+            // Optimization: Only update texture if number changed? 
+            // For now, simple regeneration is fine for low frequency updates.
+            const newStackTex = this.createTextTexture(stackStr, "#cccccc", null, 30);
+            const oldStackTex = refs.stackSprite.material.map;
+            refs.stackSprite.material.map = newStackTex;
+            if (oldStackTex) oldStackTex.dispose();
+        }
     }
 }

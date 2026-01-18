@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { Environment } from '../../../Environment';
 import { ObjectFactory } from '../../../environment/ObjectFactory';
@@ -7,35 +6,26 @@ import { PlayerUtils } from '../../../player/PlayerUtils';
 export enum YetiState { IDLE, PATROL, DEAD }
 
 export class Yeti {
-    scene: THREE.Scene; group: THREE.Group; model: any; position: THREE.Vector3 = new THREE.Vector3(); rotationY: number = 0; state: YetiState = YetiState.PATROL; stateTimer: number = 0; targetPos: THREE.Vector3 = new THREE.Vector3(); isDead: boolean = false; isSkinned: boolean = false; maxHealth: number = 100; health: number = 100; hitbox: THREE.Group; private healthBarGroup: THREE.Group; private healthBarFill: THREE.Mesh; private walkTime: number = 0; private moveSpeedVal: number = 2.5; private readonly collisionSize = new THREE.Vector3(2.5, 3.0, 1.4); private stuckTimer: number = 0; private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
+    scene: THREE.Scene; group: THREE.Group; model: any; position: THREE.Vector3 = new THREE.Vector3(); rotationY: number = 0; state: YetiState = YetiState.PATROL; stateTimer: number = 0; targetPos: THREE.Vector3 = new THREE.Vector3(); isDead: boolean = false; isSkinned: boolean = false; maxHealth: number = 100; health: number = 100; hitbox: THREE.Group; 
+    private healthBarGroup: THREE.Group; 
+    private uiRefs: any;
+    private walkTime: number = 0; private moveSpeedVal: number = 2.5; private readonly collisionSize = new THREE.Vector3(2.5, 3.0, 1.4); private stuckTimer: number = 0; private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene; this.position.copy(initialPos); this.lastStuckPos.copy(this.position);
         const yetiData = ObjectFactory.createBearModel(0xEEFFFF); this.group = new THREE.Group(); this.group.add(yetiData.group); this.model = yetiData; this.model.group.scale.set(1.2, 1.2, 1.2);
-        
-        this.hitbox = new THREE.Group(); 
-        this.hitbox.userData = { type: 'creature', parent: this }; 
-        this.group.add(this.hitbox);
+        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this }; this.group.add(this.hitbox);
         const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
+        const bodyHitbox = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.0, 1.0), hitboxMat); bodyHitbox.position.y = 1.8; bodyHitbox.userData = { type: 'creature' }; this.hitbox.add(bodyHitbox);
+        const headHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), hitboxMat); headHitbox.position.set(0, 3.0, 0.3); headHitbox.userData = { type: 'creature' }; this.hitbox.add(headHitbox);
+        const armHitbox = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 0.8), hitboxMat); armHitbox.position.set(0, 2.0, 0.5); armHitbox.userData = { type: 'creature' }; this.hitbox.add(armHitbox);
         
-        // Massive Yeti Hull
-        const torsoBox = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.0, 1.2), hitboxMat); 
-        torsoBox.position.y = 1.4; 
-        torsoBox.rotation.x = -0.4;
-        torsoBox.userData = { type: 'creature' }; 
-        this.hitbox.add(torsoBox);
-        
-        const headBox = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.85, 0.8), hitboxMat); 
-        headBox.position.set(0, 2.8, 0.6); 
-        headBox.userData = { type: 'creature' }; 
-        this.hitbox.add(headBox);
-        
-        const shoulderWide = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.8, 0.8), hitboxMat); 
-        shoulderWide.position.set(0, 2.0, 0.4); 
-        shoulderWide.userData = { type: 'creature' }; 
-        this.hitbox.add(shoulderWide);
+        // Enhanced Health Bar
+        this.healthBarGroup = new THREE.Group(); 
+        this.healthBarGroup.position.set(0, 3.8, 0); 
+        this.uiRefs = PlayerUtils.createHealthBar(this.healthBarGroup, this.maxHealth, 0xEEFFFF, 'Yeti');
+        this.group.add(this.healthBarGroup);
 
-        this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 3.8, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.2), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(1.46, 0.16); fgGeo.translate(0.73, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.73, 0, 0.01); this.healthBarGroup.add(this.healthBarFill); this.group.add(this.healthBarGroup);
         this.group.position.copy(this.position); this.scene.add(this.group);
     }
 
@@ -65,7 +55,16 @@ export class Yeti {
 
     private findPatrolPoint() { const range = 25; this.targetPos.set(this.position.x + (Math.random() - 0.5) * range, 0, this.position.z + (Math.random() - 0.5) * range); if (!PlayerUtils.isWithinBounds(this.targetPos)) this.targetPos.set(0, 0, 0); }
     private animate(dt: number, moveSpeed: number) { const parts = this.model.parts; const time = this.walkTime * 0.8; if (parts.body) { parts.body.rotation.x = -Math.PI / 2.5; parts.body.position.y = 1.5; } const legOffset = Math.PI / 2.5; if (moveSpeed > 0) { const stride = Math.sin(time); if(parts.legBL) parts.legBL.rotation.x = legOffset + stride * 0.6; if(parts.legBR) parts.legBR.rotation.x = legOffset - stride * 0.6; if(parts.legFL) parts.legFL.rotation.x = legOffset - stride * 0.6; if(parts.legFR) parts.legFR.rotation.x = legOffset + stride * 0.6; if(parts.body) parts.body.rotation.z = Math.cos(time) * 0.1; } else { const breath = Math.sin(this.stateTimer * 1.0) * 0.05; if(parts.body) parts.body.scale.set(1 + breath, 1 + breath, 1 + breath); if(parts.legFL) parts.legFL.rotation.x = legOffset; if(parts.legFR) parts.legFR.rotation.x = legOffset; if(parts.legBL) parts.legBL.rotation.x = legOffset; if(parts.legBR) parts.legBR.rotation.x = legOffset; } }
-    takeDamage(amount: number) { if (this.isDead) return; this.health -= amount; this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth); if(this.model.parts.body.material) { this.model.parts.body.material.emissive.setHex(0xff0000); this.model.parts.body.material.emissiveIntensity = 0.5; } if (this.health <= 0) this.die(); else setTimeout(() => { if (!this.isDead && this.model.parts.body.material) this.model.parts.body.material.emissiveIntensity = 0; }, 100); }
+    
+    takeDamage(amount: number) { 
+        if (this.isDead) return; 
+        this.health -= amount; 
+        PlayerUtils.updateHealthBar(this.uiRefs, this.health, this.maxHealth);
+        if(this.model.parts.body.material) { this.model.parts.body.material.emissive.setHex(0xff0000); this.model.parts.body.material.emissiveIntensity = 0.5; } 
+        if (this.health <= 0) this.die(); 
+        else setTimeout(() => { if (!this.isDead && this.model.parts.body.material) this.model.parts.body.material.emissiveIntensity = 0; }, 100); 
+    }
+    
     private die() { this.isDead = true; this.state = YetiState.DEAD; this.healthBarGroup.visible = false; this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'thick_white_fur'; this.hitbox.children.forEach(child => { child.userData.isSkinnable = true; child.userData.material = 'thick_white_fur'; }); this.model.group.rotation.x = Math.PI / 2; this.model.group.position.y = 0.5; this.hitbox.position.y = -10; }
-    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.hitbox.userData.type = 'soft'; this.hitbox.children.forEach(child => { child.userData.isSkinnable = false; child.userData.type = 'soft'; }); this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.setHex(0x000000); } }); }
+    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.setHex(0xaaaaaa); } }); }
 }

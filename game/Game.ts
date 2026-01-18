@@ -15,7 +15,6 @@ import { RenderManager } from './core/RenderManager';
 import { EntityManager } from './managers/EntityManager';
 import { LowLevelCityGuard } from './entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from './entities/npc/friendly/Blacksmith';
-// Fix casing conflict by importing from the consistent lowercase npc folder
 import { Shopkeeper } from './entities/npc/friendly/Shopkeeper';
 import { HouseBlueprints, Blueprint } from './builder/HouseBlueprints';
 
@@ -30,7 +29,7 @@ export class Game {
     private combatEnvironment: CombatEnvironment | null = null;
     private activeScene: 'dev' | 'world' | 'combat';
 
-    private inputManager: InputManager;
+    public inputManager: InputManager;
     private soundManager: SoundManager;
     private particleManager: ParticleManager;
     private builderManager: BuilderManager;
@@ -48,6 +47,15 @@ export class Game {
     private wasAttack1Pressed: boolean = false;
     private showObstacleHitboxes: boolean = false;
 
+    // Combat Mode State
+    private isPlayerSelected: boolean = false;
+    private isDraggingPlayer: boolean = false;
+    private isWaitingForClick: boolean = false;
+    private mouseDownScreenPos = new THREE.Vector2();
+    private dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    private dragOffset = new THREE.Vector3();
+    private raycaster = new THREE.Raycaster();
+
     private fpvYaw: number = 0;
     private fpvPitch: number = 0;
     private readonly tempTargetPos = new THREE.Vector3();
@@ -64,6 +72,8 @@ export class Game {
 
     private _onPointerLockChange: (e: Event) => void;
     private _onMouseMove: (e: MouseEvent) => void;
+    private _onMouseDown: (e: MouseEvent) => void;
+    private _onMouseUp: (e: MouseEvent) => void;
 
     onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
     onInteractionUpdate?: (text: string | null, progress: number | null) => void;
@@ -76,6 +86,7 @@ export class Game {
     onShopkeeperTrigger?: () => void;
     onForgeTrigger?: () => void;
     onEnvironmentReady?: () => void;
+    onShowCharacterStats?: () => void;
 
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
@@ -95,22 +106,17 @@ export class Game {
         this.soundManager.setVolume(initialConfig.globalVolume);
 
         this.particleManager = new ParticleManager(this.renderManager.scene);
-        this.particleManager = new ParticleManager(this.renderManager.scene);
         this.builderManager = new BuilderManager(this.renderManager.scene);
 
         this.player = new Player(this.renderManager.scene);
         Object.assign(this.player.config, initialConfig);
         this.player.inventory.setItems(initialInventory);
         
-        const GRID_CELL_SIZE = 1.3333;
-
         // Initialize Scenes
         this.environment = new Environment(this.renderManager.scene);
         this.worldEnvironment = new WorldEnvironment(this.renderManager.scene);
         this.combatEnvironment = new CombatEnvironment(this.renderManager.scene);
         
-        // Entity Manager shares the scene but we might need to hide entities in combat/world differently
-        // For now, entities are primarily in 'dev' environment
         this.entityManager = new EntityManager(this.renderManager.scene, this.environment, initialConfig);
 
         this.switchScene(activeScene, true);
@@ -121,18 +127,34 @@ export class Game {
             this.player.addItem('Wood', 8, true);
         };
         
-        // Trigger Async Build for main env
         requestAnimationFrame(() => {
             this.environment?.buildAsync().then(() => {
                 if (this.activeScene === 'dev') this.onEnvironmentReady?.();
             });
-            // If starting in other scenes, trigger ready immediately as they are synchronous/simple
             if (this.activeScene !== 'dev') this.onEnvironmentReady?.();
         });
 
         this.prevTargetPos.copy(this.renderManager.controls.target);
         this.clock = new THREE.Clock();
 
+        this.setupInputHandlers();
+        
+        this._onPointerLockChange = this.onPointerLockChange.bind(this);
+        this._onMouseMove = this.onMouseMove.bind(this);
+        this._onMouseDown = this.onMouseDown.bind(this);
+        this._onMouseUp = this.onMouseUp.bind(this);
+        
+        document.addEventListener('pointerlockchange', this._onPointerLockChange);
+        window.addEventListener('mousemove', this._onMouseMove);
+        window.addEventListener('mousedown', this._onMouseDown);
+        window.addEventListener('mouseup', this._onMouseUp);
+        // Handle right click manually for stats
+        window.addEventListener('contextmenu', (e) => this.onContextMenu(e));
+        
+        this.animate = this.animate.bind(this);
+    }
+
+    private setupInputHandlers() {
         this.inputManager.onToggleHitbox = () => this.player.toggleHitbox();
         this.inputManager.onToggleObstacleHitboxes = () => {
             this.showObstacleHitboxes = !this.showObstacleHitboxes;
@@ -148,25 +170,118 @@ export class Game {
         this.inputManager.onToggleSkeletonMode = () => this.player.toggleSkeletonMode();
         this.inputManager.onToggleFirstPerson = () => this.toggleFirstPerson();
         this.inputManager.onToggleGrid = () => this.environment?.toggleWorldGrid();
-
         this.inputManager.onToggleWorldMap = () => {
             this.onToggleWorldMapCallback?.(this.player.mesh.position.clone());
         };
-        
-        this._onPointerLockChange = this.onPointerLockChange.bind(this);
-        this._onMouseMove = this.onMouseMove.bind(this);
-        document.addEventListener('pointerlockchange', this._onPointerLockChange);
-        window.addEventListener('mousemove', this._onMouseMove);
-        this.animate = this.animate.bind(this);
     }
 
     start() { this.animate(); }
+    
     stop() {
         cancelAnimationFrame(this.animationId);
         document.removeEventListener('pointerlockchange', this._onPointerLockChange);
         window.removeEventListener('mousemove', this._onMouseMove);
+        window.removeEventListener('mousedown', this._onMouseDown);
+        window.removeEventListener('mouseup', this._onMouseUp);
         this.renderManager.dispose(); 
         this.inputManager.dispose();
+    }
+
+    private onMouseDown(e: MouseEvent) {
+        if (this.activeScene !== 'combat' || e.button !== 0) return;
+        
+        const mouse = new THREE.Vector2(
+            (e.clientX / window.innerWidth) * 2 - 1,
+            -(e.clientY / window.innerHeight) * 2 + 1
+        );
+        
+        this.raycaster.setFromCamera(mouse, this.renderManager.camera);
+        const intersects = this.raycaster.intersectObjects([this.player.mesh], true);
+        
+        if (intersects.length > 0) {
+            this.isDraggingPlayer = true;
+            this.isWaitingForClick = true;
+            this.mouseDownScreenPos.set(e.clientX, e.clientY);
+            
+            // Record offset for smoother dragging if we move
+            if (this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
+                this.dragOffset.sub(this.player.mesh.position);
+            }
+        } else {
+            // Clicked empty ground: deselect if we weren't clicking player
+            this.isPlayerSelected = false;
+            this.setPlayerHighlight(false);
+        }
+    }
+
+    private onMouseMove(e: MouseEvent) {
+        if (this.activeScene === 'combat' && this.isDraggingPlayer) {
+            const dist = this.mouseDownScreenPos.distanceTo(new THREE.Vector2(e.clientX, e.clientY));
+            if (dist > 5) {
+                this.isWaitingForClick = false;
+                // If we are dragging, we should implicitly keep highlight/selection active or show it
+                this.setPlayerHighlight(true);
+            }
+
+            if (!this.isWaitingForClick) {
+                const mouse = new THREE.Vector2(
+                    (e.clientX / window.innerWidth) * 2 - 1,
+                    -(e.clientY / window.innerHeight) * 2 + 1
+                );
+                this.raycaster.setFromCamera(mouse, this.renderManager.camera);
+                const target = new THREE.Vector3();
+                if (this.raycaster.ray.intersectPlane(this.dragPlane, target)) {
+                    this.player.mesh.position.copy(target.sub(this.dragOffset));
+                    this.player.mesh.position.y = 0; 
+                }
+            }
+        }
+
+        if (this.isFirstPerson && document.pointerLockElement === this.renderManager.renderer.domElement) {
+            const sensitivity = 0.002;
+            this.fpvYaw -= e.movementX * sensitivity;
+            this.fpvPitch -= e.movementY * sensitivity;
+            const limit = Math.PI / 2 - 0.1;
+            this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
+        }
+    }
+
+    private onMouseUp(e: MouseEvent) {
+        if (this.activeScene === 'combat' && this.isDraggingPlayer) {
+            if (this.isWaitingForClick) {
+                // Was a static click, toggle selection
+                this.isPlayerSelected = !this.isPlayerSelected;
+                this.setPlayerHighlight(this.isPlayerSelected);
+            } else {
+                // Was a drag, snap to grid
+                if (this.combatEnvironment) {
+                    const snapped = this.combatEnvironment.snapToGrid(this.player.mesh.position);
+                    this.player.mesh.position.copy(snapped);
+                }
+            }
+            this.isDraggingPlayer = false;
+            this.isWaitingForClick = false;
+        }
+    }
+    
+    private onContextMenu(e: MouseEvent) {
+        if (this.activeScene !== 'combat') return;
+        
+        const mouse = new THREE.Vector2(
+            (e.clientX / window.innerWidth) * 2 - 1,
+            -(e.clientY / window.innerHeight) * 2 + 1
+        );
+        this.raycaster.setFromCamera(mouse, this.renderManager.camera);
+        const intersects = this.raycaster.intersectObjects([this.player.mesh], true);
+        
+        if (intersects.length > 0) {
+            this.onShowCharacterStats?.();
+        }
+    }
+
+    private setPlayerHighlight(active: boolean) {
+        this.player.isDebugHitbox = active;
+        PlayerDebug.updateHitboxVisuals(this.player);
     }
 
     public toggleGrid(visible: boolean) {
@@ -187,34 +302,44 @@ export class Game {
         // Entities are bound to Dev scene currently
         this.entityManager.setVisibility(sceneName === 'dev');
 
+        // Reset Combat Selection
+        this.isPlayerSelected = false;
+        this.isDraggingPlayer = false;
+        this.setPlayerHighlight(false);
+
         if (sceneName === 'dev') {
             const startX = -17 * GRID_CELL_SIZE;
             const startZ = 30 * GRID_CELL_SIZE;
             this.player.mesh.position.set(startX, 0, startZ);
             this.renderManager.controls.target.set(startX, 1.7, startZ);
             this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
+            this.renderManager.controls.enableRotate = true;
+            this.renderManager.controls.enableZoom = true;
         } else if (sceneName === 'world') {
             this.player.mesh.position.set(0, 5, 0);
             this.renderManager.controls.target.set(0, 6.7, 0);
             this.renderManager.camera.position.set(0, 8.2, 5.0);
+            this.renderManager.controls.enableRotate = true;
+            this.renderManager.controls.enableZoom = true;
         } else if (sceneName === 'combat') {
-            // Center of the arena (0,0), player starts at bottom edge
+            // Combat Setup
             this.player.mesh.position.set(0, 0, 10);
-            this.player.mesh.rotation.y = Math.PI; // Face North (assuming Z- is North)
-            this.renderManager.controls.target.set(0, 1.0, 10);
-            // More top-down camera for tactics
-            this.renderManager.camera.position.set(0, 15, 20);
-            this.renderManager.camera.lookAt(0, 0, 0);
+            if(this.combatEnvironment) {
+                const snap = this.combatEnvironment.snapToGrid(this.player.mesh.position);
+                this.player.mesh.position.copy(snap);
+            }
+            this.player.mesh.rotation.y = Math.PI; 
+            this.renderManager.controls.target.set(0, 0, 0);
+            this.renderManager.camera.position.set(0, 15, 10);
+            this.renderManager.camera.lookAt(0,0,0);
+            this.renderManager.controls.enablePan = false; 
         }
 
         if (!isInit) {
             this.prevTargetPos.copy(this.renderManager.controls.target);
-            // Reset player physics state when teleporting
             this.player.velocity.set(0,0,0);
             this.player.jumpVelocity = 0;
             this.player.isJumping = false;
-            
-            // Allow environment to signal readiness
             if (sceneName !== 'dev') {
                 setTimeout(() => this.onEnvironmentReady?.(), 100);
             }
@@ -222,7 +347,6 @@ export class Game {
     }
 
     spawnAnimal(type: string, count: number) {
-        // Only spawn in dev scene for now
         if (this.activeScene === 'dev') {
             this.entityManager.spawnAnimalGroup(type, count, this.environment, this.player.mesh.position);
         }
@@ -230,52 +354,32 @@ export class Game {
 
     private buildStructures() {
         if (!this.environment) return;
-        
         const build = (blueprint: Blueprint, originX: number, originZ: number, blueprintRotation: number = 0, color?: number) => {
              const GRID = 1.3333;
              blueprint.forEach(part => {
                  let localX = part.x;
                  let localZ = part.z;
-
                  if (part.type === 'foundation' || part.type === 'roof' || part.type === 'round_foundation' || part.type === 'round_wall') {
-                     localX += 0.5;
-                     localZ += 0.5;
-                 } else if (part.type === 'pillar') {
-                 } else {
-                     if (part.rotation === Math.PI / 2) {
-                         localZ += 0.5;
-                     } else {
-                         localX += 0.5;
-                     }
+                     localX += 0.5; localZ += 0.5;
+                 } else if (part.type !== 'pillar') {
+                     if (part.rotation === Math.PI / 2) localZ += 0.5; else localX += 0.5;
                  }
-
                  const rx = localX * Math.cos(blueprintRotation) - localZ * Math.sin(blueprintRotation);
                  const rz = localX * Math.sin(blueprintRotation) + localZ * Math.cos(blueprintRotation);
-                 
                  const finalX = originX + (rx * GRID);
                  const finalZ = originZ + (rz * GRID);
                  const finalRot = (part.rotation || 0) + blueprintRotation;
-
                  const FOUNDATION_HEIGHT = 0.4;
                  let y = 0;
-                 if (part.type === 'foundation' || part.type === 'round_foundation') {
-                     y = 0.2; 
-                 } else if (part.type === 'wall' || part.type === 'pillar' || part.type === 'round_wall') {
-                     y = FOUNDATION_HEIGHT + 1.65; 
-                 } else if (part.type === 'doorway') {
-                     y = FOUNDATION_HEIGHT + 1.65;
-                 } else if (part.type === 'door') {
-                     y = FOUNDATION_HEIGHT + 1.175;
-                 } else if (part.type === 'roof') {
-                     y = FOUNDATION_HEIGHT + 3.3; 
-                 }
-                 
+                 if (part.type === 'foundation' || part.type === 'round_foundation') y = 0.2; 
+                 else if (part.type === 'wall' || part.type === 'pillar' || part.type === 'round_wall') y = FOUNDATION_HEIGHT + 1.65; 
+                 else if (part.type === 'doorway') y = FOUNDATION_HEIGHT + 1.65;
+                 else if (part.type === 'door') y = FOUNDATION_HEIGHT + 1.175;
+                 else if (part.type === 'roof') y = FOUNDATION_HEIGHT + 3.3; 
                  this.placeStructure(part.type, finalX, y, finalZ, finalRot, color);
              });
         };
-        
         const GRID = 1.3333;
-
         build(HouseBlueprints.getTheForge(), -27 * GRID, 36 * GRID);
         build(HouseBlueprints.getCottage(), -20 * GRID, 45 * GRID, Math.PI / 2, 0x64b5f6);
         build(HouseBlueprints.getLonghouse(), -10 * GRID, 35 * GRID, 0, 0x81c784);
@@ -288,28 +392,18 @@ export class Game {
         const mesh = BuildingParts.createStructureMesh(type, false, color);
         mesh.position.set(x, y, z);
         mesh.rotation.y = rotation;
-        
         const applyUserData = (obj: THREE.Object3D) => { 
-            obj.userData = { 
-                ...obj.userData, 
-                type: 'hard', 
-                material: 'wood', 
-                structureType: type 
-            }; 
+            obj.userData = { ...obj.userData, type: 'hard', material: 'wood', structureType: type }; 
         };
-
         if (mesh instanceof THREE.Group) {
             mesh.traverse(applyUserData);
             mesh.traverse(child => {
-                if (child instanceof THREE.Mesh && child.userData.type === 'hard') {
-                    this.environment?.obstacles.push(child);
-                }
+                if (child instanceof THREE.Mesh && child.userData.type === 'hard') this.environment?.obstacles.push(child);
             });
         } else {
             applyUserData(mesh);
             this.environment?.obstacles.push(mesh);
         }
-        // Add to environment group so it hides/shows correctly
         this.environment?.group.add(mesh);
     }
 
@@ -322,15 +416,6 @@ export class Game {
 
     setBuildingType(type: any) { this.builderManager.setType(type); }
     private onPointerLockChange() { if (document.pointerLockElement !== this.renderManager.renderer.domElement && this.isFirstPerson) this.toggleFirstPerson(false); }
-    private onMouseMove(e: MouseEvent) {
-        if (this.isFirstPerson && document.pointerLockElement === this.renderManager.renderer.domElement) {
-            const sensitivity = 0.002;
-            this.fpvYaw -= e.movementX * sensitivity;
-            this.fpvPitch -= e.movementY * sensitivity;
-            const limit = Math.PI / 2 - 0.1;
-            this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
-        }
-    }
 
     setManualInput(input: Partial<PlayerInput>) { this.inputManager.setManualInput(input); }
     setConfig(config: PlayerConfig) { this.config = config; Object.assign(this.player.config, config); this.soundManager.setVolume(config.globalVolume); }
@@ -368,6 +453,37 @@ export class Game {
 
         const input = this.inputManager.getInput();
 
+        // Scene-Specific Logic
+        if (this.activeScene === 'combat') {
+             const camForward = new THREE.Vector3();
+             this.renderManager.camera.getWorldDirection(camForward);
+             camForward.y = 0; 
+             camForward.normalize();
+             
+             const camRight = new THREE.Vector3(-camForward.z, 0, camForward.x); 
+             
+             const panSpeed = 15.0 * delta;
+             const panDelta = new THREE.Vector3();
+             
+             // Fixed W/S inversion: input.y is (S - W). 
+             // If W is pressed, input.y = -1. We want camera to move ALONG camForward.
+             if (Math.abs(input.y) > 0.1) panDelta.addScaledVector(camForward, -input.y * panSpeed);
+             if (Math.abs(input.x) > 0.1) panDelta.addScaledVector(camRight, input.x * panSpeed);
+
+             if (panDelta.lengthSq() > 0) {
+                 this.renderManager.camera.position.add(panDelta);
+                 this.renderManager.controls.target.add(panDelta);
+             }
+
+             // Prevent player from moving or attacking with WASD/Mouse in Combat Scene
+             input.x = 0;
+             input.y = 0;
+             input.isRunning = false;
+             input.attack1 = false;
+             input.attack2 = false;
+        }
+
+        // Shared Logic
         const joyLook = this.inputManager.getJoystickLook();
         if (joyLook.x !== 0 || joyLook.y !== 0) {
             const joySensitivity = 2.5 * delta;
@@ -391,7 +507,6 @@ export class Game {
         this.wasRotateKeyPressed = !!input.rotateGhost;
         if (this.isBuilding && input.attack1 && !this.wasAttack1Pressed) {
             const currentEnv = this.activeScene === 'dev' ? this.environment : (this.activeScene === 'world' ? this.worldEnvironment : null);
-            // Builder only supported in Dev/World for now
             if (currentEnv) {
                 this.builderManager.build(currentEnv);
                 if (this.showObstacleHitboxes) PlayerDebug.updateObstacleHitboxVisuals(currentEnv.obstacles, true);
@@ -440,30 +555,34 @@ export class Game {
             this.onRotationUpdate?.(cameraRotation);
         }
 
-        this.tempTargetPos.copy(this.player.mesh.position);
-        let heightOffset = this.cameraFocusMode === 1 ? 1.0 : (this.cameraFocusMode === 2 ? 0.4 : 1.7);
-        this.tempTargetPos.y += heightOffset; 
+        if (this.activeScene !== 'combat') {
+            this.tempTargetPos.copy(this.player.mesh.position);
+            let heightOffset = this.cameraFocusMode === 1 ? 1.0 : (this.cameraFocusMode === 2 ? 0.4 : 1.7);
+            this.tempTargetPos.y += heightOffset; 
 
-        if (this.isFirstPerson) {
-            const head = this.player.model.parts.head;
-            if (head) {
-                this.player.mesh.rotation.y = this.fpvYaw;
-                head.visible = false;
-                head.getWorldPosition(this.tempHeadPos);
-                this.player.mesh.getWorldDirection(this.tempForward);
-                this.tempHeadPos.addScaledVector(this.tempForward, 0.1); 
-                this.renderManager.controls.target.copy(this.tempHeadPos);
-                this.tempCamDir.copy(this.camDirBase).applyAxisAngle(this.axisX, this.fpvPitch).applyAxisAngle(this.axisY, this.fpvYaw);
-                this.renderManager.camera.position.copy(this.tempHeadPos);
-                this.tempLookAt.copy(this.tempHeadPos).add(this.tempCamDir);
-                this.renderManager.camera.lookAt(this.tempLookAt);
+            if (this.isFirstPerson) {
+                const head = this.player.model.parts.head;
+                if (head) {
+                    this.player.mesh.rotation.y = this.fpvYaw;
+                    head.visible = false;
+                    head.getWorldPosition(this.tempHeadPos);
+                    this.player.mesh.getWorldDirection(this.tempForward);
+                    this.tempHeadPos.addScaledVector(this.tempForward, 0.1); 
+                    this.renderManager.controls.target.copy(this.tempHeadPos);
+                    this.tempCamDir.copy(this.camDirBase).applyAxisAngle(this.axisX, this.fpvPitch).applyAxisAngle(this.axisY, this.fpvYaw);
+                    this.renderManager.camera.position.copy(this.tempHeadPos);
+                    this.tempLookAt.copy(this.tempHeadPos).add(this.tempCamDir);
+                    this.renderManager.camera.lookAt(this.tempLookAt);
+                }
+            } else {
+                this.prevTargetPos.copy(this.renderManager.controls.target);
+                this.renderManager.controls.target.copy(this.tempTargetPos);
+                this.tempDeltaPos.subVectors(this.renderManager.controls.target, this.prevTargetPos);
+                this.renderManager.camera.position.add(this.tempDeltaPos);
+                this.renderManager.controls.update();
             }
         } else {
-            this.prevTargetPos.copy(this.renderManager.controls.target);
-            this.renderManager.controls.target.copy(this.tempTargetPos);
-            this.tempDeltaPos.subVectors(this.renderManager.controls.target, this.prevTargetPos);
-            this.renderManager.camera.position.add(this.tempDeltaPos);
-            this.renderManager.controls.update();
+             this.renderManager.controls.update();
         }
   
         if (this.player.isTalking) this.onInteractionUpdate?.(null, null);

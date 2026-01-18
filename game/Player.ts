@@ -50,6 +50,7 @@ export class Player {
     wasCombatKeyPressed: boolean = false;
     wasAttack1Pressed: boolean = false;
     wasAttack2Pressed: boolean = false;
+    wasFireballKeyPressed: boolean = false;
     
     // Attacks
     isAxeSwing: boolean = false;
@@ -188,6 +189,7 @@ export class Player {
         // 3. Input Handlers
         if (input.isDead && !this.wasDeadKeyPressed) {
             this.status.toggleDeath(this.mesh);
+            this.clearActionStates();
         }
         this.wasDeadKeyPressed = !!input.isDead;
         
@@ -261,6 +263,9 @@ export class Player {
                 PlayerInteraction.update(this, dt, input, environment.obstacles, entities);
                 PlayerCombat.update(this, dt, input, environment, particleManager, entities);
                 PlayerPhysics.update(this, dt, input, cameraAngle, environment.obstacles);
+            } else {
+                // Interrupted - clear channelings but allow timer cleanup if needed
+                this.clearActionStates();
             }
         }
 
@@ -281,6 +286,19 @@ export class Player {
             }
             PlayerDebug.updateHitboxVisuals(this);
         }
+    }
+
+    private clearActionStates() {
+        this.isFireballCasting = false;
+        this.fireballTimer = 0;
+        this.isSummoning = false;
+        this.summonTimer = 0;
+        this.isPickingUp = false;
+        this.pickUpTime = 0;
+        this.isSkinning = false;
+        this.skinningTimer = 0;
+        this.isFishing = false;
+        this.isChargingFishing = false;
     }
 
     private syncConfig() {

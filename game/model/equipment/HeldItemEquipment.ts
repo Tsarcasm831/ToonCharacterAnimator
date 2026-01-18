@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { SwordBuilder } from './SwordBuilder';
 import { AxeBuilder } from './AxeBuilder';
@@ -7,6 +6,7 @@ import { KnifeBuilder } from './KnifeBuilder';
 import { HalberdBuilder } from './HalberdBuilder';
 import { FishingPoleBuilder } from './FishingPoleBuilder';
 import { BowBuilder } from './BowBuilder';
+import { StaffBuilder } from './StaffBuilder';
 
 export function updateHeldItem(
     itemName: string | null,
@@ -35,7 +35,7 @@ export function updateHeldItem(
     if (!itemName) return null;
 
     // 2. Build new item
-    let newItem: THREE.Group | null = null;
+    let newItem: THREE.Group | THREE.Object3D | null = null;
     const woodMat = new THREE.MeshStandardMaterial({ color: 0x8d6e63, roughness: 0.8 });
     const metalMat = new THREE.MeshStandardMaterial({ color: 0x90a4ae, metalness: 0.8, roughness: 0.2 });
 
@@ -58,6 +58,10 @@ export function updateHeldItem(
             break;
         case 'Halberd':
             newItem = HalberdBuilder.build(woodMat, metalMat);
+            parts.rightHandMount.add(newItem);
+            break;
+        case 'Staff':
+            newItem = StaffBuilder.build(metalMat);
             parts.rightHandMount.add(newItem);
             break;
         case 'Fishing Pole':

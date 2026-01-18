@@ -1,4 +1,3 @@
-
 import * as THREE from 'three';
 import { Environment } from '../../../Environment';
 import { ObjectFactory } from '../../../environment/ObjectFactory';
@@ -7,7 +6,10 @@ import { PlayerUtils } from '../../../player/PlayerUtils';
 export enum BearState { IDLE, PATROL, CHASE, ATTACK, DEAD }
 
 export class Bear {
-    scene: THREE.Scene; group: THREE.Group; model: any; position: THREE.Vector3 = new THREE.Vector3(); rotationY: number = 0; state: BearState = BearState.PATROL; stateTimer: number = 0; targetPos: THREE.Vector3 = new THREE.Vector3(); currentTarget: { position: THREE.Vector3, isDead?: boolean } | null = null; isDead: boolean = false; isSkinned: boolean = false; maxHealth: number = 50; health: number = 50; hitbox: THREE.Group; private healthBarGroup: THREE.Group; private healthBarFill: THREE.Mesh; private walkTime: number = 0; private attackCooldown: number = 0; private readonly collisionSize = new THREE.Vector3(1.4, 1.4, 2.2); private stuckTimer: number = 0; private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
+    scene: THREE.Scene; group: THREE.Group; model: any; position: THREE.Vector3 = new THREE.Vector3(); rotationY: number = 0; state: BearState = BearState.PATROL; stateTimer: number = 0; targetPos: THREE.Vector3 = new THREE.Vector3(); currentTarget: { position: THREE.Vector3, isDead?: boolean } | null = null; isDead: boolean = false; isSkinned: boolean = false; maxHealth: number = 50; health: number = 50; hitbox: THREE.Group; 
+    private healthBarGroup: THREE.Group; 
+    private uiRefs: any;
+    private walkTime: number = 0; private attackCooldown: number = 0; private readonly collisionSize = new THREE.Vector3(1.4, 1.4, 2.2); private stuckTimer: number = 0; private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene; this.position.copy(initialPos); this.lastStuckPos.copy(this.position);
@@ -40,7 +42,12 @@ export class Bear {
         snoutBox.userData = { type: 'creature' }; 
         this.hitbox.add(snoutBox);
 
-        this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 2.5, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.18), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(1.16, 0.14); fgGeo.translate(0.58, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.58, 0, 0.01); this.healthBarGroup.add(this.healthBarFill); this.group.add(this.healthBarGroup);
+        // Enhanced Health Bar
+        this.healthBarGroup = new THREE.Group(); 
+        this.healthBarGroup.position.set(0, 2.5, 0); 
+        this.uiRefs = PlayerUtils.createHealthBar(this.healthBarGroup, this.maxHealth, 0x5C4033, 'Bear');
+        this.group.add(this.healthBarGroup);
+
         this.group.position.copy(this.position); this.scene.add(this.group);
     }
 
@@ -72,7 +79,17 @@ export class Bear {
 
     private findPatrolPoint() { const range = 20; this.targetPos.set(this.position.x + (Math.random() - 0.5) * range, 0, this.position.z + (Math.random() - 0.5) * range); if (!PlayerUtils.isWithinBounds(this.targetPos)) this.targetPos.set(0, 0, 0); }
     private animate(dt: number, moveSpeed: number) { const parts = this.model.parts; const time = this.walkTime * 0.8; if (moveSpeed > 0) { const legSwing = Math.sin(time * 1.5) * 0.6; parts.legFR.rotation.x = legSwing; parts.legBL.rotation.x = legSwing; parts.legFL.rotation.x = -legSwing; parts.legBR.rotation.x = -legSwing; parts.body.position.y = 0.9 + Math.abs(Math.cos(time * 1.5)) * 0.15; } else { const breath = Math.sin(this.stateTimer * 1.5) * 0.03; parts.body.scale.set(1 + breath, 1 + breath, 1 + breath); } }
-    takeDamage(amount: number) { if (this.isDead) return; this.health -= amount; this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth); this.model.parts.body.material.emissive.setHex(0xff0000); this.model.parts.body.material.emissiveIntensity = 0.5; if (this.health <= 0) this.die(); else { setTimeout(() => { if (!this.isDead) { this.model.parts.body.material.emissiveIntensity = 0; } }, 100); } }
+    
+    takeDamage(amount: number) { 
+        if (this.isDead) return; 
+        this.health -= amount; 
+        PlayerUtils.updateHealthBar(this.uiRefs, this.health, this.maxHealth);
+        this.model.parts.body.material.emissive.setHex(0xff0000); 
+        this.model.parts.body.material.emissiveIntensity = 0.5; 
+        if (this.health <= 0) this.die(); 
+        else { setTimeout(() => { if (!this.isDead) { this.model.parts.body.material.emissiveIntensity = 0; } }, 100); } 
+    }
+    
     private die() { this.isDead = true; this.state = BearState.DEAD; this.healthBarGroup.visible = false; this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'bear_fur'; this.hitbox.children.forEach(child => { child.userData.isSkinnable = true; child.userData.material = 'bear_fur'; }); this.model.group.rotation.z = Math.PI / 2; this.model.group.position.y = 0.3; this.hitbox.position.y = -0.6; }
     markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.hitbox.userData.type = 'soft'; this.hitbox.children.forEach(child => { child.userData.isSkinnable = false; child.userData.type = 'soft'; }); this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.setHex(0x000000); if (obj.material.emissive) obj.material.emissive.setHex(0x000000); } }); }
 }

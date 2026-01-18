@@ -25,24 +25,51 @@ export const BodyControls: React.FC<BodyControlsProps> = ({ config, setConfig })
     };
 
     return (
-        <div className="space-y-4">
-            <div className="flex bg-gray-100 rounded-lg p-1">
-                <button onClick={() => handleConfigChange('bodyType', 'male')} className={`flex-1 py-1 rounded text-xs font-bold transition-all ${config.bodyType === 'male' ? 'bg-white shadow text-gray-800' : 'text-gray-400'}`}>Male</button>
-                <button onClick={() => handleConfigChange('bodyType', 'female')} className={`flex-1 py-1 rounded text-xs font-bold transition-all ${config.bodyType === 'female' ? 'bg-white shadow text-pink-600' : 'text-gray-400'}`}>Female</button>
-            </div>
-
-            <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500">Variant</label>
-                <div className="grid grid-cols-4 gap-1">
-                    {['average', 'muscular', 'slim', 'heavy'].map(variant => (
-                        <button key={variant} onClick={() => handleBodyVariantChange(variant as BodyVariant)} className={`py-1 rounded text-[10px] font-bold capitalize transition-all border ${config.bodyVariant === variant ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}>{variant}</button>
-                    ))}
+        <div className="space-y-6">
+            <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 space-y-6">
+                <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Identity Type</label>
+                    <div className="flex bg-black/40 rounded-xl p-1.5 border border-white/5">
+                        <button 
+                            onClick={() => handleConfigChange('bodyType', 'male')} 
+                            className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${config.bodyType === 'male' ? 'bg-blue-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Masculine
+                        </button>
+                        <button 
+                            onClick={() => handleConfigChange('bodyType', 'female')} 
+                            className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${config.bodyType === 'female' ? 'bg-pink-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            Feminine
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <div className="space-y-2">
-                <ColorPicker label="Skin Tone" value={config.skinColor} onChange={(v) => handleConfigChange('skinColor', v)} />
-                <ColorPicker label="Hair Color" value={config.hairColor} onChange={(v) => handleConfigChange('hairColor', v)} />
+                <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Anatomy Variant</label>
+                    <div className="grid grid-cols-2 gap-2">
+                        {['average', 'muscular', 'slim', 'heavy'].map(variant => (
+                            <button 
+                                key={variant} 
+                                onClick={() => handleBodyVariantChange(variant as BodyVariant)} 
+                                className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                                    config.bodyVariant === variant 
+                                    ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
+                                    : 'bg-black/40 text-slate-400 border-white/5 hover:border-white/20 hover:text-white'
+                                }`}
+                            >
+                                {variant}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                    <div className="bg-black/20 p-4 rounded-xl space-y-4">
+                        <ColorPicker label="Dermal Tone" value={config.skinColor} onChange={(v) => handleConfigChange('skinColor', v)} />
+                        <ColorPicker label="Follicle Color" value={config.hairColor} onChange={(v) => handleConfigChange('hairColor', v)} />
+                    </div>
+                </div>
             </div>
         </div>
     );

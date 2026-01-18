@@ -27,6 +27,7 @@ const WorldMapModal = lazy(() => import('./components/ui/WorldMapModal.tsx').the
 const QuestLogModal = lazy(() => import('./components/ui/QuestLogModal.tsx').then(m => ({ default: m.QuestLogModal })));
 const SpawnAnimalsModal = lazy(() => import('./components/ui/SpawnAnimalsModal.tsx').then(m => ({ default: m.SpawnAnimalsModal })));
 const EnemiesModal = lazy(() => import('./components/ui/EnemiesModal').then(m => ({ default: m.EnemiesModal })));
+const CharacterStatsModal = lazy(() => import('./components/ui/CharacterStatsModal.tsx').then(m => ({ default: m.CharacterStatsModal })));
 
 const INITIAL_QUESTS: Quest[] = [
   {
@@ -87,6 +88,7 @@ const App: React.FC = () => {
   const [inventory, setInventory] = useState<(InventoryItem | null)[]>(() => {
     const inv = Array(32).fill(null);
     inv[1] = { name: 'Axe', count: 1 };
+    inv[2] = { name: 'Staff', count: 1 }; // Rigged to slot 3
     inv[4] = { name: 'Knife', count: 1 };
     inv[5] = { name: 'Fishing Pole', count: 1 };
     inv[8] = { name: 'Shirt', count: 1 };
@@ -127,6 +129,7 @@ const App: React.FC = () => {
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
   const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
   const [isEnemiesModalOpen, setIsEnemiesModalOpen] = useState(false);
+  const [isCharacterStatsOpen, setIsCharacterStatsOpen] = useState(false);
   const [playerPosForMap, setPlayerPosForMap] = useState(new THREE.Vector3());
   
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
@@ -383,7 +386,7 @@ const App: React.FC = () => {
       setGameState('PLAYING');
   };
 
-  const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || gameState !== 'PLAYING';
+  const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || gameState !== 'PLAYING';
 
   return (
     <div className="w-screen h-screen relative bg-gray-900 overflow-hidden font-sans">
@@ -411,6 +414,7 @@ const App: React.FC = () => {
                 g.onShopkeeperTrigger = () => setIsShopkeeperChatOpen(true);
                 g.onForgeTrigger = () => setIsForgeOpen(true);
                 g.onRotationUpdate = (r) => setPlayerRotation(r);
+                g.onShowCharacterStats = () => setIsCharacterStatsOpen(true);
             }}
             onEnvironmentReady={handleEnvironmentReady}
             onToggleWorldMap={handleToggleWorldMap}
@@ -522,7 +526,7 @@ const App: React.FC = () => {
             )}
 
             {/* Separate PlayerBench for Combat Scene */}
-            {activeScene === 'combat' && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && !isEnemiesModalOpen && (
+            {activeScene === 'combat' && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && !isEnemiesModalOpen && !isCharacterStatsOpen && (
                 <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-4 w-full max-w-4xl px-4">
                     <div className="flex items-center gap-4 mb-2">
                         <button 
@@ -554,6 +558,7 @@ const App: React.FC = () => {
                 {isQuestLogOpen && <QuestLogModal isOpen={isQuestLogOpen} onClose={() => setIsQuestLogOpen(false)} quests={quests} onClaimReward={claimQuestReward} />}
                 {isSpawnModalOpen && <SpawnAnimalsModal isOpen={isSpawnModalOpen} onClose={() => setIsSpawnModalOpen(false)} onSpawn={handleSpawnAnimal} />}
                 {isEnemiesModalOpen && <EnemiesModal isOpen={isEnemiesModalOpen} onClose={() => setIsEnemiesModalOpen(false)} />}
+                {isCharacterStatsOpen && <CharacterStatsModal isOpen={isCharacterStatsOpen} onClose={() => setIsCharacterStatsOpen(false)} config={config} />}
             </Suspense>
         </>
       )}
