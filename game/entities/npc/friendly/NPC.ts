@@ -1,10 +1,10 @@
-
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../model/PlayerModel';
 import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { AIUtils } from '../../../core/AIUtils';
 import { OUTFIT_PRESETS, BODY_PRESETS } from '../../../../data/constants';
 
 export class NPC {
@@ -62,12 +62,7 @@ export class NPC {
 
         const distToPlayer = this.position.distanceTo(targetEyePosition);
         if (distToPlayer < 4.0) {
-            const dir = new THREE.Vector3().subVectors(targetEyePosition, this.position);
-            const targetRot = Math.atan2(dir.x, dir.z);
-            let diff = targetRot - this.rotationY;
-            while (diff < -Math.PI) diff += Math.PI * 2;
-            while (diff > Math.PI) diff -= Math.PI * 2;
-            this.rotationY += diff * dt * 2.0;
+            this.rotationY = AIUtils.smoothLookAt(this.rotationY, targetEyePosition, this.position, dt, 2.0);
             this.model.group.rotation.y = this.rotationY;
         }
 

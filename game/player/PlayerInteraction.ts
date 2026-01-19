@@ -176,8 +176,10 @@ export class PlayerInteraction {
         player.talkingTarget = null;
 
         for (const entity of entities) {
+            const name = entity.constructor.name;
+            
             // Check Guards
-            if (entity instanceof LowLevelCityGuard) {
+            if (name === 'LowLevelCityGuard' || entity instanceof LowLevelCityGuard) {
                 if (entity.isInCombat()) continue;
                 const dist = player.mesh.position.distanceTo(entity.position);
                 if (dist < 2.0) {
@@ -187,7 +189,7 @@ export class PlayerInteraction {
                 }
             }
             // Check Blacksmith
-            if (entity instanceof Blacksmith) {
+            if (name === 'Blacksmith' || entity instanceof Blacksmith) {
                 const dist = player.mesh.position.distanceTo(entity.position);
                 if (dist < 2.5) { 
                     player.canTalk = true;
@@ -195,7 +197,8 @@ export class PlayerInteraction {
                     break;
                 }
             }
-            if (entity instanceof Shopkeeper) {
+            // Check Shopkeeper
+            if (name === 'Shopkeeper' || entity instanceof Shopkeeper) {
                 const dist = player.mesh.position.distanceTo(entity.position);
                 if (dist < 2.5) {
                     player.canTalk = true;

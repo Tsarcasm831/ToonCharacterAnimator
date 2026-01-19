@@ -315,7 +315,7 @@ export class FaunaFactory {
                 femur.geometry.translate(0.25 * side, 0, 0);
                 femur.position.set(0.15 * side, bodyHeight, z);
                 // Default pose: angle UP
-                femur.rotation.z = side * -0.6; 
+                femur.rotation.z = side * 0.6; 
                 group.add(femur);
                 
                 // Tibia
@@ -325,7 +325,7 @@ export class FaunaFactory {
                 tibia.geometry.translate(0.3 * side, 0, 0);
                 tibia.position.set(0.5 * side, 0, 0);
                 // Default pose: angle DOWN sharply
-                tibia.rotation.z = side * 1.2;
+                tibia.rotation.z = side * -1.2;
                 femur.add(tibia);
                 
                 // Tarsus
@@ -335,7 +335,7 @@ export class FaunaFactory {
                 tarsus.geometry.translate(0.2 * side, 0, 0);
                 tarsus.position.set(0.6 * side, 0, 0);
                 // Default pose: angle DOWN further
-                tarsus.rotation.z = side * 0.4; 
+                tarsus.rotation.z = side * -0.4; 
                 tibia.add(tarsus);
                 
                 parts[legKey] = femur;

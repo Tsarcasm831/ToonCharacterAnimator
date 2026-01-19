@@ -108,7 +108,7 @@ export class Paladin {
         );
     }
 
-    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -122,8 +122,17 @@ export class Paladin {
             }
         }
 
+        if (!isCombatActive) {
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, true);
+            return;
+        }
+
         let bestTarget = null;
-        let bestDist = 20.0;
+        let bestDist = 35.0; // Increased from 20.0
         for (const t of potentialTargets) {
             if (t.isDead) continue;
             const d = this.position.distanceTo(t.position);
@@ -132,13 +141,13 @@ export class Paladin {
         this.currentTarget = bestTarget;
         const distToTarget = bestTarget ? bestDist : Infinity;
 
-        if (bestTarget) {
+        if (isCombatActive && bestTarget) {
             if (this.state === PaladinState.PATROL || this.state === PaladinState.IDLE) {
                 this.setState(PaladinState.CHASE);
             }
             if (this.state === PaladinState.CHASE) {
                 if (distToTarget < 4.0) this.setState(PaladinState.DUEL);
-                else if (distToTarget > 30.0) this.setState(PaladinState.PATROL);
+                else if (distToTarget > 40.0) this.setState(PaladinState.PATROL); // Increased from 30.0
                 else this.targetPos.copy(this.currentTarget!.position);
             }
             if (this.state === PaladinState.DUEL) {

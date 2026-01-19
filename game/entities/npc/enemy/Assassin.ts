@@ -85,7 +85,7 @@ export class Assassin {
         }
     }
 
-    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -99,7 +99,16 @@ export class Assassin {
             }
         }
 
-        let bestTarget = null; let bestDist = 20.0;
+        if (!isCombatActive) {
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, true);
+            return;
+        }
+
+        let bestTarget = null; let bestDist = 35.0; // Increased from 20.0
         for (const t of potentialTargets) {
             if (t.isDead) continue;
             const d = this.position.distanceTo(t.position);
@@ -108,11 +117,11 @@ export class Assassin {
         this.currentTarget = bestTarget;
         const distToTarget = bestTarget ? bestDist : Infinity;
 
-        if (this.config.isAssassinHostile && bestTarget) {
+        if (isCombatActive && bestTarget) { 
             if (this.state === AssassinState.PATROL || this.state === AssassinState.IDLE) this.setState(AssassinState.CHASE);
             if (this.state === AssassinState.CHASE) {
                 if (distToTarget < 4.0) this.setState(AssassinState.DUEL);
-                else if (distToTarget > 25.0) this.setState(AssassinState.PATROL);
+                else if (distToTarget > 40.0) this.setState(AssassinState.PATROL); 
                 else this.targetPos.copy(this.currentTarget.position);
             }
             if (this.state === AssassinState.DUEL) {

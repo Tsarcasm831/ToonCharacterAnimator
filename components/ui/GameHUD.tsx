@@ -26,19 +26,21 @@ interface GameHUDProps {
     stats: EntityStats;
     isFemale: boolean;
     combatLog: CombatLogEntry[];
+    onToggleWorldMap: () => void;
+    onToggleBestiary: () => void;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
     activeScene, currentBiome, playerRotation, inventory, bench, selectedSlot, onSelectSlot,
     interactionText, interactionProgress, showGrid, setShowGrid, isCombatActive, setIsCombatActive,
-    stats, isFemale, combatLog
+    stats, isFemale, combatLog, onToggleWorldMap, onToggleBestiary
 }) => {
     const isCombat = activeScene === 'combat';
 
     return (
         <>
             {/* Standard Exploration Header */}
-            {!isCombat && <Header biome={currentBiome} />}
+            {!isCombat && <Header biome={currentBiome} onToggleWorldMap={onToggleWorldMap} onToggleBestiary={onToggleBestiary} />}
             {!isCombat && <Compass rotation={playerRotation} />}
             
             {/* Combat HUD Elements */}

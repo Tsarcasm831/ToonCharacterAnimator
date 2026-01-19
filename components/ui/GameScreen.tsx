@@ -124,8 +124,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     onVisualLoadingFinished
 }) => {
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center p-8">
-            <div className="w-full max-w-6xl aspect-video bg-black rounded-3xl border border-white/10 shadow-2xl overflow-hidden relative group">
+        <div className="w-full h-full flex flex-col items-center justify-start pb-24">
+            <div className="w-full h-full bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute top-4 left-4 z-20 px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-[10px] font-black uppercase tracking-widest text-white/70">Game Window</span>
                 </div>
@@ -197,6 +197,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                         stats={config.stats}
                                         isFemale={config.bodyType === 'female'}
                                         combatLog={combatLog}
+                                        onToggleWorldMap={() => { setPlayerPosForMap(game?.player.position || new THREE.Vector3()); setIsTravelOpen(true); }}
+                                        onToggleBestiary={onShowEnemies}
                                     />
                                     
                                     {isBuilderMode && (

@@ -1,9 +1,9 @@
-
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { PlayerModel } from '../../../model/PlayerModel';
 import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
+import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
 import { EntityStats } from '../../../../types';
@@ -112,7 +112,7 @@ export class Bandit {
         );
     }
 
-    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -122,6 +122,16 @@ export class Bandit {
         if (env instanceof CombatEnvironment && this.state !== BanditState.ATTACK && this.state !== BanditState.RETREAT && !this.isStriking) {
             const snapped = env.snapToGrid(this.position);
             this.position.lerp(snapped, 5.0 * dt);
+        }
+
+        if (!isCombatActive) {
+            // Just sync model position and exit early
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, true);
+            return;
         }
 
         let bestTarget = null;
@@ -260,16 +270,14 @@ export class Bandit {
             const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
             toGoal.y = 0;
             if (toGoal.length() > 0.1) {
-                this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 8.0 * dt);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, 8.0);
+                const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 12.0);
+
                 if (moveSpeed > 0) {
-                    const step = moveSpeed * dt;
-                    const next = this.position.clone().add(
-                        new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)
-                    );
-                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
-                        this.position.x = next.x;
-                        this.position.z = next.z;
-                    }
+                    const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, moveSpeed, dt, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                    this.position.x = nextPos.x;
+                    this.position.z = nextPos.z;
                 }
             }
         } else if (this.currentTarget) {

@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { Environment } from '../../../environment/Environment';
 import { ObjectFactory } from '../../../environment/ObjectFactory';
+import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 
 export enum WolfState { IDLE, PATROL, CHASE, ATTACK, DEAD }
@@ -37,9 +38,13 @@ export class Wolf {
         if (moveSpeed > 0) {
             const toTarget = new THREE.Vector3().subVectors(this.targetPos, this.position); toTarget.y = 0;
             if (toTarget.length() > 0.1) {
-                this.rotationY += (Math.atan2(toTarget.x, toTarget.z) - this.rotationY) * 5.0 * dt;
-                const nextPos = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(moveSpeed * dt));
-                if (PlayerUtils.isWithinBounds(nextPos) && !PlayerUtils.checkBoxCollision(nextPos, this.collisionSize, environment.obstacles)) { this.position.x = nextPos.x; this.position.z = nextPos.z; }
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, 5.0);
+                const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 8.0);
+
+                const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, moveSpeed, dt, this.collisionSize, environment.obstacles);
+                this.position.x = nextPos.x;
+                this.position.z = nextPos.z;
             }
             this.walkTime += dt * moveSpeed;
             if (this.position.distanceTo(this.lastStuckPos) < 0.001) { this.stuckTimer += dt; if (this.stuckTimer > 1.5) { this.state = WolfState.PATROL; this.findPatrolPoint(); this.stuckTimer = 0; } }

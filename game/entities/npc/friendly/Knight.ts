@@ -111,7 +111,7 @@ export class Knight {
         );
     }
 
-    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -121,6 +121,15 @@ export class Knight {
         if (env instanceof CombatEnvironment && this.state !== KnightState.ATTACK && this.state !== KnightState.RETREAT) {
             const snapped = env.snapToGrid(this.position);
             this.position.lerp(snapped, 5.0 * dt);
+        }
+
+        if (!isCombatActive) {
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, true);
+            return;
         }
 
         let bestTarget = null;

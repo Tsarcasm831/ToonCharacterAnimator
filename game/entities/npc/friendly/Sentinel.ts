@@ -108,7 +108,7 @@ export class Sentinel {
         );
     }
 
-    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -120,8 +120,17 @@ export class Sentinel {
             this.position.lerp(snapped, 5.0 * dt);
         }
 
+        if (!isCombatActive) {
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, true);
+            return;
+        }
+
         let bestTarget = null;
-        let bestDist = 18.0;
+        let bestDist = 30.0; // Increased from 18.0
         for (const t of potentialTargets) {
             if (t.isDead) continue;
             const d = this.position.distanceTo(t.position);
@@ -131,13 +140,13 @@ export class Sentinel {
         const distToTarget = bestTarget ? bestDist : Infinity;
 
         // Sentinels intercept and hold ground
-        if (bestTarget) {
+        if (isCombatActive && bestTarget) {
             if (this.state === SentinelState.PATROL || this.state === SentinelState.IDLE) {
                 this.setState(SentinelState.INTERCEPT);
             }
             if (this.state === SentinelState.INTERCEPT) {
                 if (distToTarget < 4.0) this.setState(SentinelState.GUARD);
-                else if (distToTarget > 25.0) this.setState(SentinelState.PATROL);
+                else if (distToTarget > 35.0) this.setState(SentinelState.PATROL); // Increased from 25.0
                 else this.targetPos.copy(this.currentTarget!.position);
             }
             if (this.state === SentinelState.GUARD) {
