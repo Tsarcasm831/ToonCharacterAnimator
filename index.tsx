@@ -1,7 +1,7 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.tsx';
+import App from './App';
 
 // Patch setPointerCapture and releasePointerCapture to suppress InvalidStateError
 // This error commonly occurs in Three.js/React applications (OrbitControls, etc.) when 

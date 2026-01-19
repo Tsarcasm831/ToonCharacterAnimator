@@ -145,6 +145,7 @@ export class Player {
     }
 
     get mesh() { return this.model.group; }
+    get position() { return this.mesh.position; }
 
     // Helpers exposed for Interaction/Game
     addItem(itemName: string, count: number = 1, skipHotbar: boolean = false) { 

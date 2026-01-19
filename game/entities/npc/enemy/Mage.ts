@@ -32,7 +32,7 @@ export class Mage {
     private speedFactor: number = 0;
     private lastStepCount: number = 0;
     private walkTime: number = 0;
-    private status = { isDead: false, recoverTimer: 0 };
+    public status = { isDead: false, recoverTimer: 0 };
     private cameraHandler = {
         blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
         eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,

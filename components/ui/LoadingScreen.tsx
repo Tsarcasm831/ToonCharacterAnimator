@@ -210,7 +210,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
     if (!shouldRender) return null;
 
     return (
-        <div className={`fixed inset-0 z-[150] flex flex-col items-center justify-center bg-slate-950 transition-opacity duration-700 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`absolute inset-0 z-[150] flex flex-col items-center justify-center bg-slate-950 transition-opacity duration-700 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
             <div className="relative w-full max-w-2xl px-12 flex flex-col items-center">
                 
                 {/* Secondary Loading Track with Runner */}

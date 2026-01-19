@@ -24,10 +24,10 @@ export class Game {
     private clock: THREE.Clock;
     
     public player: Player;
-    private entityManager: EntityManager;
-    private environment: Environment | null = null;
-    private worldEnvironment: WorldEnvironment | null = null;
-    private combatEnvironment: CombatEnvironment | null = null;
+    public entityManager: EntityManager;
+    public environment: Environment | null = null;
+    public worldEnvironment: WorldEnvironment | null = null;
+    public combatEnvironment: CombatEnvironment | null = null;
     private activeScene: 'dev' | 'world' | 'combat';
 
     public inputManager: InputManager;
@@ -51,6 +51,7 @@ export class Game {
     // Combat Mode State
     private selectedUnit: any | null = null;
     private draggingUnit: any | null = null;
+    private draggingUnitStartPos: THREE.Vector3 | null = null;
     private isWaitingForClick = false;
     private mouseDownScreenPos = new THREE.Vector2();
     private dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -97,6 +98,17 @@ export class Game {
     private lastBiomeCheck = 0;
     private readonly rotationUpdateIntervalMs = 100;
     private readonly rotationUpdateEpsilon = 0.01;
+
+    private getUnitPosition(unit: any): THREE.Vector3 | null {
+        return unit?.position || unit?.mesh?.position || unit?.model?.group?.position || unit?.group?.position || null;
+    }
+
+    private setUnitPosition(unit: any, position: THREE.Vector3) {
+        if (unit?.position) unit.position.copy(position);
+        if (unit?.mesh?.position) unit.mesh.position.copy(position);
+        if (unit?.model?.group?.position) unit.model.group.position.copy(position);
+        if (unit?.group?.position) unit.group.position.copy(position);
+    }
 
     constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: (InventoryItem | null)[], activeScene: 'dev' | 'world' | 'combat') {
         this.config = initialConfig;
@@ -220,7 +232,8 @@ export class Game {
                 this.isWaitingForClick = true;
                 this.mouseDownScreenPos.set(e.clientX, e.clientY);
                 
-                const unitPos = foundUnit.position || foundUnit.mesh?.position;
+                const unitPos = this.getUnitPosition(foundUnit);
+                this.draggingUnitStartPos = unitPos ? unitPos.clone() : null;
                 if (unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
                     this.dragOffset.sub(unitPos);
                 }
@@ -252,11 +265,7 @@ export class Game {
                 if (this.raycaster.ray.intersectPlane(this.dragPlane, target)) {
                     const newPos = target.sub(this.dragOffset);
                     newPos.y = 0;
-                    if (this.draggingUnit.position) {
-                        this.draggingUnit.position.copy(newPos);
-                    } else if (this.draggingUnit.mesh) {
-                        this.draggingUnit.mesh.position.copy(newPos);
-                    }
+                    this.setUnitPosition(this.draggingUnit, newPos);
                 }
             }
         }
@@ -291,15 +300,34 @@ export class Game {
             } else {
                 // Was a drag, snap to grid
                 if (this.combatEnvironment) {
-                    const unitPos = this.draggingUnit.position || this.draggingUnit.mesh?.position;
+                    const unitPos = this.getUnitPosition(this.draggingUnit);
                     if (unitPos) {
-                        const snapped = this.combatEnvironment.snapToGrid(unitPos);
-                        unitPos.copy(snapped);
+                        const targetGrid = this.combatEnvironment.getGridPosition(unitPos);
+                        const combatEntities = this.entityManager.getEntitiesForScene('combat');
+                        const units = [this.player, ...combatEntities];
+                        const isTargetOccupied = targetGrid
+                            ? units.some(u => {
+                                if (u === this.draggingUnit) return false;
+                                const pos = this.getUnitPosition(u);
+                                if (!pos) return false;
+                                const grid = this.combatEnvironment?.getGridPosition(pos);
+                                return grid?.r === targetGrid.r && grid?.c === targetGrid.c;
+                            })
+                            : true;
+
+                        if (isTargetOccupied && this.draggingUnitStartPos) {
+                            const snapped = this.combatEnvironment.snapToGrid(this.draggingUnitStartPos);
+                            this.setUnitPosition(this.draggingUnit, snapped);
+                        } else if (!isTargetOccupied) {
+                            const snapped = this.combatEnvironment.snapToGrid(unitPos);
+                            this.setUnitPosition(this.draggingUnit, snapped);
+                        }
                     }
                 }
             }
             this.draggingUnit = null;
             this.isWaitingForClick = false;
+            this.draggingUnitStartPos = null;
         }
     }
     
@@ -404,9 +432,11 @@ export class Game {
             if(this.combatEnvironment) {
                 const snap = this.combatEnvironment.snapToGrid(this.player.mesh.position);
                 this.player.mesh.position.copy(snap);
-                
+                const playerGrid = this.combatEnvironment.getGridPosition(this.player.mesh.position);
+                const reservedCells = playerGrid ? [playerGrid] : [];
+
                 // Spawn 2 Bandits on the red side for arena
-                this.entityManager.spawnCombatEncounter('bandit', 2, this.combatEnvironment);
+                this.entityManager.spawnCombatEncounter('bandit', 2, this.combatEnvironment, reservedCells);
             }
             this.player.mesh.rotation.y = Math.PI; 
             this.renderManager.controls.target.set(0, 0, 0);

@@ -11,7 +11,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies }) =>
     const [startInCombat, setStartInCombat] = React.useState(false);
 
     return (
-        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center">
+        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center">
             <MenuBackground />
             <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
                 <div className="text-center space-y-8 p-12 rounded-3xl bg-slate-900/40 border border-white/10 shadow-2xl backdrop-blur-sm animate-fade-in">
