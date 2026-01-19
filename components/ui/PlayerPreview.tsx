@@ -2,7 +2,7 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
-import { PlayerModel } from '../../game/PlayerModel';
+import { PlayerModel } from '../../game/model/PlayerModel';
 import { IdleAction } from '../../game/animator/actions/IdleAction';
 
 interface PlayerPreviewProps {

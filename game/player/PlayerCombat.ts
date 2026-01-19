@@ -1,10 +1,10 @@
 
 import * as THREE from 'three';
-import type { Player } from '../Player';
+import type { Player } from './Player';
 import { PlayerInput } from '../../types';
 import { PlayerPhysics } from './PlayerPhysics';
-import { ParticleManager } from '../ParticleManager';
-import { Environment } from '../Environment';
+import { ParticleManager } from '../managers/ParticleManager';
+import { Environment } from '../environment/Environment';
 import { ArrowBuilder } from '../model/equipment/ArrowBuilder';
 import { Wolf } from '../entities/animal/aggressive/Wolf';
 import { Bear } from '../entities/animal/aggressive/Bear';

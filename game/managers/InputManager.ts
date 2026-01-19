@@ -1,5 +1,5 @@
 
-import { PlayerInput } from '../types';
+import { PlayerInput } from '../../types';
 
 export class InputManager {
     keys: { [key: string]: boolean } = {};

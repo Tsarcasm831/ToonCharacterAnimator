@@ -32,7 +32,10 @@ export class Shopkeeper extends NPC {
                     mageHat: false,
                     bracers: false,
                     cape: true,
-                    belt: true
+                    belt: true,
+                    skirt: false,
+                    skullcap: false,
+                    shorts: false
                 }
             },
             initialPos

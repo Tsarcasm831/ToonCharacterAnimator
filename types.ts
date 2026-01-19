@@ -58,6 +58,9 @@ export interface EquipmentState {
   bracers: boolean;
   cape: boolean;
   belt: boolean;
+  skirt: boolean;
+  skullcap: boolean;
+  shorts: boolean;
 }
 
 export interface PlayerInput {
@@ -334,6 +337,9 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     bracers: false,
     cape: false,
     belt: false,
+    skirt: false,
+    skullcap: false,
+    shorts: false,
   },
   selectedItem: null,
   weaponStance: 'side',

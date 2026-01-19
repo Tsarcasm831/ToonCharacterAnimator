@@ -1,15 +1,15 @@
 
 import * as THREE_LIB from 'three';
-import { ENV_CONSTANTS, BIOME_DATA } from './environment/EnvironmentTypes';
-import { SceneBuilder } from './environment/SceneBuilder';
-import { DebrisSystem } from './environment/DebrisSystem';
-import { ObstacleManager } from './environment/ObstacleManager';
-import { GrassManager } from './environment/GrassManager';
-import { SnowSystem } from './environment/SnowSystem';
-import { WorldGridManager } from './environment/WorldGridManager';
-import { PlayerConfig } from '../types';
-import { PlayerUtils } from './player/PlayerUtils';
-import { TerrainTextureFactory } from './environment/TerrainTextureFactory';
+import { ENV_CONSTANTS, BIOME_DATA } from './EnvironmentTypes';
+import { SceneBuilder } from './SceneBuilder';
+import { DebrisSystem } from './DebrisSystem';
+import { ObstacleManager } from './ObstacleManager';
+import { GrassManager } from './GrassManager';
+import { SnowSystem } from './SnowSystem';
+import { WorldGridManager } from './WorldGridManager';
+import { PlayerConfig } from '../../types';
+import { PlayerUtils } from '../player/PlayerUtils';
+import { TerrainTextureFactory } from './TerrainTextureFactory';
 
 export class Environment {
     private scene: THREE_LIB.Scene;

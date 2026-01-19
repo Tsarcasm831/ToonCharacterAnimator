@@ -172,7 +172,6 @@ export class HeavyLeatherArmorBuilder {
             const domeGeo = new THREE.SphereGeometry(0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55);
             domeGeo.scale(1.1, 0.65, 1.0);
             const dome = new THREE.Mesh(domeGeo, darkLeatherMat);
-            dome.rotation.x = Math.PI;
             dome.castShadow = true;
             pGroup.add(dome);
             

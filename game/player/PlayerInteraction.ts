@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Player } from '../Player';
+import type { Player } from './Player';
 import { PlayerInput } from '../../types';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';

@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { Player } from '../Player';
+import { Player } from './Player';
 import { CreepySmileAction } from '../animator/actions/CreepySmileAction';
 
 export class PlayerCameraHandler {

@@ -5,6 +5,8 @@ import { MaskBuilder } from './equipment/MaskBuilder';
 import { PauldronBuilder } from './equipment/PauldronBuilder';
 import { ShieldBuilder } from './equipment/ShieldBuilder';
 import { MageHatBuilder } from './equipment/MageHatBuilder';
+import { SkirtBuilder } from './equipment/SkirtBuilder';
+import { SkullcapBuilder } from './equipment/SkullcapBuilder';
 import { updateHeldItem as updateHeldItemEquipment } from './equipment/HeldItemEquipment';
 import { PlayerConfig } from '../../types';
 
@@ -19,7 +21,7 @@ export class PlayerEquipment {
     }
 
     static updateArmor(config: PlayerConfig, parts: any, equippedMeshes: any) {
-        const { helm, shoulders, shield, mask, hood, mageHat } = config.equipment;
+        const { helm, shoulders, shield, mask, hood, mageHat, skirt, skullcap } = config.equipment;
         
         if (helm && !equippedMeshes.helm) {
             const helmGroup = HelmBuilder.build();
@@ -76,6 +78,27 @@ export class PlayerEquipment {
         } else if (!shield && equippedMeshes.shield) {
             parts.leftShieldMount.remove(equippedMeshes.shield);
             delete equippedMeshes.shield;
+        }
+
+        if (skirt && !equippedMeshes.skirt) {
+            const skirtRes = SkirtBuilder.build(parts, config);
+            if (skirtRes) equippedMeshes.skirt = skirtRes.meshes;
+        } else if (!skirt && equippedMeshes.skirt) {
+            if (Array.isArray(equippedMeshes.skirt)) {
+                equippedMeshes.skirt.forEach((m: any) => {
+                    if (m.parent) m.parent.remove(m);
+                });
+            }
+            delete equippedMeshes.skirt;
+        }
+
+        if (skullcap && !equippedMeshes.skullcap) {
+            const skullcapGroup = SkullcapBuilder.build();
+            parts.headMount.add(skullcapGroup);
+            equippedMeshes.skullcap = skullcapGroup;
+        } else if (!skullcap && equippedMeshes.skullcap) {
+            parts.headMount.remove(equippedMeshes.skullcap);
+            delete equippedMeshes.skullcap;
         }
     }
 }

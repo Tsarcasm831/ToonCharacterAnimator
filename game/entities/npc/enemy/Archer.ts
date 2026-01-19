@@ -1,9 +1,9 @@
-
 import * as THREE from 'three';
-import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
-import { PlayerModel } from '../../../PlayerModel';
-import { PlayerAnimator } from '../../../PlayerAnimator';
-import { Environment } from '../../../Environment';
+import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { CombatEnvironment } from '../../../environment/CombatEnvironment';
+import { PlayerModel } from '../../../model/PlayerModel';
+import { PlayerAnimator } from '../../../animator/PlayerAnimator';
+import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
@@ -14,6 +14,7 @@ export class Archer {
     model: PlayerModel;
     animator: PlayerAnimator;
     config: PlayerConfig;
+    stats: EntityStats;
     position: THREE.Vector3 = new THREE.Vector3();
     lastFramePos: THREE.Vector3 = new THREE.Vector3();
     rotationY: number = 0;
@@ -42,23 +43,9 @@ export class Archer {
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
         this.scene = scene; this.position.copy(initialPos); this.lastFramePos.copy(initialPos); this.lastStuckPos.copy(this.position);
-        
-        this.config = { 
-            ...DEFAULT_CONFIG, 
-            bodyType: 'male', 
-            bodyVariant: 'slim', 
-            outfit: 'warrior', 
-            skinColor: '#d7ccc8', 
-            shirtColor: '#2e7d32', 
-            pantsColor: '#1b5e20', 
-            hoodColor: '#2e7d32', 
-            hairStyle: 'bald', 
-            stats: { ...CLASS_STATS.archer },
-            equipment: { 
-                helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: true, quiltedArmor: false, leatherArmor: true, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, cape: false, belt: true
-            }, 
-            selectedItem: 'Bow', weaponStance: 'side', isAssassinHostile: false, tintColor: tint 
-        };
+        // Added missing bracers, cape, belt to equipment
+        this.config = { ...DEFAULT_CONFIG, bodyType: 'male', bodyVariant: 'slim', outfit: 'warrior', skinColor: '#d7ccc8', shirtColor: '#2e7d32', pantsColor: '#1b5e20', hairStyle: 'bald', equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: true, quiltedArmor: false, leatherArmor: true, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, cape: false, belt: true, skirt: false, skullcap: false, shorts: false }, selectedItem: 'Bow', weaponStance: 'side', isAssassinHostile: false, tintColor: tint };
+        this.stats = { ...CLASS_STATS.archer };
         this.model = new PlayerModel(this.config); this.animator = new PlayerAnimator(); this.model.group.position.copy(this.position); this.scene.add(this.model.group); this.model.sync(this.config, true);
     }
 
@@ -69,7 +56,13 @@ export class Archer {
         if (newState === ArcherState.DUEL) { this.duelTimer = 1.0 + Math.random() * 2.0; this.strafeDir = Math.random() > 0.5 ? 1 : -1; }
     }
 
-    private findPatrolPoint(environment: Environment) {
+    private findPatrolPoint(environment: Environment | CombatEnvironment) {
+        if (environment instanceof CombatEnvironment) {
+            const r = Math.floor(Math.random() * 8);
+            const c = Math.floor(Math.random() * 8);
+            this.targetPos.copy(environment.getWorldPosition(r, c));
+            return;
+        }
         const landmarks = environment.obstacles.filter(o => o.userData.type === 'hard');
         if (landmarks.length > 0 && Math.random() > 0.4) {
             const obj = landmarks[Math.floor(Math.random() * landmarks.length)];
@@ -83,9 +76,19 @@ export class Archer {
         }
     }
 
-    update(dt: number, environment: Environment, potentialTargets: { position: THREE.Vector3, isDead?: boolean, isWolf?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean, isWolf?: boolean }[], skipAnimation: boolean = false) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
+
+        const env = environment as any;
+
+        // Snapping check for combat arena
+        if (env instanceof CombatEnvironment) {
+            const snapped = env.snapToGrid(this.position);
+            // Always snap if not in a state that requires free movement (like ATTACK or RETREAT)
+            // Archers use ranged attacks so they should generally stay on grid even when attacking/retreating to maintain formation
+            this.position.lerp(snapped, 5.0 * dt);
+        }
 
         let bestTarget = null; let bestDist = 30.0;
         for (const t of potentialTargets) {
@@ -121,10 +124,10 @@ export class Archer {
                 if (distToTarget < 11.0) strafeVec.add(toTargetDuel.clone().multiplyScalar(-2.0));
                 else if (distToTarget > 13.0) strafeVec.add(toTargetDuel.clone().multiplyScalar(2.0));
                 const duelNext = this.position.clone().add(strafeVec.multiplyScalar(dt));
-                if (!PlayerUtils.checkCollision(duelNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(duelNext)) { this.position.x = duelNext.x; this.position.z = duelNext.z; }
+                if (!PlayerUtils.checkCollision(duelNext, this.config, env.obstacles) && PlayerUtils.isWithinBounds(duelNext)) { this.position.x = duelNext.x; this.position.z = duelNext.z; }
                 break;
             case ArcherState.ATTACK: this.fireTimer += dt; break;
-            case ArcherState.RETREAT: const step = new THREE.Vector3().subVectors(this.position, this.currentTarget!.position).normalize().multiplyScalar(5.0 * dt); const next = this.position.clone().add(step); if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) this.position.copy(next); moveSpeed = -4.5; break;
+            case ArcherState.RETREAT: const step = new THREE.Vector3().subVectors(this.position, this.currentTarget!.position).normalize().multiplyScalar(5.0 * dt); const next = this.position.clone().add(step); if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) this.position.copy(next); moveSpeed = -4.5; break;
         }
 
         if (moveSpeed !== 0) { if (this.position.distanceTo(this.lastStuckPos) < 0.001) { this.stuckTimer += dt; if (this.stuckTimer > 1.5) { this.setState(ArcherState.PATROL); this.findPatrolPoint(environment); this.stuckTimer = 0; this.stateTimer = 0; } } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); } }
@@ -133,11 +136,11 @@ export class Archer {
             const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position); toGoal.y = 0;
             if (toGoal.length() > 0.1) {
                 this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 8.0 * dt);
-                if (moveSpeed > 0) { const step = moveSpeed * dt; const next = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)); if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) { this.position.x = next.x; this.position.z = next.z; } }
+                if (moveSpeed > 0) { const step = moveSpeed * dt; const next = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)); if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) { this.position.x = next.x; this.position.z = next.z; } }
             }
         } else if (this.currentTarget) { this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z), dt * 12.0); }
 
-        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles), dt * 6);
+        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
         this.model.group.position.copy(this.position); this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
@@ -151,7 +154,7 @@ export class Archer {
         let animY = (this.state === ArcherState.RETREAT) ? 1 : (Math.abs(this.speedFactor) > 0.1 ? -1 : 0);
 
         const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: (this.state === ArcherState.DUEL || this.state === ArcherState.ATTACK || this.state === ArcherState.RETREAT), isJumping: false, isAxeSwing: false, axeSwingTimer: 0, isPunch: false, isPickingUp: false, pickUpTime: 0, isInteracting: false, isWaving: false, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false, isBowDraw: this.isFiring, bowDrawTimer: this.fireTimer };
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === ArcherState.DUEL, { x: animX, y: animY, isRunning: this.state === ArcherState.CHASE, isPickingUp: false, isDead: false, jump: false } as any);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === ArcherState.DUEL, { x: animX, y: animY, isRunning: this.state === ArcherState.CHASE, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime; this.lastStepCount = animContext.lastStepCount;
         this.model.update(dt, new THREE.Vector3(0, 0, 0)); this.model.sync(this.config, true);
     }

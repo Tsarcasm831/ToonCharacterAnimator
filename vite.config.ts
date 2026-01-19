@@ -27,10 +27,10 @@ export default defineConfig(({ mode }) => {
               'three': ['three'],
               'react-vendor': ['react', 'react-dom'],
               'game-core': [
-                './game/Game.ts',
-                './game/Player.ts',
-                './game/PlayerModel.ts',
-                './game/PlayerAnimator.ts'
+                './game/core/Game.ts',
+                './game/player/Player.ts',
+                './game/model/PlayerModel.ts',
+                './game/animator/PlayerAnimator.ts'
               ],
               'game-entities': [
                 './game/managers/EntityManager.ts'

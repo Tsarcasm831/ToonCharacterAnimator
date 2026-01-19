@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { Player } from '../Player';
+import type { Player } from './Player';
 import { PlayerInput } from '../../types';
 import { PlayerUtils } from './PlayerUtils';
 

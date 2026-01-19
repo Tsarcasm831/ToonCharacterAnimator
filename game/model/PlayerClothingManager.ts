@@ -5,6 +5,7 @@ import { PlayerMaterials } from './PlayerMaterials';
 import { PlayerPartsRegistry } from './PlayerPartsRegistry';
 import { ShirtBuilder } from './mesh/ShirtBuilder';
 import { PantsBuilder } from './mesh/PantsBuilder';
+import { ShortsBuilder } from './mesh/ShortsBuilder';
 import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
 import { ApronBuilder } from './mesh/ApronBuilder';
@@ -15,10 +16,12 @@ export class PlayerClothingManager {
 
     private shirtMeshes: THREE.Object3D[] = [];
     private pantsMeshes: THREE.Object3D[] = [];
+    private shortsMeshes: THREE.Object3D[] = [];
     private apronMeshes: THREE.Object3D[] = [];
     
     private lastShirtConfigHash: string = '';
     private lastPantsConfigHash: string = '';
+    private lastShortsConfigHash: string = '';
     private lastApronConfigHash: string = '';
     private lastShoeState: boolean | null = null;
 
@@ -33,6 +36,7 @@ export class PlayerClothingManager {
 
     update(config: PlayerConfig) {
         this.updatePants(config);
+        this.updateShorts(config);
         this.updateShirt(config);
         this.updateApron(config);
         this.updateShoes(config);
@@ -74,6 +78,23 @@ export class PlayerClothingManager {
         const meshes = PantsBuilder.build(this.partsRegistry.parts, config);
         if (meshes) {
             this.pantsMeshes = meshes;
+        }
+    }
+
+    private updateShorts(config: PlayerConfig) {
+        const hash = `${config.outfit}_${config.equipment.shorts}_${config.pantsColor}`;
+        if (hash === this.lastShortsConfigHash) return;
+        this.lastShortsConfigHash = hash;
+
+        this.shortsMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if ((m as THREE.Mesh).geometry) (m as THREE.Mesh).geometry.dispose();
+        });
+        this.shortsMeshes = [];
+
+        const meshes = ShortsBuilder.build(this.partsRegistry.parts, config);
+        if (meshes) {
+            this.shortsMeshes = meshes;
         }
     }
 

@@ -1,7 +1,7 @@
 
 import * as THREE from 'three';
 import JSZip from 'jszip';
-import { Player } from './Player';
+import { Player } from '../player/Player';
 
 export class ModelExporter {
     static async exportAndDownloadZip(player: Player) {

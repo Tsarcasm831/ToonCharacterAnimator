@@ -1,7 +1,7 @@
 
 import * as THREE from 'three';
 import { BuildingParts, StructureType } from './BuildingParts';
-import { Environment } from '../Environment';
+import { Environment } from '../environment/Environment';
 import { PlayerUtils } from '../player/PlayerUtils';
 
 export class BuilderManager {

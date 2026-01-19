@@ -82,11 +82,11 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Modular Equipment</label>
                     <div className="grid grid-cols-3 gap-2">
                         {[
-                            {id: 'helm', label: 'Helm'}, {id: 'hood', label: 'Hood'}, {id: 'mageHat', label: 'Mage Hat'},
+                            {id: 'helm', label: 'Helm'}, {id: 'skullcap', label: 'Skullcap'}, {id: 'hood', label: 'Hood'}, {id: 'mageHat', label: 'Mage Hat'},
                             {id: 'mask', label: 'Mask'}, {id: 'shoulders', label: 'Pads'}, {id: 'shield', label: 'Shield'},
-                            {id: 'robe', label: 'Robe'}, {id: 'quiltedArmor', label: 'Quilted'}, {id: 'leatherArmor', label: 'Leather'},
+                            {id: 'robe', label: 'Robe'}, {id: 'skirt', label: 'Skirt'}, {id: 'quiltedArmor', label: 'Quilted'}, {id: 'leatherArmor', label: 'Leather'},
                             {id: 'heavyLeatherArmor', label: 'H.Leather'}, {id: 'ringMail', label: 'RingMail'}, {id: 'plateMail', label: 'PlateMail'},
-                            {id: 'shirt', label: 'Shirt'}, {id: 'pants', label: 'Pants'}, {id: 'shoes', label: 'Shoes'},
+                            {id: 'shirt', label: 'Shirt'}, {id: 'pants', label: 'Pants'}, {id: 'shorts', label: 'Shorts'}, {id: 'shoes', label: 'Shoes'},
                             {id: 'bracers', label: 'Bracers'}, {id: 'cape', label: 'Cape'}, {id: 'belt', label: 'Belt'}
                         ].map((eq) => (
                             <button 

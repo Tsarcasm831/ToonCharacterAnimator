@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import nipplejs from 'nipplejs';
-import { Game } from '../../game/Game';
+import { Game } from '../../game/core/Game';
 
 interface MobileControlsProps {
     game: Game | null;

@@ -271,24 +271,77 @@ export class FaunaFactory {
         const mat = this.getMaterial(color, `spider_${color}`);
         const parts: any = {};
         
+        // Lift the body slightly off the ground (thorax was at 0.3, abdomen at 0.5)
+        const bodyHeight = 0.45;
         const thoraxGeo = this.getGeometry('spider_thorax', () => new THREE.BoxGeometry(0.4, 0.3, 0.4));
         const thorax = new THREE.Mesh(thoraxGeo, mat);
-        thorax.position.y = 0.3; group.add(thorax); parts.body = thorax;
+        thorax.position.y = bodyHeight; 
+        thorax.castShadow = true;
+        group.add(thorax); 
+        parts.body = thorax;
         
         const abdomenGeo = this.getGeometry('spider_abdomen', () => new THREE.BoxGeometry(0.7, 0.6, 0.8));
         const abdomen = new THREE.Mesh(abdomenGeo, mat);
-        abdomen.position.set(0, 0.5, -0.6); group.add(abdomen); parts.abdomen = abdomen;
+        abdomen.position.set(0, bodyHeight + 0.2, -0.6); 
+        abdomen.castShadow = true;
+        group.add(abdomen); 
+        parts.abdomen = abdomen;
         
         const headGeo = this.getGeometry('spider_head', () => new THREE.BoxGeometry(0.3, 0.25, 0.3));
         const head = new THREE.Mesh(headGeo, mat);
-        head.position.set(0, 0.35, 0.3); group.add(head);
+        head.position.set(0, bodyHeight + 0.05, 0.3); 
+        head.castShadow = true;
+        group.add(head);
+        parts.head = head;
         
-        const legGeo = this.getGeometry('spider_leg', () => new THREE.BoxGeometry(1.2, 0.08, 0.08));
+        // 3-segment legs: Femur (inner), Tibia (middle), Tarsus (outer)
+        // Lengths adjusted for a better curve: 0.5 (femur), 0.6 (tibia), 0.4 (tarsus)
+        const femurGeo = this.getGeometry('spider_femur', () => new THREE.BoxGeometry(0.5, 0.08, 0.08));
+        const tibiaGeo = this.getGeometry('spider_tibia', () => new THREE.BoxGeometry(0.6, 0.07, 0.07));
+        const tarsusGeo = this.getGeometry('spider_tarsus', () => new THREE.BoxGeometry(0.4, 0.06, 0.06));
+
         for(let i=1; i<=4; i++) {
-            const side = i % 2 === 0 ? 1 : -1;
-            const z = (i-2.5) * 0.3;
-            const lL = new THREE.Mesh(legGeo, mat); lL.position.set(-0.6, 0.2, z); group.add(lL); parts[`legL${i}`] = lL;
-            const lR = new THREE.Mesh(legGeo, mat); lR.position.set(0.6, 0.2, z); group.add(lR); parts[`legR${i}`] = lR;
+            const z = (i-2.5) * 0.35;
+            
+            for(let side of [-1, 1]) {
+                const sidePrefix = side === -1 ? 'L' : 'R';
+                const legKey = `leg${sidePrefix}${i}`;
+                
+                // Femur (connected to thorax)
+                const femur = new THREE.Mesh(femurGeo, mat);
+                femur.castShadow = true;
+                // Move pivot to end
+                femur.geometry = femur.geometry.clone();
+                femur.geometry.translate(0.25 * side, 0, 0);
+                femur.position.set(0.15 * side, bodyHeight, z);
+                // Default pose: angle UP
+                femur.rotation.z = side * -0.6; 
+                group.add(femur);
+                
+                // Tibia
+                const tibia = new THREE.Mesh(tibiaGeo, mat);
+                tibia.castShadow = true;
+                tibia.geometry = tibia.geometry.clone();
+                tibia.geometry.translate(0.3 * side, 0, 0);
+                tibia.position.set(0.5 * side, 0, 0);
+                // Default pose: angle DOWN sharply
+                tibia.rotation.z = side * 1.2;
+                femur.add(tibia);
+                
+                // Tarsus
+                const tarsus = new THREE.Mesh(tarsusGeo, mat);
+                tarsus.castShadow = true;
+                tarsus.geometry = tarsus.geometry.clone();
+                tarsus.geometry.translate(0.2 * side, 0, 0);
+                tarsus.position.set(0.6 * side, 0, 0);
+                // Default pose: angle DOWN further
+                tarsus.rotation.z = side * 0.4; 
+                tibia.add(tarsus);
+                
+                parts[legKey] = femur;
+                parts[`${legKey}_tibia`] = tibia;
+                parts[`${legKey}_tarsus`] = tarsus;
+            }
         }
         return { group, parts };
     }
