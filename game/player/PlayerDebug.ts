@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { Player } from '../Player';
+import type { Player } from './Player';
 
 export class PlayerDebug {
     private static material = new THREE.MeshBasicMaterial({

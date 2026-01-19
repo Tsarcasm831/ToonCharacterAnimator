@@ -1,8 +1,8 @@
 
 import * as THREE from 'three';
-import { Player } from './Player';
-import { PlayerUtils } from './player/PlayerUtils';
-import { ENV_CONSTANTS, BIOME_DATA } from './environment/EnvironmentTypes';
+import { Player } from '../player/Player';
+import { PlayerUtils } from '../player/PlayerUtils';
+import { ENV_CONSTANTS, BIOME_DATA } from '../environment/EnvironmentTypes';
 
 export class SoundManager {
     ctx: AudioContext | null = null;

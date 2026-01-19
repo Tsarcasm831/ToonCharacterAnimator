@@ -74,7 +74,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                         >
                             <div className={`p-1 rounded-lg transition-colors ${showGrid ? 'bg-indigo-500 shadow-[0_0_10px_#6366f1]' : 'bg-white/10'}`}>
                                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
                                 </svg>
                             </div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-white">Grid Labels</span>

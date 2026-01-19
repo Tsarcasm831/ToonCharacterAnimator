@@ -58,10 +58,9 @@ export class CombatEnvironment {
         }
     }
 
-    public snapToGrid(position: THREE.Vector3): THREE.Vector3 {
-        // Find nearest hex center
+    public getGridPosition(position: THREE.Vector3): { r: number, c: number } | null {
         let minDesc = Infinity;
-        let bestPos = position.clone();
+        let bestGrid = null;
 
         for (let r = 0; r < this.GRID_ROWS; r++) {
             for (let c = 0; c < this.GRID_COLS; c++) {
@@ -71,11 +70,90 @@ export class CombatEnvironment {
                 const distSq = (position.x - xPos) ** 2 + (position.z - zPos) ** 2;
                 if (distSq < minDesc) {
                     minDesc = distSq;
-                    bestPos.set(xPos, position.y, zPos);
+                    bestGrid = { r, c };
                 }
             }
         }
-        return bestPos;
+        return bestGrid;
+    }
+
+    public getWorldPosition(r: number, c: number): THREE.Vector3 {
+        const xPos = c * this.HORIZ_DIST + ((r % 2) * (this.HORIZ_DIST / 2)) + this.OFFSET_X;
+        const zPos = r * this.VERT_DIST + this.OFFSET_Z;
+        return new THREE.Vector3(xPos, 0, zPos);
+    }
+
+    private occupiedCells: Set<string> = new Set();
+
+    public setCellOccupied(r: number, c: number, occupied: boolean) {
+        const key = `${r},${c}`;
+        if (occupied) {
+            this.occupiedCells.add(key);
+        } else {
+            this.occupiedCells.delete(key);
+        }
+    }
+
+    public isCellOccupied(r: number, c: number): boolean {
+        return this.occupiedCells.has(`${r},${c}`);
+    }
+
+    public getPath(start: THREE.Vector3, end: THREE.Vector3): THREE.Vector3[] {
+        const startGrid = this.getGridPosition(start);
+        const endGrid = this.getGridPosition(end);
+
+        if (!startGrid || !endGrid) return [end.clone()];
+        if (startGrid.r === endGrid.r && startGrid.c === endGrid.c) return [end.clone()];
+
+        // Simple A* or BFS for hex grid
+        const queue: { r: number, c: number, path: { r: number, c: number }[] }[] = [{ ...startGrid, path: [] }];
+        const visited = new Set<string>();
+        visited.add(`${startGrid.r},${startGrid.c}`);
+
+        while (queue.length > 0) {
+            const { r, c, path } = queue.shift()!;
+
+            if (r === endGrid.r && c === endGrid.c) {
+                return path.map(p => this.getWorldPosition(p.r, p.c)).concat([end.clone()]);
+            }
+
+            const neighbors = this.getNeighbors(r, c);
+            for (const neighbor of neighbors) {
+                const key = `${neighbor.r},${neighbor.c}`;
+                if (!visited.has(key) && !this.isCellOccupied(neighbor.r, neighbor.c)) {
+                    visited.add(key);
+                    queue.push({ ...neighbor, path: [...path, neighbor] });
+                }
+            }
+        }
+
+        return [end.clone()];
+    }
+
+    private getNeighbors(r: number, c: number): { r: number, c: number }[] {
+        const neighbors: { r: number, c: number }[] = [];
+        const directions = [
+            [0, 1], [0, -1], [1, 0], [-1, 0],
+            r % 2 === 0 ? [1, -1] : [1, 1],
+            r % 2 === 0 ? [-1, -1] : [-1, 1]
+        ];
+
+        for (const [dr, dc] of directions) {
+            const nr = r + dr;
+            const nc = c + dc;
+            if (nr >= 0 && nr < this.GRID_ROWS && nc >= 0 && nc < this.GRID_COLS) {
+                neighbors.push({ r: nr, c: nc });
+            }
+        }
+        return neighbors;
+    }
+
+    public snapToGrid(position: THREE.Vector3): THREE.Vector3 {
+        const gridPos = this.getGridPosition(position);
+        if (!gridPos) return position.clone();
+        const snapped = this.getWorldPosition(gridPos.r, gridPos.c);
+        snapped.y = position.y;
+        return snapped;
     }
 
     private buildGridLabels() {

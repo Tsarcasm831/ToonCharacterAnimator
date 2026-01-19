@@ -1,7 +1,20 @@
 
 import * as THREE from 'three';
 
+import { EntityStats } from '../../types';
+
 export class PlayerStatusHandler {
+    health: number = 120;
+    maxHealth: number = 120;
+    chakra: number = 60;
+    maxChakra: number = 60;
+    strength: number = 12;
+    dexterity: number = 12;
+    defense: number = 10;
+    evasion: number = 8;
+    damage: number = 15;
+    soak: number = 2;
+
     isDead: boolean = false;
     deathTime: number = 0;
     deathVariation = { side: 1, twist: 0, fallDir: 1, stumbleDir: 0 };
@@ -30,5 +43,20 @@ export class PlayerStatusHandler {
             // Reset rotation to upright (keep Y rotation)
             mesh.rotation.set(0, mesh.rotation.y, 0);
         }
+    }
+
+    getStats(): EntityStats {
+        return {
+            health: this.health,
+            maxHealth: this.maxHealth,
+            chakra: this.chakra,
+            maxChakra: this.maxChakra,
+            strength: this.strength,
+            dexterity: this.dexterity,
+            defense: this.defense,
+            evasion: this.evasion,
+            damage: this.damage,
+            soak: this.soak
+        };
     }
 }

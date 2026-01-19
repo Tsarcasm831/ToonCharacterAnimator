@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import Scene from './components/Scene.tsx';
-import { PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest, InventoryItem, QuestStatus } from './types.ts';
+import CombatScene from './components/CombatScene.tsx';
+import { EntityStats, PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest, InventoryItem, QuestStatus } from './types.ts';
 import { Header } from './components/ui/Header.tsx';
 import { InteractionOverlay } from './components/ui/InteractionOverlay.tsx';
 import { Hotbar } from './components/ui/Hotbar.tsx';
@@ -15,8 +16,8 @@ import { MainMenu } from './components/ui/MainMenu.tsx';
 import { GameHUD } from './components/ui/GameHUD.tsx';
 import { CombatLogEntry } from './components/ui/CombatLog.tsx';
 import LoadingScreen from './components/ui/LoadingScreen.tsx';
-import { ModelExporter } from './game/ModelExporter.ts';
-import { Game } from './game/Game.ts';
+import { ModelExporter } from './game/core/ModelExporter.ts';
+import { Game } from './game/core/Game.ts';
 import { StructureType } from './game/builder/BuildingParts.ts';
 import { CLASS_STATS } from './data/stats.ts';
 import * as THREE from 'three';
@@ -141,6 +142,10 @@ const App: React.FC = () => {
   const [playerPosForMap, setPlayerPosForMap] = useState(new THREE.Vector3());
   
   const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
+  const [statsForModal, setStatsForModal] = useState<EntityStats | null>(null);
+  const [statsUnitName, setStatsUnitName] = useState<string>('Hero');
+  const [selectedUnitStats, setSelectedUnitStats] = useState<EntityStats>(config.stats);
+
   const [dialogue, setDialogue] = useState<string | null>(null);
 
   const gameInstance = useRef<Game | null>(null);
@@ -382,6 +387,14 @@ const App: React.FC = () => {
       if (startInCombat) {
           setActiveScene('combat');
       }
+      // Spawn a spider for testing
+      setTimeout(() => {
+          if (gameInstance.current) {
+              const playerPos = gameInstance.current['player'].position;
+              const spawnPos = playerPos.clone().add(new THREE.Vector3(5, 0, 5));
+              gameInstance.current['entities'].spawnAnimalGroup('spider', 1, gameInstance.current['environment'], spawnPos);
+          }
+      }, 2000);
   };
 
   const handleEnvironmentReady = () => {
@@ -403,41 +416,99 @@ const App: React.FC = () => {
       
       {gameState !== 'MENU' && (
         <div className="absolute inset-0 z-0">
-            <Scene 
-            key={activeScene}
-            activeScene={activeScene}
-            config={config} 
-            manualInput={manualInput} 
-            initialInventory={inventory}
-            onInventoryUpdate={setInventory} 
-            onSlotSelect={setSelectedSlot} 
-            onInteractionUpdate={handleInteractionUpdate}
-            onGameReady={(g) => {
-                gameInstance.current = g;
-                g['inputManager'].onToggleInventory = toggleInventory;
-                g['inputManager'].onToggleKeybinds = toggleKeybinds;
-                g['inputManager'].onToggleQuestLog = toggleQuestLog;
-                g.onBuilderToggle = (active) => setIsBuilderMode(active);
-                g.onBiomeUpdate = (b) => setCurrentBiome(b);
-                g.onDialogueTrigger = (content) => setDialogue(content);
-                g.onTradeTrigger = () => setIsTradeOpen(true);
-                g.onShopkeeperTrigger = () => setIsShopkeeperChatOpen(true);
-                g.onForgeTrigger = () => setIsForgeOpen(true);
-                g.onRotationUpdate = (r) => setPlayerRotation(r);
-                g.onShowCharacterStats = () => setIsCharacterStatsOpen(true);
-                
-                // Add combat-specific listeners
-                g.onAttackHit = (type, count) => {
-                    addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
-                };
-            }}
-            onEnvironmentReady={handleEnvironmentReady}
-            onToggleWorldMap={handleToggleWorldMap}
-            onToggleQuestLog={toggleQuestLog}
-            controlsDisabled={isHUDDisabled}
-            showGrid={showGrid}
-            isCombatActive={isCombatActive}
-            />
+            {activeScene === 'combat' ? (
+                <CombatScene 
+                    config={config}
+                    manualInput={manualInput}
+                    bench={bench}
+                    onGameReady={(g) => {
+                        gameInstance.current = g;
+                        g['inputManager'].onToggleInventory = toggleInventory;
+                        g['inputManager'].onToggleKeybinds = toggleKeybinds;
+                        g['inputManager'].onToggleQuestLog = toggleQuestLog;
+                        g.onBuilderToggle = (active) => setIsBuilderMode(active);
+                        g.onBiomeUpdate = (b) => setCurrentBiome(b);
+                        g.onDialogueTrigger = (content) => setDialogue(content);
+                        g.onTradeTrigger = () => setIsTradeOpen(true);
+                        g.onShopkeeperTrigger = () => setIsShopkeeperChatOpen(true);
+                        g.onForgeTrigger = () => setIsForgeOpen(true);
+                        g.onRotationUpdate = (r) => setPlayerRotation(r);
+                        g.onShowCharacterStats = (stats, name) => {
+                            if (stats) setStatsForModal(stats);
+                            else setStatsForModal(config.stats);
+                            if (name) setStatsUnitName(name);
+                            setIsCharacterStatsOpen(true);
+                        };
+                        
+                        g.onUnitSelect = (stats) => {
+                            if (stats) setSelectedUnitStats(stats);
+                            else setSelectedUnitStats(config.stats);
+                        };
+                        
+                        // Add combat-specific listeners
+                        g.onAttackHit = (type, count) => {
+                            addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
+                        };
+                    }}
+                    onEnvironmentReady={handleEnvironmentReady}
+                    onInteractionUpdate={handleInteractionUpdate}
+                    onToggleQuestLog={toggleQuestLog}
+                    onRotationUpdate={(r) => setPlayerRotation(r)}
+                    onAttackHit={(type, count) => {
+                        addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
+                    }}
+                    isCombatActive={isCombatActive}
+                    setIsCombatActive={(active) => {
+                        setIsCombatActive(active);
+                        if (active) addCombatLog("Engagement Protocol Initiated.", "system");
+                    }}
+                    combatLog={combatLog}
+                    showGrid={showGrid}
+                    setShowGrid={setShowGrid}
+                    controlsDisabled={isHUDDisabled}
+                />
+            ) : (
+                <Scene 
+                    key={activeScene}
+                    activeScene={activeScene}
+                    config={config} 
+                    manualInput={manualInput} 
+                    initialInventory={inventory}
+                    onInventoryUpdate={setInventory} 
+                    onSlotSelect={setSelectedSlot} 
+                    onInteractionUpdate={handleInteractionUpdate}
+                    onGameReady={(g) => {
+                        gameInstance.current = g;
+                        g['inputManager'].onToggleInventory = toggleInventory;
+                        g['inputManager'].onToggleKeybinds = toggleKeybinds;
+                        g['inputManager'].onToggleQuestLog = toggleQuestLog;
+                        g.onBuilderToggle = (active) => setIsBuilderMode(active);
+                        g.onBiomeUpdate = (b) => setCurrentBiome(b);
+                        g.onDialogueTrigger = (content) => setDialogue(content);
+                        g.onTradeTrigger = () => setIsTradeOpen(true);
+                        g.onShopkeeperTrigger = () => setIsShopkeeperChatOpen(true);
+                        g.onForgeTrigger = () => setIsForgeOpen(true);
+                        g.onRotationUpdate = (r) => setPlayerRotation(r);
+                        g.onShowCharacterStats = (stats, name) => {
+                            if (stats) setStatsForModal(stats);
+                            else setStatsForModal(config.stats);
+                            if (name) setStatsUnitName(name);
+                            setIsCharacterStatsOpen(true);
+                        };
+                        
+                        // Add combat-specific listeners
+                        g.onAttackHit = (type, count) => {
+                            addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
+                        };
+                    }}
+                    onEnvironmentReady={handleEnvironmentReady}
+                    onToggleWorldMap={handleToggleWorldMap}
+                    onToggleQuestLog={toggleQuestLog}
+                    controlsDisabled={isHUDDisabled}
+                    showGrid={showGrid}
+                    isCombatActive={isCombatActive}
+                />
+            )}
         </div>
       )}
 
@@ -496,27 +567,29 @@ const App: React.FC = () => {
 
       {gameState === 'PLAYING' && (
         <>
-            <GameHUD 
-                activeScene={activeScene}
-                currentBiome={currentBiome}
-                playerRotation={playerRotation}
-                inventory={inventory}
-                bench={bench}
-                selectedSlot={selectedSlot}
-                onSelectSlot={setSelectedSlot}
-                interactionText={interactionText}
-                interactionProgress={progress}
-                showGrid={showGrid}
-                setShowGrid={setShowGrid}
-                isCombatActive={isCombatActive}
-                setIsCombatActive={(active) => {
-                    setIsCombatActive(active);
-                    if (active) addCombatLog("Engagement Protocol Initiated.", "system");
-                }}
-                stats={config.stats}
-                isFemale={config.bodyType === 'female'}
-                combatLog={combatLog}
-            />
+            {activeScene !== 'combat' && (
+                <GameHUD 
+                    activeScene={activeScene}
+                    currentBiome={currentBiome}
+                    playerRotation={playerRotation}
+                    inventory={inventory}
+                    bench={bench}
+                    selectedSlot={selectedSlot}
+                    onSelectSlot={setSelectedSlot}
+                    interactionText={interactionText}
+                    interactionProgress={progress}
+                    showGrid={showGrid}
+                    setShowGrid={setShowGrid}
+                    isCombatActive={isCombatActive}
+                    setIsCombatActive={(active) => {
+                        setIsCombatActive(active);
+                        if (active) addCombatLog("Engagement Protocol Initiated.", "system");
+                    }}
+                    stats={activeScene === 'combat' ? selectedUnitStats : config.stats}
+                    isFemale={config.bodyType === 'female'}
+                    combatLog={combatLog}
+                />
+            )}
 
             <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-4">
                 <div className="relative">
@@ -563,9 +636,9 @@ const App: React.FC = () => {
                 {isKeybindsOpen && <KeybindsModal isOpen={isKeybindsOpen} onClose={() => setIsKeybindsOpen(false)} />}
                 {isWorldMapOpen && <WorldMapModal isOpen={isWorldMapOpen} onClose={() => setIsWorldMapOpen(false)} playerPos={playerPosForMap} />}
                 {isQuestLogOpen && <QuestLogModal isOpen={isQuestLogOpen} onClose={() => setIsQuestLogOpen(false)} quests={quests} onClaimReward={claimQuestReward} />}
-                {isSpawnModalOpen && <SpawnAnimalsModal isOpen={isSpawnModalOpen} onClose={() => setIsSpawnModalOpen(false)} onSpawn={handleSpawnAnimal} />}
-                {isEnemiesModalOpen && <EnemiesModal isOpen={isEnemiesModalOpen} onClose={() => setIsEnemiesModalOpen(false)} />}
-                {isCharacterStatsOpen && <CharacterStatsModal isOpen={isCharacterStatsOpen} onClose={() => setIsCharacterStatsOpen(false)} config={config} />}
+                {isSpawnModalOpen && <SpawnAnimalsModal isOpen={isSpawnModalOpen} onClose={() => { setIsSpawnModalOpen(false); if(gameInstance.current) gameInstance.current['player'].isTalking = false; }} onSpawn={handleSpawnAnimal} />}
+                {isEnemiesModalOpen && <EnemiesModal isOpen={isEnemiesModalOpen} onClose={() => { setIsEnemiesModalOpen(false); if(gameInstance.current) gameInstance.current['player'].isTalking = false; }} />}
+                {isCharacterStatsOpen && <CharacterStatsModal isOpen={isCharacterStatsOpen} onClose={() => setIsCharacterStatsOpen(false)} stats={statsForModal || config.stats} name={statsUnitName} bodyType={config.bodyType} />}
             </Suspense>
         </>
       )}

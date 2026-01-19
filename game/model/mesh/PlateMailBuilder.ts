@@ -2,10 +2,10 @@
 import * as THREE from 'three';
 import { PlayerConfig } from '../../../types';
 
-const METAL_COLOR = '#b0bec5'; // Polished Steel
-const BRASS_COLOR = '#e6c35c'; // Pale Gold/Brass
-const LEATHER_COLOR = '#3e2723';
-const DARK_METAL = '#546e7a';
+const METAL_COLOR = '#8a9197';
+const METAL_DARK = '#5a6066';
+const LEATHER_LACING = '#6b3a2a';
+const BELT_LEATHER = '#4a3020';
 
 export class PlateMailBuilder {
     static build(parts: any, config: PlayerConfig) {
@@ -15,372 +15,282 @@ export class PlateMailBuilder {
         // --- MATERIALS ---
         const metalMat = new THREE.MeshStandardMaterial({
             color: METAL_COLOR,
-            metalness: 0.9,
-            roughness: 0.3,
-            flatShading: false,
+            metalness: 0.85,
+            roughness: 0.35,
         });
 
-        const darkMetalMat = new THREE.MeshStandardMaterial({
-            color: DARK_METAL,
+        const metalDarkMat = new THREE.MeshStandardMaterial({
+            color: METAL_DARK,
             metalness: 0.8,
-            roughness: 0.5,
+            roughness: 0.4,
         });
 
-        const brassMat = new THREE.MeshStandardMaterial({
-            color: BRASS_COLOR,
-            metalness: 1.0,
-            roughness: 0.2,
-            emissive: 0x443300,
-            emissiveIntensity: 0.2
-        });
-
-        const leatherMat = new THREE.MeshStandardMaterial({
-            color: LEATHER_COLOR,
+        const lacingMat = new THREE.MeshStandardMaterial({
+            color: LEATHER_LACING,
             roughness: 0.9,
             metalness: 0.0
         });
 
-        // Shared Geometry
-        const rivetGeo = new THREE.SphereGeometry(0.012, 8, 8);
+        const beltMat = new THREE.MeshStandardMaterial({
+            color: BELT_LEATHER,
+            roughness: 0.85,
+            metalness: 0.0
+        });
 
-        // 1. MAIN TORSO GROUP
-        const torsoRadiusTop = 0.31;
+        // --- DIMENSIONS (matching ShirtBuilder) ---
+        const torsoRadiusTop = 0.32;
+        const torsoRadiusBottom = 0.28;
+        const torsoDepthScale = 0.70;
         const torsoHeight = 0.54;
-        const torsoDepthScale = 0.72;
 
-        const torsoGroup = new THREE.Group();
-        torsoGroup.position.y = parts.torso?.position?.y ?? 0.38;
-        parts.torsoContainer.add(torsoGroup);
-        createdMeshes.push(torsoGroup);
-        refs.torso = torsoGroup;
+        // --- MAIN CUIRASS GROUP ---
+        const cuirassGroup = new THREE.Group();
+        cuirassGroup.position.y = parts.torso?.position?.y ?? 0.38;
+        parts.torsoContainer.add(cuirassGroup);
+        createdMeshes.push(cuirassGroup);
+        refs.torso = cuirassGroup;
 
-        // --- A. GORGET (Neck Protection) ---
-        const gorgetGeo = new THREE.CylinderGeometry(0.12, 0.16, 0.12, 16, 1, true);
-        const gorget = new THREE.Mesh(gorgetGeo, brassMat); // Gold collar
-        gorget.position.y = torsoHeight / 2 + 0.08;
-        gorget.castShadow = true;
-        torsoGroup.add(gorget);
-        createdMeshes.push(gorget);
+        // --- A. MAIN CHEST PLATE (Front & Back as one piece) ---
+        const chestGeo = new THREE.CylinderGeometry(
+            torsoRadiusTop, 
+            torsoRadiusBottom, 
+            torsoHeight * 0.85, 
+            32, 
+            8
+        );
+        chestGeo.scale(1, 1, torsoDepthScale);
 
-        // --- B. CUIRASS (Chest Plate) ---
-        const chestH = 0.35;
-        // More angular chest shape
-        const chestGeo = new THREE.CylinderGeometry(0.34, 0.28, chestH, 4, 1); 
-        chestGeo.scale(1, 1, 0.6); // Flatten depth
-        chestGeo.rotateY(Math.PI / 4); // Turn so flat side faces forward/back? No, point faces forward.
-        // Actually, cylinder(4) gives a square. rotated 45deg gives diamond.
-        // We want a slight point in front.
-        
-        // Let's use a sculpted Box instead for the main plate
-        const plateGeo = new THREE.BoxGeometry(0.6, chestH, 0.4, 4, 4, 2);
-        const pPos = plateGeo.attributes.position;
+        // Sculpt the chest plate
+        const pos = chestGeo.attributes.position;
         const v = new THREE.Vector3();
-        for(let i=0; i<pPos.count; i++) {
-            v.fromBufferAttribute(pPos, i);
+        for (let i = 0; i < pos.count; i++) {
+            v.fromBufferAttribute(pos, i);
             
-            // Taper waist
-            const t = 0.5 - (v.y / chestH); // 0 (top) to 1 (bottom)
-            v.x *= (1.0 - t * 0.25);
-            v.z *= (1.0 - t * 0.15);
-
-            // Barrel chest curve
-            const xNorm = (v.x / 0.3);
-            v.z += (1.0 - Math.abs(xNorm)) * 0.12; 
-
-            // Pectoral definition
-            if (v.z > 0 && v.y > 0) {
-                 v.z += 0.03;
+            // Add chest curve (barrel shape)
+            if (v.z > 0) {
+                const heightFactor = (v.y + torsoHeight * 0.425) / (torsoHeight * 0.85);
+                const chestBulge = Math.sin(heightFactor * Math.PI) * 0.04;
+                v.z += chestBulge;
             }
-
-            pPos.setXYZ(i, v.x, v.y, v.z);
+            
+            // Slight taper at sides for lacing area
+            const sideAngle = Math.atan2(v.z, v.x);
+            if (Math.abs(sideAngle) > Math.PI * 0.35 && Math.abs(sideAngle) < Math.PI * 0.65) {
+                v.x *= 0.92;
+            }
+            
+            pos.setXYZ(i, v.x, v.y, v.z);
         }
-        plateGeo.computeVertexNormals();
+        chestGeo.computeVertexNormals();
 
-        const chestPlate = new THREE.Mesh(plateGeo, metalMat);
-        chestPlate.position.y = 0.12;
+        const chestPlate = new THREE.Mesh(chestGeo, metalMat);
+        chestPlate.position.y = 0.04;
         chestPlate.castShadow = true;
-        torsoGroup.add(chestPlate);
+        cuirassGroup.add(chestPlate);
         createdMeshes.push(chestPlate);
 
-        // --- C. EAGLE CREST (Procedural Emblem) ---
-        const crestGroup = new THREE.Group();
-        crestGroup.position.set(0, 0.15, 0.22); // Front of chest
-        // Curve to match chest
-        crestGroup.rotation.x = -0.15;
-        torsoGroup.add(crestGroup);
-        
-        // 1. Eagle Head
-        const eHead = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.05, 0.04), brassMat);
-        eHead.position.set(0.02, 0.08, 0);
-        eHead.rotation.z = -0.2;
-        crestGroup.add(eHead);
-        
-        // Beak
-        const eBeak = new THREE.Mesh(new THREE.ConeGeometry(0.015, 0.05, 4), brassMat);
-        eBeak.rotation.z = -1.5;
-        eBeak.position.set(0.05, 0.08, 0);
-        crestGroup.add(eBeak);
-
-        // 2. Wings (Fan shape)
-        const wingGeo = new THREE.BoxGeometry(0.02, 0.12, 0.01);
-        wingGeo.translate(0, 0.06, 0); // Pivot at base
-        
-        for(let side of [-1, 1]) {
-            const wingRoot = new THREE.Group();
-            wingRoot.position.set(side * 0.03, 0.02, 0);
-            // Rotate group to flair up
-            wingRoot.rotation.z = side * 0.4; 
-            crestGroup.add(wingRoot);
-
-            // Feathers
-            for(let i=0; i<4; i++) {
-                const feather = new THREE.Mesh(wingGeo, brassMat);
-                feather.rotation.z = side * (i * 0.4 + 1.2); // Fan out
-                feather.scale.set(1, 1.0 - (i*0.1), 1);
-                feather.position.z = -i * 0.005;
-                wingRoot.add(feather);
-            }
-        }
-        
-        // 3. Body/Tail
-        const eBody = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.15, 4), brassMat);
-        eBody.rotation.x = Math.PI; // Point down
-        eBody.scale.set(1, 1, 0.5);
-        eBody.position.y = -0.05;
-        crestGroup.add(eBody);
-
-        // --- D. ABDOMEN (Plackart/Faulds) ---
-        // Segmented overlapping plates
-        const numSegs = 4;
-        const segH = 0.08;
-        
-        for(let i=0; i<numSegs; i++) {
-            // Tapering downwards
-            const r = 0.29 - (i * 0.01);
-            const segGeo = new THREE.CylinderGeometry(r, r, segH, 32, 1, true, -Math.PI*0.8, Math.PI*1.6);
-            segGeo.scale(1, 1, torsoDepthScale);
+        // --- B. SIDE LACING (Left and Right) ---
+        const createSideLacing = (side: number) => {
+            const lacingGroup = new THREE.Group();
+            const numLaces = 5;
+            const lacingHeight = torsoHeight * 0.6;
+            const startY = 0.12;
             
-            const seg = new THREE.Mesh(segGeo, metalMat);
-            seg.position.y = -0.12 - (i * (segH * 0.7)); // Overlap
-            seg.castShadow = true;
-            
-            // Add Gold Trim to bottom edge
-            const trimGeo = new THREE.TorusGeometry(r, 0.008, 4, 32, Math.PI*1.6);
-            trimGeo.scale(1, 1, torsoDepthScale);
-            const trim = new THREE.Mesh(trimGeo, brassMat);
-            trim.rotation.x = Math.PI/2;
-            trim.rotation.z = -Math.PI*0.8; // Align opening
-            trim.position.y = -segH/2;
-            seg.add(trim);
-
-            torsoGroup.add(seg);
-            createdMeshes.push(seg);
-        }
-
-        // --- E. PAULDRONS (Shoulder Guards) ---
-        // Large, layered, winged style
-        const createPauldron = (isLeft: boolean) => {
-            const pGroup = new THREE.Group();
-            
-            // 3 Layers of plates
-            const layers = 3;
-            for(let i=0; i<layers; i++) {
-                // Shape: A section of a cone/sphere flattened
-                const size = 0.28 - (i * 0.04);
-                const plateGeo = new THREE.CylinderGeometry(0.05, size, 0.3, 16, 1, true, 0, Math.PI);
-                // Bend/Flatten
-                const pPos = plateGeo.attributes.position;
-                for(let k=0; k<pPos.count; k++){
-                    v.fromBufferAttribute(pPos, k);
-                    // Curve out
-                    v.z += Math.cos(v.x * 3) * 0.05;
-                    pPos.setXYZ(k, v.x, v.y, v.z);
+            for (let i = 0; i < numLaces; i++) {
+                const y = startY - (i * lacingHeight / (numLaces - 1));
+                
+                // Lace cross pattern
+                const laceGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.06, 6);
+                laceGeo.rotateZ(Math.PI / 2);
+                
+                const lace = new THREE.Mesh(laceGeo, lacingMat);
+                lace.position.set(side * 0.28, y, 0);
+                lace.rotation.y = side * 0.3;
+                lacingGroup.add(lace);
+                
+                // Lace holes (dark metal rings)
+                for (let h of [-1, 1]) {
+                    const holeGeo = new THREE.TorusGeometry(0.012, 0.004, 6, 12);
+                    const hole = new THREE.Mesh(holeGeo, metalDarkMat);
+                    hole.position.set(side * (0.26 + h * 0.025), y, 0.01);
+                    hole.rotation.y = Math.PI / 2 + side * 0.3;
+                    lacingGroup.add(hole);
                 }
-                plateGeo.computeVertexNormals();
-                plateGeo.scale(1, 1, 0.6);
-                plateGeo.rotateZ(Math.PI/2); // Lay flat-ish
-                plateGeo.rotateX(Math.PI); // Convex up
-
-                const plate = new THREE.Mesh(plateGeo, metalMat);
-                // Offset layers
-                plate.position.y = 0.08 - (i * 0.06);
-                plate.position.x = (i * 0.05); // cascading out
-                plate.rotation.z = (i * 0.1); 
-
-                pGroup.add(plate);
-
-                // Gold Trim
-                const trimPath = new THREE.Path();
-                // Approximate the arc
-                trimPath.absarc(0, 0, size, 0, Math.PI, false);
-                const pts = trimPath.getPoints(20);
-                const trimLineGeo = new THREE.BufferGeometry().setFromPoints(pts);
-                // Create a tube along the edge? A torus segment is easier if shape aligns
-                // Let's use thick Line or thin box along edge. 
-                // Creating a TubeGeometry from path is best for visual.
-                const tubeGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p.x, -0.15, p.y * 0.6))), 12, 0.015, 6, false);
-                // Re-orient to match the cylinder geometry transform
-                // Cylinder was rotated Z PI/2 then X PI.
-                // It's tricky to match perfectly.
-                // Simple alternative: Torus segment
-                const trimTorus = new THREE.Mesh(new THREE.TorusGeometry(size, 0.015, 6, 16, Math.PI), brassMat);
-                trimTorus.scale.set(1, 0.6, 1);
-                trimTorus.rotation.x = Math.PI/2;
-                trimTorus.position.x = 0.15; // End of cylinder
-                
-                // Manual adjustment to align with the flared cylinder edge
-                trimTorus.position.set(0, 0, 0);
-                trimTorus.rotation.set(Math.PI/2, Math.PI/2, 0); 
-                // Actually the cylinder lies along X axis. Top edge is at x=+0.15 (height/2).
-                
-                // Let's just create a scaled copy of the plate, slightly larger, with gold material, behind it? 
-                // Or a thin strip.
-                // Let's stick to the reference look: Distinct gold border.
-                // Use a slightly larger mesh with BackSide? No, just a torus arc manually placed.
-                
-                const rim = new THREE.Mesh(new THREE.TorusGeometry(size, 0.015, 8, 20, Math.PI), brassMat);
-                rim.scale.set(1, 0.6, 1);
-                rim.rotation.x = -Math.PI/2;
-                rim.rotation.z = Math.PI/2;
-                rim.position.x = 0.15; // Align with outer edge
-                plate.add(rim);
             }
             
-            // Top Round Guard (The joint cover)
-            const topGuard = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16, 0, Math.PI*2, 0, Math.PI*0.5), metalMat);
-            topGuard.scale.set(1, 0.7, 1);
-            topGuard.position.set(-0.05, 0.15, 0);
-            pGroup.add(topGuard);
-            
-            // Vertical Ridge on Top Guard
-            const ridge = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.15, 0.22), brassMat);
-            ridge.position.set(-0.05, 0.18, 0);
-            pGroup.add(ridge);
-
-            return pGroup;
+            return lacingGroup;
         };
 
-        const lPauldron = createPauldron(true);
-        lPauldron.position.set(0.18, 0.08, 0);
-        lPauldron.rotation.z = -0.3; // Angle down
-        parts.leftShoulderMount.add(lPauldron);
-        createdMeshes.push(lPauldron);
+        const leftLacing = createSideLacing(-1);
+        cuirassGroup.add(leftLacing);
+        createdMeshes.push(leftLacing);
 
-        const rPauldron = createPauldron(false);
-        rPauldron.position.set(-0.18, 0.08, 0);
-        rPauldron.rotation.z = 0.3;
-        rPauldron.scale.x = -1; // Mirror
-        parts.rightShoulderMount.add(rPauldron);
-        createdMeshes.push(rPauldron);
+        const rightLacing = createSideLacing(1);
+        cuirassGroup.add(rightLacing);
+        createdMeshes.push(rightLacing);
 
-        // --- F. TASSETS (Thigh Guards) ---
-        // Attached to the bottom of the torso group
-        const createTasset = () => {
-            const tGroup = new THREE.Group();
-            const tW = 0.22;
-            const tH = 0.35;
+        // --- C. SHOULDER PAULDRONS (Short caps) ---
+        const createPauldron = (side: number) => {
+            const pauldronGroup = new THREE.Group();
             
-            // Shield-like shape
-            const shape = new THREE.Shape();
-            shape.moveTo(-tW/2, 0);
-            shape.lineTo(tW/2, 0);
-            shape.lineTo(tW/2, -tH * 0.7);
-            shape.quadraticCurveTo(0, -tH, -tW/2, -tH * 0.7);
+            // Main shoulder cap - hemisphere
+            const capGeo = new THREE.SphereGeometry(0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55);
+            capGeo.scale(1.1, 0.7, 0.9);
             
-            const tGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.03, bevelEnabled: true, bevelSize: 0.01, bevelThickness: 0.01 });
-            const tasset = new THREE.Mesh(tGeo, metalMat);
-            tGroup.add(tasset);
-
-            // Gold Trim Center
-            const trim = new THREE.Mesh(new THREE.BoxGeometry(0.03, tH, 0.04), brassMat);
-            trim.position.set(0, -tH/2, 0.01);
-            tGroup.add(trim);
+            const cap = new THREE.Mesh(capGeo, metalMat);
+            cap.rotation.z = side * 0.25;
+            cap.castShadow = true;
+            pauldronGroup.add(cap);
             
-            return tGroup;
+            // Lower rim/edge
+            const rimGeo = new THREE.TorusGeometry(0.13, 0.015, 8, 24, Math.PI * 1.2);
+            rimGeo.scale(1.1, 0.9, 1);
+            const rim = new THREE.Mesh(rimGeo, metalDarkMat);
+            rim.rotation.x = Math.PI / 2;
+            rim.rotation.z = -Math.PI * 0.1;
+            rim.position.y = -0.06;
+            pauldronGroup.add(rim);
+            
+            return pauldronGroup;
         };
 
-        for(let side of [-1, 1]) {
-            const tasset = createTasset();
-            // Position at hips
-            tasset.position.set(side * 0.12, -0.4, 0.18); 
-            // Angle to cover thigh
-            tasset.rotation.x = -0.1; 
-            tasset.rotation.z = side * -0.1;
-            tasset.rotation.y = side * 0.2;
-            
-            torsoGroup.add(tasset);
-            createdMeshes.push(tasset);
-            
-            // Leather strap connecting tasset
-            const strap = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, 0.01), leatherMat);
-            strap.position.set(side * 0.12, -0.38, 0.17);
-            strap.rotation.x = -0.1;
-            torsoGroup.add(strap);
+        // Attach pauldrons to shoulder mounts
+        if (parts.leftShoulderMount) {
+            const leftPauldron = createPauldron(-1);
+            leftPauldron.position.set(0.06, 0.04, 0);
+            parts.leftShoulderMount.add(leftPauldron);
+            createdMeshes.push(leftPauldron);
         }
 
-        // --- G. ARMS (Vambraces & Gauntlets) ---
-        const createArmPlate = (isUpper: boolean) => {
-            const rad = isUpper ? 0.085 : 0.065;
-            const len = isUpper ? 0.16 : 0.16;
-            const geo = new THREE.CylinderGeometry(rad, rad * 0.9, len, 16, 1, true);
-            geo.translate(0, -len / 2, 0);
-            const mesh = new THREE.Mesh(geo, metalMat);
-            mesh.castShadow = true;
+        if (parts.rightShoulderMount) {
+            const rightPauldron = createPauldron(1);
+            rightPauldron.position.set(-0.06, 0.04, 0);
+            parts.rightShoulderMount.add(rightPauldron);
+            createdMeshes.push(rightPauldron);
+        }
+
+        // --- D. BELT / WAIST BAND ---
+        const beltGeo = new THREE.CylinderGeometry(
+            torsoRadiusBottom + 0.01, 
+            torsoRadiusBottom + 0.015, 
+            0.08, 
+            24
+        );
+        beltGeo.scale(1, 1, torsoDepthScale);
+        const belt = new THREE.Mesh(beltGeo, beltMat);
+        belt.position.y = -0.2;
+        belt.castShadow = true;
+        cuirassGroup.add(belt);
+        createdMeshes.push(belt);
+
+        // Belt buckle
+        const buckleGeo = new THREE.BoxGeometry(0.06, 0.05, 0.02);
+        const buckle = new THREE.Mesh(buckleGeo, metalDarkMat);
+        buckle.position.set(0, -0.2, torsoRadiusBottom * torsoDepthScale + 0.01);
+        cuirassGroup.add(buckle);
+        createdMeshes.push(buckle);
+
+        // --- E. TASSETS (Hanging hip plates) ---
+        const createTasset = () => {
+            const tassetGroup = new THREE.Group();
             
-            // Gold trim at cuffs
-            const cuff = new THREE.Mesh(new THREE.TorusGeometry(rad * 0.9, 0.008, 6, 16), brassMat);
-            cuff.rotation.x = Math.PI / 2;
-            cuff.position.y = -len + 0.01;
-            mesh.add(cuff);
+            // Main plate - rounded rectangle shape
+            const plateShape = new THREE.Shape();
+            const tw = 0.08, th = 0.12;
+            const radius = 0.02;
             
-            if (isUpper) {
-                const topCuff = new THREE.Mesh(new THREE.TorusGeometry(rad, 0.008, 6, 16), brassMat);
-                topCuff.rotation.x = Math.PI / 2;
-                topCuff.position.y = -0.01;
-                mesh.add(topCuff);
-            }
+            plateShape.moveTo(-tw + radius, 0);
+            plateShape.lineTo(tw - radius, 0);
+            plateShape.quadraticCurveTo(tw, 0, tw, -radius);
+            plateShape.lineTo(tw, -th + radius);
+            plateShape.quadraticCurveTo(tw, -th, tw - radius, -th);
+            plateShape.lineTo(-tw + radius, -th);
+            plateShape.quadraticCurveTo(-tw, -th, -tw, -th + radius);
+            plateShape.lineTo(-tw, -radius);
+            plateShape.quadraticCurveTo(-tw, 0, -tw + radius, 0);
+
+            const plateGeo = new THREE.ExtrudeGeometry(plateShape, {
+                depth: 0.025,
+                bevelEnabled: true,
+                bevelSize: 0.008,
+                bevelThickness: 0.005,
+                bevelSegments: 2
+            });
             
-            return mesh;
+            const plate = new THREE.Mesh(plateGeo, metalMat);
+            plate.castShadow = true;
+            tassetGroup.add(plate);
+            
+            // Hanging ring/strap connection
+            const ringGeo = new THREE.TorusGeometry(0.015, 0.005, 6, 12);
+            const ring = new THREE.Mesh(ringGeo, beltMat);
+            ring.position.set(0, 0.02, 0.012);
+            tassetGroup.add(ring);
+            
+            return tassetGroup;
+        };
+
+        // Front tassets (2)
+        for (let side of [-1, 1]) {
+            const tasset = createTasset();
+            tasset.position.set(side * 0.1, -0.26, torsoRadiusBottom * torsoDepthScale - 0.02);
+            tasset.rotation.x = -0.15;
+            cuirassGroup.add(tasset);
+            createdMeshes.push(tasset);
+        }
+
+        // Side tassets (2)
+        for (let side of [-1, 1]) {
+            const tasset = createTasset();
+            tasset.position.set(side * 0.24, -0.26, 0);
+            tasset.rotation.y = side * Math.PI / 2;
+            tasset.rotation.x = -0.1;
+            cuirassGroup.add(tasset);
+            createdMeshes.push(tasset);
+        }
+
+        // --- F. NECK GUARD (Simple collar) ---
+        const collarGeo = new THREE.CylinderGeometry(0.13, 0.15, 0.06, 16, 1, true);
+        const collar = new THREE.Mesh(collarGeo, metalDarkMat);
+        collar.position.y = torsoHeight * 0.42 + 0.04;
+        collar.castShadow = true;
+        cuirassGroup.add(collar);
+        createdMeshes.push(collar);
+
+        // --- G. ARM PROTECTION (Upper arm plates) ---
+        const createArmPlate = () => {
+            const armGeo = new THREE.CylinderGeometry(0.075, 0.07, 0.14, 12, 1, true);
+            armGeo.translate(0, -0.07, 0);
+            const arm = new THREE.Mesh(armGeo, metalMat);
+            arm.castShadow = true;
+            return arm;
         };
 
         [parts.rightArm, parts.leftArm].forEach(arm => {
             if (!arm) return;
-            const up = createArmPlate(true);
-            up.position.y = -0.02;
-            arm.add(up);
-            createdMeshes.push(up);
-            refs.sleeves.push(up);
+            const plate = createArmPlate();
+            plate.position.y = -0.02;
+            arm.add(plate);
+            createdMeshes.push(plate);
+            refs.sleeves.push(plate);
         });
 
-        [parts.rightForeArm, parts.leftForeArm].forEach((fore, index) => {
+        // --- H. FOREARM VAMBRACES ---
+        const createVambrace = () => {
+            const vamGeo = new THREE.CylinderGeometry(0.058, 0.052, 0.14, 12, 1, true);
+            vamGeo.translate(0, -0.07, 0);
+            const vam = new THREE.Mesh(vamGeo, metalMat);
+            vam.castShadow = true;
+            return vam;
+        };
+
+        [parts.rightForeArm, parts.leftForeArm].forEach(fore => {
             if (!fore) return;
-            const down = createArmPlate(false);
-            down.position.y = -0.08;
-            fore.add(down);
-            createdMeshes.push(down);
-            refs.sleeves.push(down);
-            
-            // Elbow Couter (Cup) - positioned at top of forearm (elbow joint)
-            const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12, 0, Math.PI*2, 0, Math.PI*0.5), metalMat);
-            elbow.position.set(0, 0.02, -0.03);
-            elbow.rotation.x = -Math.PI/2 - 0.3;
-            elbow.castShadow = true;
-            fore.add(elbow);
-            createdMeshes.push(elbow);
-            
-            // Elbow Spike
-            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.06, 8), brassMat);
-            spike.rotation.x = Math.PI/2;
-            spike.position.set(0, 0.04, 0);
-            elbow.add(spike);
-            
-            // Wrist guard
-            const wristGeo = new THREE.CylinderGeometry(0.055, 0.05, 0.04, 12, 1, true);
-            const wrist = new THREE.Mesh(wristGeo, metalMat);
-            wrist.position.y = -0.22;
-            wrist.castShadow = true;
-            fore.add(wrist);
-            createdMeshes.push(wrist);
+            const vambrace = createVambrace();
+            vambrace.position.y = -0.06;
+            fore.add(vambrace);
+            createdMeshes.push(vambrace);
+            refs.sleeves.push(vambrace);
         });
 
         return { meshes: createdMeshes, refs };

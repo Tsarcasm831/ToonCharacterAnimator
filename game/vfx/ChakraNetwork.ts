@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { PlayerModel } from '../PlayerModel';
+import { PlayerModel } from '../model/PlayerModel';
 
 const CHAKRA_VERTEX_SHADER = `
 varying vec2 vUv;

@@ -1,20 +1,18 @@
 
 import * as THREE from 'three';
-import { PlayerConfig, PlayerInput, OutfitType, DEFAULT_CONFIG } from '../types';
-import { PlayerModel } from './PlayerModel';
-import { PlayerAnimator } from './PlayerAnimator';
-import { PlayerPhysics } from './player/PlayerPhysics';
-import { PlayerCombat } from './player/PlayerCombat';
-import { PlayerInteraction } from './player/PlayerInteraction';
-import { PlayerDebug } from './player/PlayerDebug';
-import { ParticleManager } from './ParticleManager';
-import { Environment } from './Environment';
-import { ChakraNetwork } from './vfx/ChakraNetwork';
-
-// Sub-Handlers
-import { PlayerInventory } from './player/PlayerInventory';
-import { PlayerStatusHandler } from './player/PlayerStatusHandler';
-import { PlayerCameraHandler } from './player/PlayerCameraHandler';
+import { PlayerConfig, PlayerInput, OutfitType, DEFAULT_CONFIG } from '../../types';
+import { PlayerModel } from '../model/PlayerModel';
+import { PlayerAnimator } from '../animator/PlayerAnimator';
+import { PlayerPhysics } from './PlayerPhysics';
+import { PlayerCombat } from './PlayerCombat';
+import { PlayerInteraction } from './PlayerInteraction';
+import { PlayerDebug } from './PlayerDebug';
+import { ParticleManager } from '../managers/ParticleManager';
+import { Environment } from '../environment/Environment';
+import { ChakraNetwork } from '../vfx/ChakraNetwork';
+import { PlayerInventory } from './PlayerInventory';
+import { PlayerStatusHandler } from './PlayerStatusHandler';
+import { PlayerCameraHandler } from './PlayerCameraHandler';
 
 export class Player {
     scene: THREE.Scene;

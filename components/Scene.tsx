@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { Game } from "../game/Game";
+import { Game } from "../game/core/Game";
 import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
 
 interface SceneProps {

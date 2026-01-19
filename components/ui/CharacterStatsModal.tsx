@@ -1,17 +1,17 @@
-
 import React from 'react';
-import { PlayerConfig } from '../../types';
+import { EntityStats } from '../../types';
 
 interface CharacterStatsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    config: PlayerConfig;
+    stats: EntityStats;
+    name: string;
+    bodyType: string;
 }
 
-export const CharacterStatsModal: React.FC<CharacterStatsModalProps> = ({ isOpen, onClose, config }) => {
+export const CharacterStatsModal: React.FC<CharacterStatsModalProps> = ({ isOpen, onClose, stats, name, bodyType }) => {
     if (!isOpen) return null;
 
-    const stats = config.stats;
     const experience = 1540;
     const nextLevelXp = 2000;
     const level = 1;
@@ -23,8 +23,8 @@ export const CharacterStatsModal: React.FC<CharacterStatsModalProps> = ({ isOpen
                 <div className="p-6 border-b border-white/5 bg-gradient-to-r from-slate-900 to-slate-800">
                     <div className="flex justify-between items-start">
                         <div>
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Character Status</h2>
-                            <p className="text-blue-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Level {level} {config.bodyType === 'male' ? 'Hero' : 'Heroine'}</p>
+                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{name} Status</h2>
+                            <p className="text-blue-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Level {level} {bodyType === 'male' ? 'Hero' : 'Heroine'}</p>
                         </div>
                         <button 
                             onClick={onClose}

@@ -3,6 +3,7 @@ import { PlayerConfig } from '../../types';
 import { PlayerMaterials } from './PlayerMaterials';
 import { ShirtBuilder } from './mesh/ShirtBuilder';
 import { PantsBuilder } from './mesh/PantsBuilder';
+import { ShortsBuilder } from './mesh/ShortsBuilder';
 import { RobeBuilder } from './equipment/RobeBuilder';
 import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
@@ -33,6 +34,7 @@ export class BodyMorpher {
     // Track dynamic meshes
     private shirtMeshes: THREE.Object3D[] = [];
     private pantsMeshes: THREE.Object3D[] = [];
+    private shortsMeshes: THREE.Object3D[] = []; // Add shortsMeshes array
     private robeMeshes: THREE.Object3D[] = [];
     private apronMeshes: THREE.Object3D[] = [];
     private capeMeshes: THREE.Object3D[] = [];
@@ -40,6 +42,7 @@ export class BodyMorpher {
     private bracerMeshes: THREE.Object3D[] = [];
     private lastShirtConfigHash: string = '';
     private lastPantsConfigHash: string = '';
+    private lastShortsConfigHash: string = ''; // Add lastShortsConfigHash
     private lastRobeConfigHash: string = '';
     private lastApronConfigHash: string = '';
     private lastCapeConfigHash: string = '';
@@ -293,6 +296,7 @@ export class BodyMorpher {
         }
 
         this.updatePants(config);
+        this.updateShorts(config); // Call updateShorts
         this.updateShirt(config);
         
         // Update Abs Positioning & Scale in real-time (without rebuilding shirt)
@@ -386,6 +390,21 @@ export class BodyMorpher {
         this.pantsMeshes = [];
         const meshes = PantsBuilder.build(this.parts, config);
         if (meshes) this.pantsMeshes = meshes;
+    }
+
+    private updateShorts(config: PlayerConfig) {
+        const hash = `${config.outfit}_${config.equipment.shorts}_${config.pantsColor}`;
+        if (hash === this.lastShortsConfigHash) return;
+        this.lastShortsConfigHash = hash;
+
+        this.shortsMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if ((m as THREE.Mesh).geometry) (m as THREE.Mesh).geometry.dispose();
+        });
+        this.shortsMeshes = [];
+
+        const meshes = ShortsBuilder.build(this.parts, config);
+        if (meshes) this.shortsMeshes = meshes;
     }
 
     private updateRobe(config: PlayerConfig) {

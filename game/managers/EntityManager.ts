@@ -19,7 +19,16 @@ import { Horse } from '../entities/animal/tameable/Horse';
 import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
-import { Environment } from '../Environment';
+import { Cleric } from '../entities/npc/friendly/Cleric';
+import { Knight } from '../entities/npc/friendly/Knight';
+import { Paladin } from '../entities/npc/friendly/Paladin';
+import { Monk } from '../entities/npc/friendly/Monk';
+import { Ranger } from '../entities/npc/friendly/Ranger';
+import { Sentinel } from '../entities/npc/friendly/Sentinel';
+import { Berserker } from '../entities/npc/enemy/Berserker';
+import { Rogue } from '../entities/npc/enemy/Rogue';
+import { Warlock } from '../entities/npc/enemy/Warlock';
+import { Environment } from '../environment/Environment';
 import { CombatEnvironment } from '../environment/CombatEnvironment';
 import { PlayerConfig } from '../../types';
 
@@ -31,6 +40,15 @@ export class EntityManager {
     public blacksmith: Blacksmith;
     public shopkeeper: Shopkeeper;
     public guard: LowLevelCityGuard;
+    public clerics: Cleric[] = [];
+    public knights: Knight[] = [];
+    public paladins: Paladin[] = [];
+    public monks: Monk[] = [];
+    public rangers: Ranger[] = [];
+    public sentinels: Sentinel[] = [];
+    public berserkers: Berserker[] = [];
+    public rogues: Rogue[] = [];
+    public warlocks: Warlock[] = [];
     public assassin: Assassin;
     public archer: Archer;
     public mage: Mage;
@@ -94,7 +112,9 @@ export class EntityManager {
 
         [...this.bandits, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, 
          ...this.chickens, ...this.pigs, ...this.sheeps, ...this.spiders, 
-         ...this.lizards, ...this.horses].forEach(disposeEntity);
+         ...this.lizards, ...this.horses, ...this.clerics, ...this.knights,
+         ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
+         ...this.berserkers, ...this.rogues, ...this.warlocks].forEach(disposeEntity);
 
         this.bandits = [];
         this.bears = [];
@@ -107,32 +127,98 @@ export class EntityManager {
         this.spiders = [];
         this.lizards = [];
         this.horses = [];
+        this.clerics = [];
+        this.knights = [];
+        this.paladins = [];
+        this.monks = [];
+        this.rangers = [];
+        this.sentinels = [];
+        this.berserkers = [];
+        this.rogues = [];
+        this.warlocks = [];
     }
 
     spawnCombatEncounter(type: string, count: number, arena: CombatEnvironment | null) {
         if (!arena) return;
         
+        const occupied = new Set<string>();
+
+        // Spawn requested type
         for (let i = 0; i < count; i++) {
-            // Enemy side of the hex grid (rows 0-3)
-            const row = Math.floor(Math.random() * 2) + 1; // Row 1 or 2
-            const col = Math.floor(Math.random() * 4) + 2; // Middle columns
+            let row, col, key;
+            let attempts = 0;
+            do {
+                row = Math.floor(Math.random() * 2) + 1; // Row 1 or 2
+                col = Math.floor(Math.random() * 4) + 2; // Middle columns
+                key = `${row},${col}`;
+                attempts++;
+            } while (occupied.has(key) && attempts < 50);
             
-            const worldPos = new THREE.Vector3(
-                (col - 4) * 4, 
-                0, 
-                -(row + 1) * 4
-            );
-            
-            const snappedPos = arena.snapToGrid(worldPos);
+            occupied.add(key);
+            arena.setCellOccupied(row, col, true);
+            const snappedPos = arena.getWorldPosition(row, col);
 
             if (type.toLowerCase() === 'bandit') {
                 const bandit = new Bandit(this.scene, snappedPos);
-                bandit.rotationY = 0; // Face player
+                bandit.rotationY = 0;
                 this.bandits.push(bandit);
             } else {
                 this.spawnAnimalGroup(type, 1, null, snappedPos);
             }
         }
+
+        // Spawn "all the other enemies"
+        const enemyTypes = ['assassin', 'archer', 'mage', 'berserker', 'rogue', 'warlock'];
+        enemyTypes.forEach(enemyType => {
+            let row, col, key;
+            let attempts = 0;
+            do {
+                row = Math.floor(Math.random() * 3); // Rows 0-2 for enemies
+                col = Math.floor(Math.random() * 8);
+                key = `${row},${col}`;
+                attempts++;
+            } while (occupied.has(key) && attempts < 50);
+
+            occupied.add(key);
+            arena.setCellOccupied(row, col, true);
+            const pos = arena.getWorldPosition(row, col);
+
+            switch(enemyType) {
+                case 'assassin': this.assassin.position.copy(pos); break;
+                case 'archer': this.archer.position.copy(pos); break;
+                case 'mage': this.mage.position.copy(pos); break;
+                case 'berserker': this.berserkers.push(new Berserker(this.scene, pos)); break;
+                case 'rogue': this.rogues.push(new Rogue(this.scene, pos)); break;
+                case 'warlock': this.warlocks.push(new Warlock(this.scene, pos)); break;
+            }
+        });
+
+        // Spawn "all the friendlies (other than NPC and shopkeeper)"
+        const friendlyTypes = ['cleric', 'knight', 'paladin', 'monk', 'ranger', 'sentinel', 'guard'];
+        friendlyTypes.forEach(fType => {
+            let row, col, key;
+            let attempts = 0;
+            do {
+                row = Math.floor(Math.random() * 3) + 5; // Rows 5-7 for friendlies
+                col = Math.floor(Math.random() * 8);
+                key = `${row},${col}`;
+                attempts++;
+            } while (occupied.has(key) && attempts < 50);
+
+            occupied.add(key);
+            arena.setCellOccupied(row, col, true);
+            const pos = arena.getWorldPosition(row, col);
+
+            switch(fType) {
+                case 'cleric': this.clerics.push(new Cleric(this.scene, pos)); break;
+                case 'knight': this.knights.push(new Knight(this.scene, pos)); break;
+                case 'paladin': this.paladins.push(new Paladin(this.scene, pos)); break;
+                case 'monk': this.monks.push(new Monk(this.scene, pos)); break;
+                case 'ranger': this.rangers.push(new Ranger(this.scene, pos)); break;
+                case 'sentinel': this.sentinels.push(new Sentinel(this.scene, pos)); break;
+                case 'guard': this.guard.position.copy(pos); break;
+            }
+        });
     }
 
     spawnAnimalGroup(type: string, count: number, environment: Environment | null, spawnCenter: THREE.Vector3) {
@@ -267,7 +353,7 @@ export class EntityManager {
         } else if (entity instanceof Bandit) {
             entity.update(delta, environment as any, targets, skipAnimation);
         } else if (entity instanceof Wolf || entity instanceof Bear) {
-            entity.update(delta, environment as any, targets, onAttackHit, skipAnimation);
+            entity.update(delta, environment as any, targets, skipAnimation);
         } else if (entity.update) {
             entity.update(delta, environment as any, targets, skipAnimation);
         }
@@ -275,7 +361,22 @@ export class EntityManager {
 
     getEntitiesForScene(sceneName: string): any[] {
         if (sceneName === 'combat') {
-            return [...this.bandits];
+            return [
+                ...this.bandits,
+                ...this.clerics,
+                ...this.knights,
+                ...this.paladins,
+                ...this.monks,
+                ...this.rangers,
+                ...this.sentinels,
+                this.guard,
+                ...this.berserkers,
+                ...this.rogues,
+                ...this.warlocks,
+                this.assassin,
+                this.archer,
+                this.mage
+            ].filter(e => e !== null);
         } else if (sceneName === 'dev') {
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage,

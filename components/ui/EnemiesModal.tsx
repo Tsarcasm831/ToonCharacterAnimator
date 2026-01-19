@@ -4,7 +4,7 @@ import { Archer } from '../../game/entities/npc/enemy/Archer';
 import { Assassin } from '../../game/entities/npc/enemy/Assassin';
 import { Bandit } from '../../game/entities/npc/enemy/Bandit';
 import { Berserker } from '../../game/entities/npc/enemy/Berserker';
-import { Knight } from '../../game/entities/npc/enemy/Knight';
+import { Knight } from '../../game/entities/npc/friendly/Knight';
 import { Mage } from '../../game/entities/npc/enemy/Mage';
 import { Rogue } from '../../game/entities/npc/enemy/Rogue';
 import { Warlock } from '../../game/entities/npc/enemy/Warlock';
@@ -13,6 +13,16 @@ import { Ranger } from '../../game/entities/npc/friendly/Ranger';
 import { Monk } from '../../game/entities/npc/friendly/Monk';
 import { Cleric } from '../../game/entities/npc/friendly/Cleric';
 import { Sentinel } from '../../game/entities/npc/friendly/Sentinel';
+import { Wolf } from '../../game/entities/animal/aggressive/Wolf';
+import { Bear } from '../../game/entities/animal/aggressive/Bear';
+import { Spider } from '../../game/entities/animal/aggressive/Spider';
+import { Deer } from '../../game/entities/animal/neutral/Deer';
+import { Chicken } from '../../game/entities/animal/neutral/Chicken';
+import { Lizard } from '../../game/entities/animal/neutral/Lizard';
+import { Owl } from '../../game/entities/animal/neutral/Owl';
+import { Pig } from '../../game/entities/animal/neutral/Pig';
+import { Sheep } from '../../game/entities/animal/neutral/Sheep';
+import { Yeti } from '../../game/entities/animal/neutral/Yeti';
 import { EnemyPreview } from './EnemyPreview';
 
 interface EnemiesModalProps {
@@ -39,12 +49,25 @@ const ALLIES = [
     { id: 'sentinel', name: 'Sentinel', description: 'Stalwart defender who holds the line against foes.', class: Sentinel },
 ];
 
+const FAUNA = [
+    { id: 'wolf', name: 'Wolf', description: 'Pack hunter that patrols the grove with fierce loyalty.', class: Wolf },
+    { id: 'bear', name: 'Bear', description: 'Powerful omnivore with immense strength and thick hide.', class: Bear },
+    { id: 'spider', name: 'Spider', description: 'Eight-legged arachnid with venomous bite and web attacks.', class: Spider },
+    { id: 'deer', name: 'Deer', description: 'Gentle herbivore with impressive antlers and swift agility.', class: Deer },
+    { id: 'chicken', name: 'Chicken', description: 'Common farm bird that pecks at seeds and insects.', class: Chicken },
+    { id: 'lizard', name: 'Lizard', description: 'Small reptile that basks in sunlight and darts quickly.', class: Lizard },
+    { id: 'owl', name: 'Owl', description: 'Nocturnal bird of prey with silent flight and keen vision.', class: Owl },
+    { id: 'pig', name: 'Pig', description: 'Domesticated animal known for intelligence and foraging.', class: Pig },
+    { id: 'sheep', name: 'Sheep', description: 'Woolly herbivore that grazes peacefully in meadows.', class: Sheep },
+    { id: 'yeti', name: 'Yeti', description: 'Mythical mountain creature with white fur and great strength.', class: Yeti },
+];
+
 export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) => {
-    const [activeTab, setActiveTab] = useState<'enemies' | 'allies'>('enemies');
+    const [activeTab, setActiveTab] = useState<'enemies' | 'allies' | 'fauna'>('enemies');
     
     if (!isOpen) return null;
 
-    const currentList = activeTab === 'enemies' ? ENEMIES : ALLIES;
+    const currentList = activeTab === 'enemies' ? ENEMIES : activeTab === 'allies' ? ALLIES : FAUNA;
 
     return (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -87,6 +110,16 @@ export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) =
                     >
                         ⚔️ Allies ({ALLIES.length})
                     </button>
+                    <button
+                        onClick={() => setActiveTab('fauna')}
+                        className={`px-6 py-2 rounded-full font-black uppercase tracking-widest text-xs transition-all ${
+                            activeTab === 'fauna' 
+                                ? 'bg-green-600 text-white shadow-lg shadow-green-600/30' 
+                                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                        }`}
+                    >
+                        🦌 Fauna ({FAUNA.length})
+                    </button>
                 </div>
 
                 {/* Content */}
@@ -98,13 +131,17 @@ export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) =
                                 className={`group bg-black/40 border rounded-2xl p-6 flex gap-6 hover:bg-white/5 transition-all duration-300 ${
                                     activeTab === 'enemies' 
                                         ? 'border-red-900/20 hover:border-red-500/40' 
-                                        : 'border-emerald-900/20 hover:border-emerald-500/40'
+                                        : activeTab === 'allies'
+                                        ? 'border-emerald-900/20 hover:border-emerald-500/40'
+                                        : 'border-green-900/20 hover:border-green-500/40'
                                 }`}
                             >
                                 <div className={`w-32 h-32 bg-slate-800 rounded-xl overflow-hidden border transition-colors shrink-0 ${
                                     activeTab === 'enemies'
                                         ? 'border-red-900/30 group-hover:border-red-500/50'
-                                        : 'border-emerald-900/30 group-hover:border-emerald-500/50'
+                                        : activeTab === 'allies'
+                                        ? 'border-emerald-900/30 group-hover:border-emerald-500/50'
+                                        : 'border-green-900/30 group-hover:border-green-500/50'
                                 }`}>
                                     <EnemyPreview type={entity.id} />
                                 </div>
@@ -112,7 +149,9 @@ export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) =
                                     <h3 className={`text-xl font-black uppercase tracking-wider transition-colors ${
                                         activeTab === 'enemies'
                                             ? 'text-white group-hover:text-red-400'
-                                            : 'text-white group-hover:text-emerald-400'
+                                            : activeTab === 'allies'
+                                            ? 'text-white group-hover:text-emerald-400'
+                                            : 'text-white group-hover:text-green-400'
                                     }`}>
                                         {entity.name}
                                     </h3>
@@ -123,9 +162,11 @@ export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) =
                                         <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
                                             activeTab === 'enemies'
                                                 ? 'bg-red-900/30 text-red-400'
-                                                : 'bg-emerald-900/30 text-emerald-400'
+                                                : activeTab === 'allies'
+                                                ? 'bg-emerald-900/30 text-emerald-400'
+                                                : 'bg-green-900/30 text-green-400'
                                         }`}>
-                                            {activeTab === 'enemies' ? 'Enemy' : 'Ally'}
+                                            {activeTab === 'enemies' ? 'Enemy' : activeTab === 'allies' ? 'Ally' : 'Fauna'}
                                         </span>
                                     </div>
                                 </div>

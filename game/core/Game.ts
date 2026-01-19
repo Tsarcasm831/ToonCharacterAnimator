@@ -1,23 +1,23 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { BuildingParts } from './builder/BuildingParts';
-import { Player } from './Player';
-import { Environment } from './Environment';
-import { WorldEnvironment } from './WorldEnvironment';
-import { CombatEnvironment } from './environment/CombatEnvironment';
-import { InputManager } from './InputManager';
-import { SoundManager } from './SoundManager';
-import { ParticleManager } from './ParticleManager';
-import { BuilderManager } from './builder/BuilderManager';
-import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
-import { PlayerDebug } from './player/PlayerDebug';
-import { RenderManager } from './core/RenderManager';
-import { EntityManager } from './managers/EntityManager';
-import { LowLevelCityGuard } from './entities/npc/friendly/LowLevelCityGuard';
-import { Blacksmith } from './entities/npc/friendly/Blacksmith';
-import { Shopkeeper } from './entities/npc/friendly/Shopkeeper';
-import { HouseBlueprints, Blueprint } from './builder/HouseBlueprints';
+import { BuildingParts } from '../builder/BuildingParts';
+import { Player } from '../player/Player';
+import { Environment } from '../environment/Environment';
+import { WorldEnvironment } from '../environment/WorldEnvironment';
+import { CombatEnvironment } from '../environment/CombatEnvironment';
+import { InputManager } from '../managers/InputManager';
+import { SoundManager } from '../managers/SoundManager';
+import { ParticleManager } from '../managers/ParticleManager';
+import { BuilderManager } from '../builder/BuilderManager';
+import { EntityStats, PlayerConfig, PlayerInput, InventoryItem } from '../../types';
+import { PlayerDebug } from '../player/PlayerDebug';
+import { RenderManager } from './RenderManager';
+import { EntityManager } from '../managers/EntityManager';
+import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
+import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
+import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
+import { HouseBlueprints, Blueprint } from '../builder/HouseBlueprints';
 
 export class Game {
     private renderManager: RenderManager;
@@ -49,15 +49,14 @@ export class Game {
     private showObstacleHitboxes: boolean = false;
 
     // Combat Mode State
-    private isPlayerSelected: boolean = false;
-    private isDraggingPlayer: boolean = false;
-    private isWaitingForClick: boolean = false;
+    private selectedUnit: any | null = null;
+    private draggingUnit: any | null = null;
+    private isWaitingForClick = false;
     private mouseDownScreenPos = new THREE.Vector2();
     private dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     private dragOffset = new THREE.Vector3();
-    private raycaster = new THREE.Raycaster();
     private isCombatActive: boolean = false;
-
+    private raycaster = new THREE.Raycaster();
     private fpvYaw: number = 0;
     private fpvPitch: number = 0;
     private readonly tempTargetPos = new THREE.Vector3();
@@ -77,19 +76,20 @@ export class Game {
     private _onMouseDown: (e: MouseEvent) => void;
     private _onMouseUp: (e: MouseEvent) => void;
 
-    onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
     onInteractionUpdate?: (text: string | null, progress: number | null) => void;
     onBuilderToggle?: (active: boolean) => void;
     onBiomeUpdate?: (biome: { name: string, color: string }) => void;
     onRotationUpdate?: (rotation: number) => void;
     onToggleWorldMapCallback?: (pos: THREE.Vector3) => void;
-    onDialogueTrigger?: (content: string) => void;
-    onTradeTrigger?: (merchantType: string) => void;
-    onShopkeeperTrigger?: () => void;
-    onForgeTrigger?: () => void;
-    onEnvironmentReady?: () => void;
-    onShowCharacterStats?: () => void;
-    onAttackHit?: (type: string, count: number) => void;
+    public onDialogueTrigger?: (content: string) => void;
+    public onTradeTrigger?: () => void;
+    public onShopkeeperTrigger?: () => void;
+    public onForgeTrigger?: () => void;
+    public onShowCharacterStats?: (stats?: EntityStats, name?: string) => void;
+    public onUnitSelect?: (stats?: EntityStats) => void;
+    public onAttackHit?: (type: string, count: number) => void;
+    public onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
+    public onEnvironmentReady?: () => void;
 
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
@@ -199,31 +199,47 @@ export class Game {
         );
         
         this.raycaster.setFromCamera(mouse, this.renderManager.camera);
-        const intersects = this.raycaster.intersectObjects([this.player.mesh], true);
+        
+        // Check all entities in the combat scene
+        const combatEntities = this.entityManager.getEntitiesForScene('combat');
+        const units = [this.player, ...combatEntities];
+        const unitMeshes = units.map(u => u.mesh || u.model?.group || u.group).filter(Boolean);
+        
+        const intersects = this.raycaster.intersectObjects(unitMeshes, true);
         
         if (intersects.length > 0) {
-            this.isDraggingPlayer = true;
-            this.isWaitingForClick = true;
-            this.mouseDownScreenPos.set(e.clientX, e.clientY);
-            
-            // Record offset for smoother dragging if we move
-            if (this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
-                this.dragOffset.sub(this.player.mesh.position);
+            // Find which unit was clicked
+            const clickedMesh = intersects[0].object;
+            let foundUnit = units.find(u => {
+                const mesh = u.mesh || u.model?.group || u.group;
+                return mesh && (mesh === clickedMesh || mesh.getObjectById(clickedMesh.id));
+            });
+
+            if (foundUnit) {
+                this.draggingUnit = foundUnit;
+                this.isWaitingForClick = true;
+                this.mouseDownScreenPos.set(e.clientX, e.clientY);
+                
+                const unitPos = foundUnit.position || foundUnit.mesh?.position;
+                if (unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
+                    this.dragOffset.sub(unitPos);
+                }
             }
         } else {
-            // Clicked empty ground: deselect if we weren't clicking player
-            this.isPlayerSelected = false;
-            this.setPlayerHighlight(false);
+            // Clicked empty ground: deselect
+            if (this.selectedUnit) {
+                this.setUnitHighlight(this.selectedUnit, false);
+                this.selectedUnit = null;
+            }
         }
     }
 
     private onMouseMove(e: MouseEvent) {
-        if (this.activeScene === 'combat' && this.isDraggingPlayer) {
+        if (this.activeScene === 'combat' && this.draggingUnit) {
             const dist = this.mouseDownScreenPos.distanceTo(new THREE.Vector2(e.clientX, e.clientY));
             if (dist > 5) {
                 this.isWaitingForClick = false;
-                // If we are dragging, we should implicitly keep highlight/selection active or show it
-                this.setPlayerHighlight(true);
+                this.setUnitHighlight(this.draggingUnit, true);
             }
 
             if (!this.isWaitingForClick) {
@@ -234,8 +250,13 @@ export class Game {
                 this.raycaster.setFromCamera(mouse, this.renderManager.camera);
                 const target = new THREE.Vector3();
                 if (this.raycaster.ray.intersectPlane(this.dragPlane, target)) {
-                    this.player.mesh.position.copy(target.sub(this.dragOffset));
-                    this.player.mesh.position.y = 0; 
+                    const newPos = target.sub(this.dragOffset);
+                    newPos.y = 0;
+                    if (this.draggingUnit.position) {
+                        this.draggingUnit.position.copy(newPos);
+                    } else if (this.draggingUnit.mesh) {
+                        this.draggingUnit.mesh.position.copy(newPos);
+                    }
                 }
             }
         }
@@ -250,19 +271,34 @@ export class Game {
     }
 
     private onMouseUp(e: MouseEvent) {
-        if (this.activeScene === 'combat' && this.isDraggingPlayer) {
+        if (this.activeScene === 'combat' && this.draggingUnit) {
             if (this.isWaitingForClick) {
                 // Was a static click, toggle selection
-                this.isPlayerSelected = !this.isPlayerSelected;
-                this.setPlayerHighlight(this.isPlayerSelected);
+                if (this.selectedUnit && this.selectedUnit !== this.draggingUnit) {
+                    this.setUnitHighlight(this.selectedUnit, false);
+                }
+                
+                const isNowSelected = this.selectedUnit !== this.draggingUnit;
+                this.selectedUnit = isNowSelected ? this.draggingUnit : null;
+                this.setUnitHighlight(this.draggingUnit, isNowSelected);
+                
+                if (isNowSelected) {
+                    const stats = this.draggingUnit === this.player ? this.player.status.getStats() : this.draggingUnit.stats;
+                    this.onUnitSelect?.(stats);
+                } else {
+                    this.onUnitSelect?.(undefined);
+                }
             } else {
                 // Was a drag, snap to grid
                 if (this.combatEnvironment) {
-                    const snapped = this.combatEnvironment.snapToGrid(this.player.mesh.position);
-                    this.player.mesh.position.copy(snapped);
+                    const unitPos = this.draggingUnit.position || this.draggingUnit.mesh?.position;
+                    if (unitPos) {
+                        const snapped = this.combatEnvironment.snapToGrid(unitPos);
+                        unitPos.copy(snapped);
+                    }
                 }
             }
-            this.isDraggingPlayer = false;
+            this.draggingUnit = null;
             this.isWaitingForClick = false;
         }
     }
@@ -275,16 +311,50 @@ export class Game {
             -(e.clientY / window.innerHeight) * 2 + 1
         );
         this.raycaster.setFromCamera(mouse, this.renderManager.camera);
-        const intersects = this.raycaster.intersectObjects([this.player.mesh], true);
+        
+        const combatEntities = this.entityManager.getEntitiesForScene('combat');
+        const units = [this.player, ...combatEntities];
+        const unitMeshes = units.map(u => u.mesh || u.model?.group || u.group).filter(Boolean);
+        
+        const intersects = this.raycaster.intersectObjects(unitMeshes, true);
         
         if (intersects.length > 0) {
-            this.onShowCharacterStats?.();
+            const clickedMesh = intersects[0].object;
+            let foundUnit = units.find(u => {
+                const mesh = u.mesh || u.model?.group || u.group;
+                return mesh && (mesh === clickedMesh || mesh.getObjectById(clickedMesh.id));
+            });
+
+            if (foundUnit) {
+                // Determine unit type and name for stats
+                let stats: EntityStats | undefined = foundUnit.stats;
+                let unitName = 'Unknown Unit';
+
+                if (foundUnit === this.player) {
+                    stats = this.player.status.getStats();
+                    unitName = 'Hero';
+                } else {
+                    // Try to infer name from class name or type
+                    unitName = foundUnit.constructor.name;
+                }
+
+                this.onShowCharacterStats?.(stats, unitName);
+            }
         }
     }
 
-    private setPlayerHighlight(active: boolean) {
-        this.player.isDebugHitbox = active;
-        PlayerDebug.updateHitboxVisuals(this.player);
+    private setUnitHighlight(unit: any, active: boolean) {
+        if (!unit) return;
+        unit.isDebugHitbox = active;
+        // Check if it's the player or an NPC/Enemy
+        if (unit === this.player) {
+            PlayerDebug.updateHitboxVisuals(unit);
+        } else if (unit.updateHitboxVisuals) {
+            unit.updateHitboxVisuals();
+        } else {
+            // Fallback for units without explicit updateHitboxVisuals
+            // Most specialized NPCs have them, or they use generic animator debug
+        }
     }
 
     public toggleGrid(visible: boolean) {
@@ -310,9 +380,8 @@ export class Game {
         this.entityManager.clearDynamicEntities();
 
         // Reset Combat Selection
-        this.isPlayerSelected = false;
-        this.isDraggingPlayer = false;
-        this.setPlayerHighlight(false);
+        this.selectedUnit = null;
+        this.draggingUnit = null;
         this.isCombatActive = false;
 
         if (sceneName === 'dev') {
@@ -609,7 +678,7 @@ export class Game {
             if (input.interact) { 
                 this.player.isTalking = true; 
                 if (target instanceof LowLevelCityGuard) { target.isLeftHandWaving = true; target.leftHandWaveTimer = 0; this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); } 
-                else if (target instanceof Blacksmith) this.onTradeTrigger?.("blacksmith");
+                else if (target instanceof Blacksmith) this.onTradeTrigger?.();
                 else if (target instanceof Shopkeeper) this.onShopkeeperTrigger?.();
                 else this.onDialogueTrigger?.("Greetings, traveler.");
             }

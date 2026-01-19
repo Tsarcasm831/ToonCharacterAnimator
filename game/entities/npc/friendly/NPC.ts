@@ -1,9 +1,9 @@
 
 import * as THREE from 'three';
 import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
-import { PlayerModel } from '../../../PlayerModel';
-import { PlayerAnimator } from '../../../PlayerAnimator';
-import { Environment } from '../../../Environment';
+import { PlayerModel } from '../../../model/PlayerModel';
+import { PlayerAnimator } from '../../../animator/PlayerAnimator';
+import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { OUTFIT_PRESETS, BODY_PRESETS } from '../../../../data/constants';
 
@@ -51,10 +51,8 @@ export class NPC {
     }
 
     update(dt: number, targetEyePosition: THREE.Vector3, environment: Environment, skipAnimation: boolean = false) {
-        // Use getLandingHeight instead of getGroundHeight to prevent roof-snapping
-        const groundHeight = PlayerUtils.getLandingHeight(this.position, this.config, environment.obstacles);
+        const groundHeight = PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles);
         this.position.y = groundHeight;
-        
         if (!PlayerUtils.isWithinBounds(this.position)) {
             const limit = PlayerUtils.WORLD_LIMIT - 1.0;
             this.position.x = THREE.MathUtils.clamp(this.position.x, -limit, limit);

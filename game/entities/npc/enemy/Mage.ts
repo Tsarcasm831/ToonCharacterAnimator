@@ -1,9 +1,10 @@
 
 import * as THREE from 'three';
-import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
-import { PlayerModel } from '../../../PlayerModel';
-import { PlayerAnimator } from '../../../PlayerAnimator';
-import { Environment } from '../../../Environment';
+import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { CombatEnvironment } from '../../../environment/CombatEnvironment';
+import { PlayerModel } from '../../../model/PlayerModel';
+import { PlayerAnimator } from '../../../animator/PlayerAnimator';
+import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
@@ -14,6 +15,7 @@ export class Mage {
     model: PlayerModel;
     animator: PlayerAnimator;
     config: PlayerConfig;
+    stats: EntityStats;
     position: THREE.Vector3 = new THREE.Vector3();
     lastFramePos: THREE.Vector3 = new THREE.Vector3();
     rotationY: number = 0;
@@ -59,14 +61,15 @@ export class Mage {
             stats: { ...CLASS_STATS.mage },
             // Added missing bracers, cape, belt to equipment
             equipment: { 
-                helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false, mageHat: false, bracers: false, cape: true, belt: true
+                helm: false, shoulders: false, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false, mageHat: false, bracers: false, cape: true, belt: true,
+                skirt: false, skullcap: false, shorts: false
             }, 
             selectedItem: null, 
             weaponStance: 'side', 
             isAssassinHostile: false, 
             tintColor: tint 
         };
-
+        this.stats = { ...CLASS_STATS.mage };
         this.model = new PlayerModel(this.config); 
         this.animator = new PlayerAnimator(); 
         this.model.group.position.copy(this.position); 
@@ -82,7 +85,13 @@ export class Mage {
         if (this.isCasting) this.castTimer = 0;
     }
 
-    private findPatrolPoint(environment: Environment) {
+    private findPatrolPoint(environment: Environment | CombatEnvironment) {
+        if (environment instanceof CombatEnvironment) {
+            const r = Math.floor(Math.random() * 8);
+            const c = Math.floor(Math.random() * 8);
+            this.targetPos.copy(environment.getWorldPosition(r, c));
+            return;
+        }
         const landmarks = environment.obstacles.filter(o => o.userData.type === 'hard');
         if (landmarks.length > 0 && Math.random() > 0.4) {
             const obj = landmarks[Math.floor(Math.random() * landmarks.length)];
@@ -96,9 +105,17 @@ export class Mage {
         }
     }
 
-    update(dt: number, environment: Environment, potentialTargets: { position: THREE.Vector3, isDead?: boolean, isWolf?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean, isWolf?: boolean }[], skipAnimation: boolean = false) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
+
+        const env = environment as any;
+
+        // Snapping check for combat arena
+        if (env instanceof CombatEnvironment && this.state !== MageState.ATTACK && this.state !== MageState.RETREAT) {
+            const snapped = env.snapToGrid(this.position);
+            this.position.lerp(snapped, 5.0 * dt);
+        }
 
         let bestTarget = null; let bestDist = 25.0;
         for (const t of potentialTargets) {
@@ -156,7 +173,7 @@ export class Mage {
                 if (this.currentTarget) {
                     const dirAway = new THREE.Vector3().subVectors(this.position, this.currentTarget.position).normalize();
                     const next = this.position.clone().add(dirAway.multiplyScalar(4.5 * dt));
-                    if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
                         this.position.copy(next);
                     }
                 }
@@ -186,7 +203,7 @@ export class Mage {
                 if (moveSpeed > 0) { 
                     const step = moveSpeed * dt; 
                     const next = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)); 
-                    if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) { 
+                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) { 
                         this.position.x = next.x; this.position.z = next.z; 
                     } 
                 }
@@ -196,7 +213,7 @@ export class Mage {
             this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z), dt * 10.0); 
         }
 
-        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles), dt * 6);
+        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
         this.model.group.position.copy(this.position); 
         this.model.group.rotation.y = this.rotationY;
 
@@ -239,7 +256,7 @@ export class Mage {
             fireballTimer: this.castTimer 
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: animX, y: animY, isRunning: this.state === MageState.CHASE, isPickingUp: false, isDead: false, jump: false } as any);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: animX, y: animY, isRunning: this.state === MageState.CHASE, isPickingUp: false, isDead: false, jump: false } as any, (environment as any).obstacles);
         this.walkTime = animContext.walkTime; 
         this.lastStepCount = animContext.lastStepCount;
         this.model.update(dt, new THREE.Vector3(0, 0, 0)); 

@@ -1,10 +1,10 @@
 
 import React, { useEffect, useState, useRef, CSSProperties } from 'react';
 import * as THREE from 'three';
-import { PlayerModel } from '../../game/PlayerModel';
+import { PlayerModel } from '../../game/model/PlayerModel';
 import { MovementAction } from '../../game/animator/actions/MovementAction';
 import { DEFAULT_CONFIG } from '../../types';
-import { EnemyCache } from '../../game/EnemyCache';
+import { EnemyCache } from '../../game/core/EnemyCache';
 
 interface LoadingScreenProps {
     isVisible: boolean;

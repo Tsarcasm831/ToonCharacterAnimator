@@ -1,9 +1,10 @@
 
 import * as THREE from 'three';
-import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
-import { PlayerModel } from '../../../PlayerModel';
-import { PlayerAnimator } from '../../../PlayerAnimator';
-import { Environment } from '../../../Environment';
+import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { CombatEnvironment } from '../../../environment/CombatEnvironment';
+import { PlayerModel } from '../../../model/PlayerModel';
+import { PlayerAnimator } from '../../../animator/PlayerAnimator';
+import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
@@ -14,6 +15,7 @@ export class Knight {
     model: PlayerModel;
     animator: PlayerAnimator;
     config: PlayerConfig;
+    stats: EntityStats;
     position: THREE.Vector3 = new THREE.Vector3();
     lastFramePos: THREE.Vector3 = new THREE.Vector3();
     rotationY: number = 0;
@@ -65,13 +67,15 @@ export class Knight {
                 helm: true, shoulders: true, shield: true, shirt: true, pants: true, shoes: true, 
                 mask: false, hood: false, quiltedArmor: false, leatherArmor: false, 
                 heavyLeatherArmor: false, ringMail: false, plateMail: true, robe: false, 
-                blacksmithApron: false, mageHat: false, bracers: true, cape: Math.random() > 0.5, belt: true
+                blacksmithApron: false, mageHat: false, bracers: true, cape: Math.random() > 0.5, belt: true,
+                skirt: false, skullcap: false, shorts: false
             }, 
             selectedItem: 'Sword',
             weaponStance: 'side',
             isAssassinHostile: true,
             tintColor: tint 
         };
+        this.stats = { ...CLASS_STATS.knight };
         
         this.model = new PlayerModel(this.config);
         this.animator = new PlayerAnimator();
@@ -92,7 +96,13 @@ export class Knight {
         }
     }
 
-    private findPatrolPoint(environment: Environment) {
+    private findPatrolPoint(environment: Environment | CombatEnvironment) {
+        if (environment instanceof CombatEnvironment) {
+            const r = Math.floor(Math.random() * 8);
+            const c = Math.floor(Math.random() * 8);
+            this.targetPos.copy(environment.getWorldPosition(r, c));
+            return;
+        }
         const limit = PlayerUtils.WORLD_LIMIT - 10;
         this.targetPos.set(
             (Math.random() - 0.5) * (limit * 2),
@@ -101,9 +111,17 @@ export class Knight {
         );
     }
 
-    update(dt: number, environment: Environment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
+
+        const env = environment as any;
+
+        // Snapping check for combat arena
+        if (env instanceof CombatEnvironment && this.state !== KnightState.ATTACK && this.state !== KnightState.RETREAT) {
+            const snapped = env.snapToGrid(this.position);
+            this.position.lerp(snapped, 5.0 * dt);
+        }
 
         let bestTarget = null;
         let bestDist = 22.0;
@@ -147,7 +165,7 @@ export class Knight {
             case KnightState.PATROL:
                 moveSpeed = 2.0; // Knights move slower due to armor
                 if (this.position.distanceTo(this.targetPos) < 1.5 || this.stateTimer > 25.0) {
-                    this.findPatrolPoint(environment);
+                    this.findPatrolPoint(env);
                     this.stateTimer = 0;
                 }
                 break;
@@ -162,7 +180,7 @@ export class Knight {
                 if (distToTarget < 2.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(-1.2));
                 else if (distToTarget > 3.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(1.2));
                 const duelNext = this.position.clone().add(strafeVec.multiplyScalar(dt));
-                if (!PlayerUtils.checkCollision(duelNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(duelNext)) {
+                if (!PlayerUtils.checkCollision(duelNext, this.config, env.obstacles) && PlayerUtils.isWithinBounds(duelNext)) {
                     this.position.x = duelNext.x;
                     this.position.z = duelNext.z;
                 }
@@ -174,7 +192,7 @@ export class Knight {
                         .applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationY)
                         .multiplyScalar(5.0 * dt);
                     const next = this.position.clone().add(step);
-                    if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
                         this.position.copy(next);
                     }
                 }
@@ -186,7 +204,7 @@ export class Knight {
                         .normalize()
                         .multiplyScalar(2.5 * dt);
                     const next = this.position.clone().add(step);
-                    if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
                         this.position.copy(next);
                     }
                 }
@@ -199,17 +217,17 @@ export class Knight {
             if (this.position.distanceTo(this.lastStuckPos) < 0.05) {
                 this.stuckTimer += dt;
                 if (this.stuckTimer > 10.0) {
-                    const escape = PlayerUtils.findUnstuckPosition(this.position, environment.obstacles);
+                    const escape = PlayerUtils.findUnstuckPosition(this.position, env.obstacles);
                     if (escape) {
                         this.position.copy(escape);
                         this.stuckTimer = 0;
                         this.setState(KnightState.PATROL);
-                        this.findPatrolPoint(environment);
+                        this.findPatrolPoint(env);
                     }
                 } else if (this.stuckTimer > 2.0) {
                      if (this.stuckTimer % 3.0 < dt) {
                          this.setState(KnightState.PATROL);
-                         this.findPatrolPoint(environment);
+                         this.findPatrolPoint(env);
                      }
                 }
             } else {
@@ -229,7 +247,7 @@ export class Knight {
                     const next = this.position.clone().add(
                         new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)
                     );
-                    if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
                         this.position.x = next.x;
                         this.position.z = next.z;
                     }
@@ -243,7 +261,7 @@ export class Knight {
             );
         }
 
-        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles), dt * 6);
+        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
         this.model.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
@@ -271,7 +289,7 @@ export class Knight {
             isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === KnightState.DUEL, { x: animX, y: animY, isRunning: this.state === KnightState.CHASE, isPickingUp: false, isDead: false, jump: false } as any);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === KnightState.DUEL, { x: animX, y: animY, isRunning: this.state === KnightState.CHASE, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
         this.model.update(dt, new THREE.Vector3(0, 0, 0));

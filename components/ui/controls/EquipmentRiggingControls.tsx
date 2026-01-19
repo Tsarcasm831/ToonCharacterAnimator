@@ -30,6 +30,17 @@ export const EquipmentRiggingControls: React.FC<EquipmentRiggingControlsProps> =
                 </div>
             )}
 
+            {config.equipment.skullcap && (
+                <div className="space-y-2 border-b border-gray-100 pb-4">
+                    <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Skullcap Rigging</h5>
+                    <Slider label="Helm X" value={config.helmX} min={-0.1} max={0.1} step={0.002} onChange={(v) => handleConfigChange('helmX', v)} />
+                    <Slider label="Helm Y" value={config.helmY} min={0.0} max={0.15} step={0.002} onChange={(v) => handleConfigChange('helmY', v)} />
+                    <Slider label="Helm Z" value={config.helmZ} min={-0.1} max={0.1} step={0.002} onChange={(v) => handleConfigChange('helmZ', v)} />
+                    <Slider label="Helm Rot X" value={config.helmRotX} min={-0.5} max={0.5} step={0.02} onChange={(v) => handleConfigChange('helmRotX', v)} />
+                    <Slider label="Helm Scale" value={config.helmScale} min={0.5} max={1.5} step={0.02} onChange={(v) => handleConfigChange('helmScale', v)} />
+                </div>
+            )}
+
             {config.equipment.mageHat && (
                 <div className="space-y-2 border-b border-gray-100 pb-4">
                     <h5 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Mage Hat Rigging</h5>

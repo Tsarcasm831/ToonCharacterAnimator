@@ -75,12 +75,12 @@ export class RobeBuilder {
         const layerScale = 1.15; // Fits over Shirt (1.0) and Pants (1.06)
 
         // --- UPPER BODY (Torso) ---
-        const torsoRadiusTop = 0.31; // Slightly narrower at top to tuck under hood
+        const torsoRadiusTop = 0.31; 
         const torsoRadiusBottom = 0.32; 
-        const robeLen = 0.60; // Slightly longer than shirt
+        const robeLen = 0.62; // Increased slightly for better coverage
         const torsoDepthScale = 0.75;
 
-        const robeTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, robeLen, 32, 8, true); // Open ended
+        const robeTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, robeLen, 32, 8, false); // Closed top for better blending
         robeTorsoGeo.scale(layerScale, 1, torsoDepthScale * layerScale);
         
         // Vertices Manipulation: Open the front slightly (V-Shape)
@@ -131,29 +131,42 @@ export class RobeBuilder {
         parts.torsoContainer.add(robeTorso);
         createdMeshes.push(robeTorso);
 
-        // --- SHOULDER MANTLE & COLLAR ---
-        // Covers shoulders like a cape/mantle, leaving neck open
-        const mantleRadius = torsoRadiusTop * 1.05; // Base on top radius
-        const neckOpeningAngle = 0.3; // Hole size at top (Radians)
-        const mantleDropAngle = Math.PI * 0.45; // How far down the shoulder it goes
+        // --- SHOULDER MANTLE & PAULDRONS ---
+        // Covers shoulders and provides the missing coverage
+        const mantleRadius = torsoRadiusTop; // Use same radius as torso top for better alignment
+        const neckOpeningAngle = 0.25; 
+        const mantleDropAngle = Math.PI * 0.5; // Standard cap drop
         
         const mantleGeo = new THREE.SphereGeometry(
             mantleRadius, 
             32, 12, 
             0, Math.PI * 2, 
-            neckOpeningAngle, 
-            mantleDropAngle - neckOpeningAngle
+            0, Math.PI / 2 // Simple top cap like ShirtBuilder
         );
         
-        // Flatten and Scale
-        // Apply layerScale here to match the rest of the robe sizing
-        mantleGeo.scale(layerScale, 0.55 * layerScale, torsoDepthScale * layerScale);
+        mantleGeo.scale(layerScale, 0.5, torsoDepthScale * layerScale);
 
         const mantle = new THREE.Mesh(mantleGeo, robeMat);
-        mantle.position.y = robeLen / 2 - 0.02; // Sit on top of cylinder
+        mantle.position.y = robeLen / 2; // Exact top of cylinder
         robeTorso.add(mantle);
         createdMeshes.push(mantle);
         scaleUVs(mantle, mantleRadius * layerScale, mantleRadius * layerScale);
+
+        // Add Pauldrons/Shoulder Caps
+        // Using SphereGeometry but with vertical orientation
+        const pauldronRadius = 0.18;
+        const pauldronGeo = new THREE.SphereGeometry(pauldronRadius, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
+        pauldronGeo.scale(1, 0.6, 1);
+        
+        const leftPauldron = new THREE.Mesh(pauldronGeo, robeMat);
+        leftPauldron.position.set(0.3, 0, 0); // Position relative to mantle
+        mantle.add(leftPauldron);
+        createdMeshes.push(leftPauldron);
+
+        const rightPauldron = leftPauldron.clone();
+        rightPauldron.position.x = -0.3;
+        mantle.add(rightPauldron);
+        createdMeshes.push(rightPauldron);
 
         // Collar Trim (The rim of the neck hole)
         // Calculate the radius of the hole in local space
@@ -213,8 +226,8 @@ export class RobeBuilder {
         // Designed as a split skirt (Front open) to prevent clipping when running.
         if (parts.pelvis) {
             const skirtLen = 0.65; // Down to shins
-            const skirtTopRad = torsoRadiusBottom * layerScale * 0.92;
-            const skirtBotRad = skirtTopRad * 1.4; // Flared bottom
+            const skirtTopRad = torsoRadiusBottom * layerScale * 0.98; // Wider top to meet belt
+            const skirtBotRad = skirtTopRad * 1.45; // Slightly more flare
 
             // We create a C-shape (cylinder with a slice missing for the front)
             const skirtGeo = new THREE.CylinderGeometry(
@@ -230,7 +243,8 @@ export class RobeBuilder {
             skirtGeo.scale(1, 1, torsoDepthScale);
 
             const skirt = new THREE.Mesh(skirtGeo, robeMat);
-            skirt.position.y = -skirtLen/2 - 0.1; // Hangs from hips
+            // Raised from -0.02 to 0.02 to overlap with belt/waist anchor
+            skirt.position.y = -skirtLen/2 + 0.02; 
             skirt.castShadow = true;
 
             scaleUVs(skirt, skirtBotRad, skirtLen);
@@ -241,7 +255,7 @@ export class RobeBuilder {
             const tabardWidth = 0.25;
             const tabardGeo = new THREE.PlaneGeometry(tabardWidth, skirtLen);
             const tabard = new THREE.Mesh(tabardGeo, robeMat);
-            tabard.position.set(0, -skirtLen/2 - 0.1, skirtTopRad * torsoDepthScale - 0.02);
+            tabard.position.set(0, -skirtLen/2 + 0.02, skirtTopRad * torsoDepthScale - 0.01);
             tabard.rotation.x = -0.05; // Slight angle out
             parts.pelvis.add(tabard);
             createdMeshes.push(tabard);

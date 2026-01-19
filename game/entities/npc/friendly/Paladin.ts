@@ -1,8 +1,9 @@
 import * as THREE from 'three';
-import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
-import { PlayerModel } from '../../../PlayerModel';
-import { PlayerAnimator } from '../../../PlayerAnimator';
-import { Environment } from '../../../Environment';
+import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { CombatEnvironment } from '../../../environment/CombatEnvironment';
+import { PlayerModel } from '../../../model/PlayerModel';
+import { PlayerAnimator } from '../../../animator/PlayerAnimator';
+import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
@@ -14,6 +15,7 @@ export class Paladin {
     model: PlayerModel;
     animator: PlayerAnimator;
     config: PlayerConfig;
+    stats: EntityStats;
     position: THREE.Vector3 = new THREE.Vector3();
     lastFramePos: THREE.Vector3 = new THREE.Vector3();
     rotationY: number = 0;
@@ -58,20 +60,20 @@ export class Paladin {
             hairStyle: 'crew',
             hairColor: '#d4af37',
             stats: { ...CLASS_STATS.paladin },
-            // Fix: Added missing properties to EquipmentState
             equipment: { 
                 helm: true, shoulders: true, shield: true, shirt: true, pants: true, shoes: true, 
                 mask: false, hood: false, quiltedArmor: false,
                 blacksmithApron: false, leatherArmor: false, heavyLeatherArmor: false,
                 ringMail: false, plateMail: true, robe: false, mageHat: false,
-                bracers: true, cape: true, belt: true
-            }, 
+                bracers: true, cape: true, belt: true,
+                skirt: false, skullcap: false, shorts: false
+            },
             selectedItem: 'Sword',
             weaponStance: 'side',
-            isAssassinHostile: false,
-            tintColor: tint || '#ffd700'
+            isAssassinHostile: true,
+            tintColor: tint 
         };
-        
+        this.stats = { ...CLASS_STATS.paladin };
         this.model = new PlayerModel(this.config);
         this.animator = new PlayerAnimator();
         this.model.group.position.copy(this.position);
@@ -91,7 +93,13 @@ export class Paladin {
         }
     }
 
-    private findPatrolPoint(environment: Environment) {
+    private findPatrolPoint(environment: Environment | CombatEnvironment) {
+        if (environment instanceof CombatEnvironment) {
+            const r = Math.floor(Math.random() * 8);
+            const c = Math.floor(Math.random() * 8);
+            this.targetPos.copy(environment.getWorldPosition(r, c));
+            return;
+        }
         const limit = PlayerUtils.WORLD_LIMIT - 10;
         this.targetPos.set(
             (Math.random() - 0.5) * (limit * 2),
@@ -100,9 +108,19 @@ export class Paladin {
         );
     }
 
-    update(dt: number, environment: Environment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
+
+        const env = environment as any;
+
+        // Snapping check for combat arena
+        if (env instanceof CombatEnvironment) {
+            const snapped = env.snapToGrid(this.position);
+            if (this.state !== PaladinState.ATTACK && this.state !== PaladinState.RETREAT) {
+                this.position.lerp(snapped, 5.0 * dt);
+            }
+        }
 
         let bestTarget = null;
         let bestDist = 20.0;
@@ -145,7 +163,7 @@ export class Paladin {
             case PaladinState.PATROL:
                 moveSpeed = 2.0;
                 if (this.position.distanceTo(this.targetPos) < 1.5 || this.stateTimer > 25.0) {
-                    this.findPatrolPoint(environment);
+                    this.findPatrolPoint(env);
                     this.stateTimer = 0;
                 }
                 break;
@@ -160,7 +178,7 @@ export class Paladin {
                 if (distToTarget < 2.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(-1.2));
                 else if (distToTarget > 3.5) strafeVec.add(toTargetDuel.clone().multiplyScalar(1.2));
                 const duelNext = this.position.clone().add(strafeVec.multiplyScalar(dt));
-                if (!PlayerUtils.checkCollision(duelNext, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(duelNext)) {
+                if (!PlayerUtils.checkCollision(duelNext, this.config, env.obstacles) && PlayerUtils.isWithinBounds(duelNext)) {
                     this.position.x = duelNext.x;
                     this.position.z = duelNext.z;
                 }
@@ -172,7 +190,7 @@ export class Paladin {
                         .applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationY)
                         .multiplyScalar(5.0 * dt);
                     const next = this.position.clone().add(step);
-                    if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
                         this.position.copy(next);
                     }
                 }
@@ -184,7 +202,7 @@ export class Paladin {
                         .normalize()
                         .multiplyScalar(2.5 * dt);
                     const next = this.position.clone().add(step);
-                    if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
                         this.position.copy(next);
                     }
                 }
@@ -197,7 +215,7 @@ export class Paladin {
                 this.stuckTimer += dt;
                 if (this.stuckTimer > 1.5) {
                     this.setState(PaladinState.PATROL);
-                    this.findPatrolPoint(environment);
+                    this.findPatrolPoint(env);
                     this.stuckTimer = 0;
                 }
             } else {
@@ -216,7 +234,7 @@ export class Paladin {
                     const next = this.position.clone().add(
                         new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)
                     );
-                    if (!PlayerUtils.checkCollision(next, this.config, environment.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
                         this.position.x = next.x;
                         this.position.z = next.z;
                     }
@@ -230,12 +248,13 @@ export class Paladin {
             );
         }
 
-        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles), dt * 6);
+        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
         this.model.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
 
+        // Head tracking
         if (this.currentTarget) {
             this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, 1.0, dt * 4.0);
             this.smoothedHeadTarget.lerp(this.currentTarget.position.clone().add(new THREE.Vector3(0, 1.6, 0)), dt * 5.0);
@@ -256,7 +275,7 @@ export class Paladin {
             isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === PaladinState.DUEL, { x: animX, y: animY, isRunning: this.state === PaladinState.CHASE, isPickingUp: false, isDead: false, jump: false } as any);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === PaladinState.DUEL, { x: animX, y: animY, isRunning: this.state === PaladinState.CHASE, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
         this.model.update(dt, new THREE.Vector3(0, 0, 0));

@@ -1,7 +1,7 @@
 
 import * as THREE from 'three';
-import { WORLD_SHAPE_POINTS } from '../data/worldShape';
-import { PlayerConfig } from '../types';
+import { WORLD_SHAPE_POINTS } from '../../data/worldShape';
+import { PlayerConfig } from '../../types';
 
 export class WorldEnvironment {
     public group: THREE.Group;

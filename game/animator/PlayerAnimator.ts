@@ -1,10 +1,10 @@
 
 import * as THREE from 'three';
-import { PlayerInput } from '../types';
-import { LocomotionAnimator } from './animator/LocomotionAnimator';
-import { ActionAnimator } from './animator/ActionAnimator';
-import { StatusAnimator } from './animator/StatusAnimator';
-import { FishingAction } from './animator/actions/FishingAction';
+import { PlayerInput } from '../../types';
+import { LocomotionAnimator } from './LocomotionAnimator';
+import { ActionAnimator } from './ActionAnimator';
+import { StatusAnimator } from './StatusAnimator';
+import { FishingAction } from './actions/FishingAction';
 
 export class PlayerAnimator {
     private locomotion = new LocomotionAnimator();

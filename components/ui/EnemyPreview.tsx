@@ -4,7 +4,7 @@ import { Archer } from '../../game/entities/npc/enemy/Archer';
 import { Assassin } from '../../game/entities/npc/enemy/Assassin';
 import { Bandit } from '../../game/entities/npc/enemy/Bandit';
 import { Berserker } from '../../game/entities/npc/enemy/Berserker';
-import { Knight } from '../../game/entities/npc/enemy/Knight';
+import { Knight } from '../../game/entities/npc/friendly/Knight';
 import { Mage } from '../../game/entities/npc/enemy/Mage';
 import { Rogue } from '../../game/entities/npc/enemy/Rogue';
 import { Warlock } from '../../game/entities/npc/enemy/Warlock';
@@ -13,7 +13,17 @@ import { Ranger } from '../../game/entities/npc/friendly/Ranger';
 import { Monk } from '../../game/entities/npc/friendly/Monk';
 import { Cleric } from '../../game/entities/npc/friendly/Cleric';
 import { Sentinel } from '../../game/entities/npc/friendly/Sentinel';
-import { EnemyCache } from '../../game/EnemyCache';
+import { Wolf } from '../../game/entities/animal/aggressive/Wolf';
+import { Bear } from '../../game/entities/animal/aggressive/Bear';
+import { Spider } from '../../game/entities/animal/aggressive/Spider';
+import { Deer } from '../../game/entities/animal/neutral/Deer';
+import { Chicken } from '../../game/entities/animal/neutral/Chicken';
+import { Lizard } from '../../game/entities/animal/neutral/Lizard';
+import { Owl } from '../../game/entities/animal/neutral/Owl';
+import { Pig } from '../../game/entities/animal/neutral/Pig';
+import { Sheep } from '../../game/entities/animal/neutral/Sheep';
+import { Yeti } from '../../game/entities/animal/neutral/Yeti';
+import { EnemyCache } from '../../game/core/EnemyCache';
 
 interface EnemyPreviewProps {
     type: string;
@@ -89,6 +99,17 @@ export const EnemyPreview: React.FC<EnemyPreviewProps> = ({ type }) => {
                 case 'monk': enemyInstance = new Monk(dummyScene, dummyPos); break;
                 case 'cleric': enemyInstance = new Cleric(dummyScene, dummyPos); break;
                 case 'sentinel': enemyInstance = new Sentinel(dummyScene, dummyPos); break;
+                // Animals
+                case 'wolf': enemyInstance = new Wolf(dummyScene, dummyPos); break;
+                case 'bear': enemyInstance = new Bear(dummyScene, dummyPos); break;
+                case 'spider': enemyInstance = new Spider(dummyScene, dummyPos); break;
+                case 'deer': enemyInstance = new Deer(dummyScene, dummyPos); break;
+                case 'chicken': enemyInstance = new Chicken(dummyScene, dummyPos); break;
+                case 'lizard': enemyInstance = new Lizard(dummyScene, dummyPos); break;
+                case 'owl': enemyInstance = new Owl(dummyScene, dummyPos); break;
+                case 'pig': enemyInstance = new Pig(dummyScene, dummyPos); break;
+                case 'sheep': enemyInstance = new Sheep(dummyScene, dummyPos); break;
+                case 'yeti': enemyInstance = new Yeti(dummyScene, dummyPos); break;
             }
 
             if (enemyInstance && enemyInstance.model && enemyInstance.model.group) {
@@ -99,7 +120,9 @@ export const EnemyPreview: React.FC<EnemyPreviewProps> = ({ type }) => {
                 model.rotation.set(0, 0, 0); // Face forward for a clean profile
                 
                 // Force an update to the model to ensure all parts are positioned correctly
-                enemyInstance.model.sync(enemyInstance.config, true);
+                if (enemyInstance.model.sync && enemyInstance.config) {
+                    enemyInstance.model.sync(enemyInstance.config, true);
+                }
                 
                 modelRef.current = model;
                 scene.add(model);
