@@ -1,37 +1,16 @@
-
-import React, { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
-import Scene from './components/Scene.tsx';
-import CombatScene from './components/CombatScene.tsx';
-import { EntityStats, PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest, InventoryItem, QuestStatus } from './types.ts';
-import { Header } from './components/ui/Header.tsx';
-import { InteractionOverlay } from './components/ui/InteractionOverlay.tsx';
-import { Hotbar } from './components/ui/Hotbar.tsx';
-import { PlayerBench } from './components/ui/PlayerBench.tsx';
-import { ControlPanel } from './components/ui/ControlPanel.tsx';
-import { ShopkeeperChatModal } from './components/ui/ShopkeeperChatModal.tsx';
-import { BuilderUI } from './components/ui/BuilderUI.tsx';
-import { MobileControls } from './components/ui/MobileControls.tsx';
-import { Compass } from './components/ui/Compass.tsx';
-import { MainMenu } from './components/ui/MainMenu.tsx';
-import { GameHUD } from './components/ui/GameHUD.tsx';
-import { CombatLogEntry } from './components/ui/CombatLog.tsx';
-import LoadingScreen from './components/ui/LoadingScreen.tsx';
-import { ModelExporter } from './game/core/ModelExporter.ts';
-import { Game } from './game/core/Game.ts';
-import { StructureType } from './game/builder/BuildingParts.ts';
-import { CLASS_STATS } from './data/stats.ts';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Navigation, PageType } from './components/ui/Navigation';
+import { HomeView, UnitsView, MissionView, MusicView } from './components/ui/PageViews';
+import { EntityStats, PlayerConfig, PlayerInput, DEFAULT_CONFIG, Quest, InventoryItem, QuestStatus } from './types';
+import { CombatLogEntry } from './components/ui/CombatLog';
+import { ModelExporter } from './game/core/ModelExporter';
+import { Game } from './game/core/Game';
+import { StructureType } from './game/builder/BuildingParts';
+import { CLASS_STATS } from './data/stats';
 import * as THREE from 'three';
 
-// Lazy load heavy modal components for better initial load performance
-const InventoryModal = lazy(() => import('./components/ui/InventoryModal.tsx').then(m => ({ default: m.InventoryModal })));
-const TradeModal = lazy(() => import('./components/ui/TradeModal.tsx').then(m => ({ default: m.TradeModal })));
-const ForgeModal = lazy(() => import('./components/ui/ForgeModal.tsx').then(m => ({ default: m.ForgeModal })));
-const KeybindsModal = lazy(() => import('./components/ui/KeybindsModal.tsx').then(m => ({ default: m.KeybindsModal })));
-const WorldMapModal = lazy(() => import('./components/ui/WorldMapModal.tsx').then(m => ({ default: m.WorldMapModal })));
-const QuestLogModal = lazy(() => import('./components/ui/QuestLogModal.tsx').then(m => ({ default: m.QuestLogModal })));
-const SpawnAnimalsModal = lazy(() => import('./components/ui/SpawnAnimalsModal.tsx').then(m => ({ default: m.SpawnAnimalsModal })));
-const EnemiesModal = lazy(() => import('./components/ui/EnemiesModal').then(m => ({ default: m.EnemiesModal })));
-const CharacterStatsModal = lazy(() => import('./components/ui/CharacterStatsModal.tsx').then(m => ({ default: m.CharacterStatsModal })));
+import { GameScreen } from './components/ui/GameScreen';
+import { GlobalModals } from './components/ui/GlobalModals';
 
 const INITIAL_QUESTS: Quest[] = [
   {
@@ -63,6 +42,7 @@ type GameState = 'MENU' | 'LOADING' | 'READY' | 'PLAYING';
 
 const App: React.FC = () => {
   const [gameState, setGameState] = useState<GameState>('MENU');
+  const [activePage, setActivePage] = useState<PageType>('home');
   
   // States for synchronization
   const [isEnvironmentBuilt, setIsEnvironmentBuilt] = useState(false);
@@ -93,11 +73,32 @@ const App: React.FC = () => {
   const [isCombatActive, setIsCombatActive] = useState(false);
   const [combatLog, setCombatLog] = useState<CombatLogEntry[]>([]);
 
-  // Main Inventory for Dev/World scenes
+  const [interactionText, setInteractionText] = useState<string | null>(null);
+  const [interactionProgress, setInteractionProgress] = useState<number | null>(null);
+  const [coins, setCoins] = useState(1250);
+  const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
+  const [statsForModal, setStatsForModal] = useState<EntityStats | null>(null);
+  const [statsUnitName, setStatsUnitName] = useState<string>('Hero');
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isTradeOpen, setIsTradeOpen] = useState(false);
+  const [isShopkeeperChatOpen, setIsShopkeeperChatOpen] = useState(false);
+  const [isForgeOpen, setIsForgeOpen] = useState(false);
+  const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
+  const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
+  const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
+  const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
+  const [isEnemiesModalOpen, setIsEnemiesModalOpen] = useState(false);
+  const [isCharacterStatsOpen, setIsCharacterStatsOpen] = useState(false);
+  const [dialogue, setDialogue] = useState<string | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState(0);
+  const [selectedUnitStats, setSelectedUnitStats] = useState<EntityStats | null>(null);
+  const [playerPosForMap, setPlayerPosForMap] = useState(new THREE.Vector3());
+  const gameInstance = useRef<Game | null>(null);
+
   const [inventory, setInventory] = useState<(InventoryItem | null)[]>(() => {
     const inv = Array(32).fill(null);
     inv[1] = { name: 'Axe', count: 1 };
-    inv[2] = { name: 'Staff', count: 1 }; // Rigged to slot 3
+    inv[2] = { name: 'Staff', count: 1 };
     inv[4] = { name: 'Knife', count: 1 };
     inv[5] = { name: 'Fishing Pole', count: 1 };
     inv[8] = { name: 'Shirt', count: 1 };
@@ -117,53 +118,97 @@ const App: React.FC = () => {
     return inv;
   });
 
-  // Separate Bench Inventory for Combat Arena
   const [bench, setBench] = useState<(InventoryItem | null)[]>(Array(13).fill(null));
   
   const [equipmentSlots, setEquipmentSlots] = useState<Record<string, string | null>>({
       helm: null, mask: null, hood: null, shoulder: null, torso: null, legs: null, boots: null, mount: null, amulet: null, gloves: null, ring1: null, ring2: null, focus: null
   });
 
-  const [selectedSlot, setSelectedSlot] = useState<number>(0);
   const [isDeadUI, setIsDeadUI] = useState(false);
-  const [interactionText, setInteractionText] = useState<string | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
-  const [coins, setCoins] = useState(1250);
-  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-  const [isTradeOpen, setIsTradeOpen] = useState(false);
-  const [isShopkeeperChatOpen, setIsShopkeeperChatOpen] = useState(false);
-  const [isForgeOpen, setIsForgeOpen] = useState(false);
-  const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
-  const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
-  const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
-  const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
-  const [isEnemiesModalOpen, setIsEnemiesModalOpen] = useState(false);
-  const [isCharacterStatsOpen, setIsCharacterStatsOpen] = useState(false);
-  const [playerPosForMap, setPlayerPosForMap] = useState(new THREE.Vector3());
-  
-  const [quests, setQuests] = useState<Quest[]>(INITIAL_QUESTS);
-  const [statsForModal, setStatsForModal] = useState<EntityStats | null>(null);
-  const [statsUnitName, setStatsUnitName] = useState<string>('Hero');
-  const [selectedUnitStats, setSelectedUnitStats] = useState<EntityStats>(config.stats);
 
-  const [dialogue, setDialogue] = useState<string | null>(null);
+  const toggleInventory = () => {
+    if (isTradeOpen) setIsTradeOpen(false);
+    if (isForgeOpen) setIsForgeOpen(false);
+    setIsInventoryOpen(prev => !prev);
+  };
+  const toggleKeybinds = () => setIsKeybindsOpen(prev => !prev);
+  const toggleQuestLog = () => setIsQuestLogOpen(prev => !prev);
 
-  const gameInstance = useRef<Game | null>(null);
+  const handleSelectStructure = (type: StructureType) => {
+    setActiveStructure(type);
+    if (gameInstance.current) gameInstance.current.setBuildingType(type);
+  };
+
+  const handleTrade = (items: (InventoryItem | null)[], totalCost: number) => {
+    setInventory(items);
+    setCoins(prev => prev - totalCost);
+  };
+
+  const handleClaimReward = (questId: string) => {
+    claimQuestReward(questId);
+  };
 
   const addCombatLog = useCallback((text: string, type: CombatLogEntry['type'] = 'info') => {
       setCombatLog(prev => [
-          ...prev.slice(-20), // Keep last 20 entries
+          ...prev.slice(-20),
           { id: Math.random().toString(36).substr(2, 9), text, type, timestamp: Date.now() }
       ]);
   }, []);
 
-  // Sync effect: Move to READY only when environment is built AND visual runner finished
+  const handleInteractionUpdate = (text: string | null, prog: number | null) => { 
+    setInteractionText(text); 
+    setInteractionProgress(prog); 
+  };
+
+  const handleEnvironmentReady = () => {
+    setIsEnvironmentBuilt(true);
+  };
+
+  const handleVisualLoadingFinished = () => {
+    setIsVisualLoadingDone(true);
+  };
+
+  const handleStartPlaying = () => {
+    setGameState('PLAYING');
+  };
+
+  const handleExport = () => { 
+    if (gameInstance.current && gameInstance.current.player) {
+      ModelExporter.exportAndDownloadZip(gameInstance.current.player.mesh);
+    }
+  };
+
+  const handleEnterWorld = (startInCombat: boolean = false) => {
+    setIsEnvironmentBuilt(false);
+    setIsVisualLoadingDone(false);
+    setIsCombatActive(false);
+    setGameState('LOADING');
+    if (startInCombat) {
+      setActiveScene('combat');
+    }
+    // Spawn a spider for testing
+    setTimeout(() => {
+      if (gameInstance.current) {
+        const player = gameInstance.current.player;
+        if (!player) return;
+        
+        const playerPos = player.position;
+        if (!playerPos) return;
+        
+        const spawnPos = playerPos.clone().add(new THREE.Vector3(5, 0, 5));
+        
+        if (!gameInstance.current.entityManager) return;
+        
+        gameInstance.current.entityManager.spawnAnimalGroup('spider', 1, gameInstance.current.environment, spawnPos);
+      }
+    }, 2000);
+  };
+
   useEffect(() => {
     if (gameState === 'LOADING' && isEnvironmentBuilt && isVisualLoadingDone) {
-        const t = setTimeout(() => {
-            setGameState('READY');
-        }, 300);
-        return () => clearTimeout(t);
+        // We stay in LOADING state until LoadingScreen component signals completion
+        // The signal comes via onLoadingFinished which calls handleStartPlaying ('PLAYING')
+        // Removing the intermediate 'READY' transition that was potentially blocking
     }
   }, [gameState, isEnvironmentBuilt, isVisualLoadingDone]);
 
@@ -241,8 +286,13 @@ const App: React.FC = () => {
     }));
   }, [inventory]);
 
-  const handleExport = () => { if (gameInstance.current) ModelExporter.exportAndDownloadZip(gameInstance.current['player']); };
-  const handleSpawnAnimal = (type: string, count: number) => { if (gameInstance.current) gameInstance.current.spawnAnimal(type, count); };
+  const handleSpawnAnimal = (type: string, count: number) => { 
+    if (gameInstance.current) {
+        const playerPos = gameInstance.current.player.position;
+        const spawnPos = playerPos.clone().add(new THREE.Vector3(2, 0, 2));
+        gameInstance.current.entityManager.spawnAnimalGroup(type, count, gameInstance.current.environment, spawnPos);
+    }
+  };
 
   useEffect(() => {
     const item = inventory[selectedSlot];
@@ -255,25 +305,6 @@ const App: React.FC = () => {
   };
 
   const handleDeathToggle = () => { triggerAction('isDead'); setIsDeadUI(prev => !prev); };
-  const handleInteractionUpdate = (text: string | null, prog: number | null) => { setInteractionText(text); setProgress(prog); };
-
-  const toggleInventory = () => {
-    if (isTradeOpen) setIsTradeOpen(false);
-    if (isForgeOpen) setIsForgeOpen(false);
-    setIsInventoryOpen(prev => !prev);
-  };
-  const toggleKeybinds = () => setIsKeybindsOpen(prev => !prev);
-  const toggleQuestLog = () => setIsQuestLogOpen(prev => !prev);
-
-  const handleToggleWorldMap = (pos: THREE.Vector3) => {
-    if (activeScene === 'world') { setPlayerPosForMap(pos); setIsWorldMapOpen(prev => !prev); }
-    else setIsWorldMapOpen(false);
-  };
-
-  const handleSelectStructure = (type: StructureType) => {
-      setActiveStructure(type);
-      if (gameInstance.current) gameInstance.current.setBuildingType(type);
-  };
 
   const handleEquipItem = (item: string, slotId: string) => {
       const existing = equipmentSlots[slotId];
@@ -379,276 +410,139 @@ const App: React.FC = () => {
       setTimeout(() => setActiveScene(scene), 100);
   };
 
-  const handleEnterWorld = (startInCombat: boolean = false) => {
-      setIsEnvironmentBuilt(false);
-      setIsVisualLoadingDone(false);
-      setIsCombatActive(false);
-      setGameState('LOADING');
-      if (startInCombat) {
-          setActiveScene('combat');
-      }
-      // Spawn a spider for testing
-      setTimeout(() => {
-          if (gameInstance.current) {
-              const playerPos = gameInstance.current['player'].position;
-              const spawnPos = playerPos.clone().add(new THREE.Vector3(5, 0, 5));
-              gameInstance.current['entities'].spawnAnimalGroup('spider', 1, gameInstance.current['environment'], spawnPos);
-          }
-      }, 2000);
-  };
-
-  const handleEnvironmentReady = () => {
-      setIsEnvironmentBuilt(true);
-  };
-
-  const handleVisualLoadingFinished = () => {
-      setIsVisualLoadingDone(true);
-  };
-
-  const handleStartPlaying = () => {
-      setGameState('PLAYING');
-  };
-
   const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || gameState !== 'PLAYING';
 
   return (
-    <div className="w-screen h-screen relative bg-gray-900 overflow-hidden font-sans">
-      
-      {gameState !== 'MENU' && (
-        <div className="absolute inset-0 z-0">
-            {activeScene === 'combat' ? (
-                <CombatScene 
-                    config={config}
-                    manualInput={manualInput}
-                    bench={bench}
-                    onGameReady={(g) => {
-                        gameInstance.current = g;
-                        g['inputManager'].onToggleInventory = toggleInventory;
-                        g['inputManager'].onToggleKeybinds = toggleKeybinds;
-                        g['inputManager'].onToggleQuestLog = toggleQuestLog;
-                        g.onBuilderToggle = (active) => setIsBuilderMode(active);
-                        g.onBiomeUpdate = (b) => setCurrentBiome(b);
-                        g.onDialogueTrigger = (content) => setDialogue(content);
-                        g.onTradeTrigger = () => setIsTradeOpen(true);
-                        g.onShopkeeperTrigger = () => setIsShopkeeperChatOpen(true);
-                        g.onForgeTrigger = () => setIsForgeOpen(true);
-                        g.onRotationUpdate = (r) => setPlayerRotation(r);
-                        g.onShowCharacterStats = (stats, name) => {
-                            if (stats) setStatsForModal(stats);
-                            else setStatsForModal(config.stats);
-                            if (name) setStatsUnitName(name);
-                            setIsCharacterStatsOpen(true);
-                        };
-                        
-                        g.onUnitSelect = (stats) => {
-                            if (stats) setSelectedUnitStats(stats);
-                            else setSelectedUnitStats(config.stats);
-                        };
-                        
-                        // Add combat-specific listeners
-                        g.onAttackHit = (type, count) => {
-                            addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
-                        };
-                    }}
-                    onEnvironmentReady={handleEnvironmentReady}
-                    onInteractionUpdate={handleInteractionUpdate}
-                    onToggleQuestLog={toggleQuestLog}
-                    onRotationUpdate={(r) => setPlayerRotation(r)}
-                    onAttackHit={(type, count) => {
-                        addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
-                    }}
-                    isCombatActive={isCombatActive}
-                    setIsCombatActive={(active) => {
-                        setIsCombatActive(active);
-                        if (active) addCombatLog("Engagement Protocol Initiated.", "system");
-                    }}
-                    combatLog={combatLog}
-                    showGrid={showGrid}
-                    setShowGrid={setShowGrid}
-                    controlsDisabled={isHUDDisabled}
-                />
-            ) : (
-                <Scene 
-                    key={activeScene}
-                    activeScene={activeScene}
-                    config={config} 
-                    manualInput={manualInput} 
-                    initialInventory={inventory}
-                    onInventoryUpdate={setInventory} 
-                    onSlotSelect={setSelectedSlot} 
-                    onInteractionUpdate={handleInteractionUpdate}
-                    onGameReady={(g) => {
-                        gameInstance.current = g;
-                        g['inputManager'].onToggleInventory = toggleInventory;
-                        g['inputManager'].onToggleKeybinds = toggleKeybinds;
-                        g['inputManager'].onToggleQuestLog = toggleQuestLog;
-                        g.onBuilderToggle = (active) => setIsBuilderMode(active);
-                        g.onBiomeUpdate = (b) => setCurrentBiome(b);
-                        g.onDialogueTrigger = (content) => setDialogue(content);
-                        g.onTradeTrigger = () => setIsTradeOpen(true);
-                        g.onShopkeeperTrigger = () => setIsShopkeeperChatOpen(true);
-                        g.onForgeTrigger = () => setIsForgeOpen(true);
-                        g.onRotationUpdate = (r) => setPlayerRotation(r);
-                        g.onShowCharacterStats = (stats, name) => {
-                            if (stats) setStatsForModal(stats);
-                            else setStatsForModal(config.stats);
-                            if (name) setStatsUnitName(name);
-                            setIsCharacterStatsOpen(true);
-                        };
-                        
-                        // Add combat-specific listeners
-                        g.onAttackHit = (type, count) => {
-                            addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
-                        };
-                    }}
-                    onEnvironmentReady={handleEnvironmentReady}
-                    onToggleWorldMap={handleToggleWorldMap}
-                    onToggleQuestLog={toggleQuestLog}
-                    controlsDisabled={isHUDDisabled}
-                    showGrid={showGrid}
-                    isCombatActive={isCombatActive}
-                />
-            )}
-        </div>
-      )}
+    <div className="w-screen h-screen relative bg-slate-950 overflow-hidden font-sans text-slate-50">
+      <div className="absolute inset-0 z-0">
+        {activePage === 'home' && <HomeView />}
+        {activePage === 'units' && <UnitsView />}
+        {activePage === 'mission' && <MissionView />}
+        {activePage === 'music' && <MusicView />}
+        
+        {activePage === 'game' && (
+          <GameScreen 
+            gameState={gameState}
+            setGameState={setGameState}
+            onStart={handleEnterWorld}
+            onShowEnemies={() => setIsEnemiesModalOpen(true)}
+            activeScene={activeScene}
+            config={config}
+            manualInput={manualInput}
+            bench={bench}
+            inventory={inventory}
+            gameInstance={gameInstance}
+            game={gameInstance.current}
+            isCombatActive={isCombatActive}
+            showGrid={showGrid}
+            combatLog={combatLog}
+            dialogue={dialogue}
+            currentBiome={currentBiome}
+            playerRotation={playerRotation}
+            selectedSlot={selectedSlot}
+            interactionText={interactionText}
+            interactionProgress={interactionProgress}
+            isHUDDisabled={isHUDDisabled}
+            isBuilderMode={isBuilderMode}
+            activeStructure={activeStructure}
+            isDeadUI={isDeadUI}
+            onGameReady={(g) => {
+                gameInstance.current = g;
+                g['inputManager'].onToggleInventory = toggleInventory;
+                g['inputManager'].onToggleKeybinds = toggleKeybinds;
+                g['inputManager'].onToggleQuestLog = toggleQuestLog;
+                g.onBuilderToggle = (active) => setIsBuilderMode(active);
+                g.onBiomeUpdate = (b) => setCurrentBiome(b);
+                g.onDialogueTrigger = (content) => setDialogue(content);
+                g.onTradeTrigger = () => setIsTradeOpen(true);
+                g.onShopkeeperTrigger = () => setIsShopkeeperChatOpen(true);
+                g.onForgeTrigger = () => setIsForgeOpen(true);
+                g.onRotationUpdate = (r) => setPlayerRotation(r);
+                g.onShowCharacterStats = (stats, name) => {
+                    if (stats) setStatsForModal(stats);
+                    else setStatsForModal(config.stats);
+                    if (name) setStatsUnitName(name);
+                    setIsCharacterStatsOpen(true);
+                };
+                g.onUnitSelect = (stats) => {
+                    if (stats) setSelectedUnitStats(stats);
+                    else setSelectedUnitStats(config.stats);
+                };
+                g.onAttackHit = (type, count) => {
+                    addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
+                };
+            }}
+            onEnvironmentReady={handleEnvironmentReady}
+            onInteractionUpdate={handleInteractionUpdate}
+            onToggleQuestLog={toggleQuestLog}
+            setPlayerRotation={setPlayerRotation}
+            addCombatLog={addCombatLog}
+            setIsCombatActive={setIsCombatActive}
+            setShowGrid={setShowGrid}
+            setInventory={setInventory}
+            setSelectedSlot={setSelectedSlot}
+            setPlayerPosForMap={(pos) => { setPlayerPosForMap(pos); setIsTravelOpen(true); }}
+            setIsTravelOpen={setIsTravelOpen}
+            onCloseDialogue={closeDialogue}
+            onSelectStructure={handleSelectStructure}
+            onExport={handleExport}
+            onSpawnAnimals={() => setIsSpawnModalOpen(true)}
+            setConfig={setConfig}
+            setManualInput={setManualInput}
+            handleDeathToggle={handleDeathToggle}
+            triggerAction={triggerAction}
+            isSystemReady={isEnvironmentBuilt && isVisualLoadingDone}
+            onLoadingFinished={handleStartPlaying}
+            onVisualLoadingFinished={handleVisualLoadingFinished}
+          />
+        )}
+      </div>
 
-            {gameState === 'MENU' && (
-                <div className="fixed inset-0 z-[100]">
-                    <MainMenu 
-                        onStart={handleEnterWorld} 
-                        onShowEnemies={() => setIsEnemiesModalOpen(true)} 
-                    />
-                    {isEnemiesModalOpen && (
-                        <Suspense fallback={null}>
-                            <EnemiesModal 
-                                isOpen={isEnemiesModalOpen} 
-                                onClose={() => setIsEnemiesModalOpen(false)} 
-                            />
-                        </Suspense>
-                    )}
-                </div>
-            )}
+      <Navigation activePage={activePage} onPageChange={setActivePage} />
 
-      <LoadingScreen 
-        isVisible={gameState === 'LOADING'} 
-        isSystemReady={isEnvironmentBuilt}
-        onFinished={handleVisualLoadingFinished}
+      <GlobalModals
+        isInventoryOpen={isInventoryOpen}
+        toggleInventory={toggleInventory}
+        inventory={inventory}
+        setInventory={setInventory}
+        equipmentSlots={equipmentSlots}
+        handleEquipItem={handleEquipItem}
+        handleUnequipItem={handleUnequipItem}
+        coins={coins}
+        stats={config.stats}
+        bodyType={config.bodyType}
+        isTradeOpen={isTradeOpen}
+        setIsTradeOpen={setIsTradeOpen}
+        handleTrade={handleTrade}
+        isShopkeeperChatOpen={isShopkeeperChatOpen}
+        setIsShopkeeperChatOpen={setIsShopkeeperChatOpen}
+        isForgeOpen={isForgeOpen}
+        setIsForgeOpen={setIsForgeOpen}
+        isKeybindsOpen={isKeybindsOpen}
+        toggleKeybinds={toggleKeybinds}
+        isQuestLogOpen={isQuestLogOpen}
+        toggleQuestLog={toggleQuestLog}
+        quests={quests}
+        handleClaimReward={handleClaimReward}
+        isTravelOpen={isTravelOpen}
+        setIsTravelOpen={setIsTravelOpen}
+        activeScene={activeScene}
+        handleTravel={handleTravel}
+        isSpawnModalOpen={isSpawnModalOpen}
+        setIsSpawnModalOpen={setIsSpawnModalOpen}
+        handleSpawnAnimal={handleSpawnAnimal}
+        isEnemiesModalOpen={isEnemiesModalOpen}
+        setIsEnemiesModalOpen={setIsEnemiesModalOpen}
+        isCharacterStatsOpen={isCharacterStatsOpen}
+        setIsCharacterStatsOpen={setIsCharacterStatsOpen}
+        statsForModal={statsForModal}
+        statsUnitName={statsUnitName}
       />
 
-      {gameState === 'READY' && (
-        <div 
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-md cursor-pointer animate-fade-in"
-            onClick={handleStartPlaying}
-        >
-             <div className="text-center animate-pulse group">
-                <div className="mb-6 inline-block p-4 rounded-full bg-blue-600/20 border border-blue-500/50 group-hover:bg-blue-600/40 transition-all duration-300">
-                    <svg className="w-12 h-12 text-blue-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                </div>
-                <h1 className="text-4xl md:text-6xl font-black text-white uppercase tracking-[0.2em] drop-shadow-[0_0_25px_rgba(37,99,235,0.8)] group-hover:scale-105 transition-transform duration-300">
-                    Click to Start
-                </h1>
-                <p className="text-slate-300 text-sm md:text-base font-bold uppercase tracking-[0.4em] mt-6 opacity-60">
-                    Your adventure awaits
-                </p>
-             </div>
-        </div>
-      )}
-
-      {notification && gameState === 'PLAYING' && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[100] animate-fade-in-down">
-          <div className="bg-blue-600 border-2 border-white/20 px-6 py-3 rounded-full shadow-2xl flex items-center gap-3">
-             <span className="text-white text-lg">📜</span>
-             <span className="text-white font-black uppercase tracking-widest text-[10px] whitespace-nowrap">{notification}</span>
-          </div>
-        </div>
-      )}
-
-      {gameState === 'PLAYING' && (
-        <>
-            {activeScene !== 'combat' && (
-                <GameHUD 
-                    activeScene={activeScene}
-                    currentBiome={currentBiome}
-                    playerRotation={playerRotation}
-                    inventory={inventory}
-                    bench={bench}
-                    selectedSlot={selectedSlot}
-                    onSelectSlot={setSelectedSlot}
-                    interactionText={interactionText}
-                    interactionProgress={progress}
-                    showGrid={showGrid}
-                    setShowGrid={setShowGrid}
-                    isCombatActive={isCombatActive}
-                    setIsCombatActive={(active) => {
-                        setIsCombatActive(active);
-                        if (active) addCombatLog("Engagement Protocol Initiated.", "system");
-                    }}
-                    stats={activeScene === 'combat' ? selectedUnitStats : config.stats}
-                    isFemale={config.bodyType === 'female'}
-                    combatLog={combatLog}
-                />
-            )}
-
-            <div className="absolute top-20 left-1/2 -translate-x-1/2 z-[50] flex items-center gap-4">
-                <div className="relative">
-                    <button 
-                        onClick={() => setIsTravelOpen(!isTravelOpen)}
-                        className="px-6 py-2 bg-black/40 backdrop-blur-md border-2 border-white/20 rounded-full text-white font-black uppercase tracking-[0.2em] text-xs hover:bg-blue-600/80 hover:border-blue-400 transition-all shadow-xl active:scale-95 flex items-center gap-2"
-                    >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                        Travel
-                        <svg className={`w-3 h-3 transition-transform ${isTravelOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </button>
-
-                    {isTravelOpen && (
-                        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 w-48 bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden py-1 animate-fade-in-down pointer-events-auto">
-                            <button onClick={() => handleTravel('dev')} className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'dev' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
-                                Dev Scene{activeScene === 'dev' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-                            </button>
-                            <button onClick={() => handleTravel('world')} className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'world' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
-                                World Scene{activeScene === 'world' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-                            </button>
-                            <button onClick={() => handleTravel('combat')} className={`w-full px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-between ${activeScene === 'combat' ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-white/10'}`}>
-                                Combat Arena{activeScene === 'combat' && <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                <button 
-                    onClick={() => setIsEnemiesModalOpen(true)}
-                    className="px-6 py-2 bg-black/40 backdrop-blur-md border-2 border-white/20 rounded-full text-white font-black uppercase tracking-[0.2em] text-xs hover:bg-red-600/80 hover:border-red-400 transition-all shadow-xl active:scale-95 flex items-center gap-2"
-                >
-                    <span className="text-lg">👹</span>
-                    Enemies
-                </button>
-            </div>
-
-            {isBuilderMode && !isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && <BuilderUI activeType={activeStructure} onSelectType={handleSelectStructure} />}
-            {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isBuilderMode && !isQuestLogOpen && <ControlPanel config={config} manualInput={manualInput} isDeadUI={isDeadUI} setConfig={setConfig} setManualInput={setManualInput} handleDeathToggle={handleDeathToggle} triggerAction={triggerAction} onExport={handleExport} onSpawnAnimals={() => setIsSpawnModalOpen(true)} />}
-            {!isInventoryOpen && !isTradeOpen && !isShopkeeperChatOpen && !isForgeOpen && !isQuestLogOpen && <MobileControls game={gameInstance.current} />}
-            <Suspense fallback={null}>
-                {isInventoryOpen && <InventoryModal isOpen={isInventoryOpen} onClose={() => setIsInventoryOpen(false)} config={config} inventory={inventory} equipmentSlots={equipmentSlots} onEquip={setSelectedSlot} onInventoryChange={setInventory} onEquipItem={handleEquipItem} onUnequipItem={handleUnequipItem} coins={coins} />}
-                {isTradeOpen && <TradeModal isOpen={isTradeOpen} onClose={() => { setIsTradeOpen(false); if(gameInstance.current) gameInstance.current['player'].isTalking = false; }} inventory={inventory} coins={coins} onBuy={handleBuy} onSell={handleSell} />}
-                {isForgeOpen && <ForgeModal isOpen={isForgeOpen} onClose={() => setIsForgeOpen(false)} inventory={inventory} onInventoryChange={setInventory} />}
-                {isKeybindsOpen && <KeybindsModal isOpen={isKeybindsOpen} onClose={() => setIsKeybindsOpen(false)} />}
-                {isWorldMapOpen && <WorldMapModal isOpen={isWorldMapOpen} onClose={() => setIsWorldMapOpen(false)} playerPos={playerPosForMap} />}
-                {isQuestLogOpen && <QuestLogModal isOpen={isQuestLogOpen} onClose={() => setIsQuestLogOpen(false)} quests={quests} onClaimReward={claimQuestReward} />}
-                {isSpawnModalOpen && <SpawnAnimalsModal isOpen={isSpawnModalOpen} onClose={() => { setIsSpawnModalOpen(false); if(gameInstance.current) gameInstance.current['player'].isTalking = false; }} onSpawn={handleSpawnAnimal} />}
-                {isEnemiesModalOpen && <EnemiesModal isOpen={isEnemiesModalOpen} onClose={() => { setIsEnemiesModalOpen(false); if(gameInstance.current) gameInstance.current['player'].isTalking = false; }} />}
-                {isCharacterStatsOpen && <CharacterStatsModal isOpen={isCharacterStatsOpen} onClose={() => setIsCharacterStatsOpen(false)} stats={statsForModal || config.stats} name={statsUnitName} bodyType={config.bodyType} />}
-            </Suspense>
-        </>
-      )}
-
-      {dialogue && (
-          <div className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[60] w-full max-w-xl px-4 animate-fade-in-up">
-              <div className="bg-black/80 backdrop-blur-md border-2 border-white/20 rounded-2xl p-6 shadow-2xl">
-                  <div className="flex justify-between items-start mb-4"><h3 className="text-blue-400 font-black uppercase tracking-[0.2em] text-xs">Guard</h3></div>
-                  <p className="text-white text-lg font-medium leading-relaxed mb-6 italic">"{dialogue}"</p>
-                  <div className="flex justify-end"><button onClick={closeDialogue} className="px-6 py-2 bg-white text-black font-black uppercase tracking-widest text-xs rounded-full hover:bg-blue-400 hover:text-white transition-all shadow-lg active:scale-95">Close</button></div>
+      {notification && (
+          <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4">
+              <div className="bg-blue-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl border border-blue-400/50">
+                  {notification}
               </div>
           </div>
       )}

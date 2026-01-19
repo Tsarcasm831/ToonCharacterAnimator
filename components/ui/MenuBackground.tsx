@@ -65,12 +65,20 @@ export const MenuBackground: React.FC = () => {
 
   useEffect(() => {
     const updateDimensions = () => {
-      setDimensions({ width: window.innerWidth, height: window.innerHeight });
+      if (canvasRef.current && canvasRef.current.parentElement) {
+        const { clientWidth, clientHeight } = canvasRef.current.parentElement;
+        setDimensions({ width: clientWidth, height: clientHeight });
+      }
     };
     
     updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
+    
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    if (canvasRef.current && canvasRef.current.parentElement) {
+      resizeObserver.observe(canvasRef.current.parentElement);
+    }
+
+    return () => resizeObserver.disconnect();
   }, []);
 
   useEffect(() => {

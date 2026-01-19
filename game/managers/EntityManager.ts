@@ -78,6 +78,7 @@ export class EntityManager {
     private readonly tempPlayerPos = new THREE.Vector3();
     private readonly tempEyePos = new THREE.Vector3();
     private readonly eyeOffset = new THREE.Vector3(0, 1.7, 0);
+    private readonly tempEnemyTargets: { position: THREE.Vector3, isDead?: boolean }[] = [];
 
     constructor(scene: THREE.Scene, environment: any | null, initialConfig: PlayerConfig) {
         this.scene = scene;
@@ -138,10 +139,15 @@ export class EntityManager {
         this.warlocks = [];
     }
 
-    spawnCombatEncounter(type: string, count: number, arena: CombatEnvironment | null) {
+    spawnCombatEncounter(type: string, count: number, arena: CombatEnvironment | null, reservedCells: { r: number; c: number }[] = []) {
         if (!arena) return;
         
         const occupied = new Set<string>();
+        reservedCells.forEach(({ r, c }) => {
+            const key = `${r},${c}`;
+            occupied.add(key);
+            arena.setCellOccupied(r, c, true);
+        });
 
         // Spawn requested type
         for (let i = 0; i < count; i++) {
@@ -184,9 +190,18 @@ export class EntityManager {
             const pos = arena.getWorldPosition(row, col);
 
             switch(enemyType) {
-                case 'assassin': this.assassin.position.copy(pos); break;
-                case 'archer': this.archer.position.copy(pos); break;
-                case 'mage': this.mage.position.copy(pos); break;
+                case 'assassin':
+                    this.assassin.position.copy(pos);
+                    if (this.assassin.model?.group) this.assassin.model.group.position.copy(pos);
+                    break;
+                case 'archer':
+                    this.archer.position.copy(pos);
+                    if (this.archer.model?.group) this.archer.model.group.position.copy(pos);
+                    break;
+                case 'mage':
+                    this.mage.position.copy(pos);
+                    if (this.mage.model?.group) this.mage.model.group.position.copy(pos);
+                    break;
                 case 'berserker': this.berserkers.push(new Berserker(this.scene, pos)); break;
                 case 'rogue': this.rogues.push(new Rogue(this.scene, pos)); break;
                 case 'warlock': this.warlocks.push(new Warlock(this.scene, pos)); break;
@@ -216,7 +231,10 @@ export class EntityManager {
                 case 'monk': this.monks.push(new Monk(this.scene, pos)); break;
                 case 'ranger': this.rangers.push(new Ranger(this.scene, pos)); break;
                 case 'sentinel': this.sentinels.push(new Sentinel(this.scene, pos)); break;
-                case 'guard': this.guard.position.copy(pos); break;
+                case 'guard':
+                    this.guard.position.copy(pos);
+                    if (this.guard.model?.group) this.guard.model.group.position.copy(pos);
+                    break;
             }
         });
     }
@@ -291,6 +309,8 @@ export class EntityManager {
 
         const isVisible = (entity: any) => this.visibilityCache.get(entity) ?? false;
         const isNear = (entity: any) => this.nearCache.get(entity) ?? false;
+        const enemyTargets = this.getEnemyTargets(activeScene);
+        const playerTargets = [{ position: this.tempPlayerPos }];
 
         const sceneEntities = this.getEntitiesForScene(activeScene);
         sceneEntities.forEach((entity: any) => {
@@ -312,7 +332,7 @@ export class EntityManager {
                         entity.animator.animate(entity, delta, false, mockInput, []);
                     }
                 } else {
-                    this.updateEntity(entity, delta, config, animate, environment, onAttackHit);
+                    this.updateEntity(entity, delta, config, animate, environment, enemyTargets, playerTargets, onAttackHit);
                 }
             }
         });
@@ -326,9 +346,8 @@ export class EntityManager {
         });
     }
 
-    private updateEntity(entity: any, delta: number, config: PlayerConfig, animate: boolean, environment: any | null, onAttackHit?: (type: string, count: number) => void) {
+    private updateEntity(entity: any, delta: number, config: PlayerConfig, animate: boolean, environment: any | null, enemyTargets: { position: THREE.Vector3, isDead?: boolean }[], playerTargets: { position: THREE.Vector3, isDead?: boolean }[], onAttackHit?: (type: string, count: number) => void) {
         const skipAnimation = !animate;
-        const targets = [{ position: this.tempPlayerPos }];
 
         if (entity === this.npc && config.showNPC) {
             this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);
@@ -340,23 +359,55 @@ export class EntityManager {
             this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);
             this.shopkeeper.update(delta, this.tempEyePos, environment as any, skipAnimation);
         } else if (entity === this.guard && config.showGuard) {
-            this.guard.update(delta, this.tempPlayerPos, environment as any, [], skipAnimation);
+            this.guard.update(delta, this.tempPlayerPos, environment as any, enemyTargets, skipAnimation);
         } else if (entity === this.assassin && config.showAssassin) {
             this.assassin.config.isAssassinHostile = config.isAssassinHostile;
-            this.assassin.update(delta, environment as any, targets, skipAnimation);
+            this.assassin.update(delta, environment as any, playerTargets, skipAnimation);
         } else if (entity === this.archer && config.showAssassin) {
             this.archer.config.isAssassinHostile = config.isAssassinHostile;
-            this.archer.update(delta, environment as any, targets, skipAnimation);
+            this.archer.update(delta, environment as any, playerTargets, skipAnimation);
         } else if (entity === this.mage && config.showAssassin) {
             this.mage.config.isAssassinHostile = config.isAssassinHostile;
-            this.mage.update(delta, environment as any, targets, skipAnimation);
+            this.mage.update(delta, environment as any, playerTargets, skipAnimation);
+        } else if (
+            entity instanceof Cleric ||
+            entity instanceof Knight ||
+            entity instanceof Paladin ||
+            entity instanceof Monk ||
+            entity instanceof Ranger ||
+            entity instanceof Sentinel
+        ) {
+            entity.update(delta, environment as any, enemyTargets, skipAnimation);
         } else if (entity instanceof Bandit) {
-            entity.update(delta, environment as any, targets, skipAnimation);
+            entity.update(delta, environment as any, playerTargets, skipAnimation);
         } else if (entity instanceof Wolf || entity instanceof Bear) {
-            entity.update(delta, environment as any, targets, skipAnimation);
+            entity.update(delta, environment as any, playerTargets, skipAnimation);
         } else if (entity.update) {
-            entity.update(delta, environment as any, targets, skipAnimation);
+            entity.update(delta, environment as any, playerTargets, skipAnimation);
         }
+    }
+
+    private getEnemyTargets(sceneName: string): { position: THREE.Vector3, isDead?: boolean }[] {
+        this.tempEnemyTargets.length = 0;
+        if (sceneName !== 'combat') {
+            return this.tempEnemyTargets;
+        }
+        const units = [
+            ...this.bandits,
+            ...this.berserkers,
+            ...this.rogues,
+            ...this.warlocks,
+            this.assassin,
+            this.archer,
+            this.mage
+        ];
+        for (const unit of units) {
+            if (!unit) continue;
+            const pos = unit.position;
+            if (!pos) continue;
+            this.tempEnemyTargets.push({ position: pos, isDead: unit.status?.isDead ?? false });
+        }
+        return this.tempEnemyTargets;
     }
 
     getEntitiesForScene(sceneName: string): any[] {

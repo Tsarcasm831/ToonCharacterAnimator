@@ -72,7 +72,7 @@ export class Knight {
             }, 
             selectedItem: 'Sword',
             weaponStance: 'side',
-            isAssassinHostile: true,
+            isAssassinHostile: false,
             tintColor: tint 
         };
         this.stats = { ...CLASS_STATS.knight };
