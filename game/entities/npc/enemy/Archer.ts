@@ -4,6 +4,7 @@ import { CombatEnvironment } from '../../../environment/CombatEnvironment';
 import { PlayerModel } from '../../../model/PlayerModel';
 import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
+import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
@@ -76,7 +77,7 @@ export class Archer {
         }
     }
 
-    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean, isWolf?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean, isWolf?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -90,7 +91,16 @@ export class Archer {
             this.position.lerp(snapped, 5.0 * dt);
         }
 
-        let bestTarget = null; let bestDist = 30.0;
+        if (!isCombatActive) {
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, true);
+            return;
+        }
+
+        let bestTarget = null; let bestDist = 45.0; // Increased from 30.0
         for (const t of potentialTargets) {
             if (t.isDead) continue;
             const d = this.position.distanceTo(t.position);
@@ -100,9 +110,9 @@ export class Archer {
         this.currentTarget = bestTarget;
         const distToTarget = bestTarget ? bestDist : Infinity;
 
-        if (this.config.isAssassinHostile && bestTarget) {
+        if (isCombatActive && bestTarget) { 
             if (this.state === ArcherState.PATROL || this.state === ArcherState.IDLE) this.setState(ArcherState.CHASE);
-            if (this.state === ArcherState.CHASE) { if (distToTarget < 15.0) this.setState(ArcherState.DUEL); else if (distToTarget > 40.0) this.setState(ArcherState.PATROL); else this.targetPos.copy(this.currentTarget.position); }
+            if (this.state === ArcherState.CHASE) { if (distToTarget < 15.0) this.setState(ArcherState.DUEL); else if (distToTarget > 50.0) this.setState(ArcherState.PATROL); else this.targetPos.copy(this.currentTarget.position); }
             if (this.state === ArcherState.DUEL) {
                 this.duelTimer -= dt; this.targetPos.copy(this.currentTarget.position);
                 if (distToTarget > 20.0) this.setState(ArcherState.CHASE);
@@ -132,13 +142,22 @@ export class Archer {
 
         if (moveSpeed !== 0) { if (this.position.distanceTo(this.lastStuckPos) < 0.001) { this.stuckTimer += dt; if (this.stuckTimer > 1.5) { this.setState(ArcherState.PATROL); this.findPatrolPoint(environment); this.stuckTimer = 0; this.stateTimer = 0; } } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); } }
 
-        if (this.state !== ArcherState.DUEL && this.state !== ArcherState.RETREAT && this.state !== ArcherState.ATTACK) {
-            const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position); toGoal.y = 0;
+        if (this.state !== ArcherState.ATTACK && this.state !== ArcherState.RETREAT) {
+            const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
+            toGoal.y = 0;
             if (toGoal.length() > 0.1) {
-                this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 8.0 * dt);
-                if (moveSpeed > 0) { const step = moveSpeed * dt; const next = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)); if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) { this.position.x = next.x; this.position.z = next.z; } }
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, 8.0);
+                const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 12.0);
+
+                if (moveSpeed > 0) {
+                    const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, moveSpeed, dt, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                    this.position.x = nextPos.x;
+                    this.position.z = nextPos.z;
+                }
             }
-        } else if (this.currentTarget) { this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z), dt * 12.0); }
+        } else if (this.currentTarget) {
+            this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z), dt * 12.0); }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
         this.model.group.position.copy(this.position); this.model.group.rotation.y = this.rotationY;

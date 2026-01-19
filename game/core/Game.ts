@@ -1,11 +1,6 @@
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { BuildingParts } from '../builder/BuildingParts';
 import { Player } from '../player/Player';
-import { Environment } from '../environment/Environment';
-import { WorldEnvironment } from '../environment/WorldEnvironment';
-import { CombatEnvironment } from '../environment/CombatEnvironment';
 import { InputManager } from '../managers/InputManager';
 import { SoundManager } from '../managers/SoundManager';
 import { ParticleManager } from '../managers/ParticleManager';
@@ -17,7 +12,9 @@ import { EntityManager } from '../managers/EntityManager';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
-import { HouseBlueprints, Blueprint } from '../builder/HouseBlueprints';
+import { SceneManager, SceneType } from '../managers/SceneManager';
+import { CombatInteractionManager } from '../managers/CombatInteractionManager';
+import { LevelGenerator } from '../builder/LevelGenerator';
 
 export class Game {
     private renderManager: RenderManager;
@@ -25,10 +22,8 @@ export class Game {
     
     public player: Player;
     public entityManager: EntityManager;
-    public environment: Environment | null = null;
-    public worldEnvironment: WorldEnvironment | null = null;
-    public combatEnvironment: CombatEnvironment | null = null;
-    private activeScene: 'dev' | 'world' | 'combat';
+    public sceneManager: SceneManager;
+    public combatManager: CombatInteractionManager;
 
     public inputManager: InputManager;
     private soundManager: SoundManager;
@@ -48,16 +43,7 @@ export class Game {
     private wasAttack1Pressed: boolean = false;
     private showObstacleHitboxes: boolean = false;
 
-    // Combat Mode State
-    private selectedUnit: any | null = null;
-    private draggingUnit: any | null = null;
-    private draggingUnitStartPos: THREE.Vector3 | null = null;
-    private isWaitingForClick = false;
-    private mouseDownScreenPos = new THREE.Vector2();
-    private dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    private dragOffset = new THREE.Vector3();
-    private isCombatActive: boolean = false;
-    private raycaster = new THREE.Raycaster();
+    // First Person / Camera State
     private fpvYaw: number = 0;
     private fpvPitch: number = 0;
     private readonly tempTargetPos = new THREE.Vector3();
@@ -99,20 +85,8 @@ export class Game {
     private readonly rotationUpdateIntervalMs = 100;
     private readonly rotationUpdateEpsilon = 0.01;
 
-    private getUnitPosition(unit: any): THREE.Vector3 | null {
-        return unit?.position || unit?.mesh?.position || unit?.model?.group?.position || unit?.group?.position || null;
-    }
-
-    private setUnitPosition(unit: any, position: THREE.Vector3) {
-        if (unit?.position) unit.position.copy(position);
-        if (unit?.mesh?.position) unit.mesh.position.copy(position);
-        if (unit?.model?.group?.position) unit.model.group.position.copy(position);
-        if (unit?.group?.position) unit.group.position.copy(position);
-    }
-
-    constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: (InventoryItem | null)[], activeScene: 'dev' | 'world' | 'combat') {
+    constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: (InventoryItem | null)[], activeScene: SceneType) {
         this.config = initialConfig;
-        this.activeScene = activeScene;
         this.renderManager = new RenderManager(container);
 
         this.inputManager = new InputManager();
@@ -127,26 +101,41 @@ export class Game {
         Object.assign(this.player.config, initialConfig);
         this.player.inventory.setItems(initialInventory);
         
-        // Initialize Scenes
-        this.environment = new Environment(this.renderManager.scene);
-        this.worldEnvironment = new WorldEnvironment(this.renderManager.scene);
-        this.combatEnvironment = new CombatEnvironment(this.renderManager.scene);
-        
-        this.entityManager = new EntityManager(this.renderManager.scene, this.environment, initialConfig);
+        // Initialize Managers
+        // EntityManager needs references to environments, but SceneManager creates them.
+        // We'll initialize EntityManager with dev environment for now, or just pass the scene and let it handle updates.
+        // SceneManager creates environments.
+        this.sceneManager = new SceneManager(
+            this.renderManager.scene,
+            this.renderManager,
+            null as any, // EntityManager injected later
+            this.player,
+            activeScene
+        );
 
-        this.switchScene(activeScene, true);
+        this.entityManager = new EntityManager(this.renderManager.scene, this.sceneManager.environment, initialConfig);
+        // Inject entityManager back into sceneManager (circular dependency resolution)
+        this.sceneManager.setEntityManager(this.entityManager);
 
-        // Pre-build dev environment content
-        this.buildStructures();
-        this.environment.obstacleManager.onLogPickedUp = () => {
+        this.combatManager = new CombatInteractionManager(this.entityManager, this.renderManager, this.player);
+        this.combatManager.onUnitSelect = (stats) => this.onUnitSelect?.(stats);
+        this.combatManager.onShowCharacterStats = (stats, name) => this.onShowCharacterStats?.(stats, name);
+
+        // Initialize Scene
+        this.sceneManager.switchScene(activeScene, true);
+        this.sceneManager.onEnvironmentReady = () => this.onEnvironmentReady?.();
+
+        // Build Level
+        LevelGenerator.buildDevLevel(this.sceneManager.environment);
+        this.sceneManager.environment.obstacleManager.onLogPickedUp = () => {
             this.player.addItem('Wood', 8, true);
         };
         
         requestAnimationFrame(() => {
-            this.environment?.buildAsync().then(() => {
-                if (this.activeScene === 'dev') this.onEnvironmentReady?.();
+            this.sceneManager.environment.buildAsync().then(() => {
+                if (this.sceneManager.activeScene === 'dev') this.onEnvironmentReady?.();
             });
-            if (this.activeScene !== 'dev') this.onEnvironmentReady?.();
+            if (this.sceneManager.activeScene !== 'dev') this.onEnvironmentReady?.();
         });
 
         this.prevTargetPos.copy(this.renderManager.controls.target);
@@ -174,9 +163,8 @@ export class Game {
         this.inputManager.onToggleObstacleHitboxes = () => {
             this.showObstacleHitboxes = !this.showObstacleHitboxes;
             let obstacles: THREE.Object3D[] = [];
-            if (this.activeScene === 'dev') obstacles = this.environment?.obstacles || [];
-            else if (this.activeScene === 'world') obstacles = this.worldEnvironment?.obstacles || [];
-            else if (this.activeScene === 'combat') obstacles = this.combatEnvironment?.obstacles || [];
+            const currentEnv = this.sceneManager.currentEnvironment;
+            if (currentEnv) obstacles = currentEnv.obstacles;
             
             if (obstacles) PlayerDebug.updateObstacleHitboxVisuals(obstacles, this.showObstacleHitboxes);
         };
@@ -184,7 +172,7 @@ export class Game {
         this.inputManager.onToggleHands = () => this.player.toggleHandsDebug();
         this.inputManager.onToggleSkeletonMode = () => this.player.toggleSkeletonMode();
         this.inputManager.onToggleFirstPerson = () => this.toggleFirstPerson();
-        this.inputManager.onToggleGrid = () => this.environment?.toggleWorldGrid();
+        this.inputManager.onToggleGrid = () => this.sceneManager.environment.toggleWorldGrid();
         this.inputManager.onToggleWorldMap = () => {
             this.onToggleWorldMapCallback?.(this.player.mesh.position.clone());
         };
@@ -203,71 +191,14 @@ export class Game {
     }
 
     private onMouseDown(e: MouseEvent) {
-        if (this.activeScene !== 'combat' || e.button !== 0) return;
-        
-        const mouse = new THREE.Vector2(
-            (e.clientX / window.innerWidth) * 2 - 1,
-            -(e.clientY / window.innerHeight) * 2 + 1
-        );
-        
-        this.raycaster.setFromCamera(mouse, this.renderManager.camera);
-        
-        // Check all entities in the combat scene
-        const combatEntities = this.entityManager.getEntitiesForScene('combat');
-        const units = [this.player, ...combatEntities];
-        const unitMeshes = units.map(u => u.mesh || u.model?.group || u.group).filter(Boolean);
-        
-        const intersects = this.raycaster.intersectObjects(unitMeshes, true);
-        
-        if (intersects.length > 0) {
-            // Find which unit was clicked
-            const clickedMesh = intersects[0].object;
-            let foundUnit = units.find(u => {
-                const mesh = u.mesh || u.model?.group || u.group;
-                return mesh && (mesh === clickedMesh || mesh.getObjectById(clickedMesh.id));
-            });
-
-            if (foundUnit) {
-                this.draggingUnit = foundUnit;
-                this.isWaitingForClick = true;
-                this.mouseDownScreenPos.set(e.clientX, e.clientY);
-                
-                const unitPos = this.getUnitPosition(foundUnit);
-                this.draggingUnitStartPos = unitPos ? unitPos.clone() : null;
-                if (unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
-                    this.dragOffset.sub(unitPos);
-                }
-            }
-        } else {
-            // Clicked empty ground: deselect
-            if (this.selectedUnit) {
-                this.setUnitHighlight(this.selectedUnit, false);
-                this.selectedUnit = null;
-            }
+        if (this.sceneManager.activeScene === 'combat') {
+            this.combatManager.handleMouseDown(e, this.sceneManager.combatEnvironment);
         }
     }
 
     private onMouseMove(e: MouseEvent) {
-        if (this.activeScene === 'combat' && this.draggingUnit) {
-            const dist = this.mouseDownScreenPos.distanceTo(new THREE.Vector2(e.clientX, e.clientY));
-            if (dist > 5) {
-                this.isWaitingForClick = false;
-                this.setUnitHighlight(this.draggingUnit, true);
-            }
-
-            if (!this.isWaitingForClick) {
-                const mouse = new THREE.Vector2(
-                    (e.clientX / window.innerWidth) * 2 - 1,
-                    -(e.clientY / window.innerHeight) * 2 + 1
-                );
-                this.raycaster.setFromCamera(mouse, this.renderManager.camera);
-                const target = new THREE.Vector3();
-                if (this.raycaster.ray.intersectPlane(this.dragPlane, target)) {
-                    const newPos = target.sub(this.dragOffset);
-                    newPos.y = 0;
-                    this.setUnitPosition(this.draggingUnit, newPos);
-                }
-            }
+        if (this.sceneManager.activeScene === 'combat') {
+            this.combatManager.handleMouseMove(e);
         }
 
         if (this.isFirstPerson && document.pointerLockElement === this.renderManager.renderer.domElement) {
@@ -280,241 +211,41 @@ export class Game {
     }
 
     private onMouseUp(e: MouseEvent) {
-        if (this.activeScene === 'combat' && this.draggingUnit) {
-            if (this.isWaitingForClick) {
-                // Was a static click, toggle selection
-                if (this.selectedUnit && this.selectedUnit !== this.draggingUnit) {
-                    this.setUnitHighlight(this.selectedUnit, false);
-                }
-                
-                const isNowSelected = this.selectedUnit !== this.draggingUnit;
-                this.selectedUnit = isNowSelected ? this.draggingUnit : null;
-                this.setUnitHighlight(this.draggingUnit, isNowSelected);
-                
-                if (isNowSelected) {
-                    const stats = this.draggingUnit === this.player ? this.player.status.getStats() : this.draggingUnit.stats;
-                    this.onUnitSelect?.(stats);
-                } else {
-                    this.onUnitSelect?.(undefined);
-                }
-            } else {
-                // Was a drag, snap to grid
-                if (this.combatEnvironment) {
-                    const unitPos = this.getUnitPosition(this.draggingUnit);
-                    if (unitPos) {
-                        const targetGrid = this.combatEnvironment.getGridPosition(unitPos);
-                        const combatEntities = this.entityManager.getEntitiesForScene('combat');
-                        const units = [this.player, ...combatEntities];
-                        const isTargetOccupied = targetGrid
-                            ? units.some(u => {
-                                if (u === this.draggingUnit) return false;
-                                const pos = this.getUnitPosition(u);
-                                if (!pos) return false;
-                                const grid = this.combatEnvironment?.getGridPosition(pos);
-                                return grid?.r === targetGrid.r && grid?.c === targetGrid.c;
-                            })
-                            : true;
-
-                        if (isTargetOccupied && this.draggingUnitStartPos) {
-                            const snapped = this.combatEnvironment.snapToGrid(this.draggingUnitStartPos);
-                            this.setUnitPosition(this.draggingUnit, snapped);
-                        } else if (!isTargetOccupied) {
-                            const snapped = this.combatEnvironment.snapToGrid(unitPos);
-                            this.setUnitPosition(this.draggingUnit, snapped);
-                        }
-                    }
-                }
-            }
-            this.draggingUnit = null;
-            this.isWaitingForClick = false;
-            this.draggingUnitStartPos = null;
+        if (this.sceneManager.activeScene === 'combat') {
+            this.combatManager.handleMouseUp(e, this.sceneManager.combatEnvironment);
         }
     }
     
     private onContextMenu(e: MouseEvent) {
-        if (this.activeScene !== 'combat') return;
-        
-        const mouse = new THREE.Vector2(
-            (e.clientX / window.innerWidth) * 2 - 1,
-            -(e.clientY / window.innerHeight) * 2 + 1
-        );
-        this.raycaster.setFromCamera(mouse, this.renderManager.camera);
-        
-        const combatEntities = this.entityManager.getEntitiesForScene('combat');
-        const units = [this.player, ...combatEntities];
-        const unitMeshes = units.map(u => u.mesh || u.model?.group || u.group).filter(Boolean);
-        
-        const intersects = this.raycaster.intersectObjects(unitMeshes, true);
-        
-        if (intersects.length > 0) {
-            const clickedMesh = intersects[0].object;
-            let foundUnit = units.find(u => {
-                const mesh = u.mesh || u.model?.group || u.group;
-                return mesh && (mesh === clickedMesh || mesh.getObjectById(clickedMesh.id));
-            });
-
-            if (foundUnit) {
-                // Determine unit type and name for stats
-                let stats: EntityStats | undefined = foundUnit.stats;
-                let unitName = 'Unknown Unit';
-
-                if (foundUnit === this.player) {
-                    stats = this.player.status.getStats();
-                    unitName = 'Hero';
-                } else {
-                    // Try to infer name from class name or type
-                    unitName = foundUnit.constructor.name;
-                }
-
-                this.onShowCharacterStats?.(stats, unitName);
-            }
-        }
-    }
-
-    private setUnitHighlight(unit: any, active: boolean) {
-        if (!unit) return;
-        unit.isDebugHitbox = active;
-        // Check if it's the player or an NPC/Enemy
-        if (unit === this.player) {
-            PlayerDebug.updateHitboxVisuals(unit);
-        } else if (unit.updateHitboxVisuals) {
-            unit.updateHitboxVisuals();
-        } else {
-            // Fallback for units without explicit updateHitboxVisuals
-            // Most specialized NPCs have them, or they use generic animator debug
+        if (this.sceneManager.activeScene === 'combat') {
+            this.combatManager.handleContextMenu(e);
         }
     }
 
     public toggleGrid(visible: boolean) {
-        if (this.combatEnvironment) {
-            this.combatEnvironment.toggleGridLabels(visible);
+        if (this.sceneManager.combatEnvironment) {
+            this.sceneManager.combatEnvironment.toggleGridLabels(visible);
         }
     }
 
     public setCombatActive(active: boolean) {
-        this.isCombatActive = active;
+        this.combatManager.setCombatActive(active);
+        if (active && this.sceneManager.activeScene === 'combat') {
+            this.config.isAssassinHostile = true;
+        }
     }
 
-    public switchScene(sceneName: 'dev' | 'world' | 'combat', isInit: boolean = false) {
-        this.activeScene = sceneName;
-        const GRID_CELL_SIZE = 1.3333;
-
-        // Visibility
-        this.environment?.setVisible(sceneName === 'dev');
-        this.worldEnvironment?.setVisible(sceneName === 'world');
-        this.combatEnvironment?.setVisible(sceneName === 'combat');
-        
-        // Reset dynamic entities when switching scenes
-        this.entityManager.clearDynamicEntities();
-
-        // Reset Combat Selection
-        this.selectedUnit = null;
-        this.draggingUnit = null;
-        this.isCombatActive = false;
-
-        if (sceneName === 'dev') {
-            const startX = -17 * GRID_CELL_SIZE;
-            const startZ = 30 * GRID_CELL_SIZE;
-            this.player.mesh.position.set(startX, 0, startZ);
-            this.renderManager.controls.target.set(startX, 1.7, startZ);
-            this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
-            this.renderManager.controls.enableRotate = true;
-            this.renderManager.controls.enableZoom = true;
-        } else if (sceneName === 'world') {
-            this.player.mesh.position.set(0, 5, 0);
-            this.renderManager.controls.target.set(0, 6.7, 0);
-            this.renderManager.camera.position.set(0, 8.2, 5.0);
-            this.renderManager.controls.enableRotate = true;
-            this.renderManager.controls.enableZoom = true;
-        } else if (sceneName === 'combat') {
-            // Combat Setup
-            this.player.mesh.position.set(0, 0, 10);
-            if(this.combatEnvironment) {
-                const snap = this.combatEnvironment.snapToGrid(this.player.mesh.position);
-                this.player.mesh.position.copy(snap);
-                const playerGrid = this.combatEnvironment.getGridPosition(this.player.mesh.position);
-                const reservedCells = playerGrid ? [playerGrid] : [];
-
-                // Spawn 2 Bandits on the red side for arena
-                this.entityManager.spawnCombatEncounter('bandit', 2, this.combatEnvironment, reservedCells);
-            }
-            this.player.mesh.rotation.y = Math.PI; 
-            this.renderManager.controls.target.set(0, 0, 0);
-            this.renderManager.camera.position.set(0, 15, 10);
-            this.renderManager.camera.lookAt(0,0,0);
-            this.renderManager.controls.enablePan = false; 
-        }
-
-        if (!isInit) {
-            this.prevTargetPos.copy(this.renderManager.controls.target);
-            this.player.velocity.set(0,0,0);
-            this.player.jumpVelocity = 0;
-            this.player.isJumping = false;
-            if (sceneName !== 'dev') {
-                setTimeout(() => this.onEnvironmentReady?.(), 100);
-            }
-        }
+    public switchScene(sceneName: SceneType, isInit: boolean = false) {
+        this.sceneManager.switchScene(sceneName, isInit);
+        // Clear combat selection when switching scenes
+        this.combatManager.clearSelection();
+        this.combatManager.setCombatActive(false);
     }
 
     spawnAnimal(type: string, count: number) {
-        if (this.activeScene === 'dev') {
-            this.entityManager.spawnAnimalGroup(type, count, this.environment, this.player.mesh.position);
+        if (this.sceneManager.activeScene === 'dev') {
+            this.entityManager.spawnAnimalGroup(type, count, this.sceneManager.environment, this.player.mesh.position);
         }
-    }
-
-    private buildStructures() {
-        if (!this.environment) return;
-        const build = (blueprint: Blueprint, originX: number, originZ: number, blueprintRotation: number = 0, color?: number) => {
-             const GRID = 1.3333;
-             blueprint.forEach(part => {
-                 let localX = part.x;
-                 let localZ = part.z;
-                 if (part.type === 'foundation' || part.type === 'roof' || part.type === 'round_foundation' || part.type === 'round_wall') {
-                     localX += 0.5; localZ += 0.5;
-                 } else if (part.type !== 'pillar') {
-                     if (part.rotation === Math.PI / 2) localZ += 0.5; else localX += 0.5;
-                 }
-                 const rx = localX * Math.cos(blueprintRotation) - localZ * Math.sin(blueprintRotation);
-                 const rz = localX * Math.sin(blueprintRotation) + localZ * Math.cos(blueprintRotation);
-                 const finalX = originX + (rx * GRID);
-                 const finalZ = originZ + (rz * GRID);
-                 const finalRot = (part.rotation || 0) + blueprintRotation;
-                 const FOUNDATION_HEIGHT = 0.4;
-                 let y = 0;
-                 if (part.type === 'foundation' || part.type === 'round_foundation') y = 0.2; 
-                 else if (part.type === 'wall' || part.type === 'pillar' || part.type === 'round_wall') y = FOUNDATION_HEIGHT + 1.65; 
-                 else if (part.type === 'doorway') y = FOUNDATION_HEIGHT + 1.65;
-                 else if (part.type === 'door') y = FOUNDATION_HEIGHT + 1.175;
-                 else if (part.type === 'roof') y = FOUNDATION_HEIGHT + 3.3; 
-                 this.placeStructure(part.type, finalX, y, finalZ, finalRot, color);
-             });
-        };
-        const GRID = 1.3333;
-        build(HouseBlueprints.getTheForge(), -27 * GRID, 36 * GRID);
-        build(HouseBlueprints.getCottage(), -20 * GRID, 45 * GRID, Math.PI / 2, 0x64b5f6);
-        build(HouseBlueprints.getLonghouse(), -10 * GRID, 35 * GRID, 0, 0x81c784);
-        build(HouseBlueprints.getLShape(), -38 * GRID, 30 * GRID, 0, 0xe57373);
-        build(HouseBlueprints.getRoundhouse(), -50 * GRID, 45 * GRID, 0, 0x9575cd);
-        build(HouseBlueprints.getGatehouse(), -15 * GRID, 20 * GRID, 0, 0xffb74d);
-    }
-
-    private placeStructure(type: any, x: number, y: number, z: number, rotation: number, color?: number) {
-        const mesh = BuildingParts.createStructureMesh(type, false, color);
-        mesh.position.set(x, y, z);
-        mesh.rotation.y = rotation;
-        const applyUserData = (obj: THREE.Object3D) => { 
-            obj.userData = { ...obj.userData, type: 'hard', material: 'wood', structureType: type }; 
-        };
-        if (mesh instanceof THREE.Group) {
-            mesh.traverse(applyUserData);
-            mesh.traverse(child => {
-                if (child instanceof THREE.Mesh && child.userData.type === 'hard') this.environment?.obstacles.push(child);
-            });
-        } else {
-            applyUserData(mesh);
-            this.environment?.obstacles.push(mesh);
-        }
-        this.environment?.group.add(mesh);
     }
 
     private toggleBuilder() {
@@ -564,7 +295,7 @@ export class Game {
         const input = this.inputManager.getInput();
 
         // Scene-Specific Logic
-        if (this.activeScene === 'combat') {
+        if (this.sceneManager.activeScene === 'combat') {
              const camForward = new THREE.Vector3();
              this.renderManager.camera.getWorldDirection(camForward);
              camForward.y = 0; 
@@ -613,7 +344,7 @@ export class Game {
         if (input.rotateGhost && !this.wasRotateKeyPressed) this.builderManager.rotate();
         this.wasRotateKeyPressed = !!input.rotateGhost;
         if (this.isBuilding && input.attack1 && !this.wasAttack1Pressed) {
-            const currentEnv = this.activeScene === 'dev' ? this.environment : (this.activeScene === 'world' ? this.worldEnvironment : null);
+            const currentEnv = this.sceneManager.currentEnvironment;
             if (currentEnv) {
                 this.builderManager.build(currentEnv);
                 if (this.showObstacleHitboxes) PlayerDebug.updateObstacleHitboxVisuals(currentEnv.obstacles, true);
@@ -623,36 +354,45 @@ export class Game {
 
         let cameraRotation = this.isFirstPerson ? (this.fpvYaw - Math.PI) : Math.atan2(this.renderManager.camera.position.x - this.renderManager.controls.target.x, this.renderManager.camera.position.z - this.renderManager.controls.target.z);
 
-        let currentEnv: any = null;
-        let currentEntities: any[] = [];
-
-        if (this.activeScene === 'dev' && this.environment) {
-            this.environment.update(delta, this.config, this.player.mesh.position);
-            this.entityManager.update(delta, this.config, this.player.mesh.position, this.environment, this.activeScene, true);
-            currentEntities = this.entityManager.getEntitiesForScene(this.activeScene);
-            currentEnv = this.environment;
-        } else if (this.activeScene === 'world' && this.worldEnvironment) {
-            currentEnv = this.worldEnvironment;
-            this.worldEnvironment.update(delta, this.config, this.player.mesh.position);
-        } else if (this.activeScene === 'combat' && this.combatEnvironment) {
-            currentEnv = this.combatEnvironment;
-            this.combatEnvironment.update(delta, this.config, this.player.mesh.position);
-            this.entityManager.update(delta, this.config, this.player.mesh.position, this.combatEnvironment, this.activeScene, this.isCombatActive, this.onAttackHit);
-            currentEntities = this.entityManager.getEntitiesForScene(this.activeScene);
-        }
+        // Update Scene Manager
+        this.sceneManager.update(delta, this.config);
+        
+        // Update EntityManager
+        // We need to pass the current environment to update
+        const currentEnv = this.sceneManager.currentEnvironment;
+        this.entityManager.update(
+            delta, 
+            this.config, 
+            this.player.mesh.position, 
+            currentEnv, 
+            this.sceneManager.activeScene, 
+            this.combatManager.isActive,
+            this.onAttackHit
+        );
+        const currentEntities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
 
         this.particleManager.update(delta);
         
         if (currentEnv) {
             if (time - this.lastBiomeCheck > 500) {
                 this.lastBiomeCheck = time;
-                const biome = currentEnv.getBiomeAt(this.player.mesh.position);
-                if (biome.name !== this.currentBiomeName) { this.currentBiomeName = biome.name; this.onBiomeUpdate?.(biome); }
+                // Only Environment and WorldEnvironment have getBiomeAt. CombatEnvironment might not?
+                // Actually CombatEnvironment extends Environment, so it should have it, or we should check type.
+                // Assuming all environments support getBiomeAt or we check safely.
+                if ((currentEnv as any).getBiomeAt) {
+                    const biome = (currentEnv as any).getBiomeAt(this.player.mesh.position);
+                    if (biome.name !== this.currentBiomeName) { this.currentBiomeName = biome.name; this.onBiomeUpdate?.(biome); }
+                }
             }
             
             const playerInput = { ...input };
             if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
             this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities);
+            // Ensure player mesh and model group are in sync for target detection
+            if (this.player.mesh && this.player.model?.group) {
+                this.player.model.group.position.copy(this.player.mesh.position);
+                this.player.model.group.rotation.copy(this.player.mesh.rotation);
+            }
             if (this.isBuilding && this.inputManager.mousePosition) {
                 this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv, this.renderManager.camera, this.inputManager.mousePosition);
             }
@@ -664,25 +404,32 @@ export class Game {
             this.onRotationUpdate?.(cameraRotation);
         }
 
-        if (this.activeScene !== 'combat') {
+        if (this.sceneManager.activeScene !== 'combat') {
             this.tempTargetPos.copy(this.player.mesh.position);
             let heightOffset = this.cameraFocusMode === 1 ? 1.0 : (this.cameraFocusMode === 2 ? 0.4 : 1.7);
             this.tempTargetPos.y += heightOffset; 
 
             if (this.isFirstPerson) {
+                // Use fixed eye height relative to player position to avoid animation bobbing
+                this.tempHeadPos.copy(this.player.mesh.position);
+                this.tempHeadPos.y += 1.6; // Approximate eye height
+
+                this.player.mesh.rotation.y = this.fpvYaw;
+                
+                // Hide head to prevent seeing inside it
                 const head = this.player.model.parts.head;
-                if (head) {
-                    this.player.mesh.rotation.y = this.fpvYaw;
-                    head.visible = false;
-                    head.getWorldPosition(this.tempHeadPos);
-                    this.player.mesh.getWorldDirection(this.tempForward);
-                    this.tempHeadPos.addScaledVector(this.tempForward, 0.1); 
-                    this.renderManager.controls.target.copy(this.tempHeadPos);
-                    this.tempCamDir.copy(this.camDirBase).applyAxisAngle(this.axisX, this.fpvPitch).applyAxisAngle(this.axisY, this.fpvYaw);
-                    this.renderManager.camera.position.copy(this.tempHeadPos);
-                    this.tempLookAt.copy(this.tempHeadPos).add(this.tempCamDir);
-                    this.renderManager.camera.lookAt(this.tempLookAt);
-                }
+                if (head) head.visible = false;
+
+                // Position camera
+                this.player.mesh.getWorldDirection(this.tempForward);
+                this.tempHeadPos.addScaledVector(this.tempForward, 0.2); // Slight forward offset
+                
+                this.renderManager.controls.target.copy(this.tempHeadPos);
+                this.tempCamDir.copy(this.camDirBase).applyAxisAngle(this.axisX, this.fpvPitch).applyAxisAngle(this.axisY, this.fpvYaw);
+                
+                this.renderManager.camera.position.copy(this.tempHeadPos);
+                this.tempLookAt.copy(this.tempHeadPos).add(this.tempCamDir);
+                this.renderManager.camera.lookAt(this.tempLookAt);
             } else {
                 this.prevTargetPos.copy(this.renderManager.controls.target);
                 this.renderManager.controls.target.copy(this.tempTargetPos);
@@ -699,17 +446,24 @@ export class Game {
         else if (this.player.isChargingFishing) this.onInteractionUpdate?.('Power', this.player.fishingCharge);
         else if (this.player.canTalk) {
             const target = this.player.talkingTarget;
-            const label = target instanceof Shopkeeper
+            const targetName = target?.constructor.name;
+            
+            const label = (targetName === 'Shopkeeper' || target instanceof Shopkeeper)
                 ? 'Press E to Chat'
-                : target instanceof Blacksmith
+                : (targetName === 'Blacksmith' || target instanceof Blacksmith)
                     ? 'Press E to Trade'
                     : 'Press E to Talk';
+            
             this.onInteractionUpdate?.(label, null);
             if (input.interact) { 
                 this.player.isTalking = true; 
-                if (target instanceof LowLevelCityGuard) { target.isLeftHandWaving = true; target.leftHandWaveTimer = 0; this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); } 
-                else if (target instanceof Blacksmith) this.onTradeTrigger?.();
-                else if (target instanceof Shopkeeper) this.onShopkeeperTrigger?.();
+                if (targetName === 'LowLevelCityGuard' || target instanceof LowLevelCityGuard) { 
+                    target.isLeftHandWaving = true; 
+                    target.leftHandWaveTimer = 0; 
+                    this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); 
+                } 
+                else if (targetName === 'Blacksmith' || target instanceof Blacksmith) this.onTradeTrigger?.();
+                else if (targetName === 'Shopkeeper' || target instanceof Shopkeeper) this.onShopkeeperTrigger?.();
                 else this.onDialogueTrigger?.("Greetings, traveler.");
             }
         } else if (this.player.canSkin) this.onInteractionUpdate?.('Press F to Skin', null);

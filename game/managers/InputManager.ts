@@ -79,6 +79,9 @@ export class InputManager {
     }
 
     private handleKeyDown(e: KeyboardEvent) { 
+        if ((e.target as HTMLElement).closest('input, textarea, select, .no-capture')) return;
+        if (e.repeat) return;
+
         if (e.code === 'KeyI') {
             this.onToggleInventory?.();
         }
@@ -89,10 +92,6 @@ export class InputManager {
         
         if (e.code === 'Backquote') {
             this.onToggleKeybinds?.();
-        }
-
-        if (e.code === 'KeyM') {
-            this.onToggleWorldMap?.();
         }
 
         if (this.isBlocked) return;

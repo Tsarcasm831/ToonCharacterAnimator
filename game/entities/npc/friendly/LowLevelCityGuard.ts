@@ -4,6 +4,7 @@ import { CombatEnvironment } from '../../../environment/CombatEnvironment';
 import { PlayerModel } from '../../../model/PlayerModel';
 import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
+import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
@@ -54,7 +55,7 @@ export class LowLevelCityGuard {
 
     public isInCombat(): boolean { return this.state === GuardState.CHASE || this.state === GuardState.DUEL || this.state === GuardState.ATTACK; }
 
-    update(dt: number, playerPosition: THREE.Vector3, environment: Environment | CombatEnvironment, enemies: { position: THREE.Vector3, isDead?: boolean }[] = [], skipAnimation: boolean = false) {
+    update(dt: number, playerPosition: THREE.Vector3, environment: Environment | CombatEnvironment, enemies: { position: THREE.Vector3, isDead?: boolean }[] = [], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt; if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
         const env = environment as any;
@@ -65,7 +66,17 @@ export class LowLevelCityGuard {
             // Snap more aggressively in combat arena
             this.position.lerp(snapped, 5.0 * dt);
         }
-        let bestTarget = null; let bestDist = 12.0;
+
+        if (!isCombatActive) {
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, false);
+            return;
+        }
+
+        let bestTarget = null; let bestDist = 25.0; // Increased search range
         for (const e of enemies) { if (e.isDead) continue; const d = this.position.distanceTo(e.position); if (d < bestDist) { bestDist = d; bestTarget = e; } }
         this.currentTarget = bestTarget;
 
@@ -74,16 +85,100 @@ export class LowLevelCityGuard {
         if (this.currentTarget) {
             const dist = this.position.distanceTo(this.currentTarget.position);
             if (this.state === GuardState.PATROL) this.setState(GuardState.CHASE);
-            if (this.state === GuardState.CHASE) { if (dist < 3.0) this.setState(GuardState.DUEL); else if (dist > 15.0) this.setState(GuardState.PATROL); else { const dir = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize(); this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(dir.x, dir.z), dt * 5.0); moveSpeed = 3.5; isMoving = true; animY = -1; } }
-            else if (this.state === GuardState.DUEL) { const toT = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize(); this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toT.x, toT.z), dt * 10.0); const r = new THREE.Vector3(0,1,0).cross(toT).normalize(); const stepV = r.multiplyScalar(this.strafeDir * 1.5); if (dist < 2.0) stepV.add(toT.clone().multiplyScalar(-1.0)); else if (dist > 3.0) stepV.add(toT.clone().multiplyScalar(1.0)); const n = this.position.clone().add(stepV.multiplyScalar(dt)); if (!PlayerUtils.checkCollision(n, this.config, env.obstacles) && PlayerUtils.isWithinBounds(n)) { this.position.x = n.x; this.position.z = n.z; } isMoving = true; moveSpeed = 1.5; animX = this.strafeDir; this.duelTimer -= dt; if (dist > 4.5) this.setState(GuardState.CHASE); else if (this.duelTimer <= 0 && this.attackCooldown <= 0 && dist < 2.5) this.setState(GuardState.ATTACK); }
-            else if (this.state === GuardState.ATTACK) { this.strikeTimer += dt; if (this.strikeTimer > 1.2) { this.attackCooldown = 2.0 + Math.random(); this.setState(GuardState.DUEL); } if (this.strikeTimer < 0.3) { const step = new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0), this.rotationY).multiplyScalar(2.0 * dt); const n = this.position.clone().add(step); if (!PlayerUtils.checkCollision(n, this.config, env.obstacles) && PlayerUtils.isWithinBounds(n)) this.position.copy(n); } }
-        } else { this.setState(GuardState.PATROL); if (this.position.distanceTo(this.patrolTarget) > 1.0) { const d = new THREE.Vector3().subVectors(this.patrolTarget, this.position).normalize(); this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(d.x, d.z), dt * 3.0); moveSpeed = 2.5; isMoving = true; animY = -1; } }
+            if (this.state === GuardState.CHASE) { if (dist < 3.0) this.setState(GuardState.DUEL); else if (dist > 15.0) this.setState(GuardState.PATROL); else { 
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.currentTarget.position, this.position, dt, 8.0);
+                const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 12.0);
 
-        if ((this.state === GuardState.CHASE || this.state === GuardState.PATROL) && moveSpeed > 0) { const s = moveSpeed * dt; const n = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(s)); if (!PlayerUtils.checkCollision(n, this.config, env.obstacles) && PlayerUtils.isWithinBounds(n)) { this.position.x = n.x; this.position.z = n.z; } }
+                if (moveSpeed > 0) {
+                    const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, moveSpeed, dt, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                    this.position.x = nextPos.x;
+                    this.position.z = nextPos.z;
+                }
+                moveSpeed = 3.5; isMoving = true; animY = -1; 
+            } }
+            else if (this.state === GuardState.DUEL) { 
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.currentTarget.position, this.position, dt, 12.0);
+                const r = new THREE.Vector3(0,1,0).cross(new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize()).normalize(); 
+                const stepV = r.multiplyScalar(this.strafeDir * 1.5); 
+                if (dist < 2.0) stepV.add(new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize().negate().multiplyScalar(1.0)); 
+                else if (dist > 3.0) stepV.add(new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize().multiplyScalar(1.0)); 
+                const n = this.position.clone().add(stepV.multiplyScalar(dt)); 
+                if (!PlayerUtils.checkCollision(n, this.config, env.obstacles) && PlayerUtils.isWithinBounds(n)) { 
+                    this.position.x = n.x; 
+                    this.position.z = n.z; 
+                } 
+                isMoving = true; 
+                moveSpeed = 1.5; 
+                animX = this.strafeDir; 
+                this.duelTimer -= dt; 
+                if (dist > 4.5) this.setState(GuardState.CHASE); 
+                else if (this.duelTimer <= 0 && this.attackCooldown <= 0 && dist < 2.5) this.setState(GuardState.ATTACK); 
+            }
+            else if (this.state === GuardState.ATTACK) { 
+                this.strikeTimer += dt; 
+                if (this.strikeTimer > 1.2) { 
+                    this.attackCooldown = 2.0 + Math.random(); 
+                    this.setState(GuardState.DUEL); 
+                } 
+                if (this.strikeTimer < 0.3) { 
+                    const step = new THREE.Vector3(0,0,1).applyAxisAngle(new THREE.Vector3(0,1,0), this.rotationY).multiplyScalar(2.0 * dt); 
+                    const n = this.position.clone().add(step); 
+                    if (!PlayerUtils.checkCollision(n, this.config, env.obstacles) && PlayerUtils.isWithinBounds(n)) this.position.copy(n); 
+                } 
+            }
+        } else { 
+            this.setState(GuardState.PATROL); 
+            if (this.position.distanceTo(this.patrolTarget) > 1.0) { 
+                const toGoal = new THREE.Vector3().subVectors(this.patrolTarget, this.position);
+                toGoal.y = 0;
+                if (toGoal.length() > 0.1) {
+                    this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.patrolTarget, this.position, dt, 8.0);
+                    const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                    this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 12.0);
 
-        if (moveSpeed !== 0) { if (this.position.distanceTo(this.lastStuckPos) < 0.001) { this.stuckTimer += dt; if (this.stuckTimer > 1.5) { this.setState(GuardState.PATROL); this.stuckTimer = 0; this.stateTimer = 0; } } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); } } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
+                    if (moveSpeed > 0) {
+                        const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, moveSpeed, dt, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                        this.position.x = nextPos.x;
+                        this.position.z = nextPos.z;
+                    }
+                }
+                moveSpeed = 2.5; isMoving = true; animY = -1; 
+            } 
+        }
 
-        if (this.currentTarget && !this.currentTarget.isDead) { const toE = new THREE.Vector3().subVectors(this.currentTarget.position, this.position); const d = toE.length(); if (d < 0.9) { const step = toE.normalize().negate().multiplyScalar((0.9 - d) * 5.0 * dt); const n = this.position.clone().add(step); if (PlayerUtils.isWithinBounds(n)) this.position.copy(n); } }
+        if ((this.state === GuardState.CHASE || this.state === GuardState.PATROL) && moveSpeed > 0) { 
+            const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, moveSpeed, dt, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+            this.position.x = nextPos.x;
+            this.position.z = nextPos.z;
+        }
+
+        if (moveSpeed !== 0) { 
+            if (this.position.distanceTo(this.lastStuckPos) < 0.001) { 
+                this.stuckTimer += dt; 
+                if (this.stuckTimer > 1.5) { 
+                    this.setState(GuardState.PATROL); 
+                    this.stuckTimer = 0; 
+                    this.stateTimer = 0; 
+                } 
+            } else { 
+                this.stuckTimer = 0; 
+                this.lastStuckPos.copy(this.position); 
+            } 
+        } else { 
+            this.stuckTimer = 0; 
+            this.lastStuckPos.copy(this.position); 
+        }
+
+        if (this.currentTarget && !this.currentTarget.isDead) { 
+            const toE = new THREE.Vector3().subVectors(this.currentTarget.position, this.position); 
+            const d = toE.length(); 
+            if (d < 0.9) { 
+                const step = toE.normalize().negate().multiplyScalar((0.9 - d) * 5.0 * dt); 
+                const n = this.position.clone().add(step); 
+                if (PlayerUtils.isWithinBounds(n)) this.position.copy(n); 
+            } 
+        }
 
         this.position.y = PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles);
         this.model.group.position.copy(this.position); this.model.group.rotation.y = this.rotationY;

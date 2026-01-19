@@ -112,7 +112,7 @@ export class Monk {
         );
     }
 
-    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -126,8 +126,17 @@ export class Monk {
             }
         }
 
+        if (!isCombatActive) {
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, true);
+            return;
+        }
+
         let bestTarget = null;
-        let bestDist = 18.0;
+        let bestDist = 30.0; // Increased from 18.0
         for (const t of potentialTargets) {
             if (t.isDead) continue;
             const d = this.position.distanceTo(t.position);
@@ -137,13 +146,13 @@ export class Monk {
         const distToTarget = bestTarget ? bestDist : Infinity;
 
         // Monks use rapid flurry attacks
-        if (bestTarget) {
+        if (isCombatActive && bestTarget) {
             if (this.state === MonkState.PATROL || this.state === MonkState.IDLE) {
                 this.setState(MonkState.CHASE);
             }
             if (this.state === MonkState.CHASE) {
                 if (distToTarget < 2.5 && this.attackCooldown <= 0) this.setState(MonkState.FLURRY);
-                else if (distToTarget > 25.0) this.setState(MonkState.PATROL);
+                else if (distToTarget > 35.0) this.setState(MonkState.PATROL); // Increased from 25.0
                 else this.targetPos.copy(this.currentTarget!.position);
             }
             if (this.state === MonkState.FLURRY && this.punchTimer > 0.35) {

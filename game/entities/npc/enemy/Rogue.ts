@@ -5,6 +5,7 @@ import { CombatEnvironment } from '../../../environment/CombatEnvironment';
 import { PlayerModel } from '../../../model/PlayerModel';
 import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
+import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
@@ -105,7 +106,7 @@ export class Rogue {
         );
     }
 
-    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -117,8 +118,17 @@ export class Rogue {
             this.position.lerp(snapped, 5.0 * dt);
         }
 
+        if (!isCombatActive) {
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, true);
+            return;
+        }
+
         let bestTarget = null;
-        let bestDist = 25.0;
+        let bestDist = 40.0; // Increased from 25.0
         for (const t of potentialTargets) {
             if (t.isDead) continue;
             const d = this.position.distanceTo(t.position);
@@ -128,13 +138,13 @@ export class Rogue {
         const distToTarget = bestTarget ? bestDist : Infinity;
 
         // Rogues stalk before attacking
-        if (bestTarget) {
+        if (isCombatActive && bestTarget) {
             if (this.state === RogueState.PATROL || this.state === RogueState.IDLE) {
                 this.setState(RogueState.STALK);
             }
             if (this.state === RogueState.STALK) {
                 if (distToTarget < 5.0) this.setState(RogueState.CHASE);
-                else if (distToTarget > 30.0) this.setState(RogueState.PATROL);
+                else if (distToTarget > 45.0) this.setState(RogueState.PATROL); // Increased from 30.0
                 else this.targetPos.copy(this.currentTarget!.position);
             }
             if (this.state === RogueState.CHASE) {
@@ -215,16 +225,14 @@ export class Rogue {
             const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
             toGoal.y = 0;
             if (toGoal.length() > 0.1) {
-                this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 10.0 * dt);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, 8.0);
+                const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 12.0);
+
                 if (moveSpeed > 0) {
-                    const step = moveSpeed * dt;
-                    const next = this.position.clone().add(
-                        new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)
-                    );
-                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
-                        this.position.x = next.x;
-                        this.position.z = next.z;
-                    }
+                    const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, moveSpeed, dt, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                    this.position.x = nextPos.x;
+                    this.position.z = nextPos.z;
                 }
             }
         } else if (this.currentTarget) {

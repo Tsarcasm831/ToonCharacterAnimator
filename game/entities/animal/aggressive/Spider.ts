@@ -42,47 +42,52 @@ export class Spider {
     private findPatrolPoint() { const range = 15; this.targetPos.set(this.position.x + (Math.random() - 0.5) * range, 0, this.position.z + (Math.random() - 0.5) * range); if (!PlayerUtils.isWithinBounds(this.targetPos)) this.targetPos.set(0, 0, 0); }
     private animate(dt: number, moveSpeed: number) {
         const parts = this.model.parts;
-        const time = this.walkTime * 8.0; // Faster frequency for many legs
+        const time = this.walkTime * 8.0; 
         
         if (moveSpeed > 0) {
             const spread = 0.2;
             
-            for (let i = 1; i <= 4; i++) {
-                // Alternating gait for 8 legs
-                const phase = (i % 2 === 0) ? 0 : Math.PI;
+            // 1-8-2-7-3-6-4-5 pattern (indices 1-4 for L/R)
+            // L1 (1), R4 (8), L2 (2), R3 (7), L3 (3), R2 (6), L4 (4), R1 (5)
+            const legOrder = [
+                { side: 'L', index: 1 }, // 1
+                { side: 'R', index: 4 }, // 8
+                { side: 'L', index: 2 }, // 2
+                { side: 'R', index: 3 }, // 7
+                { side: 'L', index: 3 }, // 3
+                { side: 'R', index: 2 }, // 6
+                { side: 'L', index: 4 }, // 4
+                { side: 'R', index: 1 }  // 5
+            ];
+
+            legOrder.forEach((order, seqIndex) => {
+                const phase = (seqIndex / 8) * Math.PI * 2;
                 const legTime = time + phase;
                 
                 const sin = Math.sin(legTime);
                 const lift = Math.max(0, sin);
                 
-                for (let side of ['L', 'R']) {
-                    const leg = parts[`leg${side}${i}`];
-                    const tibia = parts[`leg${side}${i}_tibia`];
-                    const tarsus = parts[`leg${side}${i}_tarsus`];
-                    const sideMod = side === 'L' ? -1 : 1;
-                    
-                    if (leg) {
-                        // Swing forward/back
-                        leg.rotation.y = sin * spread;
-                        // Lift femur (Negative Z for L, Positive Z for R to lift UP)
-                        // Base angle -0.6, lifting to ~-1.0
-                        leg.rotation.z = sideMod * (-0.6 - lift * 0.4);
-                    }
-                    if (tibia) {
-                        // Bend tibia (Positive Z for L, Negative Z for R to bend DOWN)
-                        // Base angle 1.2, bending to ~1.8
-                        tibia.rotation.z = sideMod * (1.2 + lift * 0.6);
-                    }
-                    if (tarsus) {
-                        // Point tarsus down
-                        // Base angle 0.4, adjusting with lift
-                        tarsus.rotation.z = sideMod * (0.4 + lift * 0.2);
-                    }
+                const side = order.side;
+                const i = order.index;
+                const leg = parts[`leg${side}${i}`];
+                const tibia = parts[`leg${side}${i}_tibia`];
+                const tarsus = parts[`leg${side}${i}_tarsus`];
+                const sideMod = side === 'L' ? -1 : 1;
+                
+                if (leg) {
+                    leg.rotation.y = sin * spread;
+                    leg.rotation.z = sideMod * (0.6 + lift * 0.4);
                 }
-            }
+                if (tibia) {
+                    tibia.rotation.z = sideMod * (-1.2 - lift * 0.6);
+                }
+                if (tarsus) {
+                    tarsus.rotation.z = sideMod * (-0.4 - lift * 0.2);
+                }
+            });
             
             if (parts.body) {
-                parts.body.position.y = 0.45 + Math.abs(Math.cos(time)) * 0.08;
+                parts.body.position.y = 0.45 + Math.abs(Math.cos(time * 2.0)) * 0.08;
             }
         } else {
             // Idle breathing and slight leg twitch
@@ -94,13 +99,13 @@ export class Spider {
                     const leg = parts[`leg${side}${i}`];
                     const sideMod = side === 'L' ? -1 : 1;
                     if (leg) {
-                        leg.rotation.z = sideMod * -0.6;
+                        leg.rotation.z = sideMod * 0.6;
                         leg.rotation.y = 0;
                     }
                     const tibia = parts[`leg${side}${i}_tibia`];
-                    if (tibia) tibia.rotation.z = sideMod * 1.2;
+                    if (tibia) tibia.rotation.z = sideMod * -1.2;
                     const tarsus = parts[`leg${side}${i}_tarsus`];
-                    if (tarsus) tarsus.rotation.z = sideMod * 0.4;
+                    if (tarsus) tarsus.rotation.z = sideMod * -0.4;
                 }
             }
         }

@@ -93,6 +93,22 @@ export class PlayerUtils {
 
         for (const obs of obstacles) {
             if (obs.userData.type === 'soft' || obs.userData.type === 'creature') continue; 
+            
+            // Special handling for round foundations which use CylinderGeometry
+            if (obs.userData.structureType === 'round_foundation') {
+                const dx = pos.x - obs.position.x;
+                const dz = pos.z - obs.position.z;
+                const distSq = dx * dx + dz * dz;
+                
+                // radius is 2.5 as defined in BuildingParts.ts
+                const radius = 2.5;
+                if (distSq <= radius * radius) {
+                    const topY = obs.position.y + 0.2; // foundation is 0.4 thick, centered at y=0.2
+                    highest = Math.max(highest, topY);
+                }
+                continue;
+            }
+
             const obsBox = new THREE.Box3().setFromObject(obs);
             if (pBox.min.x < obsBox.max.x && pBox.max.x > obsBox.min.x &&
                 pBox.min.z < obsBox.max.z && pBox.max.z > obsBox.min.z) {

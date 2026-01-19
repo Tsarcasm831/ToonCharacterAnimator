@@ -105,7 +105,7 @@ export class Ranger {
         );
     }
 
-    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false) {
+    update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -119,8 +119,17 @@ export class Ranger {
             }
         }
 
+        if (!isCombatActive) {
+            this.model.group.position.copy(this.position);
+            this.model.group.rotation.y = this.rotationY;
+            if (skipAnimation) return;
+            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.model.sync(this.config, true);
+            return;
+        }
+
         let bestTarget = null;
-        let bestDist = 25.0;
+        let bestDist = 40.0; // Increased from 25.0
         for (const t of potentialTargets) {
             if (t.isDead) continue;
             const d = this.position.distanceTo(t.position);
@@ -130,7 +139,7 @@ export class Ranger {
         const distToTarget = bestTarget ? bestDist : Infinity;
 
         // Rangers prefer ranged combat - keep distance
-        if (bestTarget) {
+        if (isCombatActive && bestTarget) {
             if (this.state === RangerState.PATROL || this.state === RangerState.IDLE) {
                 this.setState(RangerState.STALK);
             }
@@ -139,7 +148,7 @@ export class Ranger {
                     this.setState(RangerState.ATTACK);
                 } else if (distToTarget < 8.0) {
                     this.setState(RangerState.REPOSITION);
-                } else if (distToTarget > 30.0) {
+                } else if (distToTarget > 45.0) { // Increased from 30.0
                     this.setState(RangerState.PATROL);
                 } else {
                     this.targetPos.copy(this.currentTarget!.position);

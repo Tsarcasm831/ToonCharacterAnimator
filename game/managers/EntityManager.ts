@@ -87,7 +87,8 @@ export class EntityManager {
         this.npc = new NPC(scene, { bodyType: 'female', outfit: 'peasant' }, new THREE.Vector3(-3, 0, 2));
         this.blacksmith = new Blacksmith(scene, new THREE.Vector3(-35, 0.4, 53));
         const GRID = 1.3333;
-        this.shopkeeper = new Shopkeeper(scene, new THREE.Vector3(-50 * GRID, 0, 45 * GRID));
+        const shopkeeperPos = new THREE.Vector3(-49.5 * GRID, 0.45, 45.5 * GRID);
+        this.shopkeeper = new Shopkeeper(scene, shopkeeperPos);
         this.guard = new LowLevelCityGuard(scene, new THREE.Vector3(-8, 0, -2));
         
         this.assassin = new Assassin(scene, new THREE.Vector3(30, 0, 0));
@@ -312,6 +313,10 @@ export class EntityManager {
         const enemyTargets = this.getEnemyTargets(activeScene);
         const playerTargets = [{ position: this.tempPlayerPos }];
 
+        if (activeScene === 'combat' && isCombatActive) {
+            console.log(`[EntityManager] Updating combat scene. Enemy targets: ${enemyTargets.length}, Player pos: ${this.tempPlayerPos.x},${this.tempPlayerPos.z}`);
+        }
+
         const sceneEntities = this.getEntitiesForScene(activeScene);
         sceneEntities.forEach((entity: any) => {
             if (!entity) return;
@@ -323,17 +328,7 @@ export class EntityManager {
             if (entity.model?.group) entity.model.group.visible = visible;
             
             if (visible) {
-                // Check if we should run AI or just idle animation
-                if (activeScene === 'combat' && !isCombatActive) {
-                    // Just update visual model and idle animation
-                    if (entity.model) entity.model.update(delta, new THREE.Vector3(0, 0, 0));
-                    if (entity.animator) {
-                        const mockInput = { x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false, attack1: false, attack2: false, interact: false, combat: false };
-                        entity.animator.animate(entity, delta, false, mockInput, []);
-                    }
-                } else {
-                    this.updateEntity(entity, delta, config, animate, environment, enemyTargets, playerTargets, onAttackHit);
-                }
+                this.updateEntity(entity, delta, config, animate, environment, enemyTargets, playerTargets, isCombatActive, onAttackHit);
             }
         });
         
@@ -346,7 +341,7 @@ export class EntityManager {
         });
     }
 
-    private updateEntity(entity: any, delta: number, config: PlayerConfig, animate: boolean, environment: any | null, enemyTargets: { position: THREE.Vector3, isDead?: boolean }[], playerTargets: { position: THREE.Vector3, isDead?: boolean }[], onAttackHit?: (type: string, count: number) => void) {
+    private updateEntity(entity: any, delta: number, config: PlayerConfig, animate: boolean, environment: any | null, enemyTargets: { position: THREE.Vector3, isDead?: boolean }[], playerTargets: { position: THREE.Vector3, isDead?: boolean }[], isCombatActive: boolean, onAttackHit?: (type: string, count: number) => void) {
         const skipAnimation = !animate;
 
         if (entity === this.npc && config.showNPC) {
@@ -359,16 +354,22 @@ export class EntityManager {
             this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);
             this.shopkeeper.update(delta, this.tempEyePos, environment as any, skipAnimation);
         } else if (entity === this.guard && config.showGuard) {
-            this.guard.update(delta, this.tempPlayerPos, environment as any, enemyTargets, skipAnimation);
+            this.guard.update(delta, this.tempPlayerPos, environment as any, enemyTargets, skipAnimation, isCombatActive);
         } else if (entity === this.assassin && config.showAssassin) {
             this.assassin.config.isAssassinHostile = config.isAssassinHostile;
-            this.assassin.update(delta, environment as any, playerTargets, skipAnimation);
+            this.assassin.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
         } else if (entity === this.archer && config.showAssassin) {
             this.archer.config.isAssassinHostile = config.isAssassinHostile;
-            this.archer.update(delta, environment as any, playerTargets, skipAnimation);
+            this.archer.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
         } else if (entity === this.mage && config.showAssassin) {
             this.mage.config.isAssassinHostile = config.isAssassinHostile;
-            this.mage.update(delta, environment as any, playerTargets, skipAnimation);
+            this.mage.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
+        } else if (entity instanceof Berserker) {
+            entity.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
+        } else if (entity instanceof Rogue) {
+            entity.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
+        } else if (entity instanceof Warlock) {
+            entity.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
         } else if (
             entity instanceof Cleric ||
             entity instanceof Knight ||
@@ -377,9 +378,9 @@ export class EntityManager {
             entity instanceof Ranger ||
             entity instanceof Sentinel
         ) {
-            entity.update(delta, environment as any, enemyTargets, skipAnimation);
+            entity.update(delta, environment as any, enemyTargets, skipAnimation, isCombatActive);
         } else if (entity instanceof Bandit) {
-            entity.update(delta, environment as any, playerTargets, skipAnimation);
+            entity.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
         } else if (entity instanceof Wolf || entity instanceof Bear) {
             entity.update(delta, environment as any, playerTargets, skipAnimation);
         } else if (entity.update) {
@@ -442,7 +443,9 @@ export class EntityManager {
         return [
             this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage,
             this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
-            ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses, ...this.bandits
+            ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses, 
+            ...this.bandits, ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
+            ...this.berserkers, ...this.rogues, ...this.warlocks
         ].filter(e => e !== null);
     }
 
