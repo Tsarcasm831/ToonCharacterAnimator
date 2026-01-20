@@ -1,25 +1,18 @@
 
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { EntityStats, DEFAULT_CONFIG } from '../../../../types';
+import { HumanoidEntity } from '../../../entities/HumanoidEntity';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
 enum KnightState { IDLE, PATROL, CHASE, DUEL, ATTACK, RETREAT }
 
-export class Knight {
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
-    stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    lastFramePos: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
+export class Knight extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    stats: EntityStats;
+    
     private state: KnightState = KnightState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
@@ -34,27 +27,15 @@ export class Knight {
     private isStriking: boolean = false;
     private strikeTimer: number = 0;
     private speedFactor: number = 0;
-    private lastStepCount: number = 0;
-    private walkTime: number = 0;
-    private status = { isDead: false, recoverTimer: 0 };
-    private cameraHandler = {
-        blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
-        eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,
-        headLookWeight: 0, cameraWorldPosition: new THREE.Vector3()
-    };
+    
     private smoothedHeadTarget = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
-        this.scene = scene;
-        this.position.copy(initialPos);
-        this.lastFramePos.copy(initialPos);
-        this.lastStuckPos.copy(this.position);
-        
         // Knights are muscular builds with heavy armor
         const bodyVariants = ['muscular', 'heavy'] as const;
         const randomVariant = bodyVariants[Math.floor(Math.random() * bodyVariants.length)];
         
-        this.config = { 
+        const config = { 
             ...DEFAULT_CONFIG, 
             bodyType: 'male', 
             bodyVariant: randomVariant, 
@@ -76,14 +57,12 @@ export class Knight {
             weaponStance: 'side',
             isAssassinHostile: false,
             tintColor: tint 
-        };
-        this.stats = { ...CLASS_STATS.knight };
+        } as any;
+
+        super(scene, initialPos, config);
         
-        this.model = new PlayerModel(this.config);
-        this.animator = new PlayerAnimator();
-        this.model.group.position.copy(this.position);
-        this.scene.add(this.model.group);
-        this.model.sync(this.config, true);
+        this.stats = { ...CLASS_STATS.knight };
+        this.lastStuckPos.copy(this.position);
     }
 
     private setState(newState: KnightState) {
@@ -123,25 +102,28 @@ export class Knight {
         if (env instanceof CombatEnvironment) {
             const snapped = env.snapToGrid(this.position);
             if (isCombatActive) {
-                // Cell-by-cell movement
+                // Combat Movement
                 if (this.currentPath.length > 0) {
                     const targetGrid = this.currentPath[this.pathIndex];
                     const targetPos = env.getWorldPosition(targetGrid.r, targetGrid.c);
                     
                     const distSq = this.position.distanceToSquared(targetPos);
-                    if (distSq < 0.01) {
+                    if (distSq < 0.05) {
+                        this.position.copy(targetPos);
                         this.pathIndex++;
                         if (this.pathIndex >= this.currentPath.length) {
                             this.currentPath = [];
                         }
                     } else {
                         const dir = new THREE.Vector3().subVectors(targetPos, this.position).normalize();
-                        this.position.addScaledVector(dir, 4.0 * dt);
-                        this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(dir.x, dir.z), 10.0 * dt);
+                        const speed = 3.0;
+                        this.position.addScaledVector(dir, speed * dt);
+                        this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(dir.x, dir.z), 15.0 * dt);
                     }
                 } else if (this.targetPos && this.position.distanceToSquared(this.targetPos) > 1.0) {
-                    this.currentPath = env.getPath(this.position, this.targetPos);
-                    this.pathIndex = 0;
+                     const targetSnap = env.snapToGrid(this.targetPos);
+                     this.currentPath = env.getPath(this.position, targetSnap);
+                     this.pathIndex = 0;
                 }
             } else {
                 this.position.lerp(snapped, 5.0 * dt);
@@ -149,10 +131,10 @@ export class Knight {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -247,7 +229,7 @@ export class Knight {
         }
 
         // --- STUCK LOGIC ---
-        if (moveSpeed !== 0) {
+        if (moveSpeed !== 0 && !(env instanceof CombatEnvironment)) {
             if (this.position.distanceTo(this.lastStuckPos) < 0.05) {
                 this.stuckTimer += dt;
                 if (this.stuckTimer > 10.0) {
@@ -271,32 +253,43 @@ export class Knight {
         }
 
         // Movement & Rotation
-        if (this.state !== KnightState.DUEL && this.state !== KnightState.ATTACK && this.state !== KnightState.RETREAT) {
-            const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
-            toGoal.y = 0;
-            if (toGoal.length() > 0.1) {
-                this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 6.0 * dt);
-                if (moveSpeed > 0) {
-                    const step = moveSpeed * dt;
-                    const next = this.position.clone().add(
-                        new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)
-                    );
-                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
-                        this.position.x = next.x;
-                        this.position.z = next.z;
+        if (!(env instanceof CombatEnvironment)) {
+            if (this.state !== KnightState.DUEL && this.state !== KnightState.ATTACK && this.state !== KnightState.RETREAT) {
+                const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
+                toGoal.y = 0;
+                if (toGoal.length() > 0.1) {
+                    this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 6.0 * dt);
+                    if (moveSpeed > 0) {
+                        const step = moveSpeed * dt;
+                        const next = this.position.clone().add(
+                            new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)
+                        );
+                        if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                            this.position.x = next.x;
+                            this.position.z = next.z;
+                        }
                     }
                 }
+            } else if (this.currentTarget) {
+                this.rotationY = THREE.MathUtils.lerp(
+                    this.rotationY,
+                    Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z),
+                    dt * 10.0
+                );
             }
-        } else if (this.currentTarget) {
-            this.rotationY = THREE.MathUtils.lerp(
-                this.rotationY,
-                Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z),
-                dt * 10.0
-            );
+        } else {
+             // Combat rotation
+             if (this.currentTarget && this.state !== KnightState.RETREAT) {
+                 this.rotationY = THREE.MathUtils.lerp(
+                    this.rotationY,
+                    Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z),
+                    dt * 10.0
+                );
+            }
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
-        this.model.group.position.copy(this.position);
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
@@ -323,10 +316,10 @@ export class Knight {
             isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === KnightState.DUEL, { x: animX, y: animY, isRunning: this.state === KnightState.CHASE, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === KnightState.DUEL, { x: animX, y: animY, isRunning: this.state === KnightState.CHASE, isPickingUp: false, isDead: false, jump: false } as any);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
-        this.model.update(dt, new THREE.Vector3(0, 0, 0));
+        this.updateModel(dt);
         this.model.sync(this.config, true);
     }
 }

@@ -1,9 +1,8 @@
 
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { EntityStats, DEFAULT_CONFIG } from '../../../../types';
+import { HumanoidEntity } from '../../../entities/HumanoidEntity';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
@@ -12,16 +11,10 @@ import { PlayerCombat } from '../../../player/PlayerCombat';
 
 enum MageState { IDLE, PATROL, CHASE, ATTACK, RETREAT }
 
-export class Mage {
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
-    stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    lastFramePos: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
+export class Mage extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    stats: EntityStats;
+    
     private state: MageState = MageState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
@@ -35,23 +28,11 @@ export class Mage {
     private castTimer: number = 0;
     private hasCastSpell: boolean = false;
     private speedFactor: number = 0;
-    private lastStepCount: number = 0;
-    private walkTime: number = 0;
-    public status = { isDead: false, recoverTimer: 0 };
-    private cameraHandler = {
-        blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
-        eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,
-        headLookWeight: 0, cameraWorldPosition: new THREE.Vector3()
-    };
+    
     private smoothedHeadTarget = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
-        this.scene = scene; 
-        this.position.copy(initialPos); 
-        this.lastFramePos.copy(initialPos); 
-        this.lastStuckPos.copy(this.position);
-        
-        this.config = { 
+        const config = { 
             ...DEFAULT_CONFIG, 
             bodyType: 'male', 
             bodyVariant: 'slim', 
@@ -73,14 +54,17 @@ export class Mage {
             weaponStance: 'side', 
             isAssassinHostile: false, 
             tintColor: tint 
-        };
+        } as any;
+
+        super(scene, initialPos, config);
+        
         this.stats = { ...CLASS_STATS.mage };
-        this.model = new PlayerModel(this.config); 
-        this.animator = new PlayerAnimator(); 
-        this.model.group.position.copy(this.position); 
-        this.scene.add(this.model.group); 
-        this.model.sync(this.config, true);
+        this.lastStuckPos.copy(this.position);
+        this.lastFramePos.copy(this.position);
     }
+    
+    // Used for velocity calculation if needed, base doesn't expose it public/protected for write easily yet
+    private lastFramePos: THREE.Vector3 = new THREE.Vector3();
 
     private setState(newState: MageState) {
         if (this.state === newState) return;
@@ -149,10 +133,10 @@ export class Mage {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -172,7 +156,7 @@ export class Mage {
             if (this.state === MageState.CHASE) { 
                 if (distToTarget < 12.0) this.setState(MageState.ATTACK); 
                 else if (distToTarget > 45.0) this.setState(MageState.PATROL); 
-                else this.targetPos.copy(this.currentTarget.position); 
+                else this.targetPos.copy(this.currentTarget!.position); 
             }
             
             if (this.state === MageState.ATTACK) {
@@ -266,7 +250,7 @@ export class Mage {
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
-        this.model.group.position.copy(this.position); 
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
@@ -310,8 +294,8 @@ export class Mage {
         
         this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: animX, y: animY, isRunning: this.state === MageState.CHASE, isPickingUp: false, isDead: false, jump: false } as any, (environment as any).obstacles);
         this.walkTime = animContext.walkTime; 
-        this.lastStepCount = animContext.lastStepCount;
-        this.model.update(dt, new THREE.Vector3(0, 0, 0)); 
+        this.lastStepCount = animContext.lastStepCount; 
+        this.updateModel(dt);
         this.model.sync(this.config, true);
     }
 }

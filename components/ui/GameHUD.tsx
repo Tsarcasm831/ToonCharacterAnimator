@@ -5,7 +5,6 @@ import { Compass } from './Compass';
 import { Hotbar } from './Hotbar';
 import { PlayerBench } from './PlayerBench';
 import { InteractionOverlay } from './InteractionOverlay';
-import { CombatStatusBar } from './CombatStatusBar';
 import { CombatLog, CombatLogEntry } from './CombatLog';
 import { InventoryItem, EntityStats } from '../../types';
 
@@ -47,7 +46,6 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             {/* Combat HUD Elements */}
             {isCombat && (
                 <>
-                    <CombatStatusBar stats={stats} isFemale={isFemale} />
                     <CombatLog entries={combatLog} />
                     {selectedUnit && (
                         <div className="absolute top-24 left-8 z-[50] w-64 h-96 bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-left-4">

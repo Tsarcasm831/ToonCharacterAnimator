@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { EntityStats, DEFAULT_CONFIG } from '../../../../types';
+import { HumanoidEntity } from '../../HumanoidEntity';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
@@ -10,21 +9,12 @@ import { CLASS_STATS } from '../../../../data/stats';
 
 enum GuardState { PATROL, CHASE, DUEL, ATTACK }
 
-export class LowLevelCityGuard {
+export class LowLevelCityGuard extends HumanoidEntity {
     public isLeftHandWaving: boolean = false;
     public leftHandWaveTimer: number = 0;
     
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
     stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
     
-    private walkTime: number = 0;
-    private lastStepCount: number = 0;
-    private status = { isDead: false, recoverTimer: 0 };
     private state: GuardState = GuardState.PATROL;
     private stateTimer: number = 0;
     private currentTarget: { position: THREE.Vector3, isDead?: boolean } | null = null;
@@ -36,14 +26,17 @@ export class LowLevelCityGuard {
     private strafeDir: number = 1;
     private stuckTimer: number = 0;
     private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
-    private cameraHandler = { blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(), eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false, headLookWeight: 0, cameraWorldPosition: new THREE.Vector3() };
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, initialRot: number = 0, tint?: string) {
-        this.scene = scene; this.position.copy(initialPos); this.patrolTarget.copy(initialPos); this.rotationY = initialRot; this.lastStuckPos.copy(this.position);
         // Added missing bracers, cape, belt to equipment
-        this.config = { ...DEFAULT_CONFIG, bodyType: 'male', bodyVariant: 'average', skinColor: '#ffdbac', hairStyle: 'crew', hairColor: '#3e2723', shirtColor: '#4a3728', pantsColor: '#718096', bootsColor: '#8d6e63', equipment: { helm: true, shoulders: true, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: true, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, cape: false, belt: true, skirt: false, skullcap: false, shorts: false }, selectedItem: 'Halberd', weaponStance: 'shoulder', tintColor: tint };
+        const config = { ...DEFAULT_CONFIG, bodyType: 'male', bodyVariant: 'average', skinColor: '#ffdbac', hairStyle: 'crew', hairColor: '#3e2723', shirtColor: '#4a3728', pantsColor: '#718096', bootsColor: '#8d6e63', equipment: { helm: true, shoulders: true, shield: false, shirt: true, pants: true, shoes: true, mask: false, hood: false, quiltedArmor: true, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, cape: false, belt: true, skirt: false, skullcap: false, shorts: false }, selectedItem: 'Halberd', weaponStance: 'shoulder', tintColor: tint } as any;
+        
+        super(scene, initialPos, config);
+        
+        this.rotationY = initialRot;
+        this.patrolTarget.copy(initialPos);
+        this.lastStuckPos.copy(this.position);
         this.stats = { ...CLASS_STATS.hero }; // Using hero stats for guards for now
-        this.model = new PlayerModel(this.config); this.animator = new PlayerAnimator(); this.model.group.position.copy(this.position); this.model.group.rotation.y = this.rotationY; this.scene.add(this.model.group); this.model.sync(this.config, false);
     }
 
     private setState(newState: GuardState) {
@@ -68,10 +61,10 @@ export class LowLevelCityGuard {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.updateModel(dt);
             this.model.sync(this.config, false);
             return;
         }
@@ -180,14 +173,24 @@ export class LowLevelCityGuard {
             } 
         }
 
-        this.position.y = PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles);
-        this.model.group.position.copy(this.position); this.model.group.rotation.y = this.rotationY;
-
+        this.updateGroundHeight(env);
+        this.group.position.copy(this.position); 
+        // We handle model rotation in updateModel or manual override?
+        // updateModel sets group.rotation.y = rotationY.
+        // Let's use it for consistency. But we haven't called it yet.
+        
         if (skipAnimation) return;
 
-        const lookT = this.currentTarget?.position || playerPosition; this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, this.position.distanceTo(lookT) < 8.0 ? 1.0 : 0.0, dt * 3.0); this.cameraHandler.cameraWorldPosition.copy(lookT).y += 1.6;
+        const lookT = this.currentTarget?.position || playerPosition; 
+        this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, this.position.distanceTo(lookT) < 8.0 ? 1.0 : 0.0, dt * 3.0); 
+        this.cameraHandler.cameraWorldPosition.copy(lookT).y += 1.6;
+        
         const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: (this.state === GuardState.DUEL || this.state === GuardState.ATTACK), isJumping: false, isAxeSwing: this.isStriking, axeSwingTimer: this.strikeTimer, isPunch: false, isPickingUp: false, isInteracting: false, isWaving: false, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false };
         this.animator.animate(animContext, dt, isMoving, { x: animX, y: animY, isRunning: moveSpeed > 3.0, isPickingUp: false, isDead: false, jump: false } as any);
-        this.walkTime = animContext.walkTime; this.lastStepCount = animContext.lastStepCount; this.model.update(dt, new THREE.Vector3(0, 0, 0)); this.model.sync(this.config, !!this.currentTarget);
+        this.walkTime = animContext.walkTime; 
+        this.lastStepCount = animContext.lastStepCount; 
+        
+        this.updateModel(dt);
+        this.model.sync(this.config, !!this.currentTarget);
     }
 }

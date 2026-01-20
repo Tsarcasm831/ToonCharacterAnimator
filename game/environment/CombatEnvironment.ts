@@ -8,15 +8,15 @@ export class CombatEnvironment {
     public obstacles: THREE.Object3D[] = [];
     
     // Grid Config
-    private readonly GRID_ROWS = 8;
-    private readonly GRID_COLS = 8;
-    private readonly HEX_SIZE = 2.5; // Slightly larger hexes for better arena feel
+    public readonly GRID_ROWS = 8;
+    public readonly GRID_COLS = 7;
+    private readonly HEX_SIZE = 1.5; // Increased size for better spacing on small grid
     private readonly HEX_HEIGHT = 0.5;
 
     private gridLabelsGroup: THREE.Group | null = null;
     private hexMeshes: THREE.Mesh[] = [];
     private neutralMat: THREE.MeshStandardMaterial | null = null;
-    private isCombatStarted: boolean = false;
+    public isCombatStarted: boolean = false;
     
     // Pre-calculated spacing
     private readonly WIDTH: number;
@@ -124,6 +124,7 @@ export class CombatEnvironment {
             for (const neighbor of neighbors) {
                 const key = `${neighbor.r},${neighbor.c}`;
                 // Allow moving to the neighbor if it's not occupied OR if it is the destination
+                // DURING COMBAT AI, we do NOT restrict movement by territory
                 const isDest = neighbor.r === endGrid.r && neighbor.c === endGrid.c;
                 if (!visited.has(key) && (!this.isCellOccupied(neighbor.r, neighbor.c) || isDest)) {
                     visited.add(key);

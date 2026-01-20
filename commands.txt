@@ -1,0 +1,5 @@
+npx cloudflared tunnel --url http://10.0.0.57:3000
+
+npm run dev
+npm run build
+npm run preview

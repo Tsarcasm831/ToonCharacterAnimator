@@ -2,7 +2,7 @@
 import React from 'react';
 import { PlayerConfig, OutfitType } from '../../../types';
 import { OUTFIT_PRESETS } from '../../../data/constants';
-import { ColorPicker } from '../CommonControls';
+import { ColorPicker, ToggleButton } from '../CommonControls';
 
 interface OutfitControlsProps {
     config: PlayerConfig;
@@ -62,19 +62,19 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
 
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Combat Readiness</label>
-                    <div className="flex bg-black/40 rounded-xl p-1.5 border border-white/5">
-                        <button 
-                            onClick={() => handleConfigChange('weaponStance', 'side')} 
-                            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${config.weaponStance === 'side' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            Hip Sheath
-                        </button>
-                        <button 
-                            onClick={() => handleConfigChange('weaponStance', 'shoulder')} 
-                            className={`flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${config.weaponStance === 'shoulder' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            Shoulder Mount
-                        </button>
+                    <div className="grid grid-cols-2 gap-2">
+                        <ToggleButton 
+                            label="Hip Sheath"
+                            isActive={config.weaponStance === 'side'}
+                            onClick={() => handleConfigChange('weaponStance', 'side')}
+                            activeColor="blue"
+                        />
+                        <ToggleButton 
+                            label="Shoulder Mount"
+                            isActive={config.weaponStance === 'shoulder'}
+                            onClick={() => handleConfigChange('weaponStance', 'shoulder')}
+                            activeColor="blue"
+                        />
                     </div>
                 </div>
 
@@ -89,28 +89,20 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                             {id: 'shirt', label: 'Shirt'}, {id: 'pants', label: 'Pants'}, {id: 'shorts', label: 'Shorts'}, {id: 'shoes', label: 'Shoes'},
                             {id: 'bracers', label: 'Bracers'}, {id: 'cape', label: 'Cape'}, {id: 'belt', label: 'Belt'}
                         ].map((eq) => (
-                            <button 
+                            <ToggleButton 
                                 key={eq.id}
-                                onClick={() => handleEquipmentChange(eq.id as any)} 
-                                className={`py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all ${
-                                    config.equipment[eq.id as keyof typeof config.equipment] 
-                                    ? 'bg-blue-500/20 border-blue-500 text-blue-300 shadow-[inset_0_0_10px_rgba(59,130,246,0.2)]' 
-                                    : 'bg-black/20 border-white/5 text-slate-600 hover:border-white/20'
-                                }`}
-                            >
-                                {eq.label}
-                            </button>
+                                label={eq.label}
+                                isActive={!!config.equipment[eq.id as keyof typeof config.equipment]}
+                                onClick={() => handleEquipmentChange(eq.id as any)}
+                                activeColor="blue"
+                            />
                         ))}
-                        <button 
-                            onClick={handleHairToggle} 
-                            className={`py-2 text-[9px] font-black uppercase tracking-tighter rounded-lg border transition-all ${
-                                config.hairStyle !== 'bald' 
-                                ? 'bg-emerald-500/20 border-emerald-500 text-emerald-300 shadow-[inset_0_0_10px_rgba(34,197,94,0.2)]' 
-                                : 'bg-black/20 border-white/5 text-slate-600 hover:border-white/20'
-                            }`}
-                        >
-                            Hair
-                        </button>
+                        <ToggleButton 
+                            label="Hair"
+                            isActive={config.hairStyle !== 'bald'}
+                            onClick={handleHairToggle}
+                            activeColor="green"
+                        />
                     </div>
                 </div>
 

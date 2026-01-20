@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { EntityStats, DEFAULT_CONFIG } from '../../../../types';
+import { HumanoidEntity } from '../../../entities/HumanoidEntity';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
@@ -10,20 +9,16 @@ import { CLASS_STATS } from '../../../../data/stats';
 // Add missing RETREAT state to fix compilation errors
 enum PaladinState { IDLE, PATROL, CHASE, DUEL, ATTACK, HEAL, RETREAT }
 
-export class Paladin {
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
-    stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    lastFramePos: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
+export class Paladin extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    stats: EntityStats;
+    
     private state: PaladinState = PaladinState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
     private currentTarget: { position: THREE.Vector3, isDead?: boolean } | null = null;
+    private currentPath: { r: number, c: number }[] = [];
+    private pathIndex: number = 0;
     private duelTimer: number = 0;
     private strafeDir: number = 1;
     private attackCooldown: number = 0;
@@ -32,23 +27,11 @@ export class Paladin {
     private isStriking: boolean = false;
     private strikeTimer: number = 0;
     private speedFactor: number = 0;
-    private lastStepCount: number = 0;
-    private walkTime: number = 0;
-    private status = { isDead: false, recoverTimer: 0 };
-    private cameraHandler = {
-        blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
-        eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,
-        headLookWeight: 0, cameraWorldPosition: new THREE.Vector3()
-    };
+    
     private smoothedHeadTarget = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
-        this.scene = scene;
-        this.position.copy(initialPos);
-        this.lastFramePos.copy(initialPos);
-        this.lastStuckPos.copy(this.position);
-        
-        this.config = { 
+        const config = { 
             ...DEFAULT_CONFIG, 
             bodyType: 'male', 
             bodyVariant: 'muscular', 
@@ -72,13 +55,12 @@ export class Paladin {
             weaponStance: 'side',
             isAssassinHostile: false,
             tintColor: tint 
-        };
+        } as any;
+
+        super(scene, initialPos, config);
+        
         this.stats = { ...CLASS_STATS.paladin };
-        this.model = new PlayerModel(this.config);
-        this.animator = new PlayerAnimator();
-        this.model.group.position.copy(this.position);
-        this.scene.add(this.model.group);
-        this.model.sync(this.config, true);
+        this.lastStuckPos.copy(this.position);
     }
 
     private setState(newState: PaladinState) {
@@ -123,10 +105,10 @@ export class Paladin {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -222,10 +204,19 @@ export class Paladin {
         if (moveSpeed !== 0) {
             if (this.position.distanceTo(this.lastStuckPos) < 0.05) {
                 this.stuckTimer += dt;
-                if (this.stuckTimer > 1.5) {
-                    this.setState(PaladinState.PATROL);
-                    this.findPatrolPoint(env);
-                    this.stuckTimer = 0;
+                if (this.stuckTimer > 10.0) {
+                    const escape = PlayerUtils.findUnstuckPosition(this.position, env.obstacles);
+                    if (escape) {
+                        this.position.copy(escape);
+                        this.stuckTimer = 0;
+                        this.setState(PaladinState.PATROL);
+                        this.findPatrolPoint(env);
+                    }
+                } else if (this.stuckTimer > 2.0) {
+                     if (this.stuckTimer % 3.0 < dt) {
+                         this.setState(PaladinState.PATROL);
+                         this.findPatrolPoint(env);
+                     }
                 }
             } else {
                 this.stuckTimer = 0;
@@ -258,12 +249,11 @@ export class Paladin {
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
-        this.model.group.position.copy(this.position);
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
 
-        // Head tracking
         if (this.currentTarget) {
             this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, 1.0, dt * 4.0);
             this.smoothedHeadTarget.lerp(this.currentTarget.position.clone().add(new THREE.Vector3(0, 1.6, 0)), dt * 5.0);
@@ -272,7 +262,8 @@ export class Paladin {
             this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, 0.0, dt * 4.0);
         }
 
-        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, moveSpeed, dt * 6);
+        let targetSpeedAnim = (this.state === PaladinState.DUEL) ? 1.5 : moveSpeed;
+        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, targetSpeedAnim, dt * 6);
         const animX = (this.state === PaladinState.DUEL) ? this.strafeDir : 0;
         const animY = Math.abs(this.speedFactor) > 0.1 ? -1 : 0;
 
@@ -284,10 +275,10 @@ export class Paladin {
             isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === PaladinState.DUEL, { x: animX, y: animY, isRunning: this.state === PaladinState.CHASE, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === PaladinState.DUEL, { x: animX, y: animY, isRunning: this.state === PaladinState.CHASE, isPickingUp: false, isDead: false, jump: false } as any);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
-        this.model.update(dt, new THREE.Vector3(0, 0, 0));
+        this.updateModel(dt);
         this.model.sync(this.config, true);
     }
 }

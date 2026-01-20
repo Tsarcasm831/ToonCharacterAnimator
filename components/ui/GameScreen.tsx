@@ -1,10 +1,8 @@
-import React, { RefObject } from 'react';
+import React from 'react';
 import Scene from '../Scene';
 import LandScene from '../LandScene';
 import CombatScene from '../CombatScene';
-import { Game } from '../../game/core/Game';
-import { PlayerConfig, PlayerInput, InventoryItem, EntityStats } from '../../types';
-import { StructureType } from '../../game/builder/BuildingParts';
+import { useGlobalState } from '../../contexts/GlobalContext';
 import { CombatLogEntry } from './CombatLog';
 import { MainMenu } from './MainMenu';
 import LoadingScreen from './LoadingScreen';
@@ -15,117 +13,99 @@ import { BuilderUI } from './BuilderUI';
 import { ControlPanel } from './ControlPanel';
 import * as THREE from 'three';
 
-type GameState = 'MENU' | 'LOADING' | 'READY' | 'PLAYING';
+export const GameScreen: React.FC = () => {
+    const {
+        gameState: gameStateContext,
+        playerState,
+        inventoryState,
+        uiState,
+        combatState,
+        environmentState,
+        gameInstance
+    } = useGlobalState();
 
-interface GameScreenProps {
-    activeScene: 'dev' | 'world' | 'combat';
-    gameState: GameState;
-    setGameState: (state: GameState) => void;
-    config: PlayerConfig;
-    manualInput: Partial<PlayerInput>;
-    bench: (InventoryItem | null)[];
-    inventory: (InventoryItem | null)[];
-    gameInstance: RefObject<Game | null>;
-    game: Game | null;
-    isCombatActive: boolean;
-    showGrid: boolean;
-    combatLog: CombatLogEntry[];
-    dialogue: string | null;
-    
-    // HUD Props
-    currentBiome: { name: string, color: string };
-    playerRotation: number;
-    selectedSlot: number;
-    interactionText: string | null;
-    interactionProgress: number | null;
-    isHUDDisabled: boolean;
-    isBuilderMode: boolean;
-    activeStructure: StructureType;
-    isDeadUI: boolean;
-    
-    // Callbacks
-    onStart: (startInCombat: boolean, startInLand: boolean) => void;
-    onShowEnemies: () => void;
-    onGameReady: (game: Game) => void;
-    onEnvironmentReady: () => void;
-    onInteractionUpdate: (text: string | null, progress: number | null) => void;
-    onToggleQuestLog: () => void;
-    setPlayerRotation: (rot: number) => void;
-    addCombatLog: (text: string, type: 'damage' | 'info') => void;
-    setIsCombatActive: (active: boolean) => void;
-    setShowGrid: (show: boolean) => void;
-    setInventory: (items: (InventoryItem | null)[]) => void;
-    setSelectedSlot: (slot: number) => void;
-    setPlayerPosForMap: (pos: THREE.Vector3) => void;
-    setIsTravelOpen: (open: boolean) => void;
-    setIsLandMapOpen: (open: boolean) => void;
-    onCloseDialogue: () => void;
-    onSelectStructure: (type: StructureType) => void;
-    onExport: () => void;
-    onSpawnAnimals: () => void;
-    
-    // Config Setters
-    setConfig: React.Dispatch<React.SetStateAction<PlayerConfig>>;
-    setManualInput: React.Dispatch<React.SetStateAction<Partial<PlayerInput>>>;
-    handleDeathToggle: () => void;
-    triggerAction: (key: keyof PlayerInput) => void;
-    
-    // Loading props
-    isSystemReady: boolean;
-    onLoadingFinished: () => void;
-    onVisualLoadingFinished: () => void;
-}
+    const { activeScene, gameState, setGameState, setActiveScene } = gameStateContext;
+    const { config, setConfig, manualInput, setManualInput } = playerState;
+    const { inventory, bench, setInventory } = inventoryState;
+    const { 
+        dialogue, 
+        selectedSlot, setSelectedSlot,
+        interactionText, interactionProgress, setInteractionText, setInteractionProgress,
+        isInventoryOpen, isTradeOpen, isShopkeeperChatOpen, isForgeOpen, isKeybindsOpen, isQuestLogOpen, isSpawnModalOpen, isEnemiesModalOpen, isCharacterStatsOpen, isLandMapOpen,
+        setIsTravelOpen, setIsLandMapOpen,
+        setDialogue,
+        setIsDeadUI, isDeadUI,
+        setIsSpawnModalOpen, setIsEnemiesModalOpen,
+        toggleInventory, toggleKeybinds, toggleQuestLog,
+        setStatsForModal, setStatsUnitName, setIsCharacterStatsOpen,
+        setSelectedUnitStats, setSelectedUnit,
+        setIsTradeOpen, setIsShopkeeperChatOpen, setIsForgeOpen
+    } = uiState;
+    const { isCombatActive, setIsCombatActive, combatLog, setShowGrid, showGrid, addCombatLog } = combatState;
+    const { 
+        currentBiome, playerRotation, setPlayerRotation, isBuilderMode, activeStructure, setPlayerPosForMap, 
+        setIsEnvironmentBuilt, setIsVisualLoadingDone, isEnvironmentBuilt, isVisualLoadingDone,
+        setIsBuilderMode, setCurrentBiome, setActiveStructure, setBuildingType 
+    } = environmentState;
 
-export const GameScreen: React.FC<GameScreenProps> = ({
-    activeScene,
-    gameState,
-    setGameState,
-    config,
-    manualInput,
-    bench,
-    inventory,
-    gameInstance,
-    game,
-    isCombatActive,
-    showGrid,
-    combatLog,
-    dialogue,
-    currentBiome,
-    playerRotation,
-    selectedSlot,
-    interactionText,
-    interactionProgress,
-    isHUDDisabled,
-    isBuilderMode,
-    activeStructure,
-    isDeadUI,
-    onStart,
-    onShowEnemies,
-    onGameReady,
-    onEnvironmentReady,
-    onInteractionUpdate,
-    onToggleQuestLog,
-    setPlayerRotation: setPlayerRotationCallback,
-    addCombatLog,
-    setIsCombatActive,
-    setShowGrid,
-    setInventory,
-    setSelectedSlot,
-    setPlayerPosForMap,
-    setIsTravelOpen,
-    setIsLandMapOpen,
-    onCloseDialogue,
-    onSelectStructure,
-    onExport,
-    onSpawnAnimals,
-    setConfig,
-    setManualInput,
-    handleDeathToggle,
-    triggerAction,
-    isSystemReady,
-    onLoadingFinished,
-    onVisualLoadingFinished
-}) => {
+    const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || gameState !== 'PLAYING';
+
+    // Handlers
+    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false) => {
+        setIsEnvironmentBuilt(false);
+        setIsVisualLoadingDone(false);
+        setIsCombatActive(false);
+        setGameState('LOADING');
+        if (startInLand) {
+          setActiveScene('land');
+        } else if (startInCombat) {
+          setActiveScene('combat');
+        }
+        // Spawn a spider for testing
+        setTimeout(() => {
+          if (gameInstance.current) {
+            const player = gameInstance.current.player;
+            if (!player) return;
+            
+            const playerPos = player.position;
+            if (!playerPos) return;
+            
+            const spawnPos = playerPos.clone().add(new THREE.Vector3(5, 0, 5));
+            
+            if (!gameInstance.current.entityManager) return;
+            
+            gameInstance.current.entityManager.spawnAnimalGroup('spider', 1, gameInstance.current.environment, spawnPos);
+          }
+        }, 2000);
+    };
+
+    const handleEnvironmentReady = () => {
+        setIsEnvironmentBuilt(true);
+    };
+
+    const handleVisualLoadingFinished = () => {
+        setIsVisualLoadingDone(true);
+    };
+
+    const handleStartPlaying = () => {
+        setGameState('PLAYING');
+    };
+
+    const handleInteractionUpdate = (text: string | null, prog: number | null) => { 
+        setInteractionText(text); 
+        setInteractionProgress(prog); 
+    };
+
+    const triggerAction = (key: keyof typeof manualInput) => {
+        setManualInput(prev => ({ ...prev, [key]: true }));
+        setTimeout(() => setManualInput(prev => ({ ...prev, [key]: false })), 100);
+    };
+
+    const handleDeathToggle = () => { 
+        triggerAction('isDead'); 
+        setIsDeadUI(prev => !prev); 
+    };
+
     const handleMapToggle = (pos: THREE.Vector3) => {
         setPlayerPosForMap(pos);
         if (activeScene === 'land') {
@@ -135,17 +115,76 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         }
     };
 
-    const handleTravelMenuOpen = () => {
-        setIsLandMapOpen(false);
-        setIsTravelOpen(true);
+    const onCloseDialogue = () => {
+        setDialogue(null);
+        if (gameInstance.current) gameInstance.current.player.isTalking = false;
     };
+
+    const onShowEnemies = () => {
+        setIsEnemiesModalOpen(true);
+    };
+
+    const onSelectStructure = (type: any) => {
+        environmentState.setActiveStructure(type);
+        if (gameInstance.current) gameInstance.current.setBuildingType(type);
+    };
+
+    const onGameReady = (game: any) => {
+        gameInstance.current = game;
+        // Bind game callbacks here if needed, or rely on game observing state?
+        // The previous implementation bound callbacks to the game instance.
+        // We should replicate that or ensure the game instance reads from context/props updates.
+        // Game.ts calls callbacks like onInventoryUpdate. 
+        // We need to re-bind them here because the Game instance is created inside Scene components and passed up.
+        // Wait, Scene components create the game? No, GameScreen passes onGameReady to Scene.
+        // Scene initializes Game.
+        
+        game.inputManager.onToggleInventory = uiState.toggleInventory;
+        game.inputManager.onToggleKeybinds = uiState.toggleKeybinds;
+        game.inputManager.onToggleQuestLog = uiState.toggleQuestLog;
+        game.onBuilderToggle = (active: boolean) => environmentState.setIsBuilderMode(active);
+        game.onBiomeUpdate = (b: any) => environmentState.setCurrentBiome(b);
+        game.onDialogueTrigger = (content: string) => setDialogue(content);
+        game.onTradeTrigger = () => uiState.setIsTradeOpen(true);
+        game.onShopkeeperTrigger = () => uiState.setIsShopkeeperChatOpen(true);
+        game.onForgeTrigger = () => uiState.setIsForgeOpen(true);
+        game.onRotationUpdate = (r: number) => setPlayerRotation(r);
+        game.onShowCharacterStats = (stats: any, name: string) => {
+            if (stats) uiState.setStatsForModal(stats);
+            else uiState.setStatsForModal(config.stats);
+            if (name) uiState.setStatsUnitName(name);
+            uiState.setIsCharacterStatsOpen(true);
+        };
+        game.onUnitSelect = (stats: any, unit: any) => {
+            if (stats) uiState.setSelectedUnitStats(stats);
+            else uiState.setSelectedUnitStats(config.stats);
+            uiState.setSelectedUnit(unit);
+        };
+        game.onAttackHit = (type: string, count: number) => {
+            addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
+        };
+    };
+
+    const handleExport = () => {
+         import('../../game/core/ModelExporter').then(({ ModelExporter }) => {
+             if (gameInstance.current && gameInstance.current.player) {
+                 ModelExporter.exportAndDownloadZip(gameInstance.current.player.mesh);
+             }
+         });
+    };
+
+    const handleSpawnAnimals = () => {
+        setIsSpawnModalOpen(true);
+    };
+
+    const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-start pt-24 pb-24">
             <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
                     {gameState === 'MENU' ? (
-                        <MainMenu onStart={onStart} onShowEnemies={onShowEnemies} />
+                        <MainMenu onStart={handleEnterWorld} onShowEnemies={onShowEnemies} />
                     ) : (
                         <>
                             {activeScene === 'combat' ? (
@@ -155,12 +194,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                     bench={bench}
                                     onGameReady={onGameReady}
                                     onEnvironmentReady={() => {
-                                        onEnvironmentReady();
-                                        onVisualLoadingFinished();
+                                        handleEnvironmentReady();
+                                        handleVisualLoadingFinished();
                                     }}
-                                    onInteractionUpdate={onInteractionUpdate}
-                                    onToggleQuestLog={onToggleQuestLog}
-                                    onRotationUpdate={setPlayerRotationCallback}
+                                    onInteractionUpdate={handleInteractionUpdate}
+                                    onToggleQuestLog={uiState.toggleQuestLog}
+                                    onRotationUpdate={setPlayerRotation}
                                     onAttackHit={(type, count) => {
                                         addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
                                     }}
@@ -177,14 +216,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                     initialInventory={inventory}
                                     onInventoryUpdate={setInventory}
                                     onSlotSelect={setSelectedSlot}
-                                    onInteractionUpdate={onInteractionUpdate}
+                                    onInteractionUpdate={handleInteractionUpdate}
                                     onGameReady={onGameReady}
                                     onEnvironmentReady={() => {
-                                        onEnvironmentReady();
-                                        onVisualLoadingFinished();
+                                        handleEnvironmentReady();
+                                        handleVisualLoadingFinished();
                                     }}
                                     onToggleWorldMap={handleMapToggle}
-                                    onToggleQuestLog={onToggleQuestLog}
+                                    onToggleQuestLog={uiState.toggleQuestLog}
                                     showGrid={showGrid}
                                     isCombatActive={isCombatActive}
                                 />
@@ -196,14 +235,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                     initialInventory={inventory}
                                     onInventoryUpdate={setInventory}
                                     onSlotSelect={setSelectedSlot}
-                                    onInteractionUpdate={onInteractionUpdate}
+                                    onInteractionUpdate={handleInteractionUpdate}
                                     onGameReady={onGameReady}
                                     onEnvironmentReady={() => {
-                                        onEnvironmentReady();
-                                        onVisualLoadingFinished();
+                                        handleEnvironmentReady();
+                                        handleVisualLoadingFinished();
                                     }}
                                     onToggleWorldMap={handleMapToggle}
-                                    onToggleQuestLog={onToggleQuestLog}
+                                    onToggleQuestLog={uiState.toggleQuestLog}
                                     showGrid={showGrid}
                                     isCombatActive={isCombatActive}
                                 />
@@ -228,7 +267,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                         stats={config.stats}
                                         isFemale={config.bodyType === 'female'}
                                         combatLog={combatLog}
-                                        onOpenTravel={handleTravelMenuOpen}
+                                        onOpenTravel={handleMapToggle}
                                         onToggleBestiary={onShowEnemies}
                                     />
                                     
@@ -247,8 +286,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                         setManualInput={setManualInput}
                                         handleDeathToggle={handleDeathToggle}
                                         triggerAction={triggerAction}
-                                        onExport={onExport}
-                                        onSpawnAnimals={onSpawnAnimals}
+                                        onExport={handleExport}
+                                        onSpawnAnimals={handleSpawnAnimals}
                                     />
                                 </>
                             )}
@@ -256,11 +295,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                             <LoadingScreen 
                                 isVisible={gameState === 'LOADING'}
                                 isSystemReady={isSystemReady}
-                                onFinished={onLoadingFinished}
+                                onFinished={handleStartPlaying}
                             />
                             
                             <DialogueOverlay dialogue={dialogue} onClose={onCloseDialogue} />
-                            <MobileControls game={game} />
+                            <MobileControls game={gameInstance.current} />
                         </>
                     )}
                 </div>

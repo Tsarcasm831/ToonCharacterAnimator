@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { EntityStats, DEFAULT_CONFIG } from '../../../../types';
+import { HumanoidEntity } from '../../HumanoidEntity';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
@@ -10,16 +9,10 @@ import { PlayerCombat } from '../../../player/PlayerCombat';
 
 enum ClericState { IDLE, PATROL, SUPPORT, CAST, RETREAT }
 
-export class Cleric {
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
-    stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    lastFramePos: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
+export class Cleric extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    stats: EntityStats;
+    
     private state: ClericState = ClericState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
@@ -33,26 +26,14 @@ export class Cleric {
     private castTimer: number = 0;
     private hasCastSpell: boolean = false;
     private speedFactor: number = 0;
-    private lastStepCount: number = 0;
-    private walkTime: number = 0;
-    private status = { isDead: false, recoverTimer: 0 };
-    private cameraHandler = {
-        blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
-        eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,
-        headLookWeight: 0, cameraWorldPosition: new THREE.Vector3()
-    };
+    
     private smoothedHeadTarget = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
-        this.scene = scene;
-        this.position.copy(initialPos);
-        this.lastFramePos.copy(initialPos);
-        this.lastStuckPos.copy(this.position);
-        
         // Clerics are holy healers - average builds with white/gold robes
         const isFemale = Math.random() > 0.4;
         
-        this.config = { 
+        const config = { 
             ...DEFAULT_CONFIG, 
             bodyType: isFemale ? 'female' : 'male', 
             bodyVariant: 'average', 
@@ -78,14 +59,17 @@ export class Cleric {
             weaponStance: 'side',
             isAssassinHostile: false,
             tintColor: tint || '#ffd700'
-        };
+        } as any;
+
+        super(scene, initialPos, config);
+        
         this.stats = { ...CLASS_STATS.cleric };
-        this.model = new PlayerModel(this.config);
-        this.animator = new PlayerAnimator();
-        this.model.group.position.copy(this.position);
-        this.scene.add(this.model.group);
-        this.model.sync(this.config, true);
+        this.lastStuckPos.copy(this.position);
+        this.lastFramePos.copy(this.position); // Assuming lastFramePos was used for velocity calc if present in base? Base uses velocity prop.
     }
+    
+    // Add lastFramePos if logic depends on it, though base might not use it directly for rendering
+    private lastFramePos: THREE.Vector3 = new THREE.Vector3();
 
     private setState(newState: ClericState) {
         if (this.state === newState) return;
@@ -158,10 +142,10 @@ export class Cleric {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -313,7 +297,7 @@ export class Cleric {
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
-        this.model.group.position.copy(this.position);
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
@@ -342,7 +326,7 @@ export class Cleric {
         this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: false, isPickingUp: false, isDead: false, jump: false } as any);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
-        this.model.update(dt, new THREE.Vector3(0, 0, 0));
+        this.updateModel(dt);
         this.model.sync(this.config, true);
     }
 }

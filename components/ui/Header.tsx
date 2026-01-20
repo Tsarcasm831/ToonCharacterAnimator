@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onOpenTravel
                         <div className="flex items-center gap-2">
                             <div className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)] animate-pulse" />
                             <span className="text-white font-bold tracking-wider text-sm uppercase">
-                                {isLand ? 'Land' : activeScene}
+                                {biome?.name || (isLand ? 'Land' : activeScene)}
                             </span>
                         </div>
                     </div>

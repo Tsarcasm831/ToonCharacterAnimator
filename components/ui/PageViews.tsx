@@ -58,25 +58,25 @@ const ALBUMS: Album[] = [
         coverColor: 'bg-gradient-to-br from-blue-500 to-purple-600',
         tracks: [
             {
+                id: 'beyond-the-pale',
+                title: 'Beyond the Pale',
+                artist: 'Traveler',
+                duration: '4:12',
+                fileUrl: '/assets/music/Journeys/Beyond the Pale.mp3'
+            },
+            {
+                id: 'discovery',
+                title: 'Discovery',
+                artist: 'Traveler',
+                duration: '4:03',
+                fileUrl: '/assets/music/Journeys/Discovery.mp3'
+            },
+            {
                 id: 'travel-1',
                 title: 'Travel 1',
                 artist: 'Traveler',
-                duration: '3:45',
-                fileUrl: '/assets/music/Travel 1.mp3'
-            },
-            {
-                id: 'travel-2',
-                title: 'Travel 2',
-                artist: 'Traveler',
-                duration: '4:12',
-                fileUrl: '/assets/music/placeholder.mp3'
-            },
-            {
-                id: 'travel-3',
-                title: 'Travel 3',
-                artist: 'Traveler',
-                duration: '3:28',
-                fileUrl: '/assets/music/placeholder.mp3'
+                duration: '2:58',
+                fileUrl: '/assets/music/Journeys/Travel 1.mp3'
             }
         ]
     },
@@ -89,25 +89,18 @@ const ALBUMS: Album[] = [
         coverColor: 'bg-gradient-to-br from-cyan-500 to-teal-600',
         tracks: [
             {
-                id: 'echo-1',
+                id: 'digital-dawn',
                 title: 'Digital Dawn',
                 artist: 'Future Sound',
-                duration: '5:02',
-                fileUrl: '/assets/music/placeholder.mp3'
+                duration: '3:56',
+                fileUrl: '/assets/music/Echoes of Tomorrow/Digital Dawn.mp3'
             },
             {
-                id: 'echo-2',
-                title: 'Neon Dreams',
+                id: 'eerie-chant',
+                title: 'Eerie Chant',
                 artist: 'Future Sound',
-                duration: '4:35',
-                fileUrl: '/assets/music/placeholder.mp3'
-            },
-            {
-                id: 'echo-3',
-                title: 'Cyber Pulse',
-                artist: 'Future Sound',
-                duration: '6:18',
-                fileUrl: '/assets/music/placeholder.mp3'
+                duration: '2:40',
+                fileUrl: '/assets/music/Echoes of Tomorrow/Eerie Chant.mp3'
             }
         ]
     },
@@ -120,25 +113,238 @@ const ALBUMS: Album[] = [
         coverColor: 'bg-gradient-to-br from-orange-500 to-red-600',
         tracks: [
             {
-                id: 'legend-1',
-                title: 'Hero\'s Theme',
+                id: 'combat-battle',
+                title: 'Combat Battle Music',
                 artist: 'Mythic Orchestra',
-                duration: '4:45',
-                fileUrl: '/assets/music/placeholder.mp3'
+                duration: '4:15',
+                fileUrl: '/assets/music/Legends of the Realm/Combat Battle Music.mp3'
             },
             {
-                id: 'legend-2',
-                title: 'Battle Cry',
+                id: 'hidden-wings',
+                title: 'Hidden Wings _ 隠した翼 _ Kakushita Tsubasa',
                 artist: 'Mythic Orchestra',
-                duration: '3:58',
-                fileUrl: '/assets/music/placeholder.mp3'
+                duration: '2:58',
+                fileUrl: '/assets/music/Legends of the Realm/Hidden Wings _ 隠した翼 _ Kakushita Tsubasa.mp3'
             },
             {
-                id: 'legend-3',
-                title: 'Victory March',
+                id: 'service-tunnels',
+                title: 'In the Service Tunnels',
                 artist: 'Mythic Orchestra',
-                duration: '5:31',
-                fileUrl: '/assets/music/placeholder.mp3'
+                duration: '2:04',
+                fileUrl: '/assets/music/Legends of the Realm/In the Service Tunnels.mp3'
+            },
+            {
+                id: 'kurogane',
+                title: 'Kurogane',
+                artist: 'Mythic Orchestra',
+                duration: '3:16',
+                fileUrl: '/assets/music/Legends of the Realm/Kurogane.mp3'
+            },
+            {
+                id: 'nikolai-theme',
+                title: 'Nikolai Theme',
+                artist: 'Mythic Orchestra',
+                duration: '6:12',
+                fileUrl: '/assets/music/Legends of the Realm/Nikolai Theme.mp3'
+            },
+            {
+                id: 'overworld-bg-2',
+                title: 'Overworld BG 2',
+                artist: 'Mythic Orchestra',
+                duration: '3:04',
+                fileUrl: '/assets/music/Legends of the Realm/Overworld BG 2.mp3'
+            },
+            {
+                id: 'sairon-curious',
+                title: 'Sairon - Curious',
+                artist: 'Mythic Orchestra',
+                duration: '2:40',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Curious.mp3'
+            },
+            {
+                id: 'sairon-emotional-2',
+                title: 'Sairon - Emotional 2',
+                artist: 'Mythic Orchestra',
+                duration: '3:18',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Emotional 2.mp3'
+            },
+            {
+                id: 'sairon-emotional',
+                title: 'Sairon - Emotional',
+                artist: 'Mythic Orchestra',
+                duration: '3:00',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Emotional.mp3'
+            },
+            {
+                id: 'sairon-end-game',
+                title: 'Sairon - End Game',
+                artist: 'Mythic Orchestra',
+                duration: '3:56',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - End Game.mp3'
+            },
+            {
+                id: 'sairon-enemy-incoming',
+                title: 'Sairon - Enemy Incoming',
+                artist: 'Mythic Orchestra',
+                duration: '2:12',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Enemy Incoming.mp3'
+            },
+            {
+                id: 'sairon-homura-theme',
+                title: 'Sairon - Homura\'s Theme',
+                artist: 'Mythic Orchestra',
+                duration: '3:16',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Homura\'s Theme.mp3'
+            },
+            {
+                id: 'sairon-incoming-threat',
+                title: 'Sairon - Incoming Threat',
+                artist: 'Mythic Orchestra',
+                duration: '2:18',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Incoming Threat.mp3'
+            },
+            {
+                id: 'sairon-intro-original',
+                title: 'Sairon - Intro Original',
+                artist: 'Mythic Orchestra',
+                duration: '4:12',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Intro Original.mp3'
+            },
+            {
+                id: 'sairon-intro-remaster',
+                title: 'Sairon - Intro Remaster',
+                artist: 'Mythic Orchestra',
+                duration: '2:52',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Intro Remaster.mp3'
+            },
+            {
+                id: 'sairon-intro-v2',
+                title: 'Sairon - Intro v2',
+                artist: 'Mythic Orchestra',
+                duration: '3:30',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Intro v2.mp3'
+            },
+            {
+                id: 'sairon-seena-theme',
+                title: 'Sairon - Seena Theme',
+                artist: 'Mythic Orchestra',
+                duration: '1:22',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Seena Theme.mp3'
+            },
+            {
+                id: 'sairon-to-the-rescue',
+                title: 'Sairon - To the Rescue',
+                artist: 'Mythic Orchestra',
+                duration: '1:28',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - To the Rescue.mp3'
+            },
+            {
+                id: 'sairon-yureigakure-theme',
+                title: 'Sairon - Yureigakure Theme',
+                artist: 'Mythic Orchestra',
+                duration: '1:22',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon - Yureigakure Theme.mp3'
+            },
+            {
+                id: 'sairon-overworld',
+                title: 'Sairon Overworld',
+                artist: 'Mythic Orchestra',
+                duration: '6:52',
+                fileUrl: '/assets/music/Legends of the Realm/Sairon Overworld.mp3'
+            },
+            {
+                id: 'combat',
+                title: 'Combat',
+                artist: 'Mythic Orchestra',
+                duration: '4:02',
+                fileUrl: '/assets/music/Legends of the Realm/Combat.mp3'
+            }
+        ]
+    },
+    {
+        id: 'grey-matter-tavern',
+        title: 'Grey Matter Tavern',
+        artist: 'Various Artists',
+        year: '2024',
+        genre: 'Tavern Music',
+        coverColor: 'bg-gradient-to-br from-amber-600 to-orange-700',
+        tracks: [
+            {
+                id: 'success-the-obsession',
+                title: 'Success the Obsession',
+                artist: 'Various Artists',
+                duration: '3:45',
+                fileUrl: '/assets/music/Grey Matter Tavern/1 - Success the Obsession.mp3'
+            },
+            {
+                id: 'team-of-one',
+                title: 'Team of One',
+                artist: 'Various Artists',
+                duration: '4:12',
+                fileUrl: '/assets/music/Grey Matter Tavern/2 - Team of One.mp3'
+            },
+            {
+                id: 'grey-matter-tavern',
+                title: 'Grey Matter Tavern',
+                artist: 'Various Artists',
+                duration: '3:28',
+                fileUrl: '/assets/music/Grey Matter Tavern/3 - Grey Matter Tavern.mp3'
+            },
+            {
+                id: 'bonnie-clyde',
+                title: 'Bonnie & Clyde',
+                artist: 'Various Artists',
+                duration: '3:56',
+                fileUrl: '/assets/music/Grey Matter Tavern/4 - Bonnie & Clyde.mp3'
+            },
+            {
+                id: 'little-airplane',
+                title: 'Little Airplane',
+                artist: 'Various Artists',
+                duration: '4:03',
+                fileUrl: '/assets/music/Grey Matter Tavern/5 - Little Airplane.mp3'
+            },
+            {
+                id: 'out-of-control',
+                title: 'Out Of Control',
+                artist: 'Various Artists',
+                duration: '3:32',
+                fileUrl: '/assets/music/Grey Matter Tavern/6 - Out Of Control.mp3'
+            },
+            {
+                id: 'all-my-best-days',
+                title: 'All My Best Days',
+                artist: 'Various Artists',
+                duration: '4:18',
+                fileUrl: '/assets/music/Grey Matter Tavern/7 - All My Best Days.mp3'
+            },
+            {
+                id: 'glorious',
+                title: 'Glorious',
+                artist: 'Various Artists',
+                duration: '3:44',
+                fileUrl: '/assets/music/Grey Matter Tavern/8 - Glorious.mp3'
+            },
+            {
+                id: 'riddle-me',
+                title: 'Riddle Me',
+                artist: 'Various Artists',
+                duration: '3:15',
+                fileUrl: '/assets/music/Grey Matter Tavern/9 - Riddle Me.mp3'
+            },
+            {
+                id: 'below-zero',
+                title: 'Below Zero (feat. Meathook)',
+                artist: 'Various Artists',
+                duration: '4:27',
+                fileUrl: '/assets/music/Grey Matter Tavern/10 - Below Zero (feat. Meathook).mp3'
+            },
+            {
+                id: 'success-the-obsession-cover',
+                title: 'Success the Obsession (Selfless Cut Cover)',
+                artist: 'Various Artists',
+                duration: '3:52',
+                fileUrl: '/assets/music/Grey Matter Tavern/11 - Success the Obsession (Selfless Cut Cover).mp3'
             }
         ]
     }

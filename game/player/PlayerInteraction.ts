@@ -2,19 +2,12 @@ import * as THREE from 'three';
 import type { Player } from './Player';
 import { PlayerInput } from '../../types';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
-import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 // Standardized to lowercase npc folder
 import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 
 export class PlayerInteraction {
 
     static update(player: Player, dt: number, input: PlayerInput, obstacles: THREE.Object3D[], entities: any[] = []) {
-        // Ledge Climbing
-        if (player.isLedgeGrabbing) {
-            this.updateClimb(player, dt);
-            return; 
-        }
-
         // Picking Up
         if (player.isPickingUp) {
             player.pickUpTime += dt;
@@ -97,43 +90,6 @@ export class PlayerInteraction {
             }
         } else {
             player.skinningProgress = 0;
-        }
-    }
-
-    private static updateClimb(player: Player, dt: number) {
-        player.ledgeGrabTime += dt;
-        const climbDuration = 1.2; 
-        const progress = Math.min(player.ledgeGrabTime / climbDuration, 1.0);
-        
-        if (progress < 0.15) {
-            player.mesh.position.copy(player.ledgeStartPos);
-        } else if (progress < 0.65) {
-            const t = (progress - 0.15) / 0.5; 
-            const ease = 1 - Math.pow(1 - t, 3); 
-            
-            player.mesh.position.x = player.ledgeStartPos.x;
-            player.mesh.position.z = player.ledgeStartPos.z;
-            player.mesh.position.y = THREE.MathUtils.lerp(player.ledgeStartPos.y, player.ledgeTargetPos.y, ease);
-        } else {
-            const t = (progress - 0.65) / 0.35; 
-            const ease = 1 - Math.pow(1 - t, 2); 
-            
-            player.mesh.position.y = player.ledgeTargetPos.y;
-            
-            const startVec = new THREE.Vector3(player.ledgeStartPos.x, 0, player.ledgeStartPos.z);
-            const targetVec = new THREE.Vector3(player.ledgeTargetPos.x, 0, player.ledgeTargetPos.z);
-            const currentVec = new THREE.Vector3().lerpVectors(startVec, targetVec, ease);
-            
-            player.mesh.position.x = currentVec.x;
-            player.mesh.position.z = currentVec.z;
-        }
-
-        if (progress >= 1.0) {
-            player.mesh.position.copy(player.ledgeTargetPos);
-            player.isLedgeGrabbing = false;
-            player.ledgeGrabTime = 0;
-            player.isJumping = false;
-            player.jumpVelocity = 0;
         }
     }
 

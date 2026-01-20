@@ -16,6 +16,8 @@ import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 import { SceneManager, SceneType } from '../managers/SceneManager';
 import { CombatInteractionManager } from '../managers/CombatInteractionManager';
+import { CombatSystem } from '../managers/CombatSystem';
+import { CameraManager } from '../managers/CameraManager';
 import { LevelGenerator } from '../builder/LevelGenerator';
 
 export class Game {
@@ -26,6 +28,8 @@ export class Game {
     public entityManager: EntityManager;
     public sceneManager: SceneManager;
     public combatManager: CombatInteractionManager;
+    public combatSystem: CombatSystem;
+    public cameraManager: CameraManager;
 
     public inputManager: InputManager;
     private soundManager: SoundManager;
@@ -33,31 +37,14 @@ export class Game {
     private builderManager: BuilderManager;
 
     private animationId: number = 0;
-    private prevTargetPos = new THREE.Vector3();
-    
-    private cameraFocusMode: number = 0; 
-    private isFirstPerson: boolean = false;
-    private wasFirstPersonKeyPressed: boolean = false;
     
     private isBuilding: boolean = false;
     private wasBuilderKeyPressed: boolean = false;
     private wasRotateKeyPressed: boolean = false;
     private wasAttack1Pressed: boolean = false;
     private showObstacleHitboxes: boolean = false;
-
-    // First Person / Camera State
-    private fpvYaw: number = 0;
-    private fpvPitch: number = 0;
-    private readonly tempTargetPos = new THREE.Vector3();
-    private readonly tempDeltaPos = new THREE.Vector3();
-    private readonly tempHeadPos = new THREE.Vector3();
-    private readonly tempForward = new THREE.Vector3();
-    private readonly tempCamDir = new THREE.Vector3();
-    private readonly tempLookAt = new THREE.Vector3();
-    private readonly axisX = new THREE.Vector3(1, 0, 0);
-    private readonly axisY = new THREE.Vector3(0, 1, 0);
-    private readonly camDirBase = new THREE.Vector3(0, 0, 1);
-
+    private wasFirstPersonKeyPressed: boolean = false;
+    
     public config: PlayerConfig;
 
     private _onPointerLockChange: (e: Event) => void;
@@ -103,44 +90,45 @@ export class Game {
         Object.assign(this.player.config, initialConfig);
         this.player.inventory.setItems(initialInventory);
         
-        // Initialize Managers
-        // EntityManager needs references to environments, but SceneManager creates them.
-        // We'll initialize EntityManager with dev environment for now, or just pass the scene and let it handle updates.
-        // SceneManager creates environments.
+        this.cameraManager = new CameraManager(this.renderManager, this.player);
+
         this.sceneManager = new SceneManager(
             this.renderManager.scene,
             this.renderManager,
-            null as any, // EntityManager injected later
+            null as any,
             this.player,
             activeScene
         );
 
         this.entityManager = new EntityManager(this.renderManager.scene, this.sceneManager.environment, initialConfig);
-        // Inject entityManager back into sceneManager (circular dependency resolution)
         this.sceneManager.setEntityManager(this.entityManager);
 
         this.combatManager = new CombatInteractionManager(this.entityManager, this.renderManager, this.player);
         this.combatManager.onUnitSelect = (stats, unit) => this.onUnitSelect?.(stats, unit);
         this.combatManager.onShowCharacterStats = (stats, name) => this.onShowCharacterStats?.(stats, name);
 
-        // Initialize Scene
+        this.combatSystem = new CombatSystem();
+        this.combatSystem.onCombatLog = (msg, type) => {
+            // Forward to UI if needed, or handle logs
+            console.log(`[Combat] ${msg}`);
+        };
+
         this.sceneManager.switchScene(activeScene, true);
         
-        // Enable land terrain height calculation for land scenes
         if (activeScene === 'land') {
             PlayerUtils.setUseLandTerrain(true);
-            // Force player to ground level on initialization
             const playerPos = this.player.mesh.position;
             const groundHeight = PlayerUtils.getGroundHeight(playerPos, this.player.config, this.sceneManager.currentEnvironment?.obstacles);
             this.player.mesh.position.y = groundHeight;
         }
         this.sceneManager.onEnvironmentReady = () => this.onEnvironmentReady?.();
 
-        // Build Level
         LevelGenerator.buildDevLevel(this.sceneManager.environment);
         this.sceneManager.environment.obstacleManager.onLogPickedUp = () => {
             this.player.addItem('Wood', 8, true);
         };
+        
+        this.spawnLowLevelGuard(-32, 0, 13, Math.PI);
         
         requestAnimationFrame(() => {
             this.sceneManager.environment.buildAsync().then(() => {
@@ -149,7 +137,6 @@ export class Game {
             if (this.sceneManager.activeScene !== 'dev') this.onEnvironmentReady?.();
         });
 
-        this.prevTargetPos.copy(this.renderManager.controls.target);
         this.clock = new THREE.Clock();
 
         this.setupInputHandlers();
@@ -163,7 +150,6 @@ export class Game {
         window.addEventListener('mousemove', this._onMouseMove);
         window.addEventListener('mousedown', this._onMouseDown);
         window.addEventListener('mouseup', this._onMouseUp);
-        // Handle right click manually for stats
         window.addEventListener('contextmenu', (e) => this.onContextMenu(e));
         
         this.animate = this.animate.bind(this);
@@ -179,10 +165,12 @@ export class Game {
             
             if (obstacles) PlayerDebug.updateObstacleHitboxVisuals(obstacles, this.showObstacleHitboxes);
         };
-        this.inputManager.onToggleCamera = () => this.toggleCameraFocus();
+        
+        this.inputManager.onToggleCamera = () => this.cameraManager.toggleCameraFocus();
+        this.inputManager.onToggleFirstPerson = () => this.cameraManager.toggleFirstPerson();
+        
         this.inputManager.onToggleHands = () => this.player.toggleHandsDebug();
         this.inputManager.onToggleSkeletonMode = () => this.player.toggleSkeletonMode();
-        this.inputManager.onToggleFirstPerson = () => this.toggleFirstPerson();
         this.inputManager.onToggleGrid = () => this.sceneManager.environment.toggleWorldGrid();
         this.inputManager.onToggleWorldMap = () => {
             this.onToggleWorldMapCallback?.(this.player.mesh.position.clone());
@@ -211,14 +199,7 @@ export class Game {
         if (this.sceneManager.activeScene === 'combat') {
             this.combatManager.handleMouseMove(e);
         }
-
-        if (this.isFirstPerson && document.pointerLockElement === this.renderManager.renderer.domElement) {
-            const sensitivity = 0.002;
-            this.fpvYaw -= e.movementX * sensitivity;
-            this.fpvPitch -= e.movementY * sensitivity;
-            const limit = Math.PI / 2 - 0.1;
-            this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
-        }
+        this.cameraManager.handleMouseMove(e);
     }
 
     private onMouseUp(e: MouseEvent) {
@@ -229,6 +210,7 @@ export class Game {
     
     private onContextMenu(e: MouseEvent) {
         if (this.sceneManager.activeScene === 'combat') {
+            e.preventDefault();
             this.combatManager.handleContextMenu(e);
         }
     }
@@ -240,19 +222,23 @@ export class Game {
     }
 
     public setCombatActive(active: boolean) {
+        console.log(`[Game] Setting combat active: ${active}`);
         this.combatManager.setCombatActive(active);
         if (active && this.sceneManager.activeScene === 'combat') {
             this.config.isAssassinHostile = true;
-            // Turn off red/green grid coloration when combat starts
-            this.sceneManager.combatEnvironment.setCombatStarted(true);
+            if (this.sceneManager.combatEnvironment) {
+                this.sceneManager.combatEnvironment.setCombatStarted(true);
+            }
+            // Initialize turn-based or tracked combat system
+            const enemies = this.entityManager.getEntitiesForScene('combat');
+            this.combatSystem.initializeCombat(this.player, [], enemies);
         }
     }
 
     public switchScene(sceneName: SceneType, isInit: boolean = false) {
         this.sceneManager.switchScene(sceneName, isInit);
-        // Clear combat selection when switching scenes
         this.combatManager.clearSelection();
-        this.combatManager.setCombatActive(false);
+        this.combatManager.setCombatActive(sceneName === 'combat');
     }
 
     spawnAnimal(type: string, count: number) {
@@ -261,15 +247,25 @@ export class Game {
         }
     }
 
+    spawnLowLevelGuard(x: number, y: number, z: number, rotation: number = 0) {
+        const position = new THREE.Vector3(x, y, z);
+        const guard = new LowLevelCityGuard(this.renderManager.scene, position, rotation);
+        this.entityManager.guard = guard;
+        return guard;
+    }
+
     private toggleBuilder() {
         this.isBuilding = !this.isBuilding;
         this.builderManager.setActive(this.isBuilding);
         this.onBuilderToggle?.(this.isBuilding);
-        if (this.isBuilding && this.isFirstPerson) this.toggleFirstPerson(false);
+        if (this.isBuilding && this.cameraManager.isFirstPerson) this.cameraManager.toggleFirstPerson(false);
     }
 
     setBuildingType(type: any) { this.builderManager.setType(type); }
-    private onPointerLockChange() { if (document.pointerLockElement !== this.renderManager.renderer.domElement && this.isFirstPerson) this.toggleFirstPerson(false); }
+    private onPointerLockChange() { 
+        if (document.pointerLockElement !== this.renderManager.renderer.domElement && this.cameraManager.isFirstPerson) 
+            this.cameraManager.toggleFirstPerson(false); 
+    }
 
     setManualInput(input: Partial<PlayerInput>) { this.inputManager.setManualInput(input); }
     getActiveScene() { return this.sceneManager.activeScene; }
@@ -277,28 +273,7 @@ export class Game {
     setInventory(items: (InventoryItem | null)[]) { this.player.inventory.setItems(items); }
     setSlotSelectCallback(cb: (index: number) => void) { this.inputManager.onSlotSelect = cb; }
     setControlsActive(active: boolean) { this.renderManager.controls.enabled = active; this.inputManager.setBlocked(!active); }
-    private toggleCameraFocus() { if (this.isFirstPerson) this.toggleFirstPerson(false); this.cameraFocusMode = (this.cameraFocusMode + 1) % 3; }
-
-    private toggleFirstPerson(forceState?: boolean) {
-        const nextState = forceState !== undefined ? forceState : !this.isFirstPerson;
-        if (nextState === this.isFirstPerson) return;
-        this.isFirstPerson = nextState;
-        if (this.isFirstPerson) {
-            this.renderManager.controls.minDistance = 0.01; this.renderManager.controls.maxDistance = 0.1; 
-            this.renderManager.controls.enabled = false;
-            this.fpvYaw = this.player.mesh.rotation.y; 
-            this.fpvPitch = 0;
-            this.renderManager.renderer.domElement.requestPointerLock();
-        } else {
-            this.renderManager.controls.minDistance = 0.1; this.renderManager.controls.maxDistance = 100; 
-            this.renderManager.controls.enabled = true;
-            if (document.pointerLockElement === this.renderManager.renderer.domElement) document.exitPointerLock();
-            if (this.player.model.parts.head) this.player.model.parts.head.visible = true;
-            const dir = new THREE.Vector3().subVectors(this.renderManager.camera.position, this.renderManager.controls.target).normalize();
-            this.renderManager.camera.position.copy(this.renderManager.controls.target).addScaledVector(dir, 4.0);
-        }
-    }
-
+    
     resize() { this.renderManager.resize(); }
 
     private animate(time: number = 0) {
@@ -308,55 +283,23 @@ export class Game {
 
         const input = this.inputManager.getInput();
 
-        // Scene-Specific Logic
         if (this.sceneManager.activeScene === 'combat') {
-             const camForward = new THREE.Vector3();
-             this.renderManager.camera.getWorldDirection(camForward);
-             camForward.y = 0; 
-             camForward.normalize();
-             
-             const camRight = new THREE.Vector3(-camForward.z, 0, camForward.x); 
-             
-             const panSpeed = 15.0 * delta;
-             const panDelta = new THREE.Vector3();
-             
-             if (Math.abs(input.y) > 0.1) panDelta.addScaledVector(camForward, -input.y * panSpeed);
-             if (Math.abs(input.x) > 0.1) panDelta.addScaledVector(camRight, input.x * panSpeed);
-
-             if (panDelta.lengthSq() > 0) {
-                 this.renderManager.camera.position.add(panDelta);
-                 this.renderManager.controls.target.add(panDelta);
-             }
-
-             input.x = 0;
-             input.y = 0;
-             input.isRunning = false;
+             this.cameraManager.handleCombatCamera(input, delta);
+             // handleCombatCamera consumes input for movement, so we don't need to manually reset it here if the manager does it.
+             // However, checking the manager code, it resets input.x/y/isRunning.
              input.attack1 = false;
              input.attack2 = false;
         }
 
-        // Shared Logic
         const joyLook = this.inputManager.getJoystickLook();
-        if (joyLook.x !== 0 || joyLook.y !== 0) {
-            const joySensitivity = 2.5 * delta;
-            if (this.isFirstPerson) {
-                this.fpvYaw -= joyLook.x * joySensitivity; 
-                this.fpvPitch += joyLook.y * joySensitivity; 
-                const limit = Math.PI / 2 - 0.1;
-                this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
-            } else {
-                const offset = new THREE.Vector3().subVectors(this.renderManager.camera.position, this.renderManager.controls.target);
-                const spherical = new THREE.Spherical().setFromVector3(offset);
-                spherical.theta -= joyLook.x * joySensitivity; spherical.phi -= joyLook.y * joySensitivity;
-                spherical.makeSafe(); offset.setFromSpherical(spherical);
-                this.renderManager.camera.position.copy(this.renderManager.controls.target).add(offset);
-            }
-        }
+        this.cameraManager.handleJoystickLook(joyLook, delta);
 
-        if (input.toggleFirstPerson && !this.wasFirstPersonKeyPressed) this.toggleFirstPerson();
+        if (input.toggleFirstPerson && !this.wasFirstPersonKeyPressed) this.cameraManager.toggleFirstPerson();
         this.wasFirstPersonKeyPressed = !!input.toggleFirstPerson;
+        
         if (input.rotateGhost && !this.wasRotateKeyPressed) this.builderManager.rotate();
         this.wasRotateKeyPressed = !!input.rotateGhost;
+        
         if (this.isBuilding && input.attack1 && !this.wasAttack1Pressed) {
             const currentEnv = this.sceneManager.currentEnvironment;
             if (currentEnv) {
@@ -366,13 +309,10 @@ export class Game {
         }
         this.wasAttack1Pressed = !!input.attack1;
 
-        let cameraRotation = this.isFirstPerson ? (this.fpvYaw - Math.PI) : Math.atan2(this.renderManager.camera.position.x - this.renderManager.controls.target.x, this.renderManager.camera.position.z - this.renderManager.controls.target.z);
+        const cameraRotation = this.cameraManager.update(this.sceneManager.activeScene);
 
-        // Update Scene Manager
         this.sceneManager.update(delta, this.config);
         
-        // Update EntityManager
-        // We need to pass the current environment to update
         const currentEnv = this.sceneManager.currentEnvironment;
         this.entityManager.update(
             delta, 
@@ -383,6 +323,14 @@ export class Game {
             this.combatManager.isActive,
             this.onAttackHit
         );
+
+        // Update Auto-Battler System
+        if (this.combatManager.isActive && this.sceneManager.activeScene === 'combat') {
+            if (this.sceneManager.combatEnvironment) {
+                this.combatSystem.update(delta, this.sceneManager.combatEnvironment);
+            }
+        }
+
         const currentEntities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
 
         this.particleManager.update(delta);
@@ -390,9 +338,6 @@ export class Game {
         if (currentEnv) {
             if (time - this.lastBiomeCheck > 500) {
                 this.lastBiomeCheck = time;
-                // Only Environment and WorldEnvironment have getBiomeAt. CombatEnvironment might not?
-                // Actually CombatEnvironment extends Environment, so it should have it, or we should check type.
-                // Assuming all environments support getBiomeAt or we check safely.
                 if ((currentEnv as any).getBiomeAt) {
                     const biome = (currentEnv as any).getBiomeAt(this.player.mesh.position);
                     if (biome.name !== this.currentBiomeName) { this.currentBiomeName = biome.name; this.onBiomeUpdate?.(biome); }
@@ -402,11 +347,9 @@ export class Game {
             const playerInput = { ...input };
             if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
             
-            // Update Projectiles independently of player state
             PlayerCombat.updateProjectiles(delta, currentEnv, this.particleManager, currentEntities);
             
             this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities);
-            // Ensure player mesh and model group are in sync for target detection
             if (this.player.mesh && this.player.model?.group) {
                 this.player.model.group.position.copy(this.player.mesh.position);
                 this.player.model.group.rotation.copy(this.player.mesh.rotation);
@@ -422,46 +365,9 @@ export class Game {
             this.onRotationUpdate?.(cameraRotation);
         }
 
-        if (this.sceneManager.activeScene !== 'combat') {
-            this.tempTargetPos.copy(this.player.mesh.position);
-            let heightOffset = this.cameraFocusMode === 1 ? 1.0 : (this.cameraFocusMode === 2 ? 0.4 : 1.7);
-            this.tempTargetPos.y += heightOffset; 
-
-            if (this.isFirstPerson) {
-                // Use fixed eye height relative to player position to avoid animation bobbing
-                this.tempHeadPos.copy(this.player.mesh.position);
-                this.tempHeadPos.y += 1.6; // Approximate eye height
-
-                this.player.mesh.rotation.y = this.fpvYaw;
-                
-                // Hide head to prevent seeing inside it
-                const head = this.player.model.parts.head;
-                if (head) head.visible = false;
-
-                // Position camera
-                this.player.mesh.getWorldDirection(this.tempForward);
-                this.tempHeadPos.addScaledVector(this.tempForward, 0.2); // Slight forward offset
-                
-                this.renderManager.controls.target.copy(this.tempHeadPos);
-                this.tempCamDir.copy(this.camDirBase).applyAxisAngle(this.axisX, this.fpvPitch).applyAxisAngle(this.axisY, this.fpvYaw);
-                
-                this.renderManager.camera.position.copy(this.tempHeadPos);
-                this.tempLookAt.copy(this.tempHeadPos).add(this.tempCamDir);
-                this.renderManager.camera.lookAt(this.tempLookAt);
-            } else {
-                this.prevTargetPos.copy(this.renderManager.controls.target);
-                this.renderManager.controls.target.copy(this.tempTargetPos);
-                this.tempDeltaPos.subVectors(this.renderManager.controls.target, this.prevTargetPos);
-                this.renderManager.camera.position.add(this.tempDeltaPos);
-                this.renderManager.controls.update();
-            }
-        } else {
-             this.renderManager.controls.update();
-        }
-  
         if (this.player.isTalking) this.onInteractionUpdate?.(null, null);
         else if (this.player.isSkinning) this.onInteractionUpdate?.(null, this.player.skinningProgress);
-        else if (this.player.isChargingFishing) this.onInteractionUpdate?.('Power', this.player.fishingCharge);
+        else if (this.player.combat.isChargingFishing) this.onInteractionUpdate?.('Power', this.player.combat.fishingCharge);
         else if (this.player.canTalk) {
             const target = this.player.talkingTarget;
             const targetName = target?.constructor.name;

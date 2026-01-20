@@ -51,7 +51,7 @@ export class BuilderManager {
         this.scene.add(this.ghostMesh);
     }
 
-    update(playerPos: THREE.Vector3, playerRotation: number, environment: any, camera: THREE.Camera, mousePos: {x: number, y: number}) {
+    update(playerPos: THREE.Vector3, playerRotation: number, environment: Environment, camera: THREE.Camera, mousePos: {x: number, y: number}) {
         if (!this.isActive || !this.ghostMesh) return;
 
         this.ghostMesh.rotation.y = this.ghostRotation;
@@ -178,7 +178,7 @@ export class BuilderManager {
         }
     }
 
-    build(environment: any) {
+    build(environment: { obstacles: THREE.Object3D[] }) {
         if (!this.isActive || !this.ghostMesh) return;
 
         const realMesh = BuildingParts.createStructureMesh(this.currentType, false);

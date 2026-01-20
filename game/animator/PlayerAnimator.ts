@@ -27,20 +27,20 @@ export class PlayerAnimator {
             this.status.animateDeath(player, parts, dt, damp);
             return;
         } 
-        if (player.isLedgeGrabbing) {
+        if (player.locomotion.isLedgeGrabbing) {
             this.action.animateClimb(player, parts, dt, damp);
             this.animateFace(player, dt);
             return;
         }
 
         // 2. Action Overrides (Priority Over Movement)
-        if (player.isFireballCasting) {
+        if (player.combat.isFireballCasting) {
             this.action.animateFireball(player, parts, dt, damp);
             this.animateFace(player, dt);
             return; // Full body override
         } 
         
-        if (player.isFiringBow) {
+        if (player.combat.isFiringBow) {
             this.action.animateFireArrow(player, parts, dt, damp);
             // Bow allows moving, so we don't return here yet, 
             // but we MUST ensure base layer doesn't overwrite arms.
@@ -56,12 +56,12 @@ export class PlayerAnimator {
             this.animateFace(player, dt);
             return;
         } 
-        if (player.isSummoning) {
+        if (player.combat.isSummoning) {
             this.action.animateSummon(player, parts, dt, damp);
             this.animateFace(player, dt);
             return;
         } 
-        if (player.isFishing) {
+        if (player.combat.isFishing) {
             this.action.animateFishing(player, parts, dt, damp, obstacles);
             this.animateFace(player, dt);
             return;
@@ -83,21 +83,22 @@ export class PlayerAnimator {
             FishingAction.reset(player, dt);
         }
 
-        const isRightArmAction = player.isPunch || player.isAxeSwing || player.isInteracting;
-        const skipArms = player.isFiringBow || isRightArmAction;
-
-        if (player.isJumping) {
-            this.locomotion.animateJump(player, parts, dt, damp, input, skipArms);
+        // State Machine Transitions
+        if (player.locomotion.isJumping) {
+            this.stateMachine.changeState(this.jumpState);
         } else if (isMoving) {
-            this.locomotion.animateMovement(player, parts, dt, damp, input, skipArms);
+            this.stateMachine.changeState(this.moveState);
         } else {
-            this.locomotion.animateIdle(player, parts, damp, skipArms);
+            this.stateMachine.changeState(this.idleState);
         }
 
+        // Update State Machine
+        this.stateMachine.update(dt, input, obstacles);
+
         // 4. Combat / Interaction Overlay Layer
-        if (player.isAxeSwing) {
+        if (player.combat.isAxeSwing) {
             this.action.animateAxeSwing(player, parts, dt, damp, isMoving);
-        } else if (player.isPunch) {
+        } else if (player.combat.isPunch) {
             this.action.animatePunch(player, parts, dt, damp, isMoving);
         } else if (player.isInteracting) {
             this.action.animateInteract(player, parts, dt, damp);
