@@ -533,7 +533,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   absSpacing: 1.0,
 
   bulgeX: 0,
-  bulgeY: -0.125,
+  bulgeY: -0.135,
   bulgeZ: 0.075,
   bulgeRotX: 0.45,
   bulgeRotY: 0,

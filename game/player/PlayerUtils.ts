@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
+import { getLandHeightAt } from '../environment/landTerrain';
 
 export class PlayerUtils {
     // Matching constants from Environment.ts to calculate pond depth mathematically
@@ -10,6 +11,11 @@ export class PlayerUtils {
 
     // World size
     static WORLD_LIMIT = 1000;
+    static useLandTerrain = false;
+
+    static setUseLandTerrain(useLand: boolean) {
+        this.useLandTerrain = useLand;
+    }
 
     static getHitboxBounds(position: THREE.Vector3, config: PlayerConfig): THREE.Box3 {
         const { legScale, torsoHeight, torsoWidth, headScale } = config;
@@ -69,6 +75,10 @@ export class PlayerUtils {
     }
 
     static getTerrainHeight(x: number, z: number): number {
+        if (this.useLandTerrain) {
+            const h = getLandHeightAt(x, z);
+            return h;
+        }
         const dx = x - this.POND_X;
         const dz = z - this.POND_Z;
         const dist = Math.sqrt(dx*dx + dz*dz);
@@ -92,8 +102,8 @@ export class PlayerUtils {
         const depth = width * 0.7;
         
         const pBox = new THREE.Box3().setFromCenterAndSize(
-            new THREE.Vector3(pos.x, 5, pos.z), 
-            new THREE.Vector3(width, 10, depth)
+            new THREE.Vector3(pos.x, 50, pos.z), 
+            new THREE.Vector3(width, 100, depth)
         );
 
         for (const obs of obstacles) {
@@ -127,19 +137,18 @@ export class PlayerUtils {
         let highest = this.getTerrainHeight(pos.x, pos.z);
         const width = (config as any).torsoWidth ? 0.6 * config.torsoWidth : 0.6;
         const depth = width * 0.7;
-        const stepLimit = 0.6; 
+        const stepLimit = 2.0; 
         const searchCeiling = pos.y + stepLimit;
 
         const pBox = new THREE.Box3().setFromCenterAndSize(
-            new THREE.Vector3(pos.x, pos.y, pos.z), 
-            new THREE.Vector3(width, 1, depth)
+            new THREE.Vector3(pos.x, pos.y + stepLimit/2, pos.z), 
+            new THREE.Vector3(width, stepLimit, depth)
         );
 
         for (const obs of obstacles) {
             if (obs.userData.type === 'soft' || obs.userData.type === 'creature') continue; 
             const obsBox = new THREE.Box3().setFromObject(obs);
-            if (pBox.min.x < obsBox.max.x && pBox.max.x > obsBox.min.x &&
-                pBox.min.z < obsBox.max.z && pBox.max.z > obsBox.min.z) {
+            if (pBox.intersectsBox(obsBox)) {
                 if (obsBox.max.y <= searchCeiling) {
                     highest = Math.max(highest, obsBox.max.y);
                 }

@@ -82,8 +82,8 @@ export class ShortsBuilder {
             cGeo.scale(1, 0.75, 0.75);
             const cMesh = new THREE.Mesh(cGeo, mat);
             cMesh.scale.multiplyScalar(s);
-            // Lowered position to better cover underwear crotch
-            cMesh.position.y = -pelvisHeight - 0.01;
+            // Align to pelvis bottom cap to remove gap
+            cMesh.position.y = -pelvisHeight + 0.006;
             parts.pelvis.add(cMesh);
             meshes.push(cMesh);
 
@@ -122,8 +122,8 @@ export class ShortsBuilder {
 
         // 2. Legs (Shorts only cover thigh, and only partially)
         const legs = [
-            { parent: parts.leftThigh, len: 0.22, topR: 0.11, botR: 0.10 },
-            { parent: parts.rightThigh, len: 0.22, topR: 0.11, botR: 0.10 },
+            { parent: parts.leftThigh, len: 0.24, topR: 0.11, botR: 0.10 },
+            { parent: parts.rightThigh, len: 0.24, topR: 0.11, botR: 0.10 },
         ];
 
         legs.forEach(leg => {

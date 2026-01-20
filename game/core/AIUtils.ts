@@ -35,25 +35,42 @@ export class AIUtils {
         const forward = new THREE.Vector3(Math.sin(rotationY), 0, Math.cos(rotationY));
         const checkPos = currentPos.clone().add(forward.multiplyScalar(lookAheadDist));
 
-        if (PlayerUtils.checkBoxCollision(checkPos, collisionSize, obstacles)) {
-            // Collision ahead! Try to steer left or right
-            const leftRot = rotationY + Math.PI / 4;
-            const rightRot = rotationY - Math.PI / 4;
-            
-            const leftPos = currentPos.clone().add(new THREE.Vector3(Math.sin(leftRot), 0, Math.cos(leftRot)).multiplyScalar(lookAheadDist));
-            const rightPos = currentPos.clone().add(new THREE.Vector3(Math.sin(rightRot), 0, Math.cos(rightRot)).multiplyScalar(lookAheadDist));
-
-            const leftBlocked = PlayerUtils.checkBoxCollision(leftPos, collisionSize, obstacles);
-            const rightBlocked = PlayerUtils.checkBoxCollision(rightPos, collisionSize, obstacles);
-
-            if (!leftBlocked) return leftRot;
-            if (!rightBlocked) return rightRot;
-            
-            // Both blocked? Try a wider turn
-            return rotationY + Math.PI / 2;
+        if (!PlayerUtils.checkBoxCollision(checkPos, collisionSize, obstacles)) {
+            return rotationY;
         }
 
-        return rotationY;
+        const distances = [lookAheadDist, lookAheadDist * 1.5];
+        const candidates = [
+            rotationY + Math.PI / 4,
+            rotationY - Math.PI / 4,
+            rotationY + Math.PI / 2,
+            rotationY - Math.PI / 2
+        ];
+
+        const scoreCandidate = (candidateRot: number): number => {
+            let blockedCount = 0;
+            for (const dist of distances) {
+                const pos = currentPos.clone().add(
+                    new THREE.Vector3(Math.sin(candidateRot), 0, Math.cos(candidateRot)).multiplyScalar(dist)
+                );
+                if (PlayerUtils.checkBoxCollision(pos, collisionSize, obstacles)) blockedCount += 1;
+            }
+            return blockedCount;
+        };
+
+        const scored = candidates.map((candidateRot) => ({
+            rot: candidateRot,
+            score: scoreCandidate(candidateRot),
+            turn: Math.abs(candidateRot - rotationY)
+        }));
+
+        scored.sort((a, b) => {
+            if (a.score !== b.score) return a.score - b.score;
+            if (a.turn !== b.turn) return a.turn - b.turn;
+            return Math.sin(rotationY) >= 0 ? b.rot - a.rot : a.rot - b.rot;
+        });
+
+        return scored[0].rot;
     }
 
     /**

@@ -1,11 +1,11 @@
-
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { Game } from "../game/core/Game";
 import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
+import { WorldMapModal } from './ui/WorldMapModal';
 
 interface SceneProps {
-  activeScene: 'dev' | 'world' | 'combat';
+  activeScene: 'dev' | 'land' | 'combat';
   config: PlayerConfig;
   manualInput: Partial<PlayerInput>;
   initialInventory: (InventoryItem | null)[];
@@ -39,6 +39,7 @@ const Scene: React.FC<SceneProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Game | null>(null);
+  const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -104,7 +105,31 @@ const Scene: React.FC<SceneProps> = ({
 
   }, [config, manualInput, initialInventory, onInventoryUpdate, onSlotSelect, onInteractionUpdate, onToggleQuestLog, onEnvironmentReady, controlsDisabled, showGrid, isCombatActive]);
 
-  return <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />;
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest('input, textarea, select, .no-capture')) return;
+      if (e.repeat) return;
+
+      if (e.code === 'Comma') {
+        e.preventDefault();
+        setIsWorldMapOpen(prev => !prev);
+      }
+
+      if (e.code === 'Escape') {
+        setIsWorldMapOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, { passive: false });
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <>
+      <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />
+      <WorldMapModal isOpen={isWorldMapOpen} onClose={() => setIsWorldMapOpen(false)} />
+    </>
+  );
 };
 
 export default Scene;
