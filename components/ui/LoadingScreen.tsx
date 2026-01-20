@@ -205,12 +205,8 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
     // Check completion gate
     useEffect(() => {
         if (runnerProgress >= 100 && isSystemReady && isEnemiesPreloaded && !hasCalledFinished.current) {
-            // Add a small artificial delay to ensure everything is settled visually
-            const settleTimeout = setTimeout(() => {
-                hasCalledFinished.current = true;
-                onFinished?.();
-            }, 500);
-            return () => clearTimeout(settleTimeout);
+            hasCalledFinished.current = true;
+            onFinished?.();
         }
     }, [runnerProgress, isSystemReady, isEnemiesPreloaded, onFinished]);
 

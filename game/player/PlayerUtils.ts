@@ -43,7 +43,7 @@ export class PlayerUtils {
     static checkCollision(pos: THREE.Vector3, config: PlayerConfig, obstacles: THREE.Object3D[]): boolean {
         const playerBox = this.getHitboxBounds(pos, config);
         for (const obs of obstacles) {
-            if (obs.userData.type === 'soft') continue;
+            if (obs.userData.type === 'soft' || obs.userData.type === 'ground') continue;
             const obsBox = new THREE.Box3().setFromObject(obs);
             if (obsBox.intersectsBox(playerBox)) return true;
         }
@@ -62,7 +62,7 @@ export class PlayerUtils {
         );
 
         for (const obs of obstacles) {
-            if (obs.userData.type === 'soft' || obs.userData.type === 'creature') continue;
+            if (obs.userData.type === 'soft' || obs.userData.type === 'creature' || obs.userData.type === 'ground') continue;
             const obsBox = new THREE.Box3().setFromObject(obs);
             if (obsBox.intersectsBox(box)) return true;
         }
@@ -97,6 +97,22 @@ export class PlayerUtils {
         if (!obstacles || !Array.isArray(obstacles)) {
             return highest;
         }
+
+        // 1. Raycast against Ground Meshes for exact visual height matching
+        // This handles slopes and the transition from land to sea floor correctly
+        const groundMeshes = obstacles.filter(o => o.userData.type === 'ground');
+        if (groundMeshes.length > 0) {
+            // Cast from high up downwards
+            const rayOrigin = new THREE.Vector3(pos.x, 200, pos.z);
+            const rayDir = new THREE.Vector3(0, -1, 0);
+            const raycaster = new THREE.Raycaster(rayOrigin, rayDir, 0, 300); // Check 200 down to -100
+            
+            const intersects = raycaster.intersectObjects(groundMeshes);
+            if (intersects.length > 0) {
+                // Use the highest hit point directly, overriding the mathematical fallback
+                highest = intersects[0].point.y;
+            }
+        }
         
         const width = (config as any).torsoWidth ? 0.6 * config.torsoWidth : 0.6;
         const depth = width * 0.7;
@@ -107,7 +123,7 @@ export class PlayerUtils {
         );
 
         for (const obs of obstacles) {
-            if (obs.userData.type === 'soft' || obs.userData.type === 'creature') continue; 
+            if (obs.userData.type === 'soft' || obs.userData.type === 'creature' || obs.userData.type === 'ground') continue; 
             
             // Special handling for round foundations which use CylinderGeometry
             if (obs.userData.structureType === 'round_foundation') {
@@ -135,6 +151,24 @@ export class PlayerUtils {
 
     static getLandingHeight(pos: THREE.Vector3, config: PlayerConfig, obstacles: THREE.Object3D[]): number {
         let highest = this.getTerrainHeight(pos.x, pos.z);
+        
+        // 1. Raycast against Ground Meshes (Terrain) to handle slopes/edges correctly
+        // We do this unconditionally for 'ground' type because it defines the base world
+        if (obstacles && Array.isArray(obstacles)) {
+            const groundMeshes = obstacles.filter(o => o.userData.type === 'ground');
+            if (groundMeshes.length > 0) {
+                const rayOrigin = new THREE.Vector3(pos.x, 200, pos.z);
+                const rayDir = new THREE.Vector3(0, -1, 0);
+                const raycaster = new THREE.Raycaster(rayOrigin, rayDir, 0, 300);
+                
+                const intersects = raycaster.intersectObjects(groundMeshes);
+                if (intersects.length > 0) {
+                    // Use the highest hit point directly, overriding the mathematical fallback
+                    highest = intersects[0].point.y;
+                }
+            }
+        }
+
         const width = (config as any).torsoWidth ? 0.6 * config.torsoWidth : 0.6;
         const depth = width * 0.7;
         const stepLimit = 2.0; 
@@ -146,7 +180,7 @@ export class PlayerUtils {
         );
 
         for (const obs of obstacles) {
-            if (obs.userData.type === 'soft' || obs.userData.type === 'creature') continue; 
+            if (obs.userData.type === 'soft' || obs.userData.type === 'creature' || obs.userData.type === 'ground') continue; 
             const obsBox = new THREE.Box3().setFromObject(obs);
             if (pBox.intersectsBox(obsBox)) {
                 if (obsBox.max.y <= searchCeiling) {

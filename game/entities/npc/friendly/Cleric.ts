@@ -6,6 +6,7 @@ import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
+import { PlayerCombat } from '../../../player/PlayerCombat';
 
 enum ClericState { IDLE, PATROL, SUPPORT, CAST, RETREAT }
 
@@ -30,6 +31,7 @@ export class Cleric {
     private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
     private isCasting: boolean = false;
     private castTimer: number = 0;
+    private hasCastSpell: boolean = false;
     private speedFactor: number = 0;
     private lastStepCount: number = 0;
     private walkTime: number = 0;
@@ -90,11 +92,16 @@ export class Cleric {
         this.state = newState;
         this.stateTimer = 0;
         this.isCasting = (newState === ClericState.CAST);
-        if (this.isCasting) this.castTimer = 0;
+        if (this.isCasting) {
+            this.castTimer = 0;
+            this.hasCastSpell = false;
+        }
     }
 
     private findPatrolPoint(environment: Environment | CombatEnvironment) {
         if (environment instanceof CombatEnvironment) {
+            // In combat, we should generally not patrol randomly if we have targets.
+            // But if we must, stay on valid grid.
             const r = Math.floor(Math.random() * 8);
             const c = Math.floor(Math.random() * 8);
             this.targetPos.copy(environment.getWorldPosition(r, c));
@@ -117,28 +124,35 @@ export class Cleric {
         // Snapping check for combat arena
         if (env instanceof CombatEnvironment) {
             const snapped = env.snapToGrid(this.position);
-            if (isCombatActive) {
-                // Cell-by-cell movement
+            
+            if (isCombatActive && this.state !== ClericState.CAST) {
+                // Combat Movement Logic
                 if (this.currentPath.length > 0) {
                     const targetGrid = this.currentPath[this.pathIndex];
                     const targetPos = env.getWorldPosition(targetGrid.r, targetGrid.c);
                     
                     const distSq = this.position.distanceToSquared(targetPos);
-                    if (distSq < 0.01) {
+                    if (distSq < 0.05) { // Strict snap distance
+                        this.position.copy(targetPos); // Snap exactly
                         this.pathIndex++;
                         if (this.pathIndex >= this.currentPath.length) {
                             this.currentPath = [];
                         }
                     } else {
                         const dir = new THREE.Vector3().subVectors(targetPos, this.position).normalize();
-                        this.position.addScaledVector(dir, 3.0 * dt);
-                        this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(dir.x, dir.z), 10.0 * dt);
+                        const speed = 3.5;
+                        this.position.addScaledVector(dir, speed * dt);
+                        this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(dir.x, dir.z), 15.0 * dt);
                     }
                 } else if (this.targetPos && this.position.distanceToSquared(this.targetPos) > 1.0) {
-                    this.currentPath = env.getPath(this.position, this.targetPos);
-                    this.pathIndex = 0;
+                     // If we have a target position but no path, calculate it
+                     // Ensure targetPos is snapped to grid before pathfinding to avoid "dumb" paths
+                     const targetSnap = env.snapToGrid(this.targetPos);
+                     this.currentPath = env.getPath(this.position, targetSnap);
+                     this.pathIndex = 0;
                 }
-            } else {
+            } else if (this.state !== ClericState.CAST) {
+                 // Not in combat or doing something else, just snap
                 this.position.lerp(snapped, 5.0 * dt);
             }
         }
@@ -173,16 +187,32 @@ export class Cleric {
                 } else if (distToTarget < 5.0) {
                     this.setState(ClericState.RETREAT);
                 } else if (distToTarget > 25.0) {
-                    this.setState(ClericState.PATROL);
+                    // Instead of going to PATROL, just move closer
+                    this.targetPos.copy(this.currentTarget!.position);
                 } else {
+                    // Reposition slightly or stay put
                     this.targetPos.copy(this.currentTarget!.position);
                 }
             }
             if (this.state === ClericState.CAST) {
                 this.castTimer += dt;
+                
+                // Spawn Projectile
+                if (this.castTimer > 0.5 && !this.hasCastSpell && this.currentTarget) {
+                    const dir = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize();
+                    PlayerCombat.spawnProjectile(
+                        this.scene, 
+                        this.position.clone().add(new THREE.Vector3(0, 1.3, 0)), 
+                        dir, 
+                        'fireball', // Using fireball visual as a holy bolt for now
+                        this
+                    );
+                    this.hasCastSpell = true;
+                }
+
                 if (this.castTimer > 1.2) {
                     this.setState(ClericState.SUPPORT);
-                    this.attackCooldown = 3.0 + Math.random() * 1.5;
+                    this.attackCooldown = 2.5 + Math.random() * 1.5;
                 }
             }
             if (this.state === ClericState.RETREAT) {
@@ -215,7 +245,15 @@ export class Cleric {
                         .subVectors(this.position, this.currentTarget.position)
                         .normalize();
                     const next = this.position.clone().add(dirAway.multiplyScalar(3.5 * dt));
-                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                    // Basic bounds check, but in combat we rely on pathfinding mostly for complex moves
+                    // For retreat, we just push back a bit, but ensure we don't go off grid
+                    if (env instanceof CombatEnvironment) {
+                        const snappedNext = env.snapToGrid(next);
+                        // If retreat takes us to valid grid, go there
+                         if (PlayerUtils.isWithinBounds(snappedNext)) {
+                            this.position.lerp(snappedNext, 2.0 * dt);
+                        }
+                    } else if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
                         this.position.copy(next);
                     }
                 }
@@ -223,7 +261,8 @@ export class Cleric {
                 break;
         }
 
-        if (moveSpeed !== 0 && this.state !== ClericState.CAST) {
+        // Logic for Non-Combat Environment Movement (e.g. wandering in city)
+        if (!(env instanceof CombatEnvironment) && moveSpeed !== 0 && this.state !== ClericState.CAST) {
             if (this.position.distanceTo(this.lastStuckPos) < 0.001) {
                 this.stuckTimer += dt;
                 if (this.stuckTimer > 1.8) {
@@ -237,28 +276,40 @@ export class Cleric {
             }
         }
 
-        if (this.state !== ClericState.CAST && this.state !== ClericState.RETREAT) {
-            const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
-            toGoal.y = 0;
-            if (toGoal.length() > 0.1) {
-                this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 5.0 * dt);
-                if (moveSpeed > 0) {
-                    const step = moveSpeed * dt;
-                    const next = this.position.clone().add(
-                        new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)
-                    );
-                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
-                        this.position.x = next.x;
-                        this.position.z = next.z;
+        // Rotation & Movement Application for Non-Combat or Fallback
+        if (!(env instanceof CombatEnvironment)) {
+             if (this.state !== ClericState.CAST && this.state !== ClericState.RETREAT) {
+                const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
+                toGoal.y = 0;
+                if (toGoal.length() > 0.1) {
+                    this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 5.0 * dt);
+                    if (moveSpeed > 0) {
+                        const step = moveSpeed * dt;
+                        const next = this.position.clone().add(
+                            new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)
+                        );
+                        if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                            this.position.x = next.x;
+                            this.position.z = next.z;
+                        }
                     }
                 }
+            } else if (this.currentTarget) {
+                this.rotationY = THREE.MathUtils.lerp(
+                    this.rotationY,
+                    Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z),
+                    dt * 6.0
+                );
             }
-        } else if (this.currentTarget) {
-            this.rotationY = THREE.MathUtils.lerp(
-                this.rotationY,
-                Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z),
-                dt * 6.0
-            );
+        } else {
+            // In combat, we just face target if not moving
+             if (this.currentTarget && this.state !== ClericState.RETREAT && this.currentPath.length === 0) {
+                 this.rotationY = THREE.MathUtils.lerp(
+                    this.rotationY,
+                    Math.atan2(this.currentTarget.position.x - this.position.x, this.currentTarget.position.z - this.position.z),
+                    dt * 10.0
+                );
+            }
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);

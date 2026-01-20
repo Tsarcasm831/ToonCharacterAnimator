@@ -1,0 +1,78 @@
+Based on my analysis of your ToonCharacterAnimator project, here are the top 17 files that need refactoring:
+
+🎯 Top Priority Refactoring Candidates
+1. App.tsx (565 lines)
+Critical Issues: Massive monolithic component with 50+ state variables, excessive prop drilling
+Problems: Game state management mixed with UI state, complex inventory/quest logic embedded
+Refactor: Extract state management, split into multiple components, create custom hooks
+2. types.ts (547 lines)
+Critical Issues: Overly complex PlayerConfig interface with 200+ properties
+Problems: Monolithic type definitions, poor separation of concerns
+Refactor: Split into focused interfaces (AppearanceConfig, StatsConfig, EquipmentConfig, etc.)
+3. Game.ts (485 lines)
+Critical Issues: God class handling rendering, input, combat, building, and camera
+Problems: Multiple responsibilities, tight coupling between systems
+Refactor: Extract dedicated managers, implement proper separation of concerns
+4. GlobalModals.tsx (164 lines)
+Critical Issues: Component with 40+ props managing all modals
+Problems: Excessive prop drilling, poor modal state management
+Refactor: Implement modal context, extract individual modal providers
+5. GameScreen.tsx (266 lines)
+Critical Issues: Complex component with 30+ props and multiple responsibilities
+Problems: Mixing rendering logic with game state, tight coupling
+Refactor: Split into focused components, extract game logic hooks
+6. Player.ts (323 lines)
+Critical Issues: Large class with multiple subsystems and 50+ properties
+Problems: Mixing physics, combat, interaction, and animation logic
+Refactor: Extract subsystem classes, implement composition over inheritance
+7. InputManager.ts (199 lines)
+Critical Issues: Large class handling keyboard, mouse, and joystick input
+Problems: Mixed input types, hardcoded key bindings, poor extensibility
+Refactor: Split into input handlers, implement input mapping system
+8. PlayerConfig Interface (in types.ts)
+Critical Issues: 200+ properties in single interface
+Problems: Unmaintainable, poor type safety, difficult to extend
+Refactor: Break into focused interfaces with proper inheritance
+9. Scene Components (Scene.tsx, LandScene.tsx, CombatScene.tsx)
+Critical Issues: Large scene components with mixed responsibilities
+Problems: Rendering logic mixed with game logic, poor reusability
+Refactor: Extract scene managers, implement scene abstraction layer
+10. Modal Components (InventoryModal, TradeModal, ForgeModal, etc.)
+Critical Issues: Repetitive modal patterns with similar logic
+Problems: Code duplication, inconsistent modal behavior
+Refactor: Create base modal component, implement modal factory pattern
+11. Animation System (PlayerAnimator.ts, ActionAnimator.ts)
+Critical Issues: Complex animation state management
+Problems: Tight coupling with player logic, hard to extend
+Refactor: Implement state machine pattern, extract animation controllers
+12. Environment System (Environment.ts, TerrainTextureFactory.ts)
+Critical Issues: Large environment classes with multiple responsibilities
+Problems: Mixing terrain generation with entity management
+Refactor: Extract terrain generators, implement environment composition
+13. EntityManager.ts
+Critical Issues: Managing all entity types in single class
+Problems: Poor scalability, mixed entity logic
+Refactor: Implement entity system architecture, extract entity factories
+14. BuilderManager.ts
+Critical Issues: Complex building logic mixed with rendering
+Problems: Tight coupling with game state, poor modularity
+Refactor: Extract building system, implement builder pattern
+15. Combat System (CombatInteractionManager.ts, PlayerCombat.ts)
+Critical Issues: Distributed combat logic across multiple classes
+Problems: Poor cohesion, hard to maintain combat rules
+Refactor: Implement combat system architecture, extract combat controllers
+16. UI Controls (BodyControls.tsx, FaceControls.tsx, EquipmentRiggingControls.tsx)
+Critical Issues: Repetitive control patterns with complex prop drilling
+Problems: Code duplication, poor reusability
+Refactor: Create generic control components, implement control factory
+17. Package Configuration (package.json, tsconfig.json)
+Critical Issues: Duplicate dependencies, inconsistent configuration
+Problems: @vitejs/plugin-react listed twice, potential version conflicts
+Refactor: Clean up dependencies, standardize build configuration
+🔧 Recommended Refactoring Strategy
+Start with state management - Extract global state from App.tsx
+Break down monolithic types - Split PlayerConfig into focused interfaces
+Implement proper architecture patterns - Use composition, factories, and state machines
+Create reusable components - Extract common UI patterns and modal logic
+Establish clear boundaries - Separate rendering, game logic, and data management
+These refactors will significantly improve maintainability, testability, and extensibility of your ToonCharacterAnimator project.

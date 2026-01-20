@@ -44,7 +44,7 @@ interface GameScreenProps {
     isDeadUI: boolean;
     
     // Callbacks
-    onStart: (startInCombat: boolean) => void;
+    onStart: (startInCombat: boolean, startInLand: boolean) => void;
     onShowEnemies: () => void;
     onGameReady: (game: Game) => void;
     onEnvironmentReady: () => void;
@@ -135,6 +135,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({
         }
     };
 
+    const handleTravelMenuOpen = () => {
+        setIsLandMapOpen(false);
+        setIsTravelOpen(true);
+    };
+
     return (
         <div className="w-full h-full flex flex-col items-center justify-start pt-24 pb-24">
             <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
@@ -223,7 +228,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                         stats={config.stats}
                                         isFemale={config.bodyType === 'female'}
                                         combatLog={combatLog}
-                                        onToggleWorldMap={() => handleMapToggle(game?.player.position || new THREE.Vector3())}
+                                        onOpenTravel={handleTravelMenuOpen}
                                         onToggleBestiary={onShowEnemies}
                                     />
                                     

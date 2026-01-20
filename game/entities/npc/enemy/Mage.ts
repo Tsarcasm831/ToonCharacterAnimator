@@ -8,6 +8,7 @@ import { Environment } from '../../../environment/Environment';
 import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
+import { PlayerCombat } from '../../../player/PlayerCombat';
 
 enum MageState { IDLE, PATROL, CHASE, ATTACK, RETREAT }
 
@@ -32,6 +33,7 @@ export class Mage {
     private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
     private isCasting: boolean = false;
     private castTimer: number = 0;
+    private hasCastSpell: boolean = false;
     private speedFactor: number = 0;
     private lastStepCount: number = 0;
     private walkTime: number = 0;
@@ -85,7 +87,10 @@ export class Mage {
         this.state = newState; 
         this.stateTimer = 0; 
         this.isCasting = (newState === MageState.ATTACK);
-        if (this.isCasting) this.castTimer = 0;
+        if (this.isCasting) {
+            this.castTimer = 0;
+            this.hasCastSpell = false;
+        }
     }
 
     private findPatrolPoint(environment: Environment | CombatEnvironment) {
@@ -172,6 +177,14 @@ export class Mage {
             
             if (this.state === MageState.ATTACK) {
                 this.castTimer += dt;
+                
+                // Spawn Projectile
+                if (this.castTimer > 0.6 && !this.hasCastSpell && this.currentTarget) {
+                    const dir = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize();
+                    PlayerCombat.spawnProjectile(this.scene, this.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, 'fireball', this);
+                    this.hasCastSpell = true;
+                }
+
                 // Mage stands still while casting (animation logic handles the visuals)
                 if (this.castTimer > 0.8) { // Fireball animation cycle is roughly 0.8s
                     this.setState(MageState.RETREAT);

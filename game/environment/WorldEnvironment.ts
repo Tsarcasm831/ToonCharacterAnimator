@@ -1,7 +1,6 @@
 
 import * as THREE from 'three';
-import { LAND_SHAPE_POINTS } from '../../data/landShape';
-import { getLandHeightAt } from './landTerrain';
+import { getLandHeightAt, worldWidth, worldDepth } from './landTerrain';
 import { PlayerConfig } from '../../types';
 
 export class WorldEnvironment {
@@ -22,58 +21,31 @@ export class WorldEnvironment {
     }
 
     private build() {
-        // 1. Convert points to Shape
-        let minX = Infinity, maxX = -Infinity;
-        let minZ = Infinity, maxZ = -Infinity;
+        // Use PlaneGeometry for consistent resolution matching the heightmap function
+        // 1 vertex per unit for good terrain fidelity
+        const segmentsX = Math.floor(worldWidth);
+        const segmentsZ = Math.floor(worldDepth);
 
-        LAND_SHAPE_POINTS.forEach(p => {
-            if (p[0] < minX) minX = p[0];
-            if (p[0] > maxX) maxX = p[0];
-            if (p[1] < minZ) minZ = p[1];
-            if (p[1] > maxZ) maxZ = p[1];
-        });
+        const geometry = new THREE.PlaneGeometry(worldWidth, worldDepth, segmentsX, segmentsZ);
+        geometry.rotateX(-Math.PI / 2); // Rotate to lie flat on XZ plane
 
-        const centerX = (minX + maxX) / 2;
-        const centerZ = (minZ + maxZ) / 2;
-
-        const scale = 50.0; // Scale up the world
-
-        const shape = new THREE.Shape();
-        LAND_SHAPE_POINTS.forEach((p, i) => {
-            // Flip Z because 2D shape Y is usually 3D Z, and sometimes winding order matters
-            // p[0] is X, p[1] is Y (Z).
-            const x = (p[0] - centerX) * scale;
-            const z = (p[1] - centerZ) * scale; 
-            if (i === 0) {
-                shape.moveTo(x, z); // Note: using z as y for shape, will rotate later
-            } else {
-                shape.lineTo(x, z);
-            }
-        });
-
-        // 2. Create Geometry from Shape
-        const geometry = new THREE.ExtrudeGeometry(shape, {
-            depth: 10, // Thickness of the land
-            bevelEnabled: true,
-            bevelThickness: 2,
-            bevelSize: 2,
-            bevelSegments: 2
-        });
-
-        // Rotate to lie flat on XZ plane
-        // Extrude creates along Z axis.
-        geometry.rotateX(Math.PI / 2);
-
-        // 3. Apply static terrain heightmap (mountains north, plateaus center, plains south)
         const positions = geometry.attributes.position;
+
+        // Apply heightmap to vertices
         for (let i = 0; i < positions.count; i += 1) {
             const x = positions.getX(i);
             const z = positions.getZ(i);
-            positions.setY(i, positions.getY(i) + getLandHeightAt(x, z));
+            
+            // getLandHeightAt now handles the "outside polygon" check internally
+            // returning a low value (-30) for underwater areas
+            const y = getLandHeightAt(x, z);
+            positions.setY(i, y);
         }
 
         positions.needsUpdate = true;
         geometry.computeVertexNormals();
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
 
         // 4. Material
         const material = new THREE.MeshStandardMaterial({ 
@@ -103,7 +75,7 @@ export class WorldEnvironment {
         });
         const water = new THREE.Mesh(waterGeo, waterMat);
         water.rotation.x = -Math.PI / 2;
-        water.position.y = -2;
+        water.position.y = -18; // 10m below the lowest terrain surface
         this.group.add(water);
     }
 
