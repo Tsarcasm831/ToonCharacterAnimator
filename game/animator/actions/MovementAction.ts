@@ -107,6 +107,24 @@ export class MovementAction {
 
         parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, (isRunning && !isPureStrafe) ? 0.1 : 0.02, damp);
         
+        // --- DYNAMIC SKIRT FLARING ---
+        if (parts.pelvis && parts.pelvis.children.length > 0) {
+            // Find the skirt mesh in pelvis children (Must be explicitly named or it might pick up the PelvisMesh skin)
+            const skirt = parts.pelvis.children.find((c: any) => c.name && c.name.includes('Skirt'));
+            if (skirt) {
+                const legMove = Math.max(
+                    Math.abs(parts.leftThigh.rotation.x),
+                    Math.abs(parts.rightThigh.rotation.x),
+                    Math.abs(parts.leftThigh.rotation.z),
+                    Math.abs(parts.rightThigh.rotation.z)
+                );
+                // Flare more aggressively for the skirt
+                const flare = 1.0 + (legMove * 0.45);
+                skirt.scale.x = lerp(skirt.scale.x, flare, damp);
+                skirt.scale.z = lerp(skirt.scale.z, flare, damp);
+            }
+        }
+
         parts.neck.rotation.y = -parts.torsoContainer.rotation.y * 0.5;
         parts.head.rotation.x = lerp(parts.head.rotation.x, 0.1 - leanBob, damp);
 

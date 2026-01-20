@@ -1,10 +1,11 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { Game } from "../game/core/Game";
-import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
+import { PlayerConfig, PlayerInput, InventoryItem, EntityStats } from '../types';
 import { GameHUD } from './ui/GameHUD';
 import { CombatLogEntry } from './ui/CombatLog';
+import { UnitStatsTooltip } from './ui/UnitStatsTooltip';
 
 interface CombatSceneProps {
     config: PlayerConfig;
@@ -39,10 +40,19 @@ const CombatScene: React.FC<CombatSceneProps> = ({
     combatLog,
     showGrid,
     setShowGrid,
-    controlsDisabled = false
+    controlsDisabled = false,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const gameRef = useRef<Game | null>(null);
+    
+    // Tooltip state for right-click unit stats
+    const [tooltip, setTooltip] = useState<{
+        visible: boolean;
+        stats?: EntityStats;
+        unitName?: string;
+        x: number;
+        y: number;
+    }>({ visible: false, x: 0, y: 0 });
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -61,6 +71,16 @@ const CombatScene: React.FC<CombatSceneProps> = ({
         game.onRotationUpdate = onRotationUpdate;
         game.onAttackHit = onAttackHit;
         game['inputManager'].onToggleQuestLog = onToggleQuestLog;
+
+        // Wire up tooltip callbacks for combat
+        if (game.combatManager) {
+            game.combatManager.onShowTooltip = (stats, name, x, y) => {
+                setTooltip({ visible: true, stats, unitName: name, x: x || 0, y: y || 0 });
+            };
+            game.combatManager.onHideTooltip = () => {
+                setTooltip(prev => ({ ...prev, visible: false }));
+            };
+        }
 
         game.start();
 
@@ -94,18 +114,26 @@ const CombatScene: React.FC<CombatSceneProps> = ({
         game.setCombatActive(isCombatActive);
     }, [config, manualInput, controlsDisabled, showGrid, isCombatActive]);
 
+    // Hide tooltip when clicking anywhere
+    const handleClick = () => {
+        if (tooltip.visible) {
+            setTooltip(prev => ({ ...prev, visible: false }));
+        }
+    };
+
     return (
-        <div className="w-full h-full relative">
+        <div className="w-full h-full relative" onClick={handleClick}>
             <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />
             
             <GameHUD 
                 activeScene="combat"
                 currentBiome={{ name: 'Combat Arena', color: '#ef4444' }}
-                playerRotation={0} // This could be synced if needed
-                inventory={[]} // Combat uses bench
+                playerRotation={0}
+                inventory={[]}
                 bench={bench}
-                selectedSlot={0} // Internal state in App.tsx
-                onSelectSlot={() => {}} // Internal state in App.tsx
+                selectedSlot={0}
+                onSelectSlot={() => {}}
+                selectedUnit={gameRef.current?.combatManager?.selectedUnit}
                 interactionText={null}
                 interactionProgress={null}
                 showGrid={showGrid}
@@ -115,6 +143,15 @@ const CombatScene: React.FC<CombatSceneProps> = ({
                 stats={config.stats}
                 isFemale={config.bodyType === 'female'}
                 combatLog={combatLog}
+            />
+            
+            {/* Unit Stats Tooltip (shown on right-click) */}
+            <UnitStatsTooltip 
+                visible={tooltip.visible}
+                stats={tooltip.stats}
+                unitName={tooltip.unitName}
+                x={tooltip.x}
+                y={tooltip.y}
             />
         </div>
     );

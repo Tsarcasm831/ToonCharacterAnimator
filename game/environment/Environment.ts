@@ -183,7 +183,7 @@ export class Environment {
             await SceneBuilder.buildAsync(this.group, 10);
 
             // Kick off downstream systems in parallel
-            const textureStatusPromise = this.waitForTextures(1500);
+            const textureStatusPromise = this.waitForTextures(5000);
             const obstaclesPromise = this.obstacleManager.initAsync(20);
 
             const textureStatus = await textureStatusPromise;
@@ -201,7 +201,7 @@ export class Environment {
         }
     }
 
-    private async waitForTextures(timeoutMs: number = 1500): Promise<'ready' | 'timeout'> {
+    private async waitForTextures(timeoutMs: number = 5000): Promise<'ready' | 'timeout'> {
         const texturesPromise = TerrainTextureFactory.allLoaded();
         let timeoutId: number | null = null;
 

@@ -5,6 +5,7 @@ import { LocomotionAnimator } from './LocomotionAnimator';
 import { ActionAnimator } from './ActionAnimator';
 import { StatusAnimator } from './StatusAnimator';
 import { FishingAction } from './actions/FishingAction';
+import { SkirtPhysics } from './SkirtPhysics';
 
 export class PlayerAnimator {
     private locomotion = new LocomotionAnimator();
@@ -104,6 +105,9 @@ export class PlayerAnimator {
         
         // 5. Head Tracking & Expressions
         this.animateFace(player, dt);
+
+        // 6. Cloth Physics
+        SkirtPhysics.animate(player, parts, dt);
     }
 
     private animateFace(player: any, dt: number) {

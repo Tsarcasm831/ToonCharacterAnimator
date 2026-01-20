@@ -156,4 +156,17 @@ export class PlayerMaterials {
     }
     
     applyOutfit(outfit: OutfitType, skinColor: string) {}
+
+    dispose() {
+        const mats = [
+            this.skin, this.shirt, this.pants, this.boots, 
+            this.sclera, this.iris, this.pupil, this.lip, 
+            this.underwear, this.hair, this.brain
+        ];
+        mats.forEach(m => {
+            if (m.bumpMap) m.bumpMap.dispose();
+            if (m.map) m.map.dispose();
+            m.dispose();
+        });
+    }
 }

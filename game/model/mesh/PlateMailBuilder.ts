@@ -54,29 +54,48 @@ export class PlateMailBuilder {
         const chestGeo = new THREE.CylinderGeometry(
             torsoRadiusTop, 
             torsoRadiusBottom, 
-            torsoHeight * 0.85, 
+            torsoHeight * 0.88, 
             32, 
-            8
+            12
         );
         chestGeo.scale(1, 1, torsoDepthScale);
 
-        // Sculpt the chest plate
+        // Sculpt the chest plate with more defined shape
         const pos = chestGeo.attributes.position;
         const v = new THREE.Vector3();
         for (let i = 0; i < pos.count; i++) {
             v.fromBufferAttribute(pos, i);
             
-            // Add chest curve (barrel shape)
+            // Add chest curve (barrel shape) - more pronounced
             if (v.z > 0) {
-                const heightFactor = (v.y + torsoHeight * 0.425) / (torsoHeight * 0.85);
-                const chestBulge = Math.sin(heightFactor * Math.PI) * 0.04;
+                const heightFactor = (v.y + torsoHeight * 0.44) / (torsoHeight * 0.88);
+                const chestBulge = Math.sin(heightFactor * Math.PI) * 0.055;
                 v.z += chestBulge;
+                
+                // Add pectoral definition for front
+                const pectY = 0.12;
+                const pectX = 0.08;
+                const pectRadius = 0.12;
+                const distL = Math.sqrt(Math.pow(v.x - pectX, 2) + Math.pow(v.y - pectY, 2));
+                const distR = Math.sqrt(Math.pow(v.x + pectX, 2) + Math.pow(v.y - pectY, 2));
+                if (distL < pectRadius) {
+                    v.z += Math.cos((distL/pectRadius) * (Math.PI/2)) * 0.025;
+                }
+                if (distR < pectRadius) {
+                    v.z += Math.cos((distR/pectRadius) * (Math.PI/2)) * 0.025;
+                }
+            }
+            
+            // Back plate slight curve
+            if (v.z < 0) {
+                const heightFactor = (v.y + torsoHeight * 0.44) / (torsoHeight * 0.88);
+                v.z -= Math.sin(heightFactor * Math.PI) * 0.02;
             }
             
             // Slight taper at sides for lacing area
             const sideAngle = Math.atan2(v.z, v.x);
             if (Math.abs(sideAngle) > Math.PI * 0.35 && Math.abs(sideAngle) < Math.PI * 0.65) {
-                v.x *= 0.92;
+                v.x *= 0.90;
             }
             
             pos.setXYZ(i, v.x, v.y, v.z);
@@ -88,6 +107,13 @@ export class PlateMailBuilder {
         chestPlate.castShadow = true;
         cuirassGroup.add(chestPlate);
         createdMeshes.push(chestPlate);
+
+        // Add center ridge/keel on front
+        const ridgeGeo = new THREE.BoxGeometry(0.02, torsoHeight * 0.5, 0.03);
+        const ridge = new THREE.Mesh(ridgeGeo, metalDarkMat);
+        ridge.position.set(0, 0.08, torsoRadiusTop * torsoDepthScale + 0.02);
+        cuirassGroup.add(ridge);
+        createdMeshes.push(ridge);
 
         // --- B. SIDE LACING (Left and Right) ---
         const createSideLacing = (side: number) => {

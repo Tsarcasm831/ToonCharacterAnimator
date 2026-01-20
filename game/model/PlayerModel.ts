@@ -138,4 +138,14 @@ export class PlayerModel {
         this.equipmentManager.updateHeldItem(config.selectedItem);
         this.equipmentManager.positionEquipment(config);
     }
+
+    dispose() {
+        this.materials.dispose();
+        this.group.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                if (obj.geometry) obj.geometry.dispose();
+            }
+        });
+        this.hairSimulation?.dispose?.();
+    }
 }

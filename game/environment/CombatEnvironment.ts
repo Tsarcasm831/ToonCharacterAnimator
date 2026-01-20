@@ -14,6 +14,9 @@ export class CombatEnvironment {
     private readonly HEX_HEIGHT = 0.5;
 
     private gridLabelsGroup: THREE.Group | null = null;
+    private hexMeshes: THREE.Mesh[] = [];
+    private neutralMat: THREE.MeshStandardMaterial | null = null;
+    private isCombatStarted: boolean = false;
     
     // Pre-calculated spacing
     private readonly WIDTH: number;
@@ -98,12 +101,12 @@ export class CombatEnvironment {
         return this.occupiedCells.has(`${r},${c}`);
     }
 
-    public getPath(start: THREE.Vector3, end: THREE.Vector3): THREE.Vector3[] {
+    public getPath(start: THREE.Vector3, end: THREE.Vector3): { r: number, c: number }[] {
         const startGrid = this.getGridPosition(start);
         const endGrid = this.getGridPosition(end);
 
-        if (!startGrid || !endGrid) return [end.clone()];
-        if (startGrid.r === endGrid.r && startGrid.c === endGrid.c) return [end.clone()];
+        if (!startGrid || !endGrid) return [];
+        if (startGrid.r === endGrid.r && startGrid.c === endGrid.c) return [];
 
         // Simple A* or BFS for hex grid
         const queue: { r: number, c: number, path: { r: number, c: number }[] }[] = [{ ...startGrid, path: [] }];
@@ -114,7 +117,7 @@ export class CombatEnvironment {
             const { r, c, path } = queue.shift()!;
 
             if (r === endGrid.r && c === endGrid.c) {
-                return path.map(p => this.getWorldPosition(p.r, p.c)).concat([end.clone()]);
+                return path;
             }
 
             const neighbors = this.getNeighbors(r, c);
@@ -127,7 +130,7 @@ export class CombatEnvironment {
             }
         }
 
-        return [end.clone()];
+        return [];
     }
 
     private getNeighbors(r: number, c: number): { r: number, c: number }[] {
@@ -228,6 +231,8 @@ export class CombatEnvironment {
                 const mesh = new THREE.Mesh(hexGeo, isTopHalf ? matRed : matGreen);
                 mesh.position.y = -this.HEX_HEIGHT / 2; // Top surface at y=0
                 mesh.receiveShadow = true;
+                mesh.userData.originalMat = isTopHalf ? matRed : matGreen;
+                this.hexMeshes.push(mesh);
                 
                 // Slight inset for border visual
                 mesh.scale.set(0.95, 1, 0.95);
@@ -272,6 +277,26 @@ export class CombatEnvironment {
 
     update(dt: number, config: PlayerConfig, playerPos: THREE.Vector3) {
         if (!this.group.visible) return;
+    }
+
+    /**
+     * Toggle the red/green team coloration on the grid.
+     * When combat starts, we turn off the colors to neutral.
+     */
+    public setCombatStarted(started: boolean) {
+        this.isCombatStarted = started;
+        
+        if (!this.neutralMat) {
+            this.neutralMat = new THREE.MeshStandardMaterial({ color: 0x3d4852, roughness: 0.7, flatShading: true });
+        }
+        
+        this.hexMeshes.forEach(mesh => {
+            if (started) {
+                mesh.material = this.neutralMat!;
+            } else {
+                mesh.material = mesh.userData.originalMat;
+            }
+        });
     }
 
     // Interface compatibility with Environment

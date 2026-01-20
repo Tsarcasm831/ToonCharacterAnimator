@@ -27,7 +27,8 @@ interface GlobalModalsProps {
 
     isTradeOpen: boolean;
     setIsTradeOpen: (open: boolean) => void;
-    handleTrade: (items: (InventoryItem | null)[], totalCost: number) => void;
+    onBuy: (item: string, price: number) => void;
+    onSell: (index: number, price: number) => void;
 
     isShopkeeperChatOpen: boolean;
     setIsShopkeeperChatOpen: (open: boolean) => void;
@@ -63,7 +64,7 @@ interface GlobalModalsProps {
 
 export const GlobalModals: React.FC<GlobalModalsProps> = ({
     isInventoryOpen, toggleInventory, inventory, setInventory, equipmentSlots, handleEquipItem, handleUnequipItem, coins, stats, bodyType,
-    isTradeOpen, setIsTradeOpen, handleTrade,
+    isTradeOpen, setIsTradeOpen, onBuy, onSell,
     isShopkeeperChatOpen, setIsShopkeeperChatOpen,
     isForgeOpen, setIsForgeOpen,
     isKeybindsOpen, toggleKeybinds,
@@ -90,9 +91,11 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
             )}
             {isTradeOpen && (
               <TradeModal 
+                isOpen={isTradeOpen}
                 inventory={inventory}
                 onClose={() => setIsTradeOpen(false)}
-                onTrade={handleTrade}
+                onBuy={onBuy}
+                onSell={onSell}
                 coins={coins}
               />
             )}
@@ -136,7 +139,7 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
                 />
             )}
             {isEnemiesModalOpen && (
-                <EnemiesModal onClose={() => setIsEnemiesModalOpen(false)} />
+                <EnemiesModal isOpen={isEnemiesModalOpen} onClose={() => setIsEnemiesModalOpen(false)} />
             )}
             {isCharacterStatsOpen && (
                 <CharacterStatsModal 

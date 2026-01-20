@@ -131,60 +131,24 @@ export class RobeBuilder {
         parts.torsoContainer.add(robeTorso);
         createdMeshes.push(robeTorso);
 
-        // --- SHOULDER MANTLE & PAULDRONS ---
-        // Covers shoulders and provides the missing coverage
-        const mantleRadius = torsoRadiusTop; // Use same radius as torso top for better alignment
-        const neckOpeningAngle = 0.25; 
-        const mantleDropAngle = Math.PI * 0.5; // Standard cap drop
-        
-        const mantleGeo = new THREE.SphereGeometry(
-            mantleRadius, 
-            32, 12, 
-            0, Math.PI * 2, 
-            0, Math.PI / 2 // Simple top cap like ShirtBuilder
-        );
-        
-        mantleGeo.scale(layerScale, 0.5, torsoDepthScale * layerScale);
+        // --- SHOULDER CAP (Like ShirtBuilder) ---
+        // Simple hemisphere cap that covers the shoulders smoothly
+        const capGeo = new THREE.SphereGeometry(torsoRadiusTop * layerScale, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+        capGeo.scale(1, 0.5, torsoDepthScale);
+        const shoulderCap = new THREE.Mesh(capGeo, robeMat);
+        shoulderCap.position.y = robeLen / 2;
+        robeTorso.add(shoulderCap);
+        createdMeshes.push(shoulderCap);
+        scaleUVs(shoulderCap, torsoRadiusTop * layerScale, torsoRadiusTop * layerScale);
 
-        const mantle = new THREE.Mesh(mantleGeo, robeMat);
-        mantle.position.y = robeLen / 2; // Exact top of cylinder
-        robeTorso.add(mantle);
-        createdMeshes.push(mantle);
-        scaleUVs(mantle, mantleRadius * layerScale, mantleRadius * layerScale);
-
-        // Add Pauldrons/Shoulder Caps
-        // Using SphereGeometry but with vertical orientation
-        const pauldronRadius = 0.18;
-        const pauldronGeo = new THREE.SphereGeometry(pauldronRadius, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-        pauldronGeo.scale(1, 0.6, 1);
-        
-        const leftPauldron = new THREE.Mesh(pauldronGeo, robeMat);
-        leftPauldron.position.set(0.3, 0, 0); // Position relative to mantle
-        mantle.add(leftPauldron);
-        createdMeshes.push(leftPauldron);
-
-        const rightPauldron = leftPauldron.clone();
-        rightPauldron.position.x = -0.3;
-        mantle.add(rightPauldron);
-        createdMeshes.push(rightPauldron);
-
-        // Collar Trim (The rim of the neck hole)
-        // Calculate the radius of the hole in local space
-        // Sin(opening) * Radius * ScaleX
-        const rAtNeck = Math.sin(neckOpeningAngle) * mantleRadius * layerScale;
-        
-        const collarGeo = new THREE.TorusGeometry(rAtNeck, 0.04, 8, 32);
-        // Flatten to match body depth
-        collarGeo.scale(1, 1, torsoDepthScale);
+        // Collar/Neck Trim - decorative ring around the neckline
+        const collarRadius = torsoRadiusTop * layerScale * 0.45;
+        const collarGeo = new THREE.TorusGeometry(collarRadius, 0.035, 8, 32);
+        collarGeo.scale(1, 1, torsoDepthScale * 0.9);
         
         const collar = new THREE.Mesh(collarGeo, trimMat);
         collar.rotation.x = Math.PI / 2;
-        
-        // Calculate Y offset of the hole lip
-        // Cos(opening) * Radius * ScaleY
-        const yOffset = Math.cos(neckOpeningAngle) * mantleRadius * (0.55 * layerScale);
-        collar.position.y = mantle.position.y + yOffset;
-        
+        collar.position.y = robeLen / 2 + 0.12;
         robeTorso.add(collar);
         createdMeshes.push(collar);
 
@@ -223,42 +187,86 @@ export class RobeBuilder {
 
         // --- LOWER ROBE (SKIRT) ---
         // Attached to Pelvis. 
-        // Designed as a split skirt (Front open) to prevent clipping when running.
+        // Improved design with better coverage and flow
         if (parts.pelvis) {
-            const skirtLen = 0.65; // Down to shins
-            const skirtTopRad = torsoRadiusBottom * layerScale * 0.98; // Wider top to meet belt
-            const skirtBotRad = skirtTopRad * 1.45; // Slightly more flare
+            const skirtLen = 0.70; // Longer for better coverage
+            const skirtTopRad = torsoRadiusBottom * layerScale * 1.0;
+            const skirtBotRad = skirtTopRad * 1.6; // More flare for flowing look
 
-            // We create a C-shape (cylinder with a slice missing for the front)
+            // Full cylinder skirt with front slit for leg movement
             const skirtGeo = new THREE.CylinderGeometry(
                 skirtTopRad, 
                 skirtBotRad, 
                 skirtLen, 
                 32, 
-                4, 
+                6, 
                 true, // open ended
-                0.6, // thetaStart (leaves front gap)
-                Math.PI * 2 - 1.2 // thetaLength
+                0.4, // thetaStart (smaller gap)
+                Math.PI * 2 - 0.8 // thetaLength (larger coverage)
             );
             skirtGeo.scale(1, 1, torsoDepthScale);
 
+            // Add slight wave to bottom edge for natural fabric look
+            const skirtPos = skirtGeo.attributes.position;
+            const sv = new THREE.Vector3();
+            for (let i = 0; i < skirtPos.count; i++) {
+                sv.fromBufferAttribute(skirtPos, i);
+                // Only affect bottom half
+                if (sv.y < 0) {
+                    const t = Math.abs(sv.y) / (skirtLen / 2);
+                    // Add wave based on angle
+                    const angle = Math.atan2(sv.z, sv.x);
+                    sv.y -= Math.sin(angle * 4) * 0.02 * t;
+                }
+                skirtPos.setXYZ(i, sv.x, sv.y, sv.z);
+            }
+            skirtGeo.computeVertexNormals();
+
             const skirt = new THREE.Mesh(skirtGeo, robeMat);
-            // Raised from -0.02 to 0.02 to overlap with belt/waist anchor
-            skirt.position.y = -skirtLen/2 + 0.02; 
+            skirt.name = 'RobeSkirt';
+            skirt.position.y = -skirtLen/2 + 0.04; 
             skirt.castShadow = true;
 
             scaleUVs(skirt, skirtBotRad, skirtLen);
             parts.pelvis.add(skirt);
             createdMeshes.push(skirt);
 
-            // Optional: Front Tabard/Loincloth part to cover the groin but allow leg movement
-            const tabardWidth = 0.25;
-            const tabardGeo = new THREE.PlaneGeometry(tabardWidth, skirtLen);
+            // Front panel/tabard - wider and with trim
+            const tabardWidth = 0.30;
+            const tabardLen = skirtLen * 0.95;
+            const tabardGeo = new THREE.PlaneGeometry(tabardWidth, tabardLen, 4, 8);
+            
+            // Add slight curve to tabard
+            const tabPos = tabardGeo.attributes.position;
+            const tv = new THREE.Vector3();
+            for (let i = 0; i < tabPos.count; i++) {
+                tv.fromBufferAttribute(tabPos, i);
+                // Curve outward at bottom
+                const t = (tv.y + tabardLen/2) / tabardLen;
+                tv.z = (1 - t) * 0.08;
+                // Slight taper at bottom
+                tv.x *= 0.85 + t * 0.15;
+                tabPos.setXYZ(i, tv.x, tv.y, tv.z);
+            }
+            tabardGeo.computeVertexNormals();
+            
             const tabard = new THREE.Mesh(tabardGeo, robeMat);
-            tabard.position.set(0, -skirtLen/2 + 0.02, skirtTopRad * torsoDepthScale - 0.01);
-            tabard.rotation.x = -0.05; // Slight angle out
+            tabard.position.set(0, -tabardLen/2 + 0.04, skirtTopRad * torsoDepthScale + 0.02);
+            tabard.rotation.x = -0.08;
             parts.pelvis.add(tabard);
             createdMeshes.push(tabard);
+
+            // Trim on tabard edges
+            const trimGeo = new THREE.BoxGeometry(0.02, tabardLen, 0.01);
+            const leftTrim = new THREE.Mesh(trimGeo, trimMat);
+            leftTrim.position.set(-tabardWidth/2, 0, 0.01);
+            tabard.add(leftTrim);
+            createdMeshes.push(leftTrim);
+            
+            const rightTrim = new THREE.Mesh(trimGeo, trimMat);
+            rightTrim.position.set(tabardWidth/2, 0, 0.01);
+            tabard.add(rightTrim);
+            createdMeshes.push(rightTrim);
         }
 
         return { meshes: createdMeshes };

@@ -60,14 +60,15 @@ export const EnemyPreview: React.FC<EnemyPreviewProps> = ({ type }) => {
         const scene = new THREE.Scene();
         // Adjust camera to be closer and more centered on the character
         const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 20);
-        camera.position.set(0, 1.2, 3.5); // Center horizontally, lift vertically
-        camera.lookAt(0, 0.9, 0); // Look at character's torso area
+        camera.position.set(0, 1.0, 3.5); // Lowered camera position
+        camera.lookAt(0, 1.1, 0); // Look higher to shift model up in frame
 
         const renderer = new THREE.WebGLRenderer({ 
             canvas,
             alpha: true, 
-            antialias: true,
-            preserveDrawingBuffer: true 
+            antialias: false,
+            preserveDrawingBuffer: true,
+            powerPreference: "low-power"
         });
         renderer.setSize(width, height);
         renderer.setPixelRatio(1);
@@ -133,6 +134,11 @@ export const EnemyPreview: React.FC<EnemyPreviewProps> = ({ type }) => {
             setPreviewUrl(dataUrl);
             EnemyCache.setPreview(type, dataUrl);
 
+            // Cleanup the enemy instance specifically if it has a dispose method
+            if (enemyInstance && typeof enemyInstance.dispose === 'function') {
+                enemyInstance.dispose();
+            }
+
         } catch (err) {
             console.error("Failed to render enemy preview:", err);
         } finally {
@@ -145,17 +151,23 @@ export const EnemyPreview: React.FC<EnemyPreviewProps> = ({ type }) => {
                 if (object instanceof THREE.Mesh) {
                     if (object.geometry) object.geometry.dispose();
                     if (object.material) {
-                        if (Array.isArray(object.material)) {
-                            object.material.forEach(m => m.dispose());
-                        } else {
-                            object.material.dispose();
-                        }
+                        const materials = Array.isArray(object.material) ? object.material : [object.material];
+                        materials.forEach(m => {
+                            // Dispose of textures
+                            for (const key in m) {
+                                if (m[key] && m[key].isTexture) {
+                                    m[key].dispose();
+                                }
+                            }
+                            m.dispose();
+                        });
                     }
                 }
             });
             renderer.dispose();
+            renderer.forceContextLoss();
         }
-    }, [type, previewUrl]);
+    }, [type]);
 
     return (
         <div ref={containerRef} className="w-full h-full flex items-center justify-center bg-black/10">

@@ -70,6 +70,16 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         mountNode.appendChild(renderer.domElement);
 
+        const disposeRenderer = () => {
+            if (renderer) {
+                renderer.dispose();
+                renderer.forceContextLoss();
+                if (renderer.domElement && renderer.domElement.parentNode === mountNode) {
+                    mountNode.removeChild(renderer.domElement);
+                }
+            }
+        };
+
         scene.add(new THREE.AmbientLight(0xffffff, 1.2));
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
         dirLight.position.set(2, 5, 5);
@@ -119,10 +129,7 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
 
         return () => {
             cancelAnimationFrame(frameId);
-            renderer.dispose();
-            if (renderer.domElement.parentNode === mountNode) {
-                mountNode.removeChild(renderer.domElement);
-            }
+            disposeRenderer();
         };
     }, [mirror]);
 

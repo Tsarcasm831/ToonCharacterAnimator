@@ -92,6 +92,7 @@ const App: React.FC = () => {
   const [dialogue, setDialogue] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState(0);
   const [selectedUnitStats, setSelectedUnitStats] = useState<EntityStats | null>(null);
+  const [selectedUnit, setSelectedUnit] = useState<any | null>(null);
   const [playerPosForMap, setPlayerPosForMap] = useState(new THREE.Vector3());
   const gameInstance = useRef<Game | null>(null);
 
@@ -417,7 +418,7 @@ const App: React.FC = () => {
       <div className="absolute inset-0 z-0">
         {activePage === 'home' && <HomeView />}
         {activePage === 'units' && <UnitsView />}
-        {activePage === 'mission' && <MissionView />}
+        {activePage === 'mission' && <MissionView quests={quests} config={config} />}
         {activePage === 'music' && <MusicView />}
         
         {activePage === 'game' && (
@@ -464,9 +465,10 @@ const App: React.FC = () => {
                     if (name) setStatsUnitName(name);
                     setIsCharacterStatsOpen(true);
                 };
-                g.onUnitSelect = (stats) => {
+                g.onUnitSelect = (stats, unit) => {
                     if (stats) setSelectedUnitStats(stats);
                     else setSelectedUnitStats(config.stats);
+                    setSelectedUnit(unit);
                 };
                 g.onAttackHit = (type, count) => {
                     addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
@@ -513,7 +515,8 @@ const App: React.FC = () => {
         bodyType={config.bodyType}
         isTradeOpen={isTradeOpen}
         setIsTradeOpen={setIsTradeOpen}
-        handleTrade={handleTrade}
+        onBuy={handleBuy}
+        onSell={handleSell}
         isShopkeeperChatOpen={isShopkeeperChatOpen}
         setIsShopkeeperChatOpen={setIsShopkeeperChatOpen}
         isForgeOpen={isForgeOpen}

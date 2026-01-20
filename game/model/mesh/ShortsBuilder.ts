@@ -77,12 +77,13 @@ export class ShortsBuilder {
             meshes.push(pMesh);
             scaleUVs(pMesh, torsoRadiusBottom * 0.8, pelvisHeight);
 
-            // Crotch
-            const cGeo = new THREE.SphereGeometry(torsoRadiusBottom * 0.55, 16, 12, 0, Math.PI*2, Math.PI/2, Math.PI/2);
-            cGeo.scale(1, 0.7, 0.7);
+            // Crotch - extended lower and scaled larger to fully cover underwear
+            const cGeo = new THREE.SphereGeometry(torsoRadiusBottom * 0.58, 16, 12, 0, Math.PI*2, Math.PI/2, Math.PI/2);
+            cGeo.scale(1, 0.75, 0.75);
             const cMesh = new THREE.Mesh(cGeo, mat);
             cMesh.scale.multiplyScalar(s);
-            cMesh.position.y = -pelvisHeight;
+            // Lowered position to better cover underwear crotch
+            cMesh.position.y = -pelvisHeight - 0.01;
             parts.pelvis.add(cMesh);
             meshes.push(cMesh);
 

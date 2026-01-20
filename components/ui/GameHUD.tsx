@@ -17,6 +17,7 @@ interface GameHUDProps {
     bench: (InventoryItem | null)[];
     selectedSlot: number;
     onSelectSlot: (idx: number) => void;
+    selectedUnit?: any;
     interactionText: string | null;
     interactionProgress: number | null;
     showGrid: boolean;
@@ -32,7 +33,7 @@ interface GameHUDProps {
 
 export const GameHUD: React.FC<GameHUDProps> = ({
     activeScene, currentBiome, playerRotation, inventory, bench, selectedSlot, onSelectSlot,
-    interactionText, interactionProgress, showGrid, setShowGrid, isCombatActive, setIsCombatActive,
+    selectedUnit, interactionText, interactionProgress, showGrid, setShowGrid, isCombatActive, setIsCombatActive,
     stats, isFemale, combatLog, onToggleWorldMap, onToggleBestiary
 }) => {
     const isCombat = activeScene === 'combat';
@@ -48,6 +49,36 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                 <>
                     <CombatStatusBar stats={stats} isFemale={isFemale} />
                     <CombatLog entries={combatLog} />
+                    {selectedUnit && (
+                        <div className="absolute top-24 left-8 z-[50] w-64 h-96 bg-slate-900/80 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden animate-in fade-in slide-in-from-left-4">
+                            <div className="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+                                <div className="w-full h-full bg-gradient-to-b from-blue-500/20 to-transparent" />
+                            </div>
+                            <div className="relative p-6 flex flex-col h-full">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-white/70">Selected Ally</h3>
+                                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                                </div>
+                                <div className="flex-1 flex items-center justify-center bg-black/40 rounded-2xl border border-white/5 mb-4">
+                                    <div className="text-[10px] text-white/30 uppercase tracking-tighter">Unit Model Preview</div>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="text-xs font-bold text-white tracking-wide">
+                                        {selectedUnit.constructor.name === 'Player' ? 'Hero' : selectedUnit.constructor.name}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-blue-500 shadow-[0_0_10px_#3b82f6]" 
+                                                style={{ width: `${(selectedUnit.stats?.hp / selectedUnit.stats?.maxHp) * 100 || 100}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-[10px] font-black text-blue-400">HP</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
 

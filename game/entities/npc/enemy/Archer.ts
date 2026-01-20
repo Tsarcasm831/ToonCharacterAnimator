@@ -24,6 +24,8 @@ export class Archer {
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
     private currentTarget: { position: THREE.Vector3, isDead?: boolean, isWolf?: boolean } | null = null;
+    private currentPath: { r: number, c: number }[] = [];
+    private pathIndex: number = 0;
     private duelTimer: number = 0;
     private strafeDir: number = 1;
     private attackCooldown: number = 0;
@@ -86,9 +88,30 @@ export class Archer {
         // Snapping check for combat arena
         if (env instanceof CombatEnvironment) {
             const snapped = env.snapToGrid(this.position);
-            // Always snap if not in a state that requires free movement (like ATTACK or RETREAT)
-            // Archers use ranged attacks so they should generally stay on grid even when attacking/retreating to maintain formation
-            this.position.lerp(snapped, 5.0 * dt);
+            if (isCombatActive) {
+                // Cell-by-cell movement
+                if (this.currentPath.length > 0) {
+                    const targetGrid = this.currentPath[this.pathIndex];
+                    const targetPos = env.getWorldPosition(targetGrid.r, targetGrid.c);
+                    
+                    const distSq = this.position.distanceToSquared(targetPos);
+                    if (distSq < 0.01) {
+                        this.pathIndex++;
+                        if (this.pathIndex >= this.currentPath.length) {
+                            this.currentPath = [];
+                        }
+                    } else {
+                        const dir = new THREE.Vector3().subVectors(targetPos, this.position).normalize();
+                        this.position.addScaledVector(dir, 5.0 * dt);
+                        this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(dir.x, dir.z), 10.0 * dt);
+                    }
+                } else if (this.targetPos && this.position.distanceToSquared(this.targetPos) > 1.0) {
+                    this.currentPath = env.getPath(this.position, this.targetPos);
+                    this.pathIndex = 0;
+                }
+            } else {
+                this.position.lerp(snapped, 5.0 * dt);
+            }
         }
 
         if (!isCombatActive) {
