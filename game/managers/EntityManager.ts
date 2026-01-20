@@ -66,6 +66,7 @@ export class EntityManager {
     public lizards: Lizard[] = [];
     public horses: Horse[] = [];
     public bandits: Bandit[] = [];
+    public combatArchers: Archer[] = [];
 
     private readonly animationRangeSq = 40 * 40;
     private readonly visibilityRangeSq = 120 * 120;
@@ -116,7 +117,7 @@ export class EntityManager {
          ...this.chickens, ...this.pigs, ...this.sheeps, ...this.spiders, 
          ...this.lizards, ...this.horses, ...this.clerics, ...this.knights,
          ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
-         ...this.berserkers, ...this.rogues, ...this.warlocks].forEach(disposeEntity);
+         ...this.berserkers, ...this.rogues, ...this.warlocks, ...this.combatArchers].forEach(disposeEntity);
 
         this.bandits = [];
         this.bears = [];
@@ -138,6 +139,7 @@ export class EntityManager {
         this.berserkers = [];
         this.rogues = [];
         this.warlocks = [];
+        this.combatArchers = [];
     }
 
     /**
@@ -170,15 +172,19 @@ export class EntityManager {
         for (let i = 0; i < count; i++) {
             let row, col, key;
             let attempts = 0;
-            const isFriendly = type.toLowerCase() === 'cleric';
+            const isFriendly = type.toLowerCase() === 'cleric' || type.toLowerCase() === 'archer';
 
             do {
                 if (isFriendly) {
-                    row = Math.floor(Math.random() * 2) + 5; // Row 5 or 6 (Green side)
+                    // Friendly side: Rows 4-6 (Indices)
+                    // Row 7 is Bench
+                    row = Math.floor(Math.random() * 3) + 4; 
                 } else {
-                    row = Math.floor(Math.random() * 2) + 1; // Row 1 or 2 (Red side)
+                    // Enemy side: Rows 1-3 (Indices)
+                    // Row 0 is Bench
+                    row = Math.floor(Math.random() * 3) + 1; 
                 }
-                col = Math.floor(Math.random() * 4) + 2; // Middle columns
+                col = Math.floor(Math.random() * 7); // Cols 0-6
                 key = `${row},${col}`;
                 attempts++;
             } while (occupied.has(key) && attempts < 50);
@@ -186,6 +192,7 @@ export class EntityManager {
             occupied.add(key);
             arena.setCellOccupied(row, col, true);
             const snappedPos = arena.getWorldPosition(row, col);
+            console.log(`[EntityManager] Spawning ${type} at grid {${row}, ${col}} -> world {${snappedPos.x}, ${snappedPos.z}}`);
 
             if (type.toLowerCase() === 'bandit') {
                 const bandit = new Bandit(this.scene, snappedPos);
@@ -195,6 +202,10 @@ export class EntityManager {
                 const cleric = new Cleric(this.scene, snappedPos);
                 cleric.rotationY = Math.PI; // Face enemy side
                 this.clerics.push(cleric);
+            } else if (type.toLowerCase() === 'archer') {
+                const archer = new Archer(this.scene, snappedPos);
+                archer.rotationY = Math.PI; // Face enemy side
+                this.combatArchers.push(archer);
             } else {
                 this.spawnAnimalGroup(type, 1, null, snappedPos);
             }
@@ -272,7 +283,7 @@ export class EntityManager {
         const isVisible = (entity: any) => this.visibilityCache.get(entity) ?? false;
         const isNear = (entity: any) => this.nearCache.get(entity) ?? false;
         const enemyTargets = this.getEnemyTargets(activeScene);
-        const playerTargets = [{ position: this.tempPlayerPos }];
+        const playerTargets = this.getPlayerTargets(activeScene);
 
         if (activeScene === 'combat' && isCombatActive) {
             console.log(`[EntityManager] Updating combat scene. Enemy targets: ${enemyTargets.length}, Player pos: ${this.tempPlayerPos.x},${this.tempPlayerPos.z}`);
@@ -337,11 +348,12 @@ export class EntityManager {
             entity instanceof Paladin ||
             entity instanceof Monk ||
             entity instanceof Ranger ||
-            entity instanceof Sentinel
+            entity instanceof Sentinel ||
+            entity instanceof Archer
         ) {
             entity.update(delta, environment as any, enemyTargets, skipAnimation, isCombatActive);
         } else if (entity instanceof Bandit) {
-            entity.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
+            entity.update(delta, environment as any, enemyTargets, skipAnimation, isCombatActive);
         } else if (entity instanceof Wolf || entity instanceof Bear) {
             entity.update(delta, environment as any, playerTargets, skipAnimation);
         } else if (entity.update) {
@@ -354,20 +366,48 @@ export class EntityManager {
         if (sceneName !== 'combat') {
             return this.tempEnemyTargets;
         }
-        // Only include dynamically spawned enemy units for combat scene
-        const units = [
+        // Friendly units are targets for Enemies (Bandits)
+        const friendlyUnits = [
+            ...this.clerics,
+            ...this.knights,
+            ...this.paladins,
+            ...this.monks,
+            ...this.rangers,
+            ...this.sentinels,
+            ...this.combatArchers // The Archer is friendly in this encounter
+        ];
+        
+        this.tempEnemyTargets.push({ position: this.tempPlayerPos, isDead: false });
+        
+        for (const unit of friendlyUnits) {
+            if (!unit) continue;
+            const pos = (unit as any).position || (unit as any).mesh?.position || (unit as any).model?.group?.position;
+            if (!pos) continue;
+            this.tempEnemyTargets.push({ position: pos, isDead: (unit as any).status?.isDead ?? false });
+        }
+        return this.tempEnemyTargets;
+    }
+
+    private getPlayerTargets(activeScene: string): { position: THREE.Vector3, isDead?: boolean }[] {
+        const targets: { position: THREE.Vector3, isDead?: boolean }[] = [];
+        if (activeScene !== 'combat') {
+            targets.push({ position: this.tempPlayerPos });
+            return targets;
+        }
+        // Enemy units are targets for Friendlies (Archer)
+        const enemyUnits = [
             ...this.bandits,
             ...this.berserkers,
             ...this.rogues,
             ...this.warlocks
         ];
-        for (const unit of units) {
+        for (const unit of enemyUnits) {
             if (!unit) continue;
             const pos = unit.position;
             if (!pos) continue;
-            this.tempEnemyTargets.push({ position: pos, isDead: unit.status?.isDead ?? false });
+            targets.push({ position: pos, isDead: unit.status?.isDead ?? false });
         }
-        return this.tempEnemyTargets;
+        return targets;
     }
 
     getEntitiesForScene(sceneName: string): any[] {
@@ -383,7 +423,8 @@ export class EntityManager {
                 ...this.sentinels,
                 ...this.berserkers,
                 ...this.rogues,
-                ...this.warlocks
+                ...this.warlocks,
+                ...this.combatArchers
             ].filter(e => e !== null);
         } else if (sceneName === 'dev') {
             return [
@@ -401,7 +442,7 @@ export class EntityManager {
             this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses, 
             ...this.bandits, ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
-            ...this.berserkers, ...this.rogues, ...this.warlocks
+            ...this.berserkers, ...this.rogues, ...this.warlocks, ...this.combatArchers
         ].filter(e => e !== null);
     }
 

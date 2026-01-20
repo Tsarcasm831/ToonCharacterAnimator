@@ -1,21 +1,8 @@
-
 import * as THREE from 'three';
 import type { Player } from './Player';
 import { PlayerInput } from '../../types';
-import { PlayerPhysics } from './PlayerPhysics';
 import { ParticleManager } from '../managers/ParticleManager';
-import { Environment } from '../environment/Environment';
 import { ArrowBuilder } from '../model/equipment/ArrowBuilder';
-import { Wolf } from '../entities/animal/aggressive/Wolf';
-import { Bear } from '../entities/animal/aggressive/Bear';
-import { Yeti } from '../entities/animal/neutral/Yeti';
-import { Deer } from '../entities/animal/neutral/Deer';
-import { Chicken } from '../entities/animal/neutral/Chicken';
-import { Pig } from '../entities/animal/neutral/Pig';
-import { Sheep } from '../entities/animal/neutral/Sheep';
-import { Spider } from '../entities/animal/aggressive/Spider';
-import { Lizard } from '../entities/animal/neutral/Lizard';
-import { Horse } from '../entities/animal/tameable/Horse';
 
 export interface Projectile {
     mesh: THREE.Object3D;
@@ -23,16 +10,127 @@ export interface Projectile {
     life: number;
     startPos: THREE.Vector3;
     type: 'arrow' | 'fireball' | 'heal';
-    owner?: any; // To prevent friendly fire if needed
+    owner?: any; 
 }
 
 export class PlayerCombat {
-    private static _tempBox1 = new THREE.Box3();
-    private static _tempBox2 = new THREE.Box3();
-    private static _tempVec = new THREE.Vector3();
-    public static activeProjectiles: Projectile[] = [];
+    private player: Player;
+    
+    // State
+    isCombatStance: boolean = false;
+    wasCombatKeyPressed: boolean = false;
+    wasAttack1Pressed: boolean = false;
+    wasAttack2Pressed: boolean = false;
+    wasFireballKeyPressed: boolean = false;
 
-    public static spawnProjectile(
+    // Attacks
+    isAxeSwing: boolean = false;
+    axeSwingTimer: number = 0;
+    hasHit: boolean = false;
+    isPunch: boolean = false;
+    punchTimer: number = 0;
+    comboChain: number = 0; 
+
+    // Fireball
+    isFireballCasting: boolean = false;
+    fireballTimer: number = 0;
+    hasSpawnedFireball: boolean = false;
+
+    // Summoning (kept here as it's an "action")
+    isSummoning: boolean = false;
+    summonTimer: number = 0;
+
+    // Bow
+    isFiringBow: boolean = false;
+    bowState: 'draw' | 'hold' | 'release' = 'draw';
+    bowCharge: number = 0;
+    bowTimer: number = 0;
+
+    // Fishing
+    isFishing: boolean = false;
+    isReeling: boolean = false;
+    fishingTimer: number = 0;
+    isChargingFishing: boolean = false;
+    fishingCharge: number = 0;
+    fishingChargeTime: number = 0;
+    needsReclick: boolean = false;
+
+    // Projectiles
+    activeProjectiles: Projectile[] = [];
+    private _tempBox1 = new THREE.Box3();
+    private _tempBox2 = new THREE.Box3();
+
+    constructor(player: Player) {
+        this.player = player;
+    }
+
+    update(dt: number, input: PlayerInput, environment: any, particleManager: ParticleManager, entities: any[] = []) {
+        this.updateProjectiles(dt, environment, particleManager, entities);
+
+        // Input Handling
+        this.handleInput(dt, input, particleManager);
+
+        // Logic Updates
+        this.updateAxeSwing(dt, environment, particleManager, entities);
+        this.updateFishing(dt);
+        this.updateBowLogic(dt);
+        this.updatePunchCombo(dt, input, environment.obstacles);
+        this.updateFireballLogic(dt, particleManager);
+        this.updateSummoning(dt, input);
+    }
+
+    private handleInput(dt: number, input: PlayerInput, particleManager: ParticleManager) {
+        // Combat Stance Toggle
+        if (input.combat && !this.wasCombatKeyPressed) {
+            this.isCombatStance = !this.isCombatStance;
+        }
+        this.wasCombatKeyPressed = !!input.combat;
+
+        // Fireball
+        const isFireballPressed = !!input.fireball;
+        if (isFireballPressed && !this.wasFireballKeyPressed) {
+            this.handleFireballInput();
+        }
+        this.wasFireballKeyPressed = isFireballPressed;
+
+        // Summoning
+        if (input.summon && !this.isSummoning && !this.player.config.selectedItem && !this.player.locomotion.isJumping) {
+            this.isSummoning = true;
+            this.summonTimer = 0;
+        }
+
+        // Weapon Specifics
+        if (this.player.config.selectedItem === 'Fishing Pole') {
+            this.handleFishingInput(dt, input);
+        } else if (this.player.config.selectedItem === 'Bow') {
+            this.handleBowInput(dt, input, particleManager);
+        } else {
+            // Melee
+            if (input.attack1) {
+                if (this.player.config.selectedItem) {
+                    this.playAxeSwing();
+                } else {
+                    this.playPunch();
+                }
+            }
+            if (input.attack2) {
+                if (this.player.config.selectedItem) {
+                    this.playAxeSwing();
+                }
+            }
+            
+            // Cleanup bow state if not holding bow
+            if (this.isFiringBow) {
+                this.isFiringBow = false;
+                this.bowState = 'draw';
+            }
+        }
+
+        this.wasAttack1Pressed = !!input.attack1;
+        this.wasAttack2Pressed = !!input.attack2;
+    }
+
+    spawnProjectile(
         scene: THREE.Scene,
         startPos: THREE.Vector3,
         direction: THREE.Vector3,
@@ -90,14 +188,9 @@ export class PlayerCombat {
             type,
             owner
         });
-
-        // Add initial particles
-        // Note: we need access to particleManager. 
-        // For now we skip immediate particle emit on spawn from static method unless we pass it.
-        // The update loop will handle trail particles if we want.
     }
 
-    static updateProjectiles(dt: number, environment: any, particleManager: ParticleManager, entities: any[] = []) {
+    private updateProjectiles(dt: number, environment: any, particleManager: ParticleManager, entities: any[]) {
         for (let i = this.activeProjectiles.length - 1; i >= 0; i--) {
             const p = this.activeProjectiles[i];
             
@@ -118,15 +211,14 @@ export class PlayerCombat {
                 }
             }
 
-            // Check Collision (Environment & Entities)
-            // Pass null as owner for environment check (not needed) but important for entity check
+            // Check Collision
             if (this.checkProjectileCollision(p, environment, particleManager, entities)) {
                 if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
                 this.activeProjectiles.splice(i, 1);
                 continue;
             }
 
-            // Check Max Distance (40m)
+            // Check Max Distance
             if (p.mesh.position.distanceTo(p.startPos) > 40.0) {
                  if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
                  this.activeProjectiles.splice(i, 1);
@@ -141,55 +233,9 @@ export class PlayerCombat {
         }
     }
 
-    static update(player: Player, dt: number, input: PlayerInput, environment: any, particleManager: ParticleManager, entities: any[] = []) {
-        // Player input handling
-        const isFireballPressed = !!input.fireball;
-        if (isFireballPressed && !player.wasFireballKeyPressed) {
-            this.handleFireballInput(player, dt, input, particleManager);
-        }
-        player.wasFireballKeyPressed = isFireballPressed;
-
-        if (player.config.selectedItem === 'Fishing Pole') {
-            this.handleFishingInput(player, dt, input);
-        } else if (player.config.selectedItem === 'Bow') {
-            this.handleBowInput(player, dt, input, particleManager);
-        } else {
-            // Other weapons support continuous hold (Auto-attack)
-            if (input.attack1) {
-                if (player.config.selectedItem) {
-                    this.playAxeSwing(player);
-                } else {
-                    this.playPunch(player);
-                }
-            }
-            if (input.attack2) {
-                if (player.config.selectedItem) {
-                    this.playAxeSwing(player);
-                }
-            }
-            
-            // Cleanup bow state if not holding bow
-            if (player.isFiringBow) {
-                player.isFiringBow = false;
-                player.bowState = 'draw';
-            }
-        }
-
-        // Update Input History
-        player.wasAttack1Pressed = !!input.attack1;
-        player.wasAttack2Pressed = !!input.attack2;
-
-        // Update Timers & Logic
-        this.updateAxeSwing(player, dt, environment, particleManager, entities);
-        this.updateFishing(player, dt);
-        this.updateBowLogic(player, dt);
-        this.updatePunchCombo(player, dt, input, environment.obstacles);
-        this.updateFireballLogic(player, dt, particleManager);
-    }
-
-    private static checkProjectileCollision(p: Projectile, environment: any, particleManager: ParticleManager, entities: any[]): boolean {
+    private checkProjectileCollision(p: Projectile, environment: any, particleManager: ParticleManager, entities: any[]): boolean {
         const pos = p.mesh.position;
-        // 1. Check Obstacles (Trees/Rocks)
+        // 1. Check Obstacles
         for (const obs of environment.obstacles) {
             const obsPos = new THREE.Vector3();
             obs.getWorldPosition(obsPos);
@@ -212,7 +258,7 @@ export class PlayerCombat {
             if (ent && ent.hitbox && !ent.isDead) {
                 const projectilePoint = pos;
                 let hit = false;
-                ent.hitbox.children.forEach(part => {
+                ent.hitbox.children.forEach((part: any) => {
                     if (part instanceof THREE.Mesh) {
                         part.updateMatrixWorld(true);
                         this._tempBox1.setFromObject(part);
@@ -238,228 +284,181 @@ export class PlayerCombat {
         return false;
     }
 
-    private static handleFireballInput(player: Player, dt: number, input: PlayerInput, particleManager: ParticleManager) {
-        if (!player.isFireballCasting && !player.status.isDead) {
-            player.isFireballCasting = true;
-            player.fireballTimer = 0;
-            player.hasSpawnedFireball = false;
+    private handleFireballInput() {
+        if (!this.isFireballCasting && !this.player.status.isDead) {
+            this.isFireballCasting = true;
+            this.fireballTimer = 0;
+            this.hasSpawnedFireball = false;
         }
     }
 
-    private static updateFireballLogic(player: Player, dt: number, particleManager: ParticleManager) {
-        if (player.isFireballCasting) {
-            player.fireballTimer += dt;
+    private updateFireballLogic(dt: number, particleManager: ParticleManager) {
+        if (this.isFireballCasting) {
+            this.fireballTimer += dt;
             
-            // Energy build particles
-            if (!player.hasSpawnedFireball && player.fireballTimer < 0.4) {
+            if (!this.hasSpawnedFireball && this.fireballTimer < 0.4) {
                 if (Math.random() > 0.5) {
-                    const spawnPos = player.mesh.position.clone();
+                    const spawnPos = this.player.mesh.position.clone();
                     spawnPos.y += 1.3;
-                    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion);
+                    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
                     spawnPos.addScaledVector(forward, 0.4);
                     particleManager.emit(spawnPos, 1, 'spark');
                 }
             }
 
-            if (!player.hasSpawnedFireball && player.fireballTimer >= 0.4) {
-                this.spawnFireball(player, particleManager);
-                player.hasSpawnedFireball = true;
+            if (!this.hasSpawnedFireball && this.fireballTimer >= 0.4) {
+                this.spawnFireball(particleManager);
+                this.hasSpawnedFireball = true;
             }
 
-            if (player.fireballTimer >= 0.8) {
-                player.isFireballCasting = false;
-                player.fireballTimer = 0;
+            if (this.fireballTimer >= 0.8) {
+                this.isFireballCasting = false;
+                this.fireballTimer = 0;
             }
         }
     }
 
-    private static spawnFireball(player: Player, particleManager: ParticleManager) {
-        const spawnPos = player.mesh.position.clone();
+    private spawnFireball(particleManager: ParticleManager) {
+        const spawnPos = this.player.mesh.position.clone();
         spawnPos.y += 1.35; 
         
-        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion);
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
         spawnPos.addScaledVector(forward, 1.0);
 
-        const fireballGeo = new THREE.SphereGeometry(0.2, 16, 16);
-        const fireballMat = new THREE.MeshStandardMaterial({
-            color: 0xff4400,
-            emissive: 0xff8800,
-            emissiveIntensity: 5.0,
-            transparent: true,
-            opacity: 0.9
-        });
-        
-        const fireball = new THREE.Mesh(fireballGeo, fireballMat);
-        fireball.position.copy(spawnPos);
-        
-        if (player.mesh.parent) {
-            player.mesh.parent.add(fireball);
-        }
-
-        const speed = 25.0;
-        const velocity = forward.clone().normalize().multiplyScalar(speed);
-        
-        this.activeProjectiles.push({
-            mesh: fireball,
-            velocity: velocity,
-            life: 2.0,
-            startPos: spawnPos.clone(),
-            type: 'fireball'
-        });
-
+        this.spawnProjectile(this.player.scene, spawnPos, forward, 'fireball', this.player);
         particleManager.emit(spawnPos, 10, 'spark'); 
     }
 
-    private static handleBowInput(player: Player, dt: number, input: PlayerInput, particleManager: ParticleManager) {
-        // If in release phase, only return if the timer hasn't finished. 
-        if (player.bowState === 'release' && player.bowTimer < 0.3) {
+    private handleBowInput(dt: number, input: PlayerInput, particleManager: ParticleManager) {
+        if (this.bowState === 'release' && this.bowTimer < 0.3) {
             return; 
         }
 
         if (input.attack1) {
             // DRAW / CHARGE
-            if (!player.isFiringBow || player.bowState === 'release') {
-                player.isFiringBow = true;
-                player.bowState = 'draw';
-                player.bowCharge = 0;
-                player.bowTimer = 0;
+            if (!this.isFiringBow || this.bowState === 'release') {
+                this.isFiringBow = true;
+                this.bowState = 'draw';
+                this.bowCharge = 0;
+                this.bowTimer = 0;
             }
 
-            if (player.bowState === 'draw') {
-                player.bowTimer += dt;
-                player.bowCharge = Math.min(1.0, player.bowTimer / 0.6); 
+            if (this.bowState === 'draw') {
+                this.bowTimer += dt;
+                this.bowCharge = Math.min(1.0, this.bowTimer / 0.6); 
                 
-                if (player.bowCharge >= 1.0) {
-                    player.bowState = 'hold';
+                if (this.bowCharge >= 1.0) {
+                    this.bowState = 'hold';
                 }
             }
         } else {
             // RELEASE
-            if (player.isFiringBow && (player.bowState === 'draw' || player.bowState === 'hold')) {
-                player.bowState = 'release';
-                player.bowTimer = 0;
+            if (this.isFiringBow && (this.bowState === 'draw' || this.bowState === 'hold')) {
+                this.bowState = 'release';
+                this.bowTimer = 0;
                 
-                if (player.bowCharge > 0.25) {
-                    this.fireArrow(player, particleManager);
+                if (this.bowCharge > 0.25) {
+                    this.fireArrow(particleManager);
                 } else {
-                    // Canceled or short draw
-                    player.isFiringBow = false;
-                    player.bowState = 'draw';
-                    player.bowCharge = 0;
+                    this.isFiringBow = false;
+                    this.bowState = 'draw';
+                    this.bowCharge = 0;
                 }
             }
         }
     }
 
-    private static fireArrow(player: Player, particleManager: ParticleManager) {
-        const spawnPos = player.mesh.position.clone();
+    private fireArrow(particleManager: ParticleManager) {
+        const spawnPos = this.player.mesh.position.clone();
         spawnPos.y += 1.35; 
         
-        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion);
-        const left = new THREE.Vector3(1, 0, 0).applyQuaternion(player.mesh.quaternion);
+        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
+        const left = new THREE.Vector3(1, 0, 0).applyQuaternion(this.player.mesh.quaternion);
         
         spawnPos.addScaledVector(forward, 0.8);
         spawnPos.addScaledVector(left, 0.2); 
 
-        const arrow = ArrowBuilder.buildArrow();
-        arrow.position.copy(spawnPos);
-        arrow.quaternion.copy(player.mesh.quaternion);
-        
-        if (player.mesh.parent) {
-            player.mesh.parent.add(arrow);
-        }
-
-        const speed = 20.0;
-        const velocity = forward.clone().normalize().multiplyScalar(speed);
-        
-        this.activeProjectiles.push({
-            mesh: arrow,
-            velocity: velocity,
-            life: 3.0,
-            startPos: spawnPos.clone(),
-            type: 'arrow'
-        });
-
+        this.spawnProjectile(this.player.scene, spawnPos, forward, 'arrow', this.player);
         particleManager.emit(spawnPos, 5, 'spark'); 
     }
 
-    private static updateBowLogic(player: Player, dt: number) {
-        if (player.isFiringBow && player.bowState === 'release') {
-            player.bowTimer += dt;
-            if (player.bowTimer > 0.45) { // Slightly longer for full animation settle
-                player.isFiringBow = false;
-                player.bowState = 'draw';
-                player.bowCharge = 0;
-                player.bowTimer = 0;
+    private updateBowLogic(dt: number) {
+        if (this.isFiringBow && this.bowState === 'release') {
+            this.bowTimer += dt;
+            if (this.bowTimer > 0.45) { 
+                this.isFiringBow = false;
+                this.bowState = 'draw';
+                this.bowCharge = 0;
+                this.bowTimer = 0;
             }
         }
     }
 
-    private static handleFishingInput(player: Player, dt: number, input: PlayerInput) {
+    private handleFishingInput(dt: number, input: PlayerInput) {
         if (!input.attack1) {
-            player.needsReclick = false;
+            this.needsReclick = false;
         }
         
-        if (player.needsReclick) return;
+        if (this.needsReclick) return;
 
-        if (player.isFishing) {
+        if (this.isFishing) {
             if (input.attack1) {
-                player.isReeling = true;
+                this.isReeling = true;
             } else {
-                player.isReeling = false;
+                this.isReeling = false;
             }
             return;
         }
 
         if (input.attack1) {
-            if (!player.isChargingFishing) {
-                player.isChargingFishing = true;
-                player.fishingChargeTime = 0;
+            if (!this.isChargingFishing) {
+                this.isChargingFishing = true;
+                this.fishingChargeTime = 0;
             }
-            player.fishingChargeTime += dt * 3.0;
-            player.fishingCharge = (Math.sin(player.fishingChargeTime - Math.PI/2) + 1) / 2;
+            this.fishingChargeTime += dt * 3.0;
+            this.fishingCharge = (Math.sin(this.fishingChargeTime - Math.PI/2) + 1) / 2;
         } else {
-            if (player.isChargingFishing) {
-                player.isChargingFishing = false;
-                player.isFishing = true; 
-                player.isReeling = false;
-                player.fishingTimer = 0.3; 
-                const weapon = player.model.equippedMeshes.heldItem;
+            if (this.isChargingFishing) {
+                this.isChargingFishing = false;
+                this.isFishing = true; 
+                this.isReeling = false;
+                this.fishingTimer = 0.3; 
+                const weapon = this.player.model.equippedMeshes.heldItem;
                 if (weapon) {
                     const minStr = 0.2; 
-                    const str = minStr + player.fishingCharge * (1.0 - minStr);
+                    const str = minStr + this.fishingCharge * (1.0 - minStr);
                     weapon.userData.castStrength = str;
                 }
-                player.fishingCharge = 0;
+                this.fishingCharge = 0;
             }
         }
     }
 
-    private static updateFishing(player: Player, dt: number) {
-        if (player.isFishing) {
-            player.fishingTimer += dt;
+    private updateFishing(dt: number) {
+        if (this.isFishing) {
+            this.fishingTimer += dt;
         } else {
-            player.fishingTimer = 0;
+            this.fishingTimer = 0;
         }
     }
 
-    private static playPunch(player: Player) {
-        if (!player.isPunch) {
-            player.isPunch = true;
-            player.punchTimer = 0;
-            player.comboChain = 1;
+    private playPunch() {
+        if (!this.isPunch) {
+            this.isPunch = true;
+            this.punchTimer = 0;
+            this.comboChain = 1;
         }
     }
 
-    private static playAxeSwing(player: Player) {
-        if (!player.isAxeSwing) {
-            player.isAxeSwing = true;
-            player.axeSwingTimer = 0;
-            player.hasHit = false;
+    private playAxeSwing() {
+        if (!this.isAxeSwing) {
+            this.isAxeSwing = true;
+            this.axeSwingTimer = 0;
+            this.hasHit = false;
         }
     }
 
-    private static getWeaponDamage(item: string | null): number {
+    private getWeaponDamage(item: string | null): number {
         if (item === 'Sword') return 5;
         if (item === 'Axe') return 4;
         if (item === 'Pickaxe') return 3;
@@ -467,10 +466,10 @@ export class PlayerCombat {
         return 1; 
     }
 
-    private static updateAxeSwing(player: Player, dt: number, environment: any, particleManager: ParticleManager, entities: any[]) {
-        if (player.isAxeSwing) {
-            player.axeSwingTimer += dt;
-            const item = player.config.selectedItem;
+    private updateAxeSwing(dt: number, environment: any, particleManager: ParticleManager, entities: any[]) {
+        if (this.isAxeSwing) {
+            this.axeSwingTimer += dt;
+            const item = this.player.config.selectedItem;
             
             let duration = 0.9;
             if (item === 'Sword') duration = 0.6;
@@ -478,34 +477,34 @@ export class PlayerCombat {
             
             const impactTime = duration * 0.5; 
             
-            if (!player.hasHit && player.axeSwingTimer > impactTime) {
-                this.checkChoppingImpact(player, environment, particleManager, entities);
-                player.hasHit = true;
+            if (!this.hasHit && this.axeSwingTimer > impactTime) {
+                this.checkChoppingImpact(environment, particleManager, entities);
+                this.hasHit = true;
             }
 
-            if (player.axeSwingTimer > duration) { 
-                player.isAxeSwing = false; 
-                player.axeSwingTimer = 0; 
-                player.hasHit = false;
+            if (this.axeSwingTimer > duration) { 
+                this.isAxeSwing = false; 
+                this.axeSwingTimer = 0; 
+                this.hasHit = false;
             }
         }
     }
 
-    private static checkChoppingImpact(player: Player, environment: any, particleManager: ParticleManager, entities: any[]) {
-        player.model.group.updateMatrixWorld(true);
+    private checkChoppingImpact(environment: any, particleManager: ParticleManager, entities: any[]) {
+        this.player.model.group.updateMatrixWorld(true);
 
-        const playerPos = player.mesh.position;
-        const damage = this.getWeaponDamage(player.config.selectedItem);
+        const playerPos = this.player.mesh.position;
+        const damage = this.getWeaponDamage(this.player.config.selectedItem);
         
         let dealer: THREE.Object3D | null = null;
-        if (player.config.selectedItem) {
-            dealer = player.model.equippedMeshes.heldItem || null;
+        if (this.player.config.selectedItem) {
+            dealer = this.player.model.equippedMeshes.heldItem || null;
             if (dealer) {
                 const subPart = dealer.getObjectByName('damagePart');
                 if (subPart) dealer = subPart;
             }
         } else {
-            dealer = player.model.parts.rightHand;
+            dealer = this.player.model.parts.rightHand;
         }
 
         if (!dealer) return;
@@ -517,7 +516,7 @@ export class PlayerCombat {
             if (ent && ent.hitbox && !ent.isDead) {
                 if (playerPos.distanceTo(ent.group.position) < 4.5) {
                     let hit = false;
-                    ent.hitbox.children.forEach(part => {
+                    ent.hitbox.children.forEach((part: any) => {
                         if (part instanceof THREE.Mesh) {
                             part.updateMatrixWorld(true);
                             this._tempBox2.setFromObject(part);
@@ -538,11 +537,11 @@ export class PlayerCombat {
             }
         }
 
-        const item = player.config.selectedItem;
+        const item = this.player.config.selectedItem;
         const canChop = item === 'Axe' || item === 'Pickaxe' || item === 'Halberd';
         if (!canChop) return;
 
-        const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(player.mesh.quaternion).normalize();
+        const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion).normalize();
         playerForward.y = 0; 
         const hitRange = 2.0;
 
@@ -588,20 +587,20 @@ export class PlayerCombat {
         }
     }
 
-    private static updatePunchCombo(player: Player, dt: number, input: PlayerInput, obstacles: THREE.Object3D[]) {
-        if (!player.isPunch) return;
+    private updatePunchCombo(dt: number, input: PlayerInput, obstacles: THREE.Object3D[]) {
+        if (!this.isPunch) return;
 
-        player.punchTimer += dt;
-        const t = player.punchTimer;
+        this.punchTimer += dt;
+        const t = this.punchTimer;
         
         if (t > 0.2 && t < 0.4) {
-            PlayerPhysics.applyForwardImpulse(player, dt, 2.0, obstacles);
+            this.player.locomotion.applyForwardImpulse(dt, 2.0, obstacles);
         }
-        if (player.comboChain >= 2 && t > 0.8 && t < 1.0) {
-            PlayerPhysics.applyForwardImpulse(player, dt, 2.0, obstacles);
+        if (this.comboChain >= 2 && t > 0.8 && t < 1.0) {
+            this.player.locomotion.applyForwardImpulse(dt, 2.0, obstacles);
         }
-        if (player.comboChain >= 3 && t > 1.4 && t < 1.6) {
-            PlayerPhysics.applyForwardImpulse(player, dt, 2.5, obstacles);
+        if (this.comboChain >= 3 && t > 1.4 && t < 1.6) {
+            this.player.locomotion.applyForwardImpulse(dt, 2.5, obstacles);
         }
 
         const punch1Dur = 0.6;
@@ -609,16 +608,42 @@ export class PlayerCombat {
         const punch3Dur = 1.8;
         const isHolding = input.attack1 || false;
 
-        if (player.comboChain === 1 && t > punch1Dur) {
-            if (isHolding) player.comboChain = 2;
-            else { player.isPunch = false; player.punchTimer = 0; }
-        } else if (player.comboChain === 2 && t > punch2Dur) {
-            if (isHolding) player.comboChain = 3;
-            else { player.isPunch = false; player.punchTimer = 0; }
-        } else if (player.comboChain === 3 && t > punch3Dur) {
-            player.isPunch = false;
-            player.comboChain = 1;
-            player.punchTimer = 0;
+        if (this.comboChain === 1 && t > punch1Dur) {
+            if (isHolding) this.comboChain = 2;
+            else { this.isPunch = false; this.punchTimer = 0; }
+        } else if (this.comboChain === 2 && t > punch2Dur) {
+            if (isHolding) this.comboChain = 3;
+            else { this.isPunch = false; this.punchTimer = 0; }
+        } else if (this.comboChain === 3 && t > punch3Dur) {
+            this.isPunch = false;
+            this.comboChain = 1;
+            this.punchTimer = 0;
         }
+    }
+
+    private updateSummoning(dt: number, input: PlayerInput) {
+        if (this.isSummoning) {
+            if (input.x !== 0 || input.y !== 0 || input.jump) {
+                this.isSummoning = false;
+                this.summonTimer = 0;
+            } else {
+                this.summonTimer += dt;
+                if (this.summonTimer > 6.0) {
+                    this.isSummoning = false;
+                    this.summonTimer = 0;
+                }
+            }
+        }
+    }
+
+    clearActionStates() {
+        this.isFireballCasting = false;
+        this.fireballTimer = 0;
+        this.isSummoning = false;
+        this.summonTimer = 0;
+        this.isFishing = false;
+        this.isChargingFishing = false;
+        this.isFiringBow = false;
+        this.bowState = 'draw';
     }
 }

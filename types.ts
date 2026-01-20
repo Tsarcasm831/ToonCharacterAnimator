@@ -6,6 +6,8 @@ export type HairStyle = 'bald' | 'crew';
 
 export type QuestStatus = 'active' | 'completed' | 'failed';
 
+export type UnitState = 'IDLE' | 'MOVING' | 'ATTACKING' | 'CASTING' | 'STUNNED' | 'DEAD';
+
 export interface InventoryItem {
   name: string;
   count: number;
@@ -16,12 +18,16 @@ export interface EntityStats {
   maxHealth: number;
   chakra: number;
   maxChakra: number;
+  mana: number;
+  maxMana: number;
   strength: number;
   dexterity: number;
   defense: number;
   evasion: number;
   damage: number;
   soak: number;
+  attackSpeed: number;
+  range: number;
 }
 
 export interface Quest {
@@ -83,33 +89,31 @@ export interface PlayerInput {
   fireball: boolean;
 }
 
-export interface PlayerConfig {
-  // Base
+// --- Configuration Interfaces ---
+
+export interface BaseAppearanceConfig {
   bodyType: 'male' | 'female';
   bodyVariant: BodyVariant;
   outfit: OutfitType;
-  equipment: EquipmentState;
-  selectedItem: string | null;
   weaponStance: WeaponStance;
-  
-  // Stats
-  stats: EntityStats;
+  hairStyle: HairStyle;
+}
 
-  // Settings
+export interface GameSettingsConfig {
   globalVolume: number;
-  
-  // Entities
   showNPC: boolean;
   showAssassin: boolean;
   showGuard: boolean;
   isAssassinHostile: boolean;
+}
 
-  // Environment & Time
+export interface EnvironmentConfig {
   timeOfDay: number; 
   timeSpeed: number; 
   isAutoTime: boolean;
+}
 
-  // Colors
+export interface ColorConfig {
   skinColor: string;
   eyeColor: string;
   scleraColor: string;
@@ -120,10 +124,13 @@ export interface PlayerConfig {
   pantsColor: string;
   bootsColor: string;
   hairColor: string;
-  hairStyle: HairStyle;
   robeColor: string;
   robeTrimColor: string;
   hoodColor: string;
+  tintColor?: string;
+}
+
+export interface ApronRiggingConfig {
   apronColor: string;
   apronDetailColor: string;
   apronX: number;
@@ -149,9 +156,9 @@ export interface PlayerConfig {
   apronStrapRotY: number;
   apronStrapRotZ: number;
   apronStrapRotZOffset?: number; 
-  tintColor?: string; // Optional faction tint
-  
-  // Mage Hat
+}
+
+export interface MageHatRiggingConfig {
   mageHatColor: string;
   mageHatBandColor: string;
   mageHatX: number;
@@ -159,8 +166,9 @@ export interface PlayerConfig {
   mageHatZ: number;
   mageHatRotX: number;
   mageHatScale: number;
+}
 
-  // Detailed Proportions
+export interface BodyProportionsConfig {
   headScale: number;
   neckHeight: number;
   neckThickness: number;
@@ -173,7 +181,7 @@ export interface PlayerConfig {
   buttY: number;
   buttZ: number;
   
-  // Feet details
+  // Feet
   heelScale: number;
   heelHeight: number;
   toeScale: number;
@@ -197,13 +205,14 @@ export interface PlayerConfig {
   thumbRotZ: number;
   thumbScale: number;
 
-  // Thenar (Thumb Muscle)
+  // Thenar
   thenarScale: number;
   thenarX: number;
   thenarY: number;
   thenarZ: number;
-  
-  // Head details
+}
+
+export interface FaceProportionsConfig {
   chinSize: number;
   chinLength: number;
   chinForward: number;
@@ -213,62 +222,7 @@ export interface PlayerConfig {
   irisScale: number;
   pupilScale: number;
   
-  // Mask Rigging
-  maskX: number;
-  maskY: number;
-  maskZ: number;
-  maskRotX: number;
-  maskScale: number;
-  maskStretchX: number;
-  maskStretchY: number;
-  maskStretchZ: number;
-
-  // Helm Rigging
-  helmX: number;
-  helmY: number;
-  helmZ: number;
-  helmRotX: number;
-  helmScale: number;
-
-  // Hood Rigging
-  hoodX: number;
-  hoodY: number;
-  hoodZ: number;
-  hoodScale: number;
-
-  // Shoulder Rigging
-  shoulderX: number;
-  shoulderY: number;
-  shoulderZ: number;
-  shoulderScale: number;
-
-  // Shield Rigging
-  shieldX: number;
-  shieldY: number;
-  shieldZ: number;
-  shieldRotZ: number;
-  shieldScale: number;
-
-  // Shirt Rigging
-  shirtX: number;
-  shirtY: number;
-  shirtZ: number;
-  shirtRotX: number;
-  shirtRotY: number;
-  shirtRotZ: number;
-  shirtScale: number;
-  shirtStretchX: number;
-  shirtStretchY: number;
-  shirtStretchZ: number;
-
-  // Shirt Ab Rigging
-  shirtAbsX: number;
-  shirtAbsY: number;
-  shirtAbsZ: number;
-  shirtAbsScale: number;
-  shirtAbsSpacing: number;
-  
-  // Maxilla (Upper Jaw)
+  // Maxilla
   maxillaScaleX: number;
   maxillaScaleY: number;
   maxillaScaleZ: number;
@@ -288,14 +242,78 @@ export interface PlayerConfig {
   lowerLipOffsetY: number;
   lowerLipOffsetZ: number;
 
-  // Abs Rigging (Body/Skin)
+  // Brain/Debug
+  showBrain: boolean;
+  brainSize: number;
+  debugHead: boolean;
+}
+
+export interface AccessoryRiggingConfig {
+  // Mask
+  maskX: number;
+  maskY: number;
+  maskZ: number;
+  maskRotX: number;
+  maskScale: number;
+  maskStretchX: number;
+  maskStretchY: number;
+  maskStretchZ: number;
+
+  // Helm
+  helmX: number;
+  helmY: number;
+  helmZ: number;
+  helmRotX: number;
+  helmScale: number;
+
+  // Hood
+  hoodX: number;
+  hoodY: number;
+  hoodZ: number;
+  hoodScale: number;
+
+  // Shoulder
+  shoulderX: number;
+  shoulderY: number;
+  shoulderZ: number;
+  shoulderScale: number;
+
+  // Shield
+  shieldX: number;
+  shieldY: number;
+  shieldZ: number;
+  shieldRotZ: number;
+  shieldScale: number;
+}
+
+export interface ClothingRiggingConfig {
+  // Shirt
+  shirtX: number;
+  shirtY: number;
+  shirtZ: number;
+  shirtRotX: number;
+  shirtRotY: number;
+  shirtRotZ: number;
+  shirtScale: number;
+  shirtStretchX: number;
+  shirtStretchY: number;
+  shirtStretchZ: number;
+
+  // Shirt Abs
+  shirtAbsX: number;
+  shirtAbsY: number;
+  shirtAbsZ: number;
+  shirtAbsScale: number;
+  shirtAbsSpacing: number;
+
+  // Abs (Body/Skin)
   absX: number;
   absY: number;
   absZ: number;
   absScale: number;
   absSpacing: number;
 
-  // Groin Rigging
+  // Groin/Bulge
   bulgeX: number;
   bulgeY: number;
   bulgeZ: number;
@@ -304,16 +322,27 @@ export interface PlayerConfig {
   bulgeRotZ: number;
   bulgeRotZOffset?: number;
   bulgeScale: number;
+}
 
-  // Brain
-  showBrain: boolean;
-  brainSize: number;
-  
-  // Debug
-  debugHead: boolean;
+export interface PlayerConfig extends 
+  BaseAppearanceConfig,
+  GameSettingsConfig,
+  EnvironmentConfig,
+  ColorConfig,
+  ApronRiggingConfig,
+  MageHatRiggingConfig,
+  BodyProportionsConfig,
+  FaceProportionsConfig,
+  AccessoryRiggingConfig,
+  ClothingRiggingConfig
+{
+  equipment: EquipmentState;
+  selectedItem: string | null;
+  stats: EntityStats;
 }
 
 export const DEFAULT_CONFIG: PlayerConfig = {
+  // Base
   bodyType: 'male',
   bodyVariant: 'average',
   outfit: 'naked',
@@ -349,14 +378,19 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     maxHealth: 100,
     chakra: 50,
     maxChakra: 50,
+    mana: 0,
+    maxMana: 100,
     strength: 10,
     dexterity: 10,
     defense: 10,
     evasion: 10,
     damage: 10,
-    soak: 2
+    soak: 2,
+    attackSpeed: 1.0,
+    range: 1.5
   },
   
+  // Settings
   globalVolume: 0.5,
   showNPC: true,
   showAssassin: true,
@@ -366,6 +400,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   timeSpeed: 1.0,
   isAutoTime: true,
 
+  // Colors
   skinColor: '#ffdbac',
   eyeColor: '#333333',
   scleraColor: '#ffffff',
@@ -380,6 +415,8 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   robeColor: '#2c2c2c',
   robeTrimColor: '#d4af37',
   hoodColor: '#111111',
+  
+  // Apron
   apronColor: '#4e342e',
   apronDetailColor: '#212121',
   apronX: 0,
@@ -405,6 +442,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   apronStrapRotY: 0,
   apronStrapRotZ: 0,
 
+  // Mage Hat
   mageHatColor: '#1a1a1a',
   mageHatBandColor: '#6a1b9a',
   mageHatX: 0,
@@ -413,6 +451,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   mageHatRotX: -0.15,
   mageHatScale: 1.0,
 
+  // Body Proportions
   headScale: 1.0,
   neckHeight: 0.75,
   neckThickness: 0.7,
@@ -450,16 +489,17 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   thenarY: -0.05,
   thenarZ: 0.025,
   
+  // Face
   chinSize: 0.65,
   chinLength: 0.95,
   chinForward: 0.01,
   chinHeight: -0.03,
-  
   noseHeight: 0.0,
   noseForward: -0.02,
   irisScale: 0.50,
   pupilScale: 0.40,
   
+  // Accessories
   maskX: 0,
   maskY: -0.098,
   maskZ: 0.025,
@@ -491,6 +531,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   shieldRotZ: 1.57,
   shieldScale: 1.0,
 
+  // Clothing
   shirtX: 0,
   shirtY: 0,
   shirtZ: 0,

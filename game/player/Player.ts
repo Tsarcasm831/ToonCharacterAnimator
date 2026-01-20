@@ -3,12 +3,11 @@ import * as THREE from 'three';
 import { PlayerConfig, PlayerInput, OutfitType, DEFAULT_CONFIG } from '../../types';
 import { PlayerModel } from '../model/PlayerModel';
 import { PlayerAnimator } from '../animator/PlayerAnimator';
-import { PlayerPhysics } from './PlayerPhysics';
+import { PlayerLocomotion } from './PlayerLocomotion';
 import { PlayerCombat } from './PlayerCombat';
 import { PlayerInteraction } from './PlayerInteraction';
 import { PlayerDebug } from './PlayerDebug';
 import { ParticleManager } from '../managers/ParticleManager';
-import { Environment } from '../environment/Environment';
 import { ChakraNetwork } from '../vfx/ChakraNetwork';
 import { PlayerInventory } from './PlayerInventory';
 import { PlayerStatusHandler } from './PlayerStatusHandler';
@@ -24,66 +23,15 @@ export class Player {
     inventory: PlayerInventory;
     status: PlayerStatusHandler;
     cameraHandler: PlayerCameraHandler;
+    locomotion: PlayerLocomotion;
+    combat: PlayerCombat;
     chakra: ChakraNetwork;
 
-    // --- Core Locomotion State ---
-    moveSpeed: number = 5;
-    turnSpeed: number = 10;
-    walkTime: number = 0;
-    isJumping: boolean = false;
-    jumpVelocity: number = 0;
-    jumpTimer: number = 0;
-    gravity: number = -30;
-    jumpPower: number = 11;
-    
-    previousPosition = new THREE.Vector3();
-    velocity = new THREE.Vector3();
-    
-    lastStepCount: number = 0;
-    didStep: boolean = false;
-
-    // --- Action State ---
-    // Combat
-    isCombatStance: boolean = false;
-    wasCombatKeyPressed: boolean = false;
-    wasAttack1Pressed: boolean = false;
-    wasAttack2Pressed: boolean = false;
-    wasFireballKeyPressed: boolean = false;
-    
-    // Attacks
-    isAxeSwing: boolean = false;
-    axeSwingTimer: number = 0;
-    hasHit: boolean = false;
-    isPunch: boolean = false;
-    punchTimer: number = 0;
-    comboChain: number = 0; 
-
-    // Fireball
-    isFireballCasting: boolean = false;
-    fireballTimer: number = 0;
-    hasSpawnedFireball: boolean = false;
-
-    // Climbing
-    isLedgeGrabbing: boolean = false;
-    ledgeGrabTime: number = 0;
-    ledgeStartPos: THREE.Vector3 = new THREE.Vector3();
-    ledgeTargetPos: THREE.Vector3 = new THREE.Vector3();
-    
-    // Interactions
+    // Interactions (To be moved to PlayerInteraction subsystem later)
     isPickingUp: boolean = false;
     pickUpTime: number = 0;
     isInteracting: boolean = false;
     interactTimer: number = 0;
-    
-    // Emotes
-    isWaving: boolean = false;
-    waveTimer: number = 0;
-    isLeftHandWaving: boolean = false;
-    leftHandWaveTimer: number = 0;
-
-    // Summoning
-    isSummoning: boolean = false;
-    summonTimer: number = 0;
     
     // Skinning
     isSkinning: boolean = false;
@@ -99,21 +47,12 @@ export class Player {
     
     // Generic Interaction
     interactableTarget: THREE.Object3D | null = null;
-    
-    // Fishing
-    isFishing: boolean = false;
-    isReeling: boolean = false;
-    fishingTimer: number = 0;
-    isChargingFishing: boolean = false;
-    fishingCharge: number = 0;
-    fishingChargeTime: number = 0;
-    needsReclick: boolean = false;
 
-    // Bow
-    isFiringBow: boolean = false;
-    bowState: 'draw' | 'hold' | 'release' = 'draw';
-    bowCharge: number = 0;
-    bowTimer: number = 0;
+    // Emotes
+    isWaving: boolean = false;
+    waveTimer: number = 0;
+    isLeftHandWaving: boolean = false;
+    leftHandWaveTimer: number = 0;
 
     // Ragdoll
     isDragged: boolean = false;
@@ -141,11 +80,14 @@ export class Player {
         this.inventory = new PlayerInventory();
         this.status = new PlayerStatusHandler();
         this.cameraHandler = new PlayerCameraHandler();
+        this.locomotion = new PlayerLocomotion(this);
+        this.combat = new PlayerCombat(this);
         this.chakra = new ChakraNetwork(scene);
     }
 
     get mesh() { return this.model.group; }
     get position() { return this.mesh.position; }
+    get velocity() { return this.locomotion.velocity; }
 
     // Helpers exposed for Interaction/Game
     addItem(itemName: string, count: number = 1, skipHotbar: boolean = false) { 
@@ -175,11 +117,8 @@ export class Player {
         this.syncConfig();
         
         // 1. Physics & Model Update
-        if (dt > 0) {
-            this.velocity.subVectors(this.mesh.position, this.previousPosition).divideScalar(dt);
-        }
-        this.previousPosition.copy(this.mesh.position);
-        this.model.update(dt, this.velocity);
+        this.locomotion.update(dt, input, cameraAngle, environment.obstacles);
+        this.model.update(dt, this.locomotion.velocity);
         
         // 2. State Logic
         this.status.update(dt);
@@ -192,19 +131,14 @@ export class Player {
         }
         this.wasDeadKeyPressed = !!input.isDead;
         
-        if (input.combat && !this.wasCombatKeyPressed) {
-            this.isCombatStance = !this.isCombatStance;
-        }
-        this.wasCombatKeyPressed = !!input.combat;
-        
         // Wave Handler
-        if (input.wave && !this.isWaving && !this.isCombatStance && !this.isJumping) {
+        if (input.wave && !this.isWaving && !this.combat.isCombatStance && !this.locomotion.isJumping) {
             this.isWaving = true;
             this.waveTimer = 0;
         }
         
         if (this.isWaving) {
-            if (input.x !== 0 || input.y !== 0 || input.jump || input.isPickingUp || input.attack1) {
+            if (input.x !== 0 || input.y !== 0 || input.jump || this.isPickingUp || input.attack1) {
                 this.isWaving = false;
                 this.waveTimer = 0;
             } else {
@@ -217,13 +151,13 @@ export class Player {
         }
 
         // Left Hand Wave Handler
-        if (input.leftHandWave && !this.isLeftHandWaving && !this.isCombatStance && !this.isJumping) {
+        if (input.leftHandWave && !this.isLeftHandWaving && !this.combat.isCombatStance && !this.locomotion.isJumping) {
             this.isLeftHandWaving = true;
             this.leftHandWaveTimer = 0;
         }
 
         if (this.isLeftHandWaving) {
-            if (input.x !== 0 || input.y !== 0 || input.jump || input.isPickingUp || input.attack1) {
+            if (input.x !== 0 || input.y !== 0 || input.jump || this.isPickingUp || input.attack1) {
                 this.isLeftHandWaving = false;
                 this.leftHandWaveTimer = 0;
             } else {
@@ -235,34 +169,13 @@ export class Player {
             }
         }
 
-        // Summoning Handler
-        if (input.summon && !this.isSummoning && !this.config.selectedItem && !this.isJumping) {
-            this.isSummoning = true;
-            this.summonTimer = 0;
-        }
-
-        if (this.isSummoning) {
-            if (input.x !== 0 || input.y !== 0 || input.jump) {
-                this.isSummoning = false;
-                this.summonTimer = 0;
-            } else {
-                this.summonTimer += dt;
-                // Extended to 6.0s for slower animation with 3s crouch hold
-                if (this.summonTimer > 6.0) {
-                    this.isSummoning = false;
-                    this.summonTimer = 0;
-                }
-            }
-        }
-
         // 4. Sub-Systems
         if (this.status.isDead) {
             // No physics or actions when dead
         } else {
             if (this.status.recoverTimer <= 0) {
                 PlayerInteraction.update(this, dt, input, environment.obstacles, entities);
-                PlayerCombat.update(this, dt, input, environment, particleManager, entities);
-                PlayerPhysics.update(this, dt, input, cameraAngle, environment.obstacles);
+                this.combat.update(dt, input, environment, particleManager, entities);
             } else {
                 // Interrupted - clear channelings but allow timer cleanup if needed
                 this.clearActionStates();
@@ -289,16 +202,11 @@ export class Player {
     }
 
     private clearActionStates() {
-        this.isFireballCasting = false;
-        this.fireballTimer = 0;
-        this.isSummoning = false;
-        this.summonTimer = 0;
+        this.combat.clearActionStates();
         this.isPickingUp = false;
         this.pickUpTime = 0;
         this.isSkinning = false;
         this.skinningTimer = 0;
-        this.isFishing = false;
-        this.isChargingFishing = false;
     }
 
     private syncConfig() {
@@ -310,13 +218,14 @@ export class Player {
             this.config.weaponStance = 'shoulder';
         }
 
-        if (this.config.selectedItem !== 'Bow' && this.isFiringBow) {
-            this.isFiringBow = false;
-            this.bowCharge = 0;
-            this.bowTimer = 0;
-            this.bowState = 'draw';
+        if (this.config.selectedItem !== 'Bow' && this.combat.isFiringBow) {
+            this.combat.isFiringBow = false;
+            this.combat.bowCharge = 0;
+            this.combat.bowTimer = 0;
+            this.combat.bowState = 'draw';
         }
 
-        this.model.sync(this.config, this.isCombatStance);
+        this.model.sync(this.config, this.combat.isCombatStance);
     }
 }
+

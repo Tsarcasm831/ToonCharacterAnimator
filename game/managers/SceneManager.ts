@@ -64,7 +64,10 @@ export class SceneManager {
         this.entityManager.clearDynamicEntities();
         this.entityManager.clearStaticEntities(); // Clear static entities too when switching to combat
 
-        // Scene specific setup
+        // Set combat interaction manager activity
+        if (this.activeScene === 'combat') {
+            this.combatEnvironment.isCombatStarted = false; // Reset combat state for interaction
+        }
         if (sceneName === 'dev') {
             const startX = -17 * GRID_CELL_SIZE;
             const startZ = 30 * GRID_CELL_SIZE;
@@ -87,16 +90,16 @@ export class SceneManager {
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'combat') {
-            // Player on the green side (rows 5-7)
-            this.player.mesh.position.set(0, 0, 10);
-            const snap = this.combatEnvironment.snapToGrid(this.player.mesh.position);
-            this.player.mesh.position.copy(snap);
-            const playerGrid = this.combatEnvironment.getGridPosition(this.player.mesh.position);
-            const reservedCells = playerGrid ? [playerGrid] : [];
+            // Player moved far away and hidden (spectator)
+            this.player.mesh.position.set(0, -100, 0);
+            this.player.mesh.visible = false;
+            if (this.player.model?.group) this.player.model.group.visible = false;
+            
+            const reservedCells = [];
 
-            // Spawn custom encounter: 1 Cleric on green side, 2 Bandits on red side
-            this.entityManager.spawnCombatEncounter('cleric', 1, this.combatEnvironment, reservedCells);
-            this.entityManager.spawnCombatEncounter('bandit', 2, this.combatEnvironment, [...reservedCells, ...this.entityManager.clerics.map(c => this.combatEnvironment.getGridPosition(c.position)).filter((p): p is {r: number, c: number} => p !== null)]);
+            // Spawn custom encounter: 1 Archer on green side, 1 Bandit on red side
+            this.entityManager.spawnCombatEncounter('archer', 1, this.combatEnvironment, reservedCells);
+            this.entityManager.spawnCombatEncounter('bandit', 1, this.combatEnvironment, [...reservedCells, ...this.entityManager.combatArchers.map(a => this.combatEnvironment.getGridPosition(a.position)).filter((p): p is {r: number, c: number} => p !== null)]);
             
             this.player.mesh.rotation.y = Math.PI; 
             this.renderManager.controls.target.set(0, 0, 0);

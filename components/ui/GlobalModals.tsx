@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from 'react';
-import { InventoryItem, EntityStats, PlayerConfig, Quest } from '../../types';
+import { useGlobalState } from '../../contexts/GlobalContext';
 import { FastTravelMenu } from './FastTravelMenu';
+import * as THREE from 'three';
 
 // Lazy load heavy modal components
 const InventoryModal = lazy(() => import('./InventoryModal').then(m => ({ default: m.InventoryModal })));
@@ -10,76 +11,66 @@ const KeybindsModal = lazy(() => import('./KeybindsModal').then(m => ({ default:
 const QuestLogModal = lazy(() => import('./QuestLogModal').then(m => ({ default: m.QuestLogModal })));
 const SpawnAnimalsModal = lazy(() => import('./SpawnAnimalsModal').then(m => ({ default: m.SpawnAnimalsModal })));
 const EnemiesModal = lazy(() => import('./EnemiesModal').then(m => ({ default: m.EnemiesModal })));
-const CharacterStatsModal = lazy(() => import('./CharacterStatsModal').then(m => ({ default: m.CharacterStatsModal })));
 const ShopkeeperChatModal = lazy(() => import('./ShopkeeperChatModal').then(m => ({ default: m.ShopkeeperChatModal })));
 const LandMapModal = lazy(() => import('./LandMapModal').then(m => ({ default: m.LandMapModal })));
 
-interface GlobalModalsProps {
-    isInventoryOpen: boolean;
-    toggleInventory: () => void;
-    inventory: (InventoryItem | null)[];
-    setInventory: (items: (InventoryItem | null)[]) => void;
-    equipmentSlots: Record<string, string | null>;
-    handleEquipItem: (item: string, slotId: string) => void;
-    handleUnequipItem: (slotId: string) => void;
-    coins: number;
-    stats: EntityStats;
-    bodyType: string;
+export const GlobalModals: React.FC = () => {
+    const {
+        uiState,
+        playerState,
+        inventoryState,
+        equipmentLogic,
+        economyLogic,
+        questState,
+        gameState,
+        environmentState,
+        combatState,
+        gameInstance
+    } = useGlobalState();
 
-    isTradeOpen: boolean;
-    setIsTradeOpen: (open: boolean) => void;
-    onBuy: (item: string, price: number) => void;
-    onSell: (index: number, price: number) => void;
+    const {
+        isInventoryOpen, toggleInventory,
+        isTradeOpen, setIsTradeOpen,
+        isShopkeeperChatOpen, setIsShopkeeperChatOpen,
+        isForgeOpen, setIsForgeOpen,
+        isKeybindsOpen, toggleKeybinds,
+        isQuestLogOpen, toggleQuestLog,
+        isTravelOpen, setIsTravelOpen,
+        isSpawnModalOpen, setIsSpawnModalOpen,
+        isEnemiesModalOpen, setIsEnemiesModalOpen,
+        isCharacterStatsOpen, setIsCharacterStatsOpen,
+        statsForModal, statsUnitName,
+        isLandMapOpen, setIsLandMapOpen
+    } = uiState;
 
-    isShopkeeperChatOpen: boolean;
-    setIsShopkeeperChatOpen: (open: boolean) => void;
+    const { inventory, setInventory, equipmentSlots } = inventoryState;
+    const { coins, config } = playerState;
+    const { handleEquipItem, handleUnequipItem } = equipmentLogic;
+    const { handleBuy, handleSell } = economyLogic;
+    const { quests, claimQuestReward } = questState;
+    const { activeScene, setActiveScene, setGameState } = gameState;
+    const { setIsEnvironmentBuilt, setIsVisualLoadingDone } = environmentState;
+    const { setIsCombatActive } = combatState;
 
-    isForgeOpen: boolean;
-    setIsForgeOpen: (open: boolean) => void;
-
-    isKeybindsOpen: boolean;
-    toggleKeybinds: () => void;
-
-    isQuestLogOpen: boolean;
-    toggleQuestLog: () => void;
-    quests: Quest[];
-    handleClaimReward: (questId: string) => void;
-
-    isTravelOpen: boolean;
-    setIsTravelOpen: (open: boolean) => void;
-    activeScene: 'dev' | 'land' | 'combat';
-    handleTravel: (scene: 'dev' | 'land' | 'combat') => void;
-
-    isSpawnModalOpen: boolean;
-    setIsSpawnModalOpen: (open: boolean) => void;
-    handleSpawnAnimal: (type: string, count: number) => void;
-
-    isEnemiesModalOpen: boolean;
-    setIsEnemiesModalOpen: (open: boolean) => void;
-
-    isCharacterStatsOpen: boolean;
-    setIsCharacterStatsOpen: (open: boolean) => void;
-    statsForModal: EntityStats | null;
-    statsUnitName: string;
-
-    isMapOpen: boolean;
-    setIsMapOpen: (open: boolean) => void;
-}
-
-export const GlobalModals: React.FC<GlobalModalsProps> = ({
-    isInventoryOpen, toggleInventory, inventory, setInventory, equipmentSlots, handleEquipItem, handleUnequipItem, coins, stats, bodyType,
-    isTradeOpen, setIsTradeOpen, onBuy, onSell,
-    isShopkeeperChatOpen, setIsShopkeeperChatOpen,
-    isForgeOpen, setIsForgeOpen,
-    isKeybindsOpen, toggleKeybinds,
-    isQuestLogOpen, toggleQuestLog, quests, handleClaimReward,
-    isTravelOpen, setIsTravelOpen, activeScene, handleTravel,
-    isSpawnModalOpen, setIsSpawnModalOpen, handleSpawnAnimal,
-    isEnemiesModalOpen, setIsEnemiesModalOpen,
-    isCharacterStatsOpen, setIsCharacterStatsOpen, statsForModal, statsUnitName,
-    isMapOpen, setIsMapOpen
-}) => {
     const isLand = activeScene === 'land';
+
+    const handleTravel = (scene: 'dev' | 'land' | 'combat') => {
+        if (scene === activeScene) { setIsTravelOpen(false); return; }
+        setIsEnvironmentBuilt(false);
+        setIsVisualLoadingDone(false);
+        setIsCombatActive(false);
+        setGameState('LOADING');
+        setIsTravelOpen(false);
+        setTimeout(() => setActiveScene(scene), 100);
+    };
+
+    const handleSpawnAnimal = (type: string, count: number) => { 
+        if (gameInstance.current) {
+            const playerPos = gameInstance.current.player.position;
+            const spawnPos = playerPos.clone().add(new THREE.Vector3(2, 0, 2));
+            gameInstance.current.entityManager.spawnAnimalGroup(type, count, gameInstance.current.environment, spawnPos);
+        }
+    };
 
     return (
         <Suspense fallback={null}>
@@ -92,8 +83,8 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
                 onEquip={handleEquipItem}
                 onUnequip={handleUnequipItem}
                 coins={coins}
-                stats={stats}
-                bodyType={bodyType}
+                stats={config.stats}
+                bodyType={config.bodyType}
               />
             )}
             {isTradeOpen && (
@@ -101,8 +92,8 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
                 isOpen={isTradeOpen}
                 inventory={inventory}
                 onClose={() => setIsTradeOpen(false)}
-                onBuy={onBuy}
-                onSell={onSell}
+                onBuy={handleBuy}
+                onSell={handleSell}
                 coins={coins}
               />
             )}
@@ -129,7 +120,7 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
                 <QuestLogModal 
                     quests={quests}
                     onClose={toggleQuestLog}
-                    onClaimReward={handleClaimReward}
+                    onClaimReward={claimQuestReward}
                 />
             )}
             {isTravelOpen && (
@@ -148,16 +139,16 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
             {isEnemiesModalOpen && (
                 <EnemiesModal isOpen={isEnemiesModalOpen} onClose={() => setIsEnemiesModalOpen(false)} />
             )}
-            {isLand && isMapOpen && (
-                <LandMapModal isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} />
+            {isLand && isLandMapOpen && (
+                <LandMapModal isOpen={isLandMapOpen} onClose={() => setIsLandMapOpen(false)} />
             )}
-            {isCharacterStatsOpen && (
+            {/* {isCharacterStatsOpen && (
                 <CharacterStatsModal 
                     stats={statsForModal} 
                     unitName={statsUnitName}
                     onClose={() => setIsCharacterStatsOpen(false)} 
                 />
-            )}
+            )} */}
         </Suspense>
     );
 };

@@ -2,7 +2,7 @@
 import React from 'react';
 import { PlayerConfig, BodyVariant } from '../../../types';
 import { BODY_PRESETS } from '../../../data/constants';
-import { ColorPicker } from '../CommonControls';
+import { ColorPicker, ToggleButton } from '../CommonControls';
 
 interface BodyControlsProps {
     config: PlayerConfig;
@@ -29,19 +29,19 @@ export const BodyControls: React.FC<BodyControlsProps> = ({ config, setConfig })
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 space-y-6">
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Identity Type</label>
-                    <div className="flex bg-black/40 rounded-xl p-1.5 border border-white/5">
-                        <button 
-                            onClick={() => handleConfigChange('bodyType', 'male')} 
-                            className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${config.bodyType === 'male' ? 'bg-blue-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            Masculine
-                        </button>
-                        <button 
-                            onClick={() => handleConfigChange('bodyType', 'female')} 
-                            className={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${config.bodyType === 'female' ? 'bg-pink-600 shadow-lg text-white' : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            Feminine
-                        </button>
+                    <div className="grid grid-cols-2 gap-2">
+                        <ToggleButton 
+                            label="Masculine"
+                            isActive={config.bodyType === 'male'}
+                            onClick={() => handleConfigChange('bodyType', 'male')}
+                            activeColor="blue"
+                        />
+                        <ToggleButton 
+                            label="Feminine"
+                            isActive={config.bodyType === 'female'}
+                            onClick={() => handleConfigChange('bodyType', 'female')}
+                            activeColor="pink"
+                        />
                     </div>
                 </div>
 

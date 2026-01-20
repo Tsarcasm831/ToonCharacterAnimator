@@ -1,24 +1,18 @@
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { EntityStats, DEFAULT_CONFIG } from '../../../../types';
+import { HumanoidEntity } from '../../../entities/HumanoidEntity';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
+import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
 enum AssassinState { IDLE, PATROL, SURVIVAL, CHASE, STALK, INVESTIGATE, ATTACK, RETREAT, DUEL }
 
-export class Assassin {
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
-    stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    lastFramePos: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
+export class Assassin extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    stats: EntityStats;
+    
     private state: AssassinState = AssassinState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
@@ -36,36 +30,55 @@ export class Assassin {
     private isPickingUp: boolean = false;
     private pickUpTimer: number = 0;
     private speedFactor: number = 0;
-    private lastStepCount: number = 0;
-    private walkTime: number = 0;
-    public status = { isDead: false, recoverTimer: 0 };
-    private cameraHandler = {
-        blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
-        eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,
-        headLookWeight: 0, cameraWorldPosition: new THREE.Vector3()
-    };
+    
     private smoothedHeadTarget = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
-        this.scene = scene;
-        this.position.copy(initialPos);
-        this.lastFramePos.copy(initialPos);
-        this.lastStuckPos.copy(this.position);
         // Added missing bracers, cape, belt to equipment
-        this.config = { ...DEFAULT_CONFIG, bodyType: 'male', bodyVariant: 'slim', outfit: 'warrior', skinColor: '#d7ccc8', shirtColor: '#000000', pantsColor: '#000000', hairStyle: 'bald', equipment: { helm: false, shoulders: true, shield: false, shirt: true, pants: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, cape: false, belt: true, skirt: false, skullcap: false, shorts: false }, selectedItem: 'Knife', weaponStance: 'side', isAssassinHostile: false, tintColor: tint };
+        const config = { 
+            ...DEFAULT_CONFIG, 
+            bodyType: 'male', 
+            bodyVariant: 'slim', 
+            outfit: 'warrior', 
+            skinColor: '#d7ccc8', 
+            shirtColor: '#000000', 
+            pantsColor: '#000000', 
+            hairStyle: 'bald', 
+            equipment: { 
+                helm: false, shoulders: true, shield: false, shirt: true, pants: true, shoes: true, 
+                mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, 
+                ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, 
+                bracers: true, cape: false, belt: true, skirt: false, skullcap: false, shorts: false 
+            }, 
+            selectedItem: 'Knife', 
+            weaponStance: 'side', 
+            isAssassinHostile: false, 
+            tintColor: tint 
+        } as any;
+
+        super(scene, initialPos, config);
+        
         this.stats = { ...CLASS_STATS.assassin };
-        this.model = new PlayerModel(this.config);
-        this.animator = new PlayerAnimator();
-        this.model.group.position.copy(this.position);
-        this.scene.add(this.model.group);
-        this.model.sync(this.config, true);
+        this.lastStuckPos.copy(this.position);
+        this.lastFramePos.copy(this.position);
     }
+    
+    private lastFramePos: THREE.Vector3 = new THREE.Vector3();
 
     private setState(newState: AssassinState) {
         if (this.state === newState) return;
-        this.state = newState; this.stateTimer = 0; this.isStriking = (newState === AssassinState.ATTACK); this.isPickingUp = (newState === AssassinState.INVESTIGATE);
-        if (this.isStriking) this.strikeTimer = 0; if (this.isPickingUp) this.pickUpTimer = 0;
-        if (newState === AssassinState.DUEL) { this.duelTimer = 1.0 + Math.random() * 2.0; this.strafeDir = Math.random() > 0.5 ? 1 : -1; }
+        this.state = newState; 
+        this.stateTimer = 0; 
+        this.isStriking = (newState === AssassinState.ATTACK); 
+        this.isPickingUp = (newState === AssassinState.INVESTIGATE);
+        
+        if (this.isStriking) this.strikeTimer = 0; 
+        if (this.isPickingUp) this.pickUpTimer = 0;
+        
+        if (newState === AssassinState.DUEL) { 
+            this.duelTimer = 1.0 + Math.random() * 2.0; 
+            this.strafeDir = Math.random() > 0.5 ? 1 : -1; 
+        }
     }
 
     private findPatrolPoint(environment: Environment | CombatEnvironment) {
@@ -124,10 +137,10 @@ export class Assassin {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -146,10 +159,10 @@ export class Assassin {
             if (this.state === AssassinState.CHASE) {
                 if (distToTarget < 4.0) this.setState(AssassinState.DUEL);
                 else if (distToTarget > 40.0) this.setState(AssassinState.PATROL); 
-                else this.targetPos.copy(this.currentTarget.position);
+                else this.targetPos.copy(this.currentTarget!.position);
             }
             if (this.state === AssassinState.DUEL) {
-                this.duelTimer -= dt; this.targetPos.copy(this.currentTarget.position);
+                this.duelTimer -= dt; this.targetPos.copy(this.currentTarget!.position);
                 if (distToTarget > 5.0) this.setState(AssassinState.CHASE);
                 else if (this.duelTimer <= 0 && this.attackCooldown <= 0) this.setState(AssassinState.ATTACK);
             }
@@ -194,7 +207,7 @@ export class Assassin {
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
-        this.model.group.position.copy(this.position);
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
@@ -214,7 +227,7 @@ export class Assassin {
         const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: (this.state === AssassinState.DUEL || this.state === AssassinState.ATTACK || this.state === AssassinState.RETREAT), isJumping: false, isAxeSwing: this.isStriking, axeSwingTimer: this.strikeTimer, isPunch: false, isPickingUp: this.isPickingUp, pickUpTime: this.pickUpTimer, isInteracting: false, isWaving: false, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false };
         this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === AssassinState.DUEL, { x: animX, y: animY, isRunning: this.state === AssassinState.CHASE, isPickingUp: this.isPickingUp, isDead: false, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime; this.lastStepCount = animContext.lastStepCount;
-        this.model.update(dt, new THREE.Vector3(0, 0, 0));
+        this.updateModel(dt);
         this.model.sync(this.config, true);
     }
 }

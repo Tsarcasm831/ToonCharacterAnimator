@@ -1,11 +1,12 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { Game } from "../game/core/Game";
 import { PlayerConfig, PlayerInput, InventoryItem, EntityStats } from '../types';
 import { GameHUD } from './ui/GameHUD';
 import { CombatLogEntry } from './ui/CombatLog';
 import { UnitStatsTooltip } from './ui/UnitStatsTooltip';
+import { useGame } from '../hooks/useGame';
 
 interface CombatSceneProps {
     config: PlayerConfig;
@@ -43,7 +44,6 @@ const CombatScene: React.FC<CombatSceneProps> = ({
     controlsDisabled = false,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const gameRef = useRef<Game | null>(null);
     
     // Tooltip state for right-click unit stats
     const [tooltip, setTooltip] = useState<{
@@ -54,65 +54,34 @@ const CombatScene: React.FC<CombatSceneProps> = ({
         y: number;
     }>({ visible: false, x: 0, y: 0 });
 
-    useEffect(() => {
-        if (!containerRef.current) return;
-
-        // Initialize Game in combat mode
-        const game = new Game(containerRef.current, config, manualInput, [], 'combat');
-        gameRef.current = game;
-
-        if (onGameReady) onGameReady(game);
-        if (onEnvironmentReady) {
-            game.onEnvironmentReady = onEnvironmentReady;
-        }
-
-        // Hook up callbacks
-        game.onInteractionUpdate = onInteractionUpdate;
-        game.onRotationUpdate = onRotationUpdate;
-        game.onAttackHit = onAttackHit;
-        game['inputManager'].onToggleQuestLog = onToggleQuestLog;
-
-        // Wire up tooltip callbacks for combat
-        if (game.combatManager) {
-            game.combatManager.onShowTooltip = (stats, name, x, y) => {
-                setTooltip({ visible: true, stats, unitName: name, x: x || 0, y: y || 0 });
-            };
-            game.combatManager.onHideTooltip = () => {
-                setTooltip(prev => ({ ...prev, visible: false }));
-            };
-        }
-
-        game.start();
-
-        const handleResize = () => game.resize();
-        window.addEventListener('resize', handleResize);
-
-        let resizeObserver: ResizeObserver | null = null;
-        if (typeof ResizeObserver !== 'undefined') {
-            resizeObserver = new ResizeObserver(() => handleResize());
-            resizeObserver.observe(containerRef.current);
-        }
-
-        requestAnimationFrame(() => handleResize());
-
-        return () => {
-            window.removeEventListener('resize', handleResize);
-            resizeObserver?.disconnect();
-            game.stop();
-        };
-    }, []); // Run once on mount
-
-    // Sync props to Game instance
-    useEffect(() => {
-        const game = gameRef.current;
-        if (!game) return;
-
-        game.setConfig(config);
-        game.setManualInput(manualInput);
-        game.setControlsActive(!controlsDisabled);
-        game.toggleGrid(showGrid);
-        game.setCombatActive(isCombatActive);
-    }, [config, manualInput, controlsDisabled, showGrid, isCombatActive]);
+    const gameRef = useGame({
+        containerRef,
+        config,
+        manualInput,
+        initialInventory: [], // Combat scene doesn't really use main inventory for items like Land does, but we pass empty for now or bench?
+        activeScene: 'combat',
+        onGameReady: (game) => {
+            if (onGameReady) onGameReady(game);
+            
+            // Wire up tooltip callbacks for combat
+            if (game.combatManager) {
+                game.combatManager.onShowTooltip = (stats, name, x, y) => {
+                    setTooltip({ visible: true, stats, unitName: name, x: x || 0, y: y || 0 });
+                };
+                game.combatManager.onHideTooltip = () => {
+                    setTooltip(prev => ({ ...prev, visible: false }));
+                };
+            }
+        },
+        onEnvironmentReady,
+        onInteractionUpdate,
+        onToggleQuestLog,
+        onRotationUpdate,
+        onAttackHit,
+        controlsDisabled,
+        showGrid,
+        isCombatActive
+    });
 
     // Hide tooltip when clicking anywhere
     const handleClick = () => {

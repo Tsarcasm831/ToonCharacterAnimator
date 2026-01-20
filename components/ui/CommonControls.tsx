@@ -37,3 +37,60 @@ export const Slider: React.FC<{ label: string, value: number, min: number, max: 
     </div>
   );
 };
+
+export const Button: React.FC<{ 
+    onClick: () => void, 
+    children: React.ReactNode, 
+    className?: string, 
+    disabled?: boolean,
+    variant?: 'primary' | 'secondary' | 'danger' | 'success'
+}> = ({ onClick, children, className = '', disabled = false, variant = 'secondary' }) => {
+    const baseStyles = "p-2 rounded-lg font-bold text-xs border transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed";
+    const variants = {
+        primary: "bg-blue-600 text-white border-blue-500 hover:bg-blue-500 shadow-lg",
+        secondary: "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300",
+        danger: "bg-red-50 border-red-200 text-red-600 hover:bg-red-100",
+        success: "bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100"
+    };
+
+    return (
+        <button 
+            onClick={onClick} 
+            disabled={disabled}
+            className={`${baseStyles} ${variants[variant]} ${className}`}
+        >
+            {children}
+        </button>
+    );
+};
+
+export const ToggleButton: React.FC<{
+    label: string,
+    isActive: boolean,
+    onClick: () => void,
+    activeColor?: 'blue' | 'red' | 'green' | 'orange' | 'purple' | 'pink',
+    className?: string
+}> = ({ label, isActive, onClick, activeColor = 'blue', className = '' }) => {
+    const activeStyles = {
+        blue: "bg-blue-100 border-blue-500 text-blue-700",
+        red: "bg-red-100 border-red-500 text-red-700",
+        green: "bg-emerald-100 border-emerald-500 text-emerald-700",
+        orange: "bg-orange-100 border-orange-500 text-orange-700",
+        purple: "bg-purple-100 border-purple-500 text-purple-700",
+        pink: "bg-pink-100 border-pink-500 text-pink-700"
+    };
+
+    return (
+        <button 
+            onClick={onClick} 
+            className={`p-2 rounded-lg font-bold text-[10px] uppercase tracking-wider border transition-all active:scale-95 ${
+                isActive 
+                ? activeStyles[activeColor] 
+                : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+            } ${className}`}
+        >
+            {label}
+        </button>
+    );
+};
+

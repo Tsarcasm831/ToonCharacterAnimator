@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { GlobalProvider } from './contexts/GlobalContext';
 
 // Patch setPointerCapture and releasePointerCapture to suppress InvalidStateError
 // This error commonly occurs in Three.js/React applications (OrbitControls, etc.) when 
@@ -35,7 +36,9 @@ if (!rootElement) {
     const root = ReactDOM.createRoot(rootElement);
     root.render(
       <React.StrictMode>
-        <App />
+        <GlobalProvider>
+          <App />
+        </GlobalProvider>
       </React.StrictMode>
     );
   } catch (err) {

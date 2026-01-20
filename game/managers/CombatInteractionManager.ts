@@ -28,6 +28,8 @@ export class CombatInteractionManager {
     public onShowTooltip?: (stats?: EntityStats, name?: string, screenX?: number, screenY?: number) => void;
     public onHideTooltip?: () => void;
 
+    private rangeHighlight: THREE.Group | null = null;
+
     constructor(entityManager: EntityManager, renderManager: RenderManager, player: Player) {
         this.entityManager = entityManager;
         this.renderManager = renderManager;
@@ -36,6 +38,62 @@ export class CombatInteractionManager {
 
     public setCombatActive(active: boolean) {
         this.isActive = active;
+        console.log(`[CombatInteractionManager] Interaction active: ${active}`);
+    }
+
+    private clearRangeHighlight() {
+        if (this.rangeHighlight) {
+            this.renderManager.scene.remove(this.rangeHighlight);
+            this.rangeHighlight.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose();
+                    if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                    else child.material.dispose();
+                }
+            });
+            this.rangeHighlight = null;
+        }
+    }
+
+    private showRangeHighlight(unit: any, combatEnvironment: CombatEnvironment) {
+        this.clearRangeHighlight();
+        const unitPos = this.getUnitPosition(unit);
+        if (!unitPos || !combatEnvironment) return;
+
+        const gridPos = combatEnvironment.getGridPosition(unitPos);
+        if (!gridPos) return;
+
+        this.rangeHighlight = new THREE.Group();
+        this.renderManager.scene.add(this.rangeHighlight);
+
+        // Define ranges based on unit type
+        const unitType = unit?.constructor?.name || '';
+        const range = (unitType === 'Archer' || unitType === 'combatArchers' || (unit.config && unit.config.selectedItem === 'Bow')) ? 4 : 1;
+        
+        console.log(`[CombatInteractionManager] Showing range for ${unitType}: ${range} cells`);
+
+        for (let r = 0; r < combatEnvironment.GRID_ROWS; r++) {
+            for (let c = 0; c < combatEnvironment.GRID_COLS; c++) {
+                const cellWorldPos = combatEnvironment.getWorldPosition(r, c);
+                const dist = unitPos.distanceTo(cellWorldPos);
+                const maxWorldDist = range * 1.6; 
+
+                if (dist <= maxWorldDist && dist > 0.1) {
+                    const ringGeo = new THREE.RingGeometry(0.4, 0.5, 6);
+                    const ringMat = new THREE.MeshBasicMaterial({ 
+                        color: 0x00aaff, 
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.6
+                    });
+                    const ring = new THREE.Mesh(ringGeo, ringMat);
+                    ring.position.copy(cellWorldPos);
+                    ring.position.y = 0.05;
+                    ring.rotation.x = -Math.PI / 2;
+                    this.rangeHighlight.add(ring);
+                }
+            }
+        }
     }
 
     public handleMouseDown(e: MouseEvent, combatEnvironment: CombatEnvironment) {
@@ -52,61 +110,65 @@ export class CombatInteractionManager {
         
         const combatEntities = this.entityManager.getEntitiesForScene('combat');
         const units = [this.player, ...combatEntities];
-        const unitMeshes = units.map(u => u.mesh || u.model?.group || u.group).filter(Boolean);
-        
-        const intersects = this.raycaster.intersectObjects(unitMeshes, true);
+        const intersects = this.raycaster.intersectObjects(this.renderManager.scene.children, true);
         
         if (intersects.length > 0) {
-            const clickedMesh = intersects[0].object;
-            let foundUnit = units.find(u => {
-                const mesh = u.mesh || u.model?.group || u.group;
-                return mesh && (mesh === clickedMesh || mesh.getObjectById(clickedMesh.id));
-            });
+            let foundUnit = null;
+            for (const intersect of intersects) {
+                let obj: THREE.Object3D | null = intersect.object;
+                while (obj) {
+                    const unit = units.find(u => (u.mesh || u.model?.group || u.group) === obj);
+                    if (unit) {
+                        foundUnit = unit;
+                        break;
+                    }
+                    obj = obj.parent;
+                }
+                if (foundUnit) break;
+            }
 
             if (foundUnit) {
-                // Check if this is a friendly unit (player or cleric-type)
-                const isFriendly = this.isFriendlyUnit(foundUnit);
+                const isCombatStarted = combatEnvironment.isCombatStarted;
+                console.log(`[CombatInteractionManager] Clicked unit: ${foundUnit.constructor.name}, CombatStarted: ${isCombatStarted}`);
                 
-                this.draggingUnit = foundUnit;
-                this.isWaitingForClick = true;
-                this.mouseDownScreenPos.set(e.clientX, e.clientY);
-                
-                const unitPos = this.getUnitPosition(foundUnit);
-                this.draggingUnitStartPos = unitPos ? unitPos.clone() : null;
-                
-                // Only allow dragging friendly units
-                if (isFriendly && unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
-                    this.dragOffset.sub(unitPos);
+                this.selectedUnit = foundUnit;
+                this.setUnitHighlight(foundUnit, true);
+                this.showRangeHighlight(foundUnit, combatEnvironment);
+                const stats = foundUnit === this.player ? this.player.status.getStats() : foundUnit.stats;
+                this.onUnitSelect?.(stats, foundUnit);
+
+                if (!isCombatStarted) {
+                    this.draggingUnit = foundUnit;
+                    this.isWaitingForClick = true;
+                    this.mouseDownScreenPos.set(e.clientX, e.clientY);
+                    
+                    const unitPos = this.getUnitPosition(foundUnit);
+                    this.draggingUnitStartPos = unitPos ? unitPos.clone() : null;
+                    
+                    if (this.isFriendlyUnit(foundUnit) && unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
+                        this.dragOffset.sub(unitPos);
+                    }
                 }
             }
         } else {
-            // Clicked off any unit - deselect
-            if (this.selectedUnit) {
-                this.setUnitHighlight(this.selectedUnit, false);
-                this.selectedUnit = null;
-                this.onUnitSelect?.(undefined, null);
-            }
+            this.clearSelection();
         }
     }
 
     private isFriendlyUnit(unit: any): boolean {
         if (unit === this.player) return true;
-        // Check unit type - clerics, knights, paladins, monks, rangers, sentinels are friendly
-        const friendlyTypes = ['Cleric', 'Knight', 'Paladin', 'Monk', 'Ranger', 'Sentinel'];
+        const friendlyTypes = ['Cleric', 'Knight', 'Paladin', 'Monk', 'Ranger', 'Sentinel', 'Archer'];
         const unitType = unit?.constructor?.name || '';
-        return friendlyTypes.includes(unitType);
+        return friendlyTypes.includes(unitType) || this.entityManager.combatArchers.includes(unit);
     }
 
     public handleMouseMove(e: MouseEvent) {
         if (!this.isActive || !this.draggingUnit) return;
-        
-        // Only allow dragging friendly units
         if (!this.isFriendlyUnit(this.draggingUnit)) return;
 
         const dist = this.mouseDownScreenPos.distanceTo(new THREE.Vector2(e.clientX, e.clientY));
         if (dist > 5) {
             this.isWaitingForClick = false;
-            this.setUnitHighlight(this.draggingUnit, true);
         }
 
         if (!this.isWaitingForClick) {
@@ -117,6 +179,7 @@ export class CombatInteractionManager {
             );
             this.raycaster.setFromCamera(mouse, this.renderManager.camera);
             const target = new THREE.Vector3();
+            
             if (this.raycaster.ray.intersectPlane(this.dragPlane, target)) {
                 const newPos = target.sub(this.dragOffset);
                 newPos.y = 0;
@@ -126,68 +189,69 @@ export class CombatInteractionManager {
     }
 
     public handleMouseUp(e: MouseEvent, combatEnvironment: CombatEnvironment) {
-        if (!this.isActive || !this.draggingUnit) return;
+        if (!this.isActive) return;
 
-        if (this.isWaitingForClick) {
-            if (this.selectedUnit && this.selectedUnit !== this.draggingUnit) {
-                this.setUnitHighlight(this.selectedUnit, false);
-            }
-            
-            const isNowSelected = this.selectedUnit !== this.draggingUnit;
-            this.selectedUnit = isNowSelected ? this.draggingUnit : null;
-            this.setUnitHighlight(this.draggingUnit, isNowSelected);
-            
-            if (isNowSelected) {
-                const stats = this.draggingUnit === this.player ? this.player.status.getStats() : this.draggingUnit.stats;
-                this.onUnitSelect?.(stats, this.draggingUnit);
-            } else {
-                this.onUnitSelect?.(undefined, null);
-            }
-        } else {
-            // Snap to grid - only for friendly units
+        if (this.draggingUnit && !this.isWaitingForClick) {
             if (combatEnvironment && this.isFriendlyUnit(this.draggingUnit)) {
                 const unitPos = this.getUnitPosition(this.draggingUnit);
                 if (unitPos) {
                     const targetGrid = combatEnvironment.getGridPosition(unitPos);
-                    const combatEntities = this.entityManager.getEntitiesForScene('combat');
-                    const units = [this.player, ...combatEntities];
+                    const units = [this.player, ...this.entityManager.getEntitiesForScene('combat')];
                     
-                    // Check if target is on friendly side (rows 4-7 are green/friendly)
+                    // Friendly side is rows 4-7 (including bench at 7)
+                    // Enemy side is rows 0-3 (including bench at 0)
+                    // We only allow friendly units to be placed on friendly rows
                     const isOnFriendlySide = targetGrid ? targetGrid.r >= 4 : false;
                     
-                    const isTargetOccupied = targetGrid
-                        ? units.some(u => {
+                    if (targetGrid && isOnFriendlySide) {
+                        // Check for occupancy
+                        const occupiedBy = units.find(u => {
                             if (u === this.draggingUnit) return false;
                             const pos = this.getUnitPosition(u);
                             if (!pos) return false;
-                            const grid = combatEnvironment?.getGridPosition(pos);
+                            const grid = combatEnvironment.getGridPosition(pos);
                             return grid?.r === targetGrid.r && grid?.c === targetGrid.c;
-                        })
-                        : true;
+                        });
 
-                    // Only allow placement on friendly side and unoccupied cells
-                    if ((isTargetOccupied || !isOnFriendlySide) && this.draggingUnitStartPos) {
-                        // Return to original position
-                        const startGrid = combatEnvironment.getGridPosition(this.draggingUnitStartPos);
-                        if (startGrid) {
-                            const snapped = combatEnvironment.getWorldPosition(startGrid.r, startGrid.c);
-                            this.setUnitPosition(this.draggingUnit, snapped);
+                        if (occupiedBy) {
+                            // Swap Logic
+                            if (this.draggingUnitStartPos) {
+                                // Move occupied unit to start pos
+                                const startGrid = combatEnvironment.getGridPosition(this.draggingUnitStartPos);
+                                if (startGrid) {
+                                    const startWorldPos = combatEnvironment.getWorldPosition(startGrid.r, startGrid.c);
+                                    this.setUnitPosition(occupiedBy, startWorldPos);
+                                    
+                                    // Snap dragged unit to target
+                                    const targetWorldPos = combatEnvironment.getWorldPosition(targetGrid.r, targetGrid.c);
+                                    this.setUnitPosition(this.draggingUnit, targetWorldPos);
+                                } else {
+                                    // Fallback: Reset dragged unit
+                                    this.setUnitPosition(this.draggingUnit, this.draggingUnitStartPos);
+                                }
+                            }
+                        } else {
+                            // Empty cell: Snap to it
+                            const targetWorldPos = combatEnvironment.getWorldPosition(targetGrid.r, targetGrid.c);
+                            this.setUnitPosition(this.draggingUnit, targetWorldPos);
                         }
-                    } else if (!isTargetOccupied && isOnFriendlySide && targetGrid) {
-                        const snapped = combatEnvironment.getWorldPosition(targetGrid.r, targetGrid.c);
-                        this.setUnitPosition(this.draggingUnit, snapped);
+                    } else {
+                        // Invalid placement: Reset
+                        if (this.draggingUnitStartPos) {
+                            this.setUnitPosition(this.draggingUnit, this.draggingUnitStartPos);
+                        }
                     }
                 }
             }
         }
         this.draggingUnit = null;
         this.isWaitingForClick = false;
-        this.draggingUnitStartPos = null;
     }
-    
+
     public handleContextMenu(e: MouseEvent) {
         if (!this.isActive) return;
-        
+        e.preventDefault();
+
         const rect = this.renderManager.renderer.domElement.getBoundingClientRect();
         const mouse = new THREE.Vector2(
             ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -195,42 +259,42 @@ export class CombatInteractionManager {
         );
         this.raycaster.setFromCamera(mouse, this.renderManager.camera);
         
-        const combatEntities = this.entityManager.getEntitiesForScene('combat');
-        const units = [this.player, ...combatEntities];
-        const unitMeshes = units.map(u => u.mesh || u.model?.group || u.group).filter(Boolean);
-        
-        const intersects = this.raycaster.intersectObjects(unitMeshes, true);
+        const units = [this.player, ...this.entityManager.getEntitiesForScene('combat')];
+        const intersects = this.raycaster.intersectObjects(this.renderManager.scene.children, true);
         
         if (intersects.length > 0) {
-            const clickedMesh = intersects[0].object;
-            let foundUnit = units.find(u => {
-                const mesh = u.mesh || u.model?.group || u.group;
-                return mesh && (mesh === clickedMesh || mesh.getObjectById(clickedMesh.id));
-            });
+            let foundUnit = null;
+            for (const intersect of intersects) {
+                let obj: THREE.Object3D | null = intersect.object;
+                while (obj) {
+                    const unit = units.find(u => (u.mesh || u.model?.group || u.group) === obj);
+                    if (unit) {
+                        foundUnit = unit;
+                        break;
+                    }
+                    obj = obj.parent;
+                }
+                if (foundUnit) break;
+            }
 
             if (foundUnit) {
-                let stats: EntityStats | undefined = foundUnit.stats;
-                let unitName = 'Unknown Unit';
-
-                if (foundUnit === this.player) {
-                    stats = this.player.status.getStats();
-                    unitName = 'Hero';
-                } else {
-                    unitName = foundUnit.constructor.name;
-                }
-
-                // Show tooltip at mouse position instead of modal
+                let stats = foundUnit === this.player ? this.player.status.getStats() : foundUnit.stats;
+                let unitName = foundUnit === this.player ? 'Hero' : foundUnit.constructor.name;
                 this.onShowTooltip?.(stats, unitName, e.clientX, e.clientY);
             }
         } else {
-            // Hide tooltip when right-clicking empty space
             this.onHideTooltip?.();
         }
     }
     
     public clearSelection() {
+        if (this.selectedUnit) {
+            this.setUnitHighlight(this.selectedUnit, false);
+            this.clearRangeHighlight();
+        }
         this.selectedUnit = null;
         this.draggingUnit = null;
+        this.onUnitSelect?.(undefined, null);
     }
 
     private getUnitPosition(unit: any): THREE.Vector3 | null {
@@ -249,8 +313,15 @@ export class CombatInteractionManager {
         unit.isDebugHitbox = active;
         if (unit === this.player) {
             PlayerDebug.updateHitboxVisuals(unit);
-        } else if (unit.updateHitboxVisuals) {
-            unit.updateHitboxVisuals();
+        } else if (unit.model?.group) {
+            unit.model.group.traverse((child: THREE.Object3D) => {
+                if (child instanceof THREE.Mesh && child.material) {
+                    const materials = Array.isArray(child.material) ? child.material : [child.material];
+                    materials.forEach(mat => {
+                        if ('emissive' in mat) (mat as any).emissive.setHex(active ? 0x444400 : 0x000000);
+                    });
+                }
+            });
         }
     }
 }
