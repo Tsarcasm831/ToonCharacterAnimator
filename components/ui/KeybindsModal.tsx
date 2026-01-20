@@ -43,6 +43,7 @@ const CATEGORIES = [
             { keys: ["`"], label: "Toggle this list" },
             { keys: ["I"], label: "Inventory" },
             { keys: ["Q"], label: "Quest Log" },
+            { keys: ["M"], label: "Land Map" },
             { keys: ["T"], label: "World Grid Overlay" },
             { keys: ["U"], label: "Obstacle Hitboxes" },
             { keys: ["G"], label: "Player Hitboxes" },

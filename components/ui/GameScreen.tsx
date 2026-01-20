@@ -1,5 +1,6 @@
 import React, { RefObject } from 'react';
 import Scene from '../Scene';
+import LandScene from '../LandScene';
 import CombatScene from '../CombatScene';
 import { Game } from '../../game/core/Game';
 import { PlayerConfig, PlayerInput, InventoryItem, EntityStats } from '../../types';
@@ -57,6 +58,7 @@ interface GameScreenProps {
     setSelectedSlot: (slot: number) => void;
     setPlayerPosForMap: (pos: THREE.Vector3) => void;
     setIsTravelOpen: (open: boolean) => void;
+    setIsLandMapOpen: (open: boolean) => void;
     onCloseDialogue: () => void;
     onSelectStructure: (type: StructureType) => void;
     onExport: () => void;
@@ -111,6 +113,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     setSelectedSlot,
     setPlayerPosForMap,
     setIsTravelOpen,
+    setIsLandMapOpen,
     onCloseDialogue,
     onSelectStructure,
     onExport,
@@ -123,9 +126,18 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     onLoadingFinished,
     onVisualLoadingFinished
 }) => {
+    const handleMapToggle = (pos: THREE.Vector3) => {
+        setPlayerPosForMap(pos);
+        if (activeScene === 'land') {
+            setIsLandMapOpen(true);
+        } else {
+            setIsTravelOpen(true);
+        }
+    };
+
     return (
-        <div className="w-full h-full flex flex-col items-center justify-start pb-24">
-            <div className="w-full h-full bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
+        <div className="w-full h-full flex flex-col items-center justify-start pt-24 pb-24">
+            <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
                     {gameState === 'MENU' ? (
                         <MainMenu onStart={onStart} onShowEnemies={onShowEnemies} />
@@ -153,6 +165,24 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                     showGrid={showGrid}
                                     setShowGrid={setShowGrid}
                                 />
+                            ) : activeScene === 'land' ? (
+                                <LandScene 
+                                    config={config} 
+                                    manualInput={manualInput}
+                                    initialInventory={inventory}
+                                    onInventoryUpdate={setInventory}
+                                    onSlotSelect={setSelectedSlot}
+                                    onInteractionUpdate={onInteractionUpdate}
+                                    onGameReady={onGameReady}
+                                    onEnvironmentReady={() => {
+                                        onEnvironmentReady();
+                                        onVisualLoadingFinished();
+                                    }}
+                                    onToggleWorldMap={handleMapToggle}
+                                    onToggleQuestLog={onToggleQuestLog}
+                                    showGrid={showGrid}
+                                    isCombatActive={isCombatActive}
+                                />
                             ) : (
                                 <Scene 
                                     activeScene={activeScene}
@@ -167,7 +197,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                         onEnvironmentReady();
                                         onVisualLoadingFinished();
                                     }}
-                                    onToggleWorldMap={(pos) => { setPlayerPosForMap(pos); setIsTravelOpen(true); }}
+                                    onToggleWorldMap={handleMapToggle}
                                     onToggleQuestLog={onToggleQuestLog}
                                     showGrid={showGrid}
                                     isCombatActive={isCombatActive}
@@ -193,7 +223,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({
                                         stats={config.stats}
                                         isFemale={config.bodyType === 'female'}
                                         combatLog={combatLog}
-                                        onToggleWorldMap={() => { setPlayerPosForMap(game?.player.position || new THREE.Vector3()); setIsTravelOpen(true); }}
+                                        onToggleWorldMap={() => handleMapToggle(game?.player.position || new THREE.Vector3())}
                                         onToggleBestiary={onShowEnemies}
                                     />
                                     

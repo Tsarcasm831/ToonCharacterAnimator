@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
-import { WORLD_SHAPE_POINTS } from '../../data/worldShape';
+import { LAND_SHAPE_POINTS } from '../../data/landShape';
+import { getLandHeightAt } from './landTerrain';
 import { PlayerConfig } from '../../types';
 
 export class WorldEnvironment {
@@ -25,7 +26,7 @@ export class WorldEnvironment {
         let minX = Infinity, maxX = -Infinity;
         let minZ = Infinity, maxZ = -Infinity;
 
-        WORLD_SHAPE_POINTS.forEach(p => {
+        LAND_SHAPE_POINTS.forEach(p => {
             if (p[0] < minX) minX = p[0];
             if (p[0] > maxX) maxX = p[0];
             if (p[1] < minZ) minZ = p[1];
@@ -38,7 +39,7 @@ export class WorldEnvironment {
         const scale = 50.0; // Scale up the world
 
         const shape = new THREE.Shape();
-        WORLD_SHAPE_POINTS.forEach((p, i) => {
+        LAND_SHAPE_POINTS.forEach((p, i) => {
             // Flip Z because 2D shape Y is usually 3D Z, and sometimes winding order matters
             // p[0] is X, p[1] is Y (Z).
             const x = (p[0] - centerX) * scale;
@@ -63,7 +64,18 @@ export class WorldEnvironment {
         // Extrude creates along Z axis.
         geometry.rotateX(Math.PI / 2);
 
-        // 3. Material
+        // 3. Apply static terrain heightmap (mountains north, plateaus center, plains south)
+        const positions = geometry.attributes.position;
+        for (let i = 0; i < positions.count; i += 1) {
+            const x = positions.getX(i);
+            const z = positions.getZ(i);
+            positions.setY(i, positions.getY(i) + getLandHeightAt(x, z));
+        }
+
+        positions.needsUpdate = true;
+        geometry.computeVertexNormals();
+
+        // 4. Material
         const material = new THREE.MeshStandardMaterial({ 
             color: 0x4ade80, // Grass green
             roughness: 0.8,
@@ -102,7 +114,7 @@ export class WorldEnvironment {
 
     // Interface methods for compatibility with Player/Game
     getBiomeAt(pos: THREE.Vector3): { name: string, color: string } {
-        return { name: 'World', color: '#4ade80' };
+        return { name: 'Land', color: '#4ade80' };
     }
 
     damageObstacle(obj: THREE.Object3D, amount: number): string | null {

@@ -11,6 +11,7 @@ import * as THREE from 'three';
 
 import { GameScreen } from './components/ui/GameScreen';
 import { GlobalModals } from './components/ui/GlobalModals';
+import { LandMapModal } from './components/ui/LandMapModal';
 
 const INITIAL_QUESTS: Quest[] = [
   {
@@ -67,7 +68,7 @@ const App: React.FC = () => {
   const [currentBiome, setCurrentBiome] = useState({ name: 'Verdant Meadows', color: '#4ade80' });
   const [playerRotation, setPlayerRotation] = useState(0);
   const [isTravelOpen, setIsTravelOpen] = useState(false);
-  const [activeScene, setActiveScene] = useState<'dev' | 'world' | 'combat'>('dev');
+  const [activeScene, setActiveScene] = useState<'dev' | 'land' | 'combat'>('dev');
   const [notification, setNotification] = useState<string | null>(null);
   const [showGrid, setShowGrid] = useState(false);
   const [isCombatActive, setIsCombatActive] = useState(false);
@@ -84,7 +85,7 @@ const App: React.FC = () => {
   const [isShopkeeperChatOpen, setIsShopkeeperChatOpen] = useState(false);
   const [isForgeOpen, setIsForgeOpen] = useState(false);
   const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
-  const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
+  const [isLandMapOpen, setIsLandMapOpen] = useState(false);
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
   const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
   const [isEnemiesModalOpen, setIsEnemiesModalOpen] = useState(false);
@@ -400,7 +401,7 @@ const App: React.FC = () => {
     if (gameInstance.current) gameInstance.current['player'].isTalking = false;
   };
 
-  const handleTravel = (scene: 'dev' | 'world' | 'combat') => {
+  const handleTravel = (scene: 'dev' | 'land' | 'combat') => {
       if (scene === activeScene) { setIsTravelOpen(false); return; }
       setIsEnvironmentBuilt(false);
       setIsVisualLoadingDone(false);
@@ -411,7 +412,7 @@ const App: React.FC = () => {
       setTimeout(() => setActiveScene(scene), 100);
   };
 
-  const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || gameState !== 'PLAYING';
+  const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || gameState !== 'PLAYING';
 
   return (
     <div className="w-screen h-screen relative bg-slate-950 overflow-hidden font-sans text-slate-50">
@@ -483,8 +484,9 @@ const App: React.FC = () => {
             setShowGrid={setShowGrid}
             setInventory={setInventory}
             setSelectedSlot={setSelectedSlot}
-            setPlayerPosForMap={(pos) => { setPlayerPosForMap(pos); setIsTravelOpen(true); }}
+            setPlayerPosForMap={setPlayerPosForMap}
             setIsTravelOpen={setIsTravelOpen}
+            setIsLandMapOpen={setIsLandMapOpen}
             onCloseDialogue={closeDialogue}
             onSelectStructure={handleSelectStructure}
             onExport={handleExport}
@@ -540,6 +542,12 @@ const App: React.FC = () => {
         setIsCharacterStatsOpen={setIsCharacterStatsOpen}
         statsForModal={statsForModal}
         statsUnitName={statsUnitName}
+      />
+
+      <LandMapModal 
+        isOpen={isLandMapOpen}
+        onClose={() => setIsLandMapOpen(false)}
+        playerPos={playerPosForMap}
       />
 
       {notification && (

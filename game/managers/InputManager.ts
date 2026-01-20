@@ -89,6 +89,10 @@ export class InputManager {
         if (e.code === 'KeyQ') {
             this.onToggleQuestLog?.();
         }
+
+        if (e.code === 'KeyM') {
+            this.onToggleWorldMap?.();
+        }
         
         if (e.code === 'Backquote') {
             this.onToggleKeybinds?.();

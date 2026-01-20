@@ -27,7 +27,7 @@ import { EnemyPreview } from './EnemyPreview';
 import { CLASS_STATS } from '../../data/stats';
 import { Heart, Zap, Sword, Shield, Wind, Target, Map as MapIcon, ChevronRight, CheckCircle2, Circle, Navigation } from 'lucide-react';
 import { PlayerConfig, Quest } from '../../types';
-import { WORLD_SHAPE_POINTS } from '../../data/worldShape';
+import { LAND_SHAPE_POINTS } from '../../data/landShape';
 import { CITIES } from '../../data/lands/cities';
 
 const ENEMIES = [
@@ -82,7 +82,8 @@ export const HomeView: React.FC = () => (
 
 export const UnitsView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'enemies' | 'allies' | 'fauna'>('enemies');
-    
+    const activeScene = 'land';
+    const isLand = activeScene === 'land';
     const currentList = activeTab === 'enemies' ? ENEMIES : activeTab === 'allies' ? ALLIES : FAUNA;
 
     return (
@@ -161,7 +162,7 @@ export const UnitsView: React.FC = () => {
                                         {entity.description}
                                     </p>
                                     
-                                    {stats && (
+                                    {isLand && (
                                         <div className="mt-auto pt-4 grid grid-cols-3 gap-2">
                                             <StatBadge icon={Heart} label="HP" value={stats.health} color="text-red-500" />
                                             <StatBadge icon={Zap} label="MP" value={stats.chakra} color="text-blue-500" />
@@ -191,12 +192,12 @@ export const MissionView: React.FC<MissionViewProps> = ({ quests, config }) => {
     const [selectedQuestId, setSelectedQuestId] = useState<string | null>(quests[0]?.id || null);
     const selectedQuest = quests.find(q => q.id === selectedQuestId);
 
-    // Map logic similar to WorldMapModal
+    // Map logic similar to LandMapModal
     const worldScale = 50.0;
     let minX = Infinity, maxX = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
 
-    WORLD_SHAPE_POINTS.forEach(p => {
+    LAND_SHAPE_POINTS.forEach(p => {
         if (p[0] < minX) minX = p[0];
         if (p[0] > maxX) maxX = p[0];
         if (p[1] < minZ) minZ = p[1];
@@ -206,7 +207,7 @@ export const MissionView: React.FC<MissionViewProps> = ({ quests, config }) => {
     const centerX = (minX + maxX) / 2;
     const centerZ = (minZ + maxZ) / 2;
 
-    const worldPoints = WORLD_SHAPE_POINTS.map(p => ({
+    const worldPoints = LAND_SHAPE_POINTS.map(p => ({
         x: (p[0] - centerX) * worldScale,
         z: (p[1] - centerZ) * worldScale
     }));

@@ -261,6 +261,7 @@ export class Game {
     private onPointerLockChange() { if (document.pointerLockElement !== this.renderManager.renderer.domElement && this.isFirstPerson) this.toggleFirstPerson(false); }
 
     setManualInput(input: Partial<PlayerInput>) { this.inputManager.setManualInput(input); }
+    getActiveScene() { return this.sceneManager.activeScene; }
     setConfig(config: PlayerConfig) { this.config = config; Object.assign(this.player.config, config); this.soundManager.setVolume(config.globalVolume); }
     setInventory(items: (InventoryItem | null)[]) { this.player.inventory.setItems(items); }
     setSlotSelectCallback(cb: (index: number) => void) { this.inputManager.onSlotSelect = cb; }

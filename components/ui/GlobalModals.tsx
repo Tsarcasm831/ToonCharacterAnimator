@@ -12,6 +12,7 @@ const SpawnAnimalsModal = lazy(() => import('./SpawnAnimalsModal').then(m => ({ 
 const EnemiesModal = lazy(() => import('./EnemiesModal').then(m => ({ default: m.EnemiesModal })));
 const CharacterStatsModal = lazy(() => import('./CharacterStatsModal').then(m => ({ default: m.CharacterStatsModal })));
 const ShopkeeperChatModal = lazy(() => import('./ShopkeeperChatModal').then(m => ({ default: m.ShopkeeperChatModal })));
+const LandMapModal = lazy(() => import('./LandMapModal').then(m => ({ default: m.LandMapModal })));
 
 interface GlobalModalsProps {
     isInventoryOpen: boolean;
@@ -46,8 +47,8 @@ interface GlobalModalsProps {
 
     isTravelOpen: boolean;
     setIsTravelOpen: (open: boolean) => void;
-    activeScene: 'dev' | 'world' | 'combat';
-    handleTravel: (scene: 'dev' | 'world' | 'combat') => void;
+    activeScene: 'dev' | 'land' | 'combat';
+    handleTravel: (scene: 'dev' | 'land' | 'combat') => void;
 
     isSpawnModalOpen: boolean;
     setIsSpawnModalOpen: (open: boolean) => void;
@@ -60,6 +61,9 @@ interface GlobalModalsProps {
     setIsCharacterStatsOpen: (open: boolean) => void;
     statsForModal: EntityStats | null;
     statsUnitName: string;
+
+    isMapOpen: boolean;
+    setIsMapOpen: (open: boolean) => void;
 }
 
 export const GlobalModals: React.FC<GlobalModalsProps> = ({
@@ -72,8 +76,11 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
     isTravelOpen, setIsTravelOpen, activeScene, handleTravel,
     isSpawnModalOpen, setIsSpawnModalOpen, handleSpawnAnimal,
     isEnemiesModalOpen, setIsEnemiesModalOpen,
-    isCharacterStatsOpen, setIsCharacterStatsOpen, statsForModal, statsUnitName
+    isCharacterStatsOpen, setIsCharacterStatsOpen, statsForModal, statsUnitName,
+    isMapOpen, setIsMapOpen
 }) => {
+    const isLand = activeScene === 'land';
+
     return (
         <Suspense fallback={null}>
             {isInventoryOpen && (
@@ -140,6 +147,9 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({
             )}
             {isEnemiesModalOpen && (
                 <EnemiesModal isOpen={isEnemiesModalOpen} onClose={() => setIsEnemiesModalOpen(false)} />
+            )}
+            {isLand && isMapOpen && (
+                <LandMapModal isOpen={isMapOpen} onClose={() => setIsMapOpen(false)} />
             )}
             {isCharacterStatsOpen && (
                 <CharacterStatsModal 
