@@ -110,7 +110,7 @@ export class SceneManager {
             this.player.jumpVelocity = 0;
             this.player.isJumping = false;
             if (sceneName !== 'dev') {
-                setTimeout(() => this.onEnvironmentReady?.(), 100);
+                this.onEnvironmentReady?.();
             }
         }
     }

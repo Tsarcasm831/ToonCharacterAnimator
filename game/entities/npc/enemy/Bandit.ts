@@ -119,7 +119,7 @@ export class Bandit {
         const env = environment as any;
 
         // Snapping check for combat arena
-        if (env instanceof CombatEnvironment && this.state !== BanditState.ATTACK && this.state !== BanditState.RETREAT && !this.isStriking) {
+        if (env instanceof CombatEnvironment && this.state !== BanditState.ATTACK && this.state !== BanditState.RETREAT && this.state !== BanditState.CHASE && !this.isStriking) {
             const snapped = env.snapToGrid(this.position);
             this.position.lerp(snapped, 5.0 * dt);
         }

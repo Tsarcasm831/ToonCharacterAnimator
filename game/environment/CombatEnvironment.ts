@@ -123,7 +123,9 @@ export class CombatEnvironment {
             const neighbors = this.getNeighbors(r, c);
             for (const neighbor of neighbors) {
                 const key = `${neighbor.r},${neighbor.c}`;
-                if (!visited.has(key) && !this.isCellOccupied(neighbor.r, neighbor.c)) {
+                // Allow moving to the neighbor if it's not occupied OR if it is the destination
+                const isDest = neighbor.r === endGrid.r && neighbor.c === endGrid.c;
+                if (!visited.has(key) && (!this.isCellOccupied(neighbor.r, neighbor.c) || isDest)) {
                     visited.add(key);
                     queue.push({ ...neighbor, path: [...path, neighbor] });
                 }

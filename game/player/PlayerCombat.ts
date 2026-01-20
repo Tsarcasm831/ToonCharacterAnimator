@@ -17,21 +17,87 @@ import { Spider } from '../entities/animal/aggressive/Spider';
 import { Lizard } from '../entities/animal/neutral/Lizard';
 import { Horse } from '../entities/animal/tameable/Horse';
 
-interface Projectile {
+export interface Projectile {
     mesh: THREE.Object3D;
     velocity: THREE.Vector3;
     life: number;
     startPos: THREE.Vector3;
-    type: 'arrow' | 'fireball';
+    type: 'arrow' | 'fireball' | 'heal';
+    owner?: any; // To prevent friendly fire if needed
 }
 
 export class PlayerCombat {
     private static _tempBox1 = new THREE.Box3();
     private static _tempBox2 = new THREE.Box3();
     private static _tempVec = new THREE.Vector3();
+    public static activeProjectiles: Projectile[] = [];
 
-    static update(player: Player, dt: number, input: PlayerInput, environment: any, particleManager: ParticleManager, entities: any[] = []) {
-        // Update projectiles
+    public static spawnProjectile(
+        scene: THREE.Scene,
+        startPos: THREE.Vector3,
+        direction: THREE.Vector3,
+        type: 'arrow' | 'fireball' | 'heal',
+        owner?: any
+    ) {
+        const spawnPos = startPos.clone();
+        
+        let mesh: THREE.Object3D;
+        let speed = 20.0;
+        let life = 3.0;
+
+        if (type === 'fireball') {
+            const geo = new THREE.SphereGeometry(0.2, 16, 16);
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0xff4400,
+                emissive: 0xff8800,
+                emissiveIntensity: 5.0,
+                transparent: true,
+                opacity: 0.9
+            });
+            mesh = new THREE.Mesh(geo, mat);
+            speed = 25.0;
+            life = 2.0;
+        } else if (type === 'heal') {
+            const geo = new THREE.SphereGeometry(0.2, 16, 16);
+            const mat = new THREE.MeshStandardMaterial({
+                color: 0x00ff00,
+                emissive: 0x44ff44,
+                emissiveIntensity: 2.0,
+                transparent: true,
+                opacity: 0.8
+            });
+            mesh = new THREE.Mesh(geo, mat);
+            speed = 15.0;
+            life = 2.0;
+        } else {
+            // Arrow
+            mesh = ArrowBuilder.buildArrow();
+            if (owner && owner.model && owner.model.group) {
+                mesh.quaternion.copy(owner.model.group.quaternion);
+            }
+        }
+
+        mesh.position.copy(spawnPos);
+        scene.add(mesh);
+
+        const velocity = direction.clone().normalize().multiplyScalar(speed);
+        
+        this.activeProjectiles.push({
+            mesh,
+            velocity,
+            life,
+            startPos: spawnPos,
+            type,
+            owner
+        });
+
+        // Add initial particles
+        // Note: we need access to particleManager. 
+        // For now we skip immediate particle emit on spawn from static method unless we pass it.
+        // The update loop will handle trail particles if we want.
+    }
+
+    static updateProjectiles(dt: number, environment: any, particleManager: ParticleManager, entities: any[] = []) {
         for (let i = this.activeProjectiles.length - 1; i >= 0; i--) {
             const p = this.activeProjectiles[i];
             
@@ -53,6 +119,7 @@ export class PlayerCombat {
             }
 
             // Check Collision (Environment & Entities)
+            // Pass null as owner for environment check (not needed) but important for entity check
             if (this.checkProjectileCollision(p, environment, particleManager, entities)) {
                 if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
                 this.activeProjectiles.splice(i, 1);
@@ -72,8 +139,10 @@ export class PlayerCombat {
                 this.activeProjectiles.splice(i, 1);
             }
         }
-        
-        // Handle Inputs
+    }
+
+    static update(player: Player, dt: number, input: PlayerInput, environment: any, particleManager: ParticleManager, entities: any[] = []) {
+        // Player input handling
         const isFireballPressed = !!input.fireball;
         if (isFireballPressed && !player.wasFireballKeyPressed) {
             this.handleFireballInput(player, dt, input, particleManager);
@@ -281,8 +350,6 @@ export class PlayerCombat {
             }
         }
     }
-
-    private static activeProjectiles: Projectile[] = [];
 
     private static fireArrow(player: Player, particleManager: ParticleManager) {
         const spawnPos = player.mesh.position.clone();

@@ -7,6 +7,7 @@ import { Environment } from '../../../environment/Environment';
 import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
+import { PlayerCombat } from '../../../player/PlayerCombat';
 
 enum ArcherState { IDLE, PATROL, CHASE, DUEL, ATTACK, RETREAT }
 
@@ -33,6 +34,7 @@ export class Archer {
     private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
     private isFiring: boolean = false;
     private fireTimer: number = 0;
+    private hasFired: boolean = false;
     private speedFactor: number = 0;
     private lastStepCount: number = 0;
     private walkTime: number = 0;
@@ -55,7 +57,10 @@ export class Archer {
     private setState(newState: ArcherState) {
         if (this.state === newState) return;
         this.state = newState; this.stateTimer = 0; this.isFiring = (newState === ArcherState.ATTACK);
-        if (this.isFiring) this.fireTimer = 0;
+        if (this.isFiring) {
+            this.fireTimer = 0;
+            this.hasFired = false;
+        }
         if (newState === ArcherState.DUEL) { this.duelTimer = 1.0 + Math.random() * 2.0; this.strafeDir = Math.random() > 0.5 ? 1 : -1; }
     }
 
@@ -142,7 +147,17 @@ export class Archer {
                 else if (distToTarget < 8.0) this.setState(ArcherState.RETREAT);
                 else if (this.duelTimer <= 0 && this.attackCooldown <= 0) this.setState(ArcherState.ATTACK);
             }
-            if (this.state === ArcherState.ATTACK && this.fireTimer > 1.2) { this.setState(ArcherState.DUEL); this.attackCooldown = 2.0 + Math.random(); }
+            if (this.state === ArcherState.ATTACK) {
+                if (this.fireTimer > 0.6 && !this.hasFired && this.currentTarget) {
+                    const dir = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize();
+                    PlayerCombat.spawnProjectile(this.scene, this.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, 'arrow', this);
+                    this.hasFired = true;
+                }
+                if (this.fireTimer > 1.2) { 
+                    this.setState(ArcherState.DUEL); 
+                    this.attackCooldown = 2.0 + Math.random(); 
+                }
+            }
             if (this.state === ArcherState.RETREAT && (distToTarget > 12.0 || this.stateTimer > 2.0)) this.setState(ArcherState.DUEL);
         } else if (this.state !== ArcherState.PATROL && this.state !== ArcherState.IDLE) this.setState(ArcherState.PATROL);
 

@@ -1,12 +1,14 @@
 
 import * as THREE from 'three';
 import { Player } from '../player/Player';
+import { PlayerUtils } from '../player/PlayerUtils';
 import { InputManager } from '../managers/InputManager';
 import { SoundManager } from '../managers/SoundManager';
 import { ParticleManager } from '../managers/ParticleManager';
 import { BuilderManager } from '../builder/BuilderManager';
 import { EntityStats, PlayerConfig, PlayerInput, InventoryItem } from '../../types';
 import { PlayerDebug } from '../player/PlayerDebug';
+import { PlayerCombat } from '../player/PlayerCombat';
 import { RenderManager } from './RenderManager';
 import { EntityManager } from '../managers/EntityManager';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
@@ -123,6 +125,15 @@ export class Game {
 
         // Initialize Scene
         this.sceneManager.switchScene(activeScene, true);
+        
+        // Enable land terrain height calculation for land scenes
+        if (activeScene === 'land') {
+            PlayerUtils.setUseLandTerrain(true);
+            // Force player to ground level on initialization
+            const playerPos = this.player.mesh.position;
+            const groundHeight = PlayerUtils.getGroundHeight(playerPos, this.player.config, this.sceneManager.currentEnvironment?.obstacles);
+            this.player.mesh.position.y = groundHeight;
+        }
         this.sceneManager.onEnvironmentReady = () => this.onEnvironmentReady?.();
 
         // Build Level
@@ -390,6 +401,10 @@ export class Game {
             
             const playerInput = { ...input };
             if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
+            
+            // Update Projectiles independently of player state
+            PlayerCombat.updateProjectiles(delta, currentEnv, this.particleManager, currentEntities);
+            
             this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities);
             // Ensure player mesh and model group are in sync for target detection
             if (this.player.mesh && this.player.model?.group) {

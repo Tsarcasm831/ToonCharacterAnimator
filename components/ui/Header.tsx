@@ -3,18 +3,18 @@ import React from 'react';
 interface HeaderProps {
     biome?: { name: string, color: string };
     activeScene?: string;
-    onToggleWorldMap?: () => void;
+    onOpenTravel?: () => void;
     onToggleBestiary?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onToggleWorldMap, onToggleBestiary }) => {
+export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onOpenTravel, onToggleBestiary }) => {
     const isLand = activeScene === 'land';
 
     return (
         <div className="absolute top-6 md:top-8 left-0 w-full p-6 z-10 pointer-events-none flex flex-col md:flex-row items-start justify-between">
             <div className="flex gap-2 pointer-events-auto">
                 <button 
-                    onClick={onToggleWorldMap}
+                    onClick={onOpenTravel}
                     className="px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 hover:bg-blue-600/80 transition-all shadow-xl"
                 >
                     <span className="text-xs font-black uppercase tracking-widest text-white">Travel</span>

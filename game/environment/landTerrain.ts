@@ -1,6 +1,7 @@
 import { LAND_SHAPE_POINTS } from '../../data/landShape';
 
-const LAND_SCALE = 50.0;
+export const LAND_THICKNESS = 10.0;
+export const LAND_SCALE = 50.0;
 
 let minX = Infinity;
 let maxX = -Infinity;
@@ -14,14 +15,17 @@ LAND_SHAPE_POINTS.forEach((p) => {
     if (p[1] > maxZ) maxZ = p[1];
 });
 
-const centerX = (minX + maxX) / 2;
-const centerZ = (minZ + maxZ) / 2;
-const worldMinX = (minX - centerX) * LAND_SCALE;
-const worldMaxX = (maxX - centerX) * LAND_SCALE;
-const worldMinZ = (minZ - centerZ) * LAND_SCALE;
-const worldMaxZ = (maxZ - centerZ) * LAND_SCALE;
+export const centerX = (minX + maxX) / 2;
+export const centerZ = (minZ + maxZ) / 2;
+export const worldMinX = (minX - centerX) * LAND_SCALE;
+export const worldMaxX = (maxX - centerX) * LAND_SCALE;
+export const worldMinZ = (minZ - centerZ) * LAND_SCALE;
+export const worldMaxZ = (maxZ - centerZ) * LAND_SCALE;
 const xRange = Math.max(1, worldMaxX - worldMinX);
 const zRange = Math.max(1, worldMaxZ - worldMinZ);
+
+export const worldWidth = worldMaxX - worldMinX;
+export const worldDepth = worldMaxZ - worldMinZ;
 
 const smoothstep = (a: number, b: number, t: number) => {
     const x = Math.max(0, Math.min(1, (t - a) / (b - a)));
@@ -69,6 +73,8 @@ export const landCoordsToWorld = (x: number, z: number) => ({
 });
 
 export const getLandHeightAt = (x: number, z: number) => {
+    // Terrain smooth rectangle defined by the bounding box and edgeFade.
+    
     const northness = (z - worldMinZ) / zRange;
     const edgeFade = smoothstep(0.02, 0.08, (x - worldMinX) / xRange) *
         smoothstep(0.02, 0.08, (worldMaxX - x) / xRange) *
@@ -87,5 +93,10 @@ export const getLandHeightAt = (x: number, z: number) => {
     const heightNorth = plateaus + (mountains - plateaus) * northBlend;
     const height = heightSouth + (heightNorth - heightSouth) * smoothstep(0.4, 0.6, northness);
 
-    return height * edgeFade * (0.65 + 0.35 * centerWeight);
+    // Subtract LAND_THICKNESS to account for extrusion depth.
+    // Also drop the seabed well below water level (-18) at the edges using edgeFade inverse.
+    // When edgeFade is 1 (center), we subtract 0 extra.
+    // When edgeFade is 0 (edge), we subtract 20 extra, putting total height at -30.
+    return (height * edgeFade * (0.65 + 0.35 * centerWeight)) - LAND_THICKNESS - (1.0 - edgeFade) * 20.0;
 };
+

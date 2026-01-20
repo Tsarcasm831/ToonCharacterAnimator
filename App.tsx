@@ -180,12 +180,14 @@ const App: React.FC = () => {
     }
   };
 
-  const handleEnterWorld = (startInCombat: boolean = false) => {
+  const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false) => {
     setIsEnvironmentBuilt(false);
     setIsVisualLoadingDone(false);
     setIsCombatActive(false);
     setGameState('LOADING');
-    if (startInCombat) {
+    if (startInLand) {
+      setActiveScene('land');
+    } else if (startInCombat) {
       setActiveScene('combat');
     }
     // Spawn a spider for testing
