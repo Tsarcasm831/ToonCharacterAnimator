@@ -28,7 +28,7 @@ const drawTexture = (ctx: OffscreenCanvasRenderingContext2D, size: number, type:
                 ctx.fillRect(0, 0, size, size);
             }
             const bladeColors = ['#416128', '#537d32', '#6a9c42', '#345221', '#7ca856'];
-            for (let i = 0; i < 8500; i++) {
+            for (let i = 0; i < 4000; i++) {
                 const x = Math.random() * size;
                 const y = Math.random() * size;
                 const w = 1.5 + Math.random() * 2.5;

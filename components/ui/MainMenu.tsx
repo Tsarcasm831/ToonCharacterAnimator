@@ -42,14 +42,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies }) =>
                         >
                             Enter World
                         </button>
-
-                        <button 
-                            onClick={onShowEnemies}
-                            className="px-8 py-3 bg-black/40 text-white font-black text-sm uppercase tracking-widest rounded-full border border-white/10 hover:bg-red-600/40 hover:border-red-500/50 transition-all active:scale-95 flex items-center gap-2"
-                        >
-                            <span className="text-lg">👹</span>
-                            View Bestiary
-                        </button>
                         
                         <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mt-4 opacity-70">
                             Press Start to Begin

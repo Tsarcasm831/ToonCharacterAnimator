@@ -140,6 +140,22 @@ export class EntityManager {
         this.warlocks = [];
     }
 
+    /**
+     * Hides all static entities from the scene graph.
+     */
+    clearStaticEntities() {
+        const hideEntity = (entity: any) => {
+            if (entity && entity.group) {
+                entity.group.visible = false;
+            }
+            if (entity && entity.model?.group) {
+                entity.model.group.visible = false;
+            }
+        };
+
+        [this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.wolf].forEach(hideEntity);
+    }
+
     spawnCombatEncounter(type: string, count: number, arena: CombatEnvironment | null, reservedCells: { r: number; c: number }[] = []) {
         if (!arena) return;
         
@@ -154,8 +170,14 @@ export class EntityManager {
         for (let i = 0; i < count; i++) {
             let row, col, key;
             let attempts = 0;
+            const isFriendly = type.toLowerCase() === 'cleric';
+
             do {
-                row = Math.floor(Math.random() * 2) + 1; // Row 1 or 2
+                if (isFriendly) {
+                    row = Math.floor(Math.random() * 2) + 5; // Row 5 or 6 (Green side)
+                } else {
+                    row = Math.floor(Math.random() * 2) + 1; // Row 1 or 2 (Red side)
+                }
                 col = Math.floor(Math.random() * 4) + 2; // Middle columns
                 key = `${row},${col}`;
                 attempts++;
@@ -169,75 +191,14 @@ export class EntityManager {
                 const bandit = new Bandit(this.scene, snappedPos);
                 bandit.rotationY = 0;
                 this.bandits.push(bandit);
+            } else if (type.toLowerCase() === 'cleric') {
+                const cleric = new Cleric(this.scene, snappedPos);
+                cleric.rotationY = Math.PI; // Face enemy side
+                this.clerics.push(cleric);
             } else {
                 this.spawnAnimalGroup(type, 1, null, snappedPos);
             }
         }
-
-        // Spawn "all the other enemies"
-        const enemyTypes = ['assassin', 'archer', 'mage', 'berserker', 'rogue', 'warlock'];
-        enemyTypes.forEach(enemyType => {
-            let row, col, key;
-            let attempts = 0;
-            do {
-                row = Math.floor(Math.random() * 3); // Rows 0-2 for enemies
-                col = Math.floor(Math.random() * 8);
-                key = `${row},${col}`;
-                attempts++;
-            } while (occupied.has(key) && attempts < 50);
-
-            occupied.add(key);
-            arena.setCellOccupied(row, col, true);
-            const pos = arena.getWorldPosition(row, col);
-
-            switch(enemyType) {
-                case 'assassin':
-                    this.assassin.position.copy(pos);
-                    if (this.assassin.model?.group) this.assassin.model.group.position.copy(pos);
-                    break;
-                case 'archer':
-                    this.archer.position.copy(pos);
-                    if (this.archer.model?.group) this.archer.model.group.position.copy(pos);
-                    break;
-                case 'mage':
-                    this.mage.position.copy(pos);
-                    if (this.mage.model?.group) this.mage.model.group.position.copy(pos);
-                    break;
-                case 'berserker': this.berserkers.push(new Berserker(this.scene, pos)); break;
-                case 'rogue': this.rogues.push(new Rogue(this.scene, pos)); break;
-                case 'warlock': this.warlocks.push(new Warlock(this.scene, pos)); break;
-            }
-        });
-
-        // Spawn "all the friendlies (other than NPC and shopkeeper)"
-        const friendlyTypes = ['cleric', 'knight', 'paladin', 'monk', 'ranger', 'sentinel', 'guard'];
-        friendlyTypes.forEach(fType => {
-            let row, col, key;
-            let attempts = 0;
-            do {
-                row = Math.floor(Math.random() * 3) + 5; // Rows 5-7 for friendlies
-                col = Math.floor(Math.random() * 8);
-                key = `${row},${col}`;
-                attempts++;
-            } while (occupied.has(key) && attempts < 50);
-
-            occupied.add(key);
-            arena.setCellOccupied(row, col, true);
-            const pos = arena.getWorldPosition(row, col);
-
-            switch(fType) {
-                case 'cleric': this.clerics.push(new Cleric(this.scene, pos)); break;
-                case 'knight': this.knights.push(new Knight(this.scene, pos)); break;
-                case 'paladin': this.paladins.push(new Paladin(this.scene, pos)); break;
-                case 'monk': this.monks.push(new Monk(this.scene, pos)); break;
-                case 'ranger': this.rangers.push(new Ranger(this.scene, pos)); break;
-                case 'sentinel': this.sentinels.push(new Sentinel(this.scene, pos)); break;
-                case 'guard':
-                    this.guard.position.copy(pos);
-                    if (this.guard.model?.group) this.guard.model.group.position.copy(pos);
-                    break;
-            }
-        });
     }
 
     spawnAnimalGroup(type: string, count: number, environment: Environment | null, spawnCenter: THREE.Vector3) {
@@ -393,14 +354,12 @@ export class EntityManager {
         if (sceneName !== 'combat') {
             return this.tempEnemyTargets;
         }
+        // Only include dynamically spawned enemy units for combat scene
         const units = [
             ...this.bandits,
             ...this.berserkers,
             ...this.rogues,
-            ...this.warlocks,
-            this.assassin,
-            this.archer,
-            this.mage
+            ...this.warlocks
         ];
         for (const unit of units) {
             if (!unit) continue;
@@ -413,6 +372,7 @@ export class EntityManager {
 
     getEntitiesForScene(sceneName: string): any[] {
         if (sceneName === 'combat') {
+            // Combat scene only includes dynamically spawned units, not dev scene static entities
             return [
                 ...this.bandits,
                 ...this.clerics,
@@ -421,13 +381,9 @@ export class EntityManager {
                 ...this.monks,
                 ...this.rangers,
                 ...this.sentinels,
-                this.guard,
                 ...this.berserkers,
                 ...this.rogues,
-                ...this.warlocks,
-                this.assassin,
-                this.archer,
-                this.mage
+                ...this.warlocks
             ].filter(e => e !== null);
         } else if (sceneName === 'dev') {
             return [

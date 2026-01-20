@@ -52,13 +52,15 @@ export class SkirtBuilder {
         };
 
         const createdMeshes: THREE.Object3D[] = [];
-        const beltRadius = 0.24; // Matching BeltBuilder.ts
-        const torsoDepthScale = 0.7; // Matching BeltBuilder.ts
-        const skirtLen = 0.45;
+        const torsoRadiusBottom = 0.22;
+        const pantsScale = 1.06;
+        const beltRadius = torsoRadiusBottom * 0.95 * pantsScale; 
+        const torsoDepthScale = 0.72; 
+        const skirtLen = 0.55;
 
         if (parts.pelvis) {
             const skirtTopRad = beltRadius;
-            const skirtBotRad = skirtTopRad * 1.3;
+            const skirtBotRad = skirtTopRad * 1.8;
 
             const skirtGeo = new THREE.CylinderGeometry(
                 skirtTopRad, 
@@ -71,7 +73,7 @@ export class SkirtBuilder {
             skirtGeo.scale(1, 1, torsoDepthScale);
 
             const skirt = new THREE.Mesh(skirtGeo, skirtMat);
-            skirt.position.y = -skirtLen/2 + 0.05; // Adjusted to meet belt position (0.08 in torso)
+            skirt.position.y = -skirtLen/2 + 0.12; 
             skirt.castShadow = true;
 
             scaleUVs(skirt, skirtBotRad, skirtLen);

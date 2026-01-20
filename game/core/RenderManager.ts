@@ -97,6 +97,7 @@ export class RenderManager {
         });
 
         this.renderer.dispose();
+        this.renderer.forceContextLoss();
         if (this.container.contains(this.renderer.domElement)) {
             this.container.removeChild(this.renderer.domElement);
         }

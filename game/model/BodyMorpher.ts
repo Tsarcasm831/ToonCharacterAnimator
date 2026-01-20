@@ -105,8 +105,8 @@ export class BodyMorpher {
         if (isFemale) {
             torsoWidthMult = 0.85;
             shoulderScale = 1.0;
-            hipScale = 1.25;
-            baseLegSpacing = 0.125;
+            hipScale = 1.15;
+            baseLegSpacing = 0.14;
 
             if (this.parts.buttocks) {
                 this.parts.buttocks.visible = true;
@@ -132,7 +132,18 @@ export class BodyMorpher {
 
         this.parts.torsoContainer.scale.set(tW * torsoWidthMult, tH, tW * torsoWidthMult);
         this.parts.topCap.scale.set(shoulderScale, 0.8, shoulderScale);
+        
+        // Pelvis scaling should be relative to its parent (torso), 
+        // but torso is already scaled by torsoWidthMult. 
+        // We want hipScale to be an absolute multiplier for hip width.
         this.parts.pelvis.scale.set(hipScale, 1, hipScale);
+
+        // Fix: Reset PelvisMesh scale to ensure it recovers from any animation stretching
+        // The PelvisMesh is the skin layer, which should stay at (1, 1, 0.7)
+        const pelvisMesh = this.parts.pelvis.children.find((c: any) => c.name === 'PelvisMesh');
+        if (pelvisMesh) {
+            pelvisMesh.scale.set(1, 1, 0.7);
+        }
 
         const legX = baseLegSpacing * tW;
         this.parts.leftThigh.position.x = legX;
@@ -201,7 +212,12 @@ export class BodyMorpher {
             });
         }
 
-        if (this.parts.underwearBottom) this.parts.underwearBottom.visible = isNaked;
+        if (this.parts.underwearBottom) {
+            this.parts.underwearBottom.visible = isNaked;
+            // Reset underwear scale to match the reduced TorsoBuilder values
+            // This prevents underwear from poking through pants
+            this.parts.underwearBottom.scale.set(1.0, 1.0, 1.0);
+        }
         if (this.parts.maleBulge) this.parts.maleBulge.visible = !isFemale && !config.equipment.pants;
         const showBra = isNaked && isFemale;
         if (this.parts.braStrap) this.parts.braStrap.visible = showBra;

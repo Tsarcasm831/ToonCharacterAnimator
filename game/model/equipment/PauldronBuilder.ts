@@ -38,8 +38,9 @@ export class PauldronBuilder {
         plateGeo.scale(1.2, 0.8, 1.1);
         const plate = new THREE.Mesh(plateGeo, metalMat);
         
-        // Tilt the plate to sit on the shoulder
-        plate.rotation.z = isLeft ? 0.52 : -0.52; // ~30 degrees
+        // Tilt the plate to sit on the shoulder - tilted OUTWARD (away from body)
+        // Fixed: Reversed tilt direction so plates angle outward, not inward
+        plate.rotation.z = isLeft ? -0.52 : 0.52; // ~30 degrees outward
         plate.rotation.x = 0.1;
         plate.position.y = 0.05;
         plate.position.x = isLeft ? 0.02 : -0.02;
@@ -50,7 +51,8 @@ export class PauldronBuilder {
         const plate2Geo = new THREE.SphereGeometry(torsoRadiusTop * 0.45, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.4);
         plate2Geo.scale(1.1, 0.7, 1.05);
         const plate2 = new THREE.Mesh(plate2Geo, darkMetalMat);
-        plate2.rotation.z = isLeft ? 0.7 : -0.7; // Slightly more than the top plate
+        // Fixed: Reversed tilt direction
+        plate2.rotation.z = isLeft ? -0.7 : 0.7; // Slightly more than the top plate, outward
         plate2.rotation.x = 0.2;
         plate2.position.y = -0.02;
         plate2.position.x = isLeft ? 0.05 : -0.05;
@@ -62,7 +64,8 @@ export class PauldronBuilder {
         const trim = new THREE.Mesh(trimGeo, goldMat);
         trim.scale.set(1.2, 1.1, 0.5); // Flattened torus
         trim.rotation.x = Math.PI / 2;
-        trim.rotation.z = isLeft ? 0.52 : -0.52; // Match main plate tilt
+        // Fixed: Reversed tilt direction to match main plate
+        trim.rotation.z = isLeft ? -0.52 : 0.52; // Match main plate tilt
         trim.position.y = 0.05;
         trim.position.x = isLeft ? 0.02 : -0.02;
         group.add(trim);

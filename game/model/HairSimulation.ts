@@ -29,4 +29,8 @@ export class HairSimulation {
             }
         }
     }
+
+    dispose() {
+        // Cleanup logic for hair simulation if needed
+    }
 }

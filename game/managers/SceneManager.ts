@@ -59,6 +59,7 @@ export class SceneManager {
         
         // Reset dynamic entities
         this.entityManager.clearDynamicEntities();
+        this.entityManager.clearStaticEntities(); // Clear static entities too when switching to combat
 
         // Scene specific setup
         if (sceneName === 'dev') {
@@ -78,14 +79,16 @@ export class SceneManager {
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'combat') {
+            // Player on the green side (rows 5-7)
             this.player.mesh.position.set(0, 0, 10);
             const snap = this.combatEnvironment.snapToGrid(this.player.mesh.position);
             this.player.mesh.position.copy(snap);
             const playerGrid = this.combatEnvironment.getGridPosition(this.player.mesh.position);
             const reservedCells = playerGrid ? [playerGrid] : [];
 
-            // Spawn 2 Bandits on the red side for arena
-            this.entityManager.spawnCombatEncounter('bandit', 2, this.combatEnvironment, reservedCells);
+            // Spawn custom encounter: 1 Cleric on green side, 2 Bandits on red side
+            this.entityManager.spawnCombatEncounter('cleric', 1, this.combatEnvironment, reservedCells);
+            this.entityManager.spawnCombatEncounter('bandit', 2, this.combatEnvironment, [...reservedCells, ...this.entityManager.clerics.map(c => this.combatEnvironment.getGridPosition(c.position)).filter((p): p is {r: number, c: number} => p !== null)]);
             
             this.player.mesh.rotation.y = Math.PI; 
             this.renderManager.controls.target.set(0, 0, 0);

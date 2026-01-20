@@ -179,7 +179,7 @@ export class TerrainTextureFactory {
                     ctx.fillRect(0, 0, size, size);
                 }
                 const bladeColors = ['#416128', '#537d32', '#6a9c42', '#345221', '#7ca856'];
-                for(let i=0; i<8500; i++) {
+                for(let i=0; i<4000; i++) {
                     const x = Math.random() * size;
                     const y = Math.random() * size;
                     const w = 1.5 + Math.random() * 2.5;
@@ -329,39 +329,43 @@ export class TerrainTextureFactory {
 
         if (!TerrainTextureFactory.inflight.has(type)) {
             const inflight = (async () => {
-                const stored = TerrainTextureFactory.loadStoredTexture(type, placeholder);
-                if (stored) return;
+                try {
+                    const stored = TerrainTextureFactory.loadStoredTexture(type, placeholder);
+                    if (stored) return;
 
-                const staticLoaded = await TerrainTextureFactory.loadStaticTexture(type, placeholder);
-                if (staticLoaded) return;
+                    const staticLoaded = await TerrainTextureFactory.loadStaticTexture(type, placeholder);
+                    if (staticLoaded) return;
 
-                const worker = TerrainTextureFactory.getWorker();
-                if (worker) {
-                    const resolved = await new Promise<boolean>((resolve) => {
-                        const requestId = `${type}:${Date.now()}`;
-                        const timeout = window.setTimeout(() => {
-                            worker.removeEventListener('message', handleMessage);
-                            resolve(false);
-                        }, 1000);
-                        const handleMessage = (event: MessageEvent) => {
-                            const { id, bitmap } = event.data || {};
-                            if (id !== requestId) return;
-                            window.clearTimeout(timeout);
-                            worker.removeEventListener('message', handleMessage);
-                            if (bitmap) {
-                                TerrainTextureFactory.applyImageToTexture(placeholder, bitmap as ImageBitmap);
-                                TerrainTextureFactory.cacheToLocalStorage(type, bitmap as ImageBitmap);
-                            }
-                            resolve(!!bitmap);
-                        };
-                        worker.addEventListener('message', handleMessage);
-                        worker.postMessage({ id: requestId, type, size: TerrainTextureFactory.TEXTURE_SIZE });
-                    });
+                    const worker = TerrainTextureFactory.getWorker();
+                    if (worker) {
+                        const resolved = await new Promise<boolean>((resolve) => {
+                            const requestId = `${type}:${Date.now()}`;
+                            const timeout = window.setTimeout(() => {
+                                worker.removeEventListener('message', handleMessage);
+                                resolve(false);
+                            }, 1000);
+                            const handleMessage = (event: MessageEvent) => {
+                                const { id, bitmap } = event.data || {};
+                                if (id !== requestId) return;
+                                window.clearTimeout(timeout);
+                                worker.removeEventListener('message', handleMessage);
+                                if (bitmap) {
+                                    TerrainTextureFactory.applyImageToTexture(placeholder, bitmap as ImageBitmap);
+                                    TerrainTextureFactory.cacheToLocalStorage(type, bitmap as ImageBitmap);
+                                }
+                                resolve(!!bitmap);
+                            };
+                            worker.addEventListener('message', handleMessage);
+                            worker.postMessage({ id: requestId, type, size: TerrainTextureFactory.TEXTURE_SIZE });
+                        });
 
-                    if (resolved) return;
+                        if (resolved) return;
+                    }
+
+                    await TerrainTextureFactory.generateOnMainThread(type, placeholder);
+                } catch (err) {
+                    console.warn(`[TerrainTextureFactory] Failed to generate texture for ${type}:`, err);
                 }
-
-                await TerrainTextureFactory.generateOnMainThread(type, placeholder);
             })();
 
             TerrainTextureFactory.inflight.set(type, inflight);

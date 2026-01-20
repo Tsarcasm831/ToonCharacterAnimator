@@ -126,10 +126,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({
     return (
         <div className="w-full h-full flex flex-col items-center justify-start pb-24">
             <div className="w-full h-full bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
-                <div className="absolute top-4 left-4 z-20 px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-white/70">Game Window</span>
-                </div>
-                
                 <div className="absolute inset-0">
                     {gameState === 'MENU' ? (
                         <MainMenu onStart={onStart} onShowEnemies={onShowEnemies} />

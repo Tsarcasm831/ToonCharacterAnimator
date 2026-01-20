@@ -55,6 +55,7 @@ export class TorsoBuilder {
         const pelvisGeo = new THREE.CylinderGeometry(torsoRadiusBottom * 0.95, torsoRadiusBottom * 0.55, pelvisHeight, 16);
         pelvisGeo.scale(1, 1, 0.7);
         const pelvisMesh = new THREE.Mesh(pelvisGeo, matPelvis);
+        pelvisMesh.name = 'PelvisMesh';
         pelvisMesh.position.y = -pelvisHeight / 2;
         pelvis.add(pelvisMesh);
 
@@ -70,13 +71,15 @@ export class TorsoBuilder {
         pelvis.add(underwearBottom);
 
         const uPelvis = new THREE.Mesh(pelvisGeo, materials.underwear);
-        uPelvis.scale.set(1.02, 1.02, 1.02);
+        // Reduced scale to prevent poking through pants (was 1.02)
+        uPelvis.scale.set(1.01, 0.98, 1.01);
         uPelvis.position.y = -pelvisHeight / 2;
         underwearBottom.add(uPelvis);
 
         const uCrotch = new THREE.Mesh(crotchGeo, materials.underwear);
-        uCrotch.scale.set(1.02, 1.02, 1.02);
-        uCrotch.position.y = -pelvisHeight;
+        // Reduced scale and moved up slightly to prevent poking through pants bottom
+        uCrotch.scale.set(0.98, 0.95, 0.95);
+        uCrotch.position.y = -pelvisHeight + 0.01;
         underwearBottom.add(uCrotch);
 
         // Male Bulge (Underwear)

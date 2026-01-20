@@ -23,8 +23,10 @@ export class CombatInteractionManager {
     
     public isActive: boolean = false;
     
-    public onUnitSelect?: (stats?: EntityStats) => void;
+    public onUnitSelect?: (stats?: EntityStats, unit?: any) => void;
     public onShowCharacterStats?: (stats?: EntityStats, name?: string) => void;
+    public onShowTooltip?: (stats?: EntityStats, name?: string, screenX?: number, screenY?: number) => void;
+    public onHideTooltip?: () => void;
 
     constructor(entityManager: EntityManager, renderManager: RenderManager, player: Player) {
         this.entityManager = entityManager;
@@ -37,11 +39,13 @@ export class CombatInteractionManager {
     }
 
     public handleMouseDown(e: MouseEvent, combatEnvironment: CombatEnvironment) {
+        if (!this.isActive) return;
         if (e.button !== 0) return;
 
+        const rect = this.renderManager.renderer.domElement.getBoundingClientRect();
         const mouse = new THREE.Vector2(
-            (e.clientX / window.innerWidth) * 2 - 1,
-            -(e.clientY / window.innerHeight) * 2 + 1
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
         );
         
         this.raycaster.setFromCamera(mouse, this.renderManager.camera);
@@ -60,26 +64,44 @@ export class CombatInteractionManager {
             });
 
             if (foundUnit) {
+                // Check if this is a friendly unit (player or cleric-type)
+                const isFriendly = this.isFriendlyUnit(foundUnit);
+                
                 this.draggingUnit = foundUnit;
                 this.isWaitingForClick = true;
                 this.mouseDownScreenPos.set(e.clientX, e.clientY);
                 
                 const unitPos = this.getUnitPosition(foundUnit);
                 this.draggingUnitStartPos = unitPos ? unitPos.clone() : null;
-                if (unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
+                
+                // Only allow dragging friendly units
+                if (isFriendly && unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
                     this.dragOffset.sub(unitPos);
                 }
             }
         } else {
+            // Clicked off any unit - deselect
             if (this.selectedUnit) {
                 this.setUnitHighlight(this.selectedUnit, false);
                 this.selectedUnit = null;
+                this.onUnitSelect?.(undefined, null);
             }
         }
     }
 
+    private isFriendlyUnit(unit: any): boolean {
+        if (unit === this.player) return true;
+        // Check unit type - clerics, knights, paladins, monks, rangers, sentinels are friendly
+        const friendlyTypes = ['Cleric', 'Knight', 'Paladin', 'Monk', 'Ranger', 'Sentinel'];
+        const unitType = unit?.constructor?.name || '';
+        return friendlyTypes.includes(unitType);
+    }
+
     public handleMouseMove(e: MouseEvent) {
         if (!this.isActive || !this.draggingUnit) return;
+        
+        // Only allow dragging friendly units
+        if (!this.isFriendlyUnit(this.draggingUnit)) return;
 
         const dist = this.mouseDownScreenPos.distanceTo(new THREE.Vector2(e.clientX, e.clientY));
         if (dist > 5) {
@@ -88,9 +110,10 @@ export class CombatInteractionManager {
         }
 
         if (!this.isWaitingForClick) {
+            const rect = this.renderManager.renderer.domElement.getBoundingClientRect();
             const mouse = new THREE.Vector2(
-                (e.clientX / window.innerWidth) * 2 - 1,
-                -(e.clientY / window.innerHeight) * 2 + 1
+                ((e.clientX - rect.left) / rect.width) * 2 - 1,
+                -((e.clientY - rect.top) / rect.height) * 2 + 1
             );
             this.raycaster.setFromCamera(mouse, this.renderManager.camera);
             const target = new THREE.Vector3();
@@ -116,18 +139,22 @@ export class CombatInteractionManager {
             
             if (isNowSelected) {
                 const stats = this.draggingUnit === this.player ? this.player.status.getStats() : this.draggingUnit.stats;
-                this.onUnitSelect?.(stats);
+                this.onUnitSelect?.(stats, this.draggingUnit);
             } else {
-                this.onUnitSelect?.(undefined);
+                this.onUnitSelect?.(undefined, null);
             }
         } else {
-            // Snap to grid
-            if (combatEnvironment) {
+            // Snap to grid - only for friendly units
+            if (combatEnvironment && this.isFriendlyUnit(this.draggingUnit)) {
                 const unitPos = this.getUnitPosition(this.draggingUnit);
                 if (unitPos) {
                     const targetGrid = combatEnvironment.getGridPosition(unitPos);
                     const combatEntities = this.entityManager.getEntitiesForScene('combat');
                     const units = [this.player, ...combatEntities];
+                    
+                    // Check if target is on friendly side (rows 4-7 are green/friendly)
+                    const isOnFriendlySide = targetGrid ? targetGrid.r >= 4 : false;
+                    
                     const isTargetOccupied = targetGrid
                         ? units.some(u => {
                             if (u === this.draggingUnit) return false;
@@ -138,11 +165,16 @@ export class CombatInteractionManager {
                         })
                         : true;
 
-                    if (isTargetOccupied && this.draggingUnitStartPos) {
-                        const snapped = combatEnvironment.snapToGrid(this.draggingUnitStartPos);
-                        this.setUnitPosition(this.draggingUnit, snapped);
-                    } else if (!isTargetOccupied) {
-                        const snapped = combatEnvironment.snapToGrid(unitPos);
+                    // Only allow placement on friendly side and unoccupied cells
+                    if ((isTargetOccupied || !isOnFriendlySide) && this.draggingUnitStartPos) {
+                        // Return to original position
+                        const startGrid = combatEnvironment.getGridPosition(this.draggingUnitStartPos);
+                        if (startGrid) {
+                            const snapped = combatEnvironment.getWorldPosition(startGrid.r, startGrid.c);
+                            this.setUnitPosition(this.draggingUnit, snapped);
+                        }
+                    } else if (!isTargetOccupied && isOnFriendlySide && targetGrid) {
+                        const snapped = combatEnvironment.getWorldPosition(targetGrid.r, targetGrid.c);
                         this.setUnitPosition(this.draggingUnit, snapped);
                     }
                 }
@@ -156,9 +188,10 @@ export class CombatInteractionManager {
     public handleContextMenu(e: MouseEvent) {
         if (!this.isActive) return;
         
+        const rect = this.renderManager.renderer.domElement.getBoundingClientRect();
         const mouse = new THREE.Vector2(
-            (e.clientX / window.innerWidth) * 2 - 1,
-            -(e.clientY / window.innerHeight) * 2 + 1
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
         );
         this.raycaster.setFromCamera(mouse, this.renderManager.camera);
         
@@ -186,8 +219,12 @@ export class CombatInteractionManager {
                     unitName = foundUnit.constructor.name;
                 }
 
-                this.onShowCharacterStats?.(stats, unitName);
+                // Show tooltip at mouse position instead of modal
+                this.onShowTooltip?.(stats, unitName, e.clientX, e.clientY);
             }
+        } else {
+            // Hide tooltip when right-clicking empty space
+            this.onHideTooltip?.();
         }
     }
     

@@ -73,7 +73,7 @@ export class Game {
     public onShopkeeperTrigger?: () => void;
     public onForgeTrigger?: () => void;
     public onShowCharacterStats?: (stats?: EntityStats, name?: string) => void;
-    public onUnitSelect?: (stats?: EntityStats) => void;
+    public onUnitSelect?: (stats?: EntityStats, unit?: any) => void;
     public onAttackHit?: (type: string, count: number) => void;
     public onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
     public onEnvironmentReady?: () => void;
@@ -118,7 +118,7 @@ export class Game {
         this.sceneManager.setEntityManager(this.entityManager);
 
         this.combatManager = new CombatInteractionManager(this.entityManager, this.renderManager, this.player);
-        this.combatManager.onUnitSelect = (stats) => this.onUnitSelect?.(stats);
+        this.combatManager.onUnitSelect = (stats, unit) => this.onUnitSelect?.(stats, unit);
         this.combatManager.onShowCharacterStats = (stats, name) => this.onShowCharacterStats?.(stats, name);
 
         // Initialize Scene
@@ -232,6 +232,8 @@ export class Game {
         this.combatManager.setCombatActive(active);
         if (active && this.sceneManager.activeScene === 'combat') {
             this.config.isAssassinHostile = true;
+            // Turn off red/green grid coloration when combat starts
+            this.sceneManager.combatEnvironment.setCombatStarted(true);
         }
     }
 

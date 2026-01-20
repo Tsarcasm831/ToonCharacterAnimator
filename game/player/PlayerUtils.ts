@@ -80,8 +80,13 @@ export class PlayerUtils {
         return 0;
     }
 
-    static getGroundHeight(pos: THREE.Vector3, config: PlayerConfig, obstacles: THREE.Object3D[]): number {
+    static getGroundHeight(pos: THREE.Vector3, config: PlayerConfig, obstacles: THREE.Object3D[] | undefined | null): number {
         let highest = this.getTerrainHeight(pos.x, pos.z);
+        
+        // Safety check - if obstacles is not iterable, return terrain height
+        if (!obstacles || !Array.isArray(obstacles)) {
+            return highest;
+        }
         
         const width = (config as any).torsoWidth ? 0.6 * config.torsoWidth : 0.6;
         const depth = width * 0.7;

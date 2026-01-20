@@ -32,34 +32,44 @@ export class CapeBuilder {
         });
 
         // Cape body - flowing shape using a curved plane
-        const capeWidth = 0.7;
-        const capeLength = 0.9;
-        const capeGeo = new THREE.PlaneGeometry(capeWidth, capeLength, 8, 12);
+        // Increased width and length for better coverage
+        const capeWidth = 0.65;
+        const capeLength = 0.85;
+        const capeGeo = new THREE.PlaneGeometry(capeWidth, capeLength, 12, 16);
         
-        // Sculpt the cape shape
+        // Sculpt the cape shape - curve it away from the body
         const pos = capeGeo.attributes.position;
         const v = new THREE.Vector3();
         
         for (let i = 0; i < pos.count; i++) {
             v.fromBufferAttribute(pos, i);
             
-            // Taper at bottom
+            // Taper at bottom for elegant flow
             const t = (v.y + capeLength / 2) / capeLength; // 0 at bottom, 1 at top
-            v.x *= 0.6 + t * 0.4;
+            v.x *= 0.5 + t * 0.5;
             
-            // Curve outward at bottom
-            v.z = (1 - t) * 0.15;
+            // Curve AWAY from body (negative Z) - more pronounced curve
+            // Top stays close to body, bottom flows outward
+            const curveAmount = (1 - t) * 0.25;
+            v.z = -curveAmount;
             
-            // Add slight wave
-            v.z += Math.sin(v.x * 4) * 0.02 * (1 - t);
+            // Add gentle wave for natural fabric look
+            v.z -= Math.sin(v.x * 5) * 0.015 * (1 - t);
+            
+            // Slight wrap around sides at top
+            if (t > 0.7) {
+                const wrapFactor = (t - 0.7) / 0.3;
+                v.z -= Math.abs(v.x) * wrapFactor * 0.15;
+            }
             
             pos.setXYZ(i, v.x, v.y, v.z);
         }
         capeGeo.computeVertexNormals();
 
         const cape = new THREE.Mesh(capeGeo, capeMat);
-        cape.position.set(0, -0.1, -0.22);
-        cape.rotation.x = 0.1;
+        // Position further back to avoid clipping with body
+        cape.position.set(0, 0.05, -0.28);
+        cape.rotation.x = 0.15; // Slight forward tilt
         cape.castShadow = true;
         cape.receiveShadow = true;
         
@@ -69,11 +79,11 @@ export class CapeBuilder {
             createdMeshes.push(cape);
         }
 
-        // Shoulder drape - connects cape to shoulders
-        const drapeGeo = new THREE.CylinderGeometry(0.32, 0.28, 0.08, 16, 1, true, Math.PI * 0.3, Math.PI * 1.4);
+        // Shoulder drape - connects cape to shoulders, wraps around back
+        const drapeGeo = new THREE.CylinderGeometry(0.30, 0.26, 0.06, 16, 1, true, Math.PI * 0.25, Math.PI * 1.5);
         const drape = new THREE.Mesh(drapeGeo, capeMat);
-        drape.position.set(0, 0.32, -0.05);
-        drape.rotation.x = -0.2;
+        drape.position.set(0, 0.34, -0.08);
+        drape.rotation.x = -0.15;
         drape.castShadow = true;
         
         if (parts.torsoContainer) {

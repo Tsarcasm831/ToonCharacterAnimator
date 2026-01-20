@@ -247,7 +247,8 @@ export class Player {
                 this.summonTimer = 0;
             } else {
                 this.summonTimer += dt;
-                if (this.summonTimer > 3.0) {
+                // Extended to 6.0s for slower animation with 3s crouch hold
+                if (this.summonTimer > 6.0) {
                     this.isSummoning = false;
                     this.summonTimer = 0;
                 }
