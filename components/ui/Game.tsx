@@ -13,7 +13,7 @@ import { BuilderUI } from './BuilderUI';
 import { ControlPanel } from './ControlPanel';
 import * as THREE from 'three';
 
-export const GameScreen: React.FC = () => {
+export const Game: React.FC = () => {
     const {
         gameState: gameStateContext,
         playerState,
@@ -180,7 +180,7 @@ export const GameScreen: React.FC = () => {
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-start pt-24 pb-24">
+        <div className="w-full h-full flex flex-col items-center justify-start">
             <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
                     {gameState === 'MENU' ? (

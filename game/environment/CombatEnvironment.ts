@@ -8,8 +8,8 @@ export class CombatEnvironment {
     public obstacles: THREE.Object3D[] = [];
     
     // Grid Config
-    public readonly GRID_ROWS = 8;
-    public readonly GRID_COLS = 7;
+    public readonly GRID_ROWS = 13;
+    public readonly GRID_COLS = 13;
     private readonly HEX_SIZE = 1.5; // Increased size for better spacing on small grid
     private readonly HEX_HEIGHT = 0.5;
 

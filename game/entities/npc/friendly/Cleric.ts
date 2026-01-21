@@ -68,9 +68,6 @@ export class Cleric extends HumanoidEntity {
         this.lastFramePos.copy(this.position); // Assuming lastFramePos was used for velocity calc if present in base? Base uses velocity prop.
     }
     
-    // Add lastFramePos if logic depends on it, though base might not use it directly for rendering
-    private lastFramePos: THREE.Vector3 = new THREE.Vector3();
-
     private setState(newState: ClericState) {
         if (this.state === newState) return;
         this.state = newState;

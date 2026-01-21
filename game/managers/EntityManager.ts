@@ -80,6 +80,7 @@ export class EntityManager {
     private readonly tempEyePos = new THREE.Vector3();
     private readonly eyeOffset = new THREE.Vector3(0, 1.7, 0);
     private readonly tempEnemyTargets: { position: THREE.Vector3, isDead?: boolean }[] = [];
+    private lastEnemyCount: number = 0;
 
     constructor(scene: THREE.Scene, environment: any | null, initialConfig: PlayerConfig) {
         this.scene = scene;
@@ -172,19 +173,19 @@ export class EntityManager {
         for (let i = 0; i < count; i++) {
             let row, col, key;
             let attempts = 0;
-            const isFriendly = type.toLowerCase() === 'cleric' || type.toLowerCase() === 'archer';
+            const isFriendly = type.toLowerCase() === 'cleric' || type.toLowerCase() === 'ranger';
 
             do {
                 if (isFriendly) {
-                    // Friendly side: Rows 4-6 (Indices)
-                    // Row 7 is Bench
-                    row = Math.floor(Math.random() * 3) + 4; 
+                    // Friendly side: Rows 7-10 (Indices) for 13x13 grid
+                    // Row 11-12 is Bench
+                    row = Math.floor(Math.random() * 4) + 7; 
                 } else {
-                    // Enemy side: Rows 1-3 (Indices)
-                    // Row 0 is Bench
-                    row = Math.floor(Math.random() * 3) + 1; 
+                    // Enemy side: Rows 2-5 (Indices) for 13x13 grid
+                    // Row 0-1 is Bench
+                    row = Math.floor(Math.random() * 4) + 2; 
                 }
-                col = Math.floor(Math.random() * 7); // Cols 0-6
+                col = Math.floor(Math.random() * 7) + 3; // Cols 3-9 (central area)
                 key = `${row},${col}`;
                 attempts++;
             } while (occupied.has(key) && attempts < 50);
@@ -202,9 +203,13 @@ export class EntityManager {
                 const cleric = new Cleric(this.scene, snappedPos);
                 cleric.rotationY = Math.PI; // Face enemy side
                 this.clerics.push(cleric);
+            } else if (type.toLowerCase() === 'ranger') {
+                const ranger = new Ranger(this.scene, snappedPos, '#228b22');
+                ranger.rotationY = Math.PI; // Face enemy side
+                this.rangers.push(ranger);
             } else if (type.toLowerCase() === 'archer') {
                 const archer = new Archer(this.scene, snappedPos);
-                archer.rotationY = Math.PI; // Face enemy side
+                archer.rotationY = 0; // Face player side
                 this.combatArchers.push(archer);
             } else {
                 this.spawnAnimalGroup(type, 1, null, snappedPos);
@@ -286,7 +291,11 @@ export class EntityManager {
         const playerTargets = this.getPlayerTargets(activeScene);
 
         if (activeScene === 'combat' && isCombatActive) {
-            console.log(`[EntityManager] Updating combat scene. Enemy targets: ${enemyTargets.length}, Player pos: ${this.tempPlayerPos.x},${this.tempPlayerPos.z}`);
+            // Only log when enemy count changes
+            if (enemyTargets.length !== this.lastEnemyCount) {
+                console.log(`[EntityManager] Enemy count changed: ${this.lastEnemyCount} -> ${enemyTargets.length}`);
+                this.lastEnemyCount = enemyTargets.length;
+            }
         }
 
         const sceneEntities = this.getEntitiesForScene(activeScene);

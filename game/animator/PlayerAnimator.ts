@@ -18,29 +18,29 @@ export class PlayerAnimator {
         const damp = 10 * dt;
 
         // 1. Core Status Overrides (Ragdoll, Death, Ledge)
-        if (player.isDragged || player.status.recoverTimer > 0) {
+        if (player.isDragged || (player.status && player.status.recoverTimer > 0)) {
             this.status.animateRagdoll(player, parts, dt);
             this.animateFace(player, dt);
             return;
         } 
-        if (player.status.isDead) {
+        if (player.status && player.status.isDead) {
             this.status.animateDeath(player, parts, dt, damp);
             return;
         } 
-        if (player.locomotion.isLedgeGrabbing) {
+        if (player.locomotion && player.locomotion.isLedgeGrabbing) {
             this.action.animateClimb(player, parts, dt, damp);
             this.animateFace(player, dt);
             return;
         }
 
         // 2. Action Overrides (Priority Over Movement)
-        if (player.combat.isFireballCasting) {
+        if (player.combat && player.combat.isFireballCasting) {
             this.action.animateFireball(player, parts, dt, damp);
             this.animateFace(player, dt);
             return; // Full body override
         } 
         
-        if (player.combat.isFiringBow) {
+        if (player.combat && player.combat.isFiringBow) {
             this.action.animateFireArrow(player, parts, dt, damp);
             // Bow allows moving, so we don't return here yet, 
             // but we MUST ensure base layer doesn't overwrite arms.
@@ -56,12 +56,12 @@ export class PlayerAnimator {
             this.animateFace(player, dt);
             return;
         } 
-        if (player.combat.isSummoning) {
+        if (player.combat && player.combat.isSummoning) {
             this.action.animateSummon(player, parts, dt, damp);
             this.animateFace(player, dt);
             return;
         } 
-        if (player.combat.isFishing) {
+        if (player.combat && player.combat.isFishing) {
             this.action.animateFishing(player, parts, dt, damp, obstacles);
             this.animateFace(player, dt);
             return;
@@ -83,22 +83,18 @@ export class PlayerAnimator {
             FishingAction.reset(player, dt);
         }
 
-        // State Machine Transitions
-        if (player.locomotion.isJumping) {
-            this.stateMachine.changeState(this.jumpState);
+        if (player.locomotion && player.locomotion.isJumping) {
+            this.locomotion.animateJump(player, parts, dt, damp, input);
         } else if (isMoving) {
-            this.stateMachine.changeState(this.moveState);
+            this.locomotion.animateMovement(player, parts, dt, damp, input);
         } else {
-            this.stateMachine.changeState(this.idleState);
+            this.locomotion.animateIdle(player, parts, damp);
         }
 
-        // Update State Machine
-        this.stateMachine.update(dt, input, obstacles);
-
         // 4. Combat / Interaction Overlay Layer
-        if (player.combat.isAxeSwing) {
+        if (player.combat && player.combat.isAxeSwing) {
             this.action.animateAxeSwing(player, parts, dt, damp, isMoving);
-        } else if (player.combat.isPunch) {
+        } else if (player.combat && player.combat.isPunch) {
             this.action.animatePunch(player, parts, dt, damp, isMoving);
         } else if (player.isInteracting) {
             this.action.animateInteract(player, parts, dt, damp);

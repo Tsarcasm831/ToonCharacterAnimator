@@ -63,8 +63,6 @@ export class Assassin extends HumanoidEntity {
         this.lastFramePos.copy(this.position);
     }
     
-    private lastFramePos: THREE.Vector3 = new THREE.Vector3();
-
     private setState(newState: AssassinState) {
         if (this.state === newState) return;
         this.state = newState; 
