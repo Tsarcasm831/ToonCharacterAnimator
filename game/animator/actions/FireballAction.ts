@@ -4,7 +4,8 @@ import { playerModelResetFeet } from '../AnimationUtils';
 
 export class FireballAction {
     static animate(player: any, parts: any, dt: number, damp: number) {
-        const t = player.fireballTimer;
+        const combat = player.combat ?? player;
+        const t = combat.fireballTimer ?? 0;
         const lerp = THREE.MathUtils.lerp;
         const sin = Math.sin;
         const cos = Math.cos;

@@ -306,6 +306,7 @@ export class EntityManager {
             const visible = activeScene === 'combat' ? true : isVisible(entity);
             const animate = activeScene === 'combat' ? true : isNear(entity);
             
+            if (entity.group) entity.group.visible = visible;
             if (entity.model?.group) entity.model.group.visible = visible;
             
             if (visible) {
@@ -439,6 +440,12 @@ export class EntityManager {
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage,
                 this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
+                ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
+            ].filter(e => e !== null);
+        } else if (sceneName === 'land') {
+            return [
+                this.npc, this.blacksmith, this.shopkeeper, this.guard,
+                this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs,
                 ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
             ].filter(e => e !== null);
         }

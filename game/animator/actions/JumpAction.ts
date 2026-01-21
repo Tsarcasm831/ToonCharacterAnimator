@@ -6,7 +6,7 @@ import { playerModelResetFeet, animateBreathing } from '../AnimationUtils';
 export class JumpAction {
     static animate(player: any, parts: any, dt: number, damp: number, input: PlayerInput, skipRightArm: boolean = false) {
         const lerp = THREE.MathUtils.lerp;
-        const vel = player.jumpVelocity;
+        const vel = player.locomotion?.jumpVelocity ?? player.jumpVelocity ?? 0;
         const isMoving = Math.abs(input.x) > 0 || Math.abs(input.y) > 0;
         const isHolding = !!player.config.selectedItem;
 

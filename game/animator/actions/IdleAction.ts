@@ -6,11 +6,12 @@ export class IdleAction {
     static animate(player: any, parts: any, damp: number, skipRightArm: boolean = false) {
         const t = Date.now() * 0.002;
         const isMale = player.config.bodyType === 'male';
+        const isCombatStance = player.combat?.isCombatStance ?? player.isCombatStance ?? false;
         
         // Breathing Effect
         animateBreathing(player, parts, t, 1.0);
 
-        if (player.isCombatStance) {
+        if (isCombatStance) {
             this.animateCombatStance(player, parts, damp, t, skipRightArm);
             return;
         }
