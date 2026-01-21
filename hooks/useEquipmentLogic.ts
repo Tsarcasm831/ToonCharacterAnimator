@@ -42,6 +42,7 @@ export function useEquipmentLogic({
         if (slotId === 'mask') eq.mask = true;
         if (slotId === 'hood') eq.hood = true;
         if (slotId === 'shoulder') eq.shoulders = true;
+        if (slotId === 'weapon') next.selectedItem = item;
         next.equipment = eq;
         return next;
     });
@@ -73,6 +74,7 @@ export function useEquipmentLogic({
             if (slotId === 'mask') eq.mask = false;
             if (slotId === 'hood') eq.hood = false;
             if (slotId === 'shoulder') eq.shoulders = false;
+            if (slotId === 'weapon') next.selectedItem = null;
             next.equipment = eq;
             return next;
         });

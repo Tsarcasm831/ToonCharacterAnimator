@@ -22,7 +22,7 @@ export class WeaponAction {
         const p = (combat.axeSwingTimer ?? 0) / duration;
         const lerp = THREE.MathUtils.lerp;
         
-        const actionDamp = 20 * dt; 
+        const actionDamp = 15 * dt; 
 
         // Offset to align torso forward if hips are twisted in combat stance idle
         const torsoOffset = (isCombatStance && !isMoving && !isJumping) ? 0.7 : 0;
