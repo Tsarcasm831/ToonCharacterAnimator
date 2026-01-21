@@ -4,13 +4,16 @@ import { playerModelResetFeet } from '../AnimationUtils';
 
 export class PunchAction {
     static animate(player: any, parts: any, dt: number, damp: number, isMoving: boolean) {
-        const t = player.punchTimer;
+        const combat = player.combat ?? player;
+        const t = combat.punchTimer ?? 0;
         const lerp = THREE.MathUtils.lerp;
-        const punchDamp = 18 * dt; // Snappier punches
-        const baseHeight = 0.89 * player.config.legScale;
+        const punchDamp = 15 * dt; // Adjusted for better feel
+        const baseHeight = 0.89 * (player.config.legScale || 1.0);
         
         // Offset to align torso forward if hips are twisted in combat stance idle
-        const torsoOffset = (player.isCombatStance && !isMoving && !player.isJumping) ? 0.7 : 0;
+        const isCombatStance = player.combat?.isCombatStance ?? player.isCombatStance ?? false;
+        const isJumping = player.locomotion?.isJumping ?? player.isJumping ?? false;
+        const torsoOffset = (isCombatStance && !isMoving && !isJumping) ? 0.7 : 0;
 
         // Helper to curl fingers
         // curlAmount: 0 = Open, 1.8 = Tight Fist
@@ -65,37 +68,28 @@ export class PunchAction {
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -2.3, punchDamp); // Cocked
                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI/2, punchDamp); 
 
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.8 + torsoOffset, punchDamp);
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.6 + torsoOffset, punchDamp);
 
                 parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - 0.05, punchDamp);
-                parts.hips.position.z = lerp(parts.hips.position.z, stepLength1 * 0.3, punchDamp);
+                parts.hips.position.z = lerp(parts.hips.position.z, stepLength1 * 0.2, punchDamp);
                 
                 applyFist(true, 1.4); 
 
-            } else if (p < 0.8 || player.comboChain > 1) {
+            } else if (p < 0.7) {
                 // STRIKE (Straight & Center)
-                // -1.55 is roughly horizontal.
-                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.55, punchDamp);
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.55, punchDamp * 2);
+                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, -0.15, punchDamp * 2);
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, 0.0, punchDamp * 2);
                 
-                // Angle slightly inward (-0.1) to converge on center from right shoulder
-                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, -0.15, punchDamp);
-                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, 0.0, punchDamp);
-                
-                // Fully Extend
-                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.1, punchDamp);
-                
-                // Pronate Wrist (Thumb Down) for impact
-                parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI, punchDamp);
+                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.05, punchDamp * 2);
+                parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI, punchDamp * 2);
 
-                // Drive Torso Left
-                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.6 + torsoOffset, punchDamp);
-                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.15, punchDamp);
+                parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0.5 + torsoOffset, punchDamp * 2);
+                parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.1, punchDamp * 2);
 
-                // Legs
-                parts.hips.position.z = lerp(parts.hips.position.z, stepLength1, punchDamp);
-                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.5, punchDamp); 
-                parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.4, punchDamp);
-                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.5, punchDamp);
+                parts.hips.position.z = lerp(parts.hips.position.z, stepLength1, punchDamp * 2);
+                parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.4, punchDamp * 2); 
+                parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.4, punchDamp * 2);
                 
                 applyFist(true, 1.8);
 
@@ -129,7 +123,7 @@ export class PunchAction {
 
                 parts.hips.position.z = lerp(parts.hips.position.z, stepLength1, punchDamp);
 
-            } else if (p < 0.8 || player.comboChain > 2) {
+            } else if (p < 0.8 || (combat.comboChain ?? 1) > 2) {
                 // STRIKE LEFT
                 parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -1.55, punchDamp); 
                 

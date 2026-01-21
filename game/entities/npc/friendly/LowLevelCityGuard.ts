@@ -64,6 +64,20 @@ export class LowLevelCityGuard extends HumanoidEntity {
             this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
+
+            if (this.isLeftHandWaving) {
+                this.leftHandWaveTimer += dt;
+                if (this.leftHandWaveTimer > 2.5) {
+                    this.isLeftHandWaving = false;
+                    this.leftHandWaveTimer = 0;
+                }
+            }
+
+            const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: false, isJumping: false, isAxeSwing: false, axeSwingTimer: 0, isPunch: false, isPickingUp: false, isInteracting: false, isWaving: false, isLeftHandWaving: this.isLeftHandWaving, leftHandWaveTimer: this.leftHandWaveTimer, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false };
+            this.animator.animate(animContext, dt, false, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: false, jump: false } as any);
+            this.walkTime = animContext.walkTime;
+            this.lastStepCount = animContext.lastStepCount;
+
             this.updateModel(dt);
             this.model.sync(this.config, false);
             return;
@@ -181,11 +195,19 @@ export class LowLevelCityGuard extends HumanoidEntity {
         
         if (skipAnimation) return;
 
+        if (this.isLeftHandWaving) {
+            this.leftHandWaveTimer += dt;
+            if (this.leftHandWaveTimer > 2.5) {
+                this.isLeftHandWaving = false;
+                this.leftHandWaveTimer = 0;
+            }
+        }
+
         const lookT = this.currentTarget?.position || playerPosition; 
         this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, this.position.distanceTo(lookT) < 8.0 ? 1.0 : 0.0, dt * 3.0); 
         this.cameraHandler.cameraWorldPosition.copy(lookT).y += 1.6;
         
-        const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: (this.state === GuardState.DUEL || this.state === GuardState.ATTACK), isJumping: false, isAxeSwing: this.isStriking, axeSwingTimer: this.strikeTimer, isPunch: false, isPickingUp: false, isInteracting: false, isWaving: false, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false };
+        const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: (this.state === GuardState.DUEL || this.state === GuardState.ATTACK), isJumping: false, isAxeSwing: this.isStriking, axeSwingTimer: this.strikeTimer, isPunch: false, isPickingUp: false, isInteracting: false, isWaving: false, isLeftHandWaving: this.isLeftHandWaving, leftHandWaveTimer: this.leftHandWaveTimer, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false };
         this.animator.animate(animContext, dt, isMoving, { x: animX, y: animY, isRunning: moveSpeed > 3.0, isPickingUp: false, isDead: false, jump: false } as any);
         this.walkTime = animContext.walkTime; 
         this.lastStepCount = animContext.lastStepCount; 

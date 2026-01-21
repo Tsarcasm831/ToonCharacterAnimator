@@ -17,6 +17,7 @@ interface UseGameProps {
     onSlotSelect?: (slotIndex: number) => void;
     onToggleWorldMap?: (pos: THREE.Vector3) => void;
     onToggleQuestLog?: () => void;
+    onToggleInventory?: () => void;
     onRotationUpdate?: (rotation: number) => void;
     onAttackHit?: (type: string, count: number) => void;
     controlsDisabled?: boolean;
@@ -37,6 +38,7 @@ export const useGame = ({
     onSlotSelect,
     onToggleWorldMap,
     onToggleQuestLog,
+    onToggleInventory,
     onRotationUpdate,
     onAttackHit,
     controlsDisabled = false,
@@ -69,8 +71,18 @@ export const useGame = ({
             if (onToggleWorldMap) game.onToggleWorldMapCallback = onToggleWorldMap;
         }
 
+        if (onToggleInventory) {
+            game.onToggleInventoryCallback = onToggleInventory;
+        }
+
         // Additional input callbacks
         if (game.inputManager) {
+            if (onToggleInventory) {
+                game.onToggleInventoryCallback = onToggleInventory;
+                game.inputManager.onToggleInventory = () => {
+                    if (game.onToggleInventoryCallback) game.onToggleInventoryCallback();
+                };
+            }
             game.inputManager.onToggleQuestLog = onToggleQuestLog;
         }
 

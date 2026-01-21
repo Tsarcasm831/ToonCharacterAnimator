@@ -14,15 +14,14 @@ export class PlayerLocomotion {
 
     // State
     walkTime: number = 0;
+    lastStepCount: number = 0;
+    didStep: boolean = false;
     isJumping: boolean = false;
     jumpVelocity: number = 0;
     jumpTimer: number = 0;
-    
-    previousPosition = new THREE.Vector3();
-    velocity = new THREE.Vector3();
-    
-    lastStepCount: number = 0;
-    didStep: boolean = false;
+
+    previousPosition: THREE.Vector3 = new THREE.Vector3();
+    velocity: THREE.Vector3 = new THREE.Vector3();
 
     // Ledge Climbing State
     isLedgeGrabbing: boolean = false;
@@ -113,6 +112,12 @@ export class PlayerLocomotion {
 
         const isMoving = input.x !== 0 || input.y !== 0;
         
+        // Reset walkTime when stopping to ensure animation starts clean next time
+        if (!isMoving && this.walkTime !== 0) {
+            this.walkTime = 0;
+            this.lastStepCount = 0;
+        }
+        
         const baseSpeed = input.isRunning ? this.moveSpeed * 1.8 : this.moveSpeed;
         let speedModifier = 1.0;
         
@@ -140,21 +145,23 @@ export class PlayerLocomotion {
             this.player.mesh.rotation.y += rotDiff * this.turnSpeed * dt;
 
             const inputLen = Math.sqrt(input.x * input.x + input.y * input.y);
-            const normX = input.x / inputLen;
-            const normY = -input.y / inputLen;
+            if (inputLen > 0) {
+                const normX = input.x / inputLen;
+                const normY = -input.y / inputLen;
 
-            const fX = Math.sin(targetRotation); const fZ = Math.cos(targetRotation);
-            const rX = Math.sin(targetRotation - Math.PI / 2); const rZ = Math.cos(targetRotation - Math.PI / 2);
+                const fX = Math.sin(targetRotation); const fZ = Math.cos(targetRotation);
+                const rX = Math.sin(targetRotation - Math.PI / 2); const rZ = Math.cos(targetRotation - Math.PI / 2);
 
-            const dx = (fX * normY + rX * normX) * finalSpeed * dt;
-            const dz = (fZ * normY + rZ * normX) * finalSpeed * dt;
+                const dx = (fX * normY + rX * normX) * finalSpeed * dt;
+                const dz = (fZ * normY + rZ * normX) * finalSpeed * dt;
 
-            const nextPos = this.player.mesh.position.clone();
-            nextPos.x += dx;
-            nextPos.z += dz;
+                const nextPos = this.player.mesh.position.clone();
+                nextPos.x += dx;
+                nextPos.z += dz;
 
-            if (!PlayerUtils.checkCollision(nextPos, this.player.config, obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
-                this.player.mesh.position.copy(nextPos);
+                if (!PlayerUtils.checkCollision(nextPos, this.player.config, obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
+                    this.player.mesh.position.copy(nextPos);
+                }
             }
         }
     }

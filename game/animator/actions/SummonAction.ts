@@ -8,7 +8,8 @@ export class SummonAction {
     private static pentagram: THREE.Mesh | null = null;
     
     static animate(player: any, parts: any, dt: number, damp: number) {
-        const t = player.summonTimer;
+        const combat = player.combat ?? player;
+        const t = combat.summonTimer ?? 0;
         const lerp = THREE.MathUtils.lerp;
         const sin = Math.sin;
         const cos = Math.cos;

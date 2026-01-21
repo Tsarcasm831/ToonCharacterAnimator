@@ -65,6 +65,7 @@ export class Game {
     public onUnitSelect?: (stats?: EntityStats, unit?: any) => void;
     public onAttackHit?: (type: string, count: number) => void;
     public onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
+    public onToggleInventoryCallback?: () => void;
     public onEnvironmentReady?: () => void;
 
     private currentBiomeName: string = '';

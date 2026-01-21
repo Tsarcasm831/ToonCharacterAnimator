@@ -59,7 +59,7 @@ export class SceneManager {
         this.environment.setVisible(sceneName === 'dev');
         this.landEnvironment.setVisible(sceneName === 'land');
         this.combatEnvironment.setVisible(sceneName === 'combat');
-        
+
         // Reset dynamic entities
         this.entityManager.clearDynamicEntities();
         this.entityManager.clearStaticEntities(); // Clear static entities too when switching to combat
@@ -90,11 +90,8 @@ export class SceneManager {
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'combat') {
-            // Player moved far away and hidden (spectator)
-            this.player.mesh.position.set(0, -100, 0);
-            this.player.mesh.visible = false;
-            if (this.player.model?.group) this.player.model.group.visible = false;
-            
+            this.player.mesh.position.set(0, 0, 0);
+
             const reservedCells = [];
 
             // Spawn custom encounter: 1 Ranger on green side, 1 Bandit on red side

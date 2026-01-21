@@ -9,7 +9,8 @@ export class FishingAction {
     private static _parentInv = new THREE.Matrix4();
 
     static animate(player: any, parts: any, dt: number, damp: number, obstacles: THREE.Object3D[] = []) {
-        const t = player.fishingTimer;
+        const combat = player.combat ?? player;
+        const t = combat.fishingTimer ?? 0;
         const lerp = THREE.MathUtils.lerp;
         const castDamp = 20 * dt; 
 
@@ -18,10 +19,10 @@ export class FishingAction {
         const castDur = 0.3; 
         
         // --- CHARGING POSE ---
-        if (player.isChargingFishing) {
+        if (combat.isChargingFishing) {
             // Held back in windup position
             // Add a little breathing/strain motion based on charge
-            const chargeStrain = Math.sin(player.fishingChargeTime * 20) * 0.02 * player.fishingCharge;
+            const chargeStrain = Math.sin((combat.fishingChargeTime ?? 0) * 20) * 0.02 * (combat.fishingCharge ?? 0);
 
             parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.6, damp * 5);
             parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, -0.3 + chargeStrain, damp * 5); 
@@ -86,7 +87,7 @@ export class FishingAction {
         }
 
         // Left Arm Logic (Balance vs Reeling)
-        if (player.isReeling) {
+        if (combat.isReeling) {
             // Reeling Position (Left Hand near Right Hand/Reel)
             const reelDamp = damp * 10;
             
@@ -188,16 +189,16 @@ export class FishingAction {
                     }
 
                     // -- Reeling Force --
-                    if (player.isReeling) {
+                    if (combat.isReeling) {
                         const toTip = new THREE.Vector3().subVectors(tipWorldPos, pos);
                         const distToTip = toTip.length();
                         
                         if (distToTip < 0.5) {
                             // Finish Reeling
-                            player.isFishing = false;
-                            player.isReeling = false;
-                            player.fishingTimer = 0;
-                            player.needsReclick = true;
+                            combat.isFishing = false;
+                            combat.isReeling = false;
+                            combat.fishingTimer = 0;
+                            combat.needsReclick = true;
                             weaponGroup.userData.castActive = false;
                             FishingAction.reset(player, dt);
                             return; 

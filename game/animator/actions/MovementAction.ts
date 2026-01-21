@@ -9,6 +9,7 @@ export class MovementAction {
         const isHolding = !!player.config.selectedItem;
         const stance = player.config.weaponStance;
         const isMaleStyle = player.config.bodyType === 'female'; 
+        const locomotion = player.locomotion ?? player;
         
         const lerp = THREE.MathUtils.lerp;
         const sin = Math.sin;
@@ -22,15 +23,16 @@ export class MovementAction {
         // Speed calculation
         // Strafing needs a slightly slower cycle to look heavy/tactical, but fast enough to match speed
         const speedMult = isPureStrafe ? 10 : (isRunning ? 15 : 9);
-        player.walkTime += dt * speedMult;
-        const t = player.walkTime;
+        const walkDt = dt || 0;
+        locomotion.walkTime = (locomotion.walkTime || 0) + walkDt * speedMult;
+        const t = locomotion.walkTime;
 
         // Step Sound Detection
         const stepCycle = (t - Math.PI * 0.5) / Math.PI;
         const currentSteps = Math.floor(stepCycle);
-        if (currentSteps > player.lastStepCount) {
-            player.didStep = true;
-            player.lastStepCount = currentSteps;
+        if (currentSteps > (locomotion.lastStepCount ?? 0)) {
+            locomotion.didStep = true;
+            locomotion.lastStepCount = currentSteps;
         }
 
         animateBreathing(player, parts, Date.now() * 0.002, isRunning ? 2.5 : 1.5);
@@ -119,9 +121,11 @@ export class MovementAction {
                     Math.abs(parts.rightThigh.rotation.z)
                 );
                 // Flare more aggressively for the skirt
-                const flare = 1.0 + (legMove * 0.45);
-                skirt.scale.x = lerp(skirt.scale.x, flare, damp);
-                skirt.scale.z = lerp(skirt.scale.z, flare, damp);
+        const flare = 1.0 + (legMove * 0.45);
+        if (!isNaN(flare) && isFinite(flare)) {
+            skirt.scale.x = lerp(skirt.scale.x, flare, damp);
+            skirt.scale.z = lerp(skirt.scale.z, flare, damp);
+        }
             }
         }
 

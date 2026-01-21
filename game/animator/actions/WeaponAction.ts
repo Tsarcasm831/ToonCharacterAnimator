@@ -16,13 +16,16 @@ export class WeaponAction {
         if (isKnife) duration = 0.4;
         if (isStaff) duration = 0.7; // Snappier than halberd
 
-        const p = player.axeSwingTimer / duration;
+        const combat = player.combat ?? player;
+        const isCombatStance = player.combat?.isCombatStance ?? player.isCombatStance ?? false;
+        const isJumping = player.locomotion?.isJumping ?? player.isJumping ?? false;
+        const p = (combat.axeSwingTimer ?? 0) / duration;
         const lerp = THREE.MathUtils.lerp;
         
         const actionDamp = 20 * dt; 
 
         // Offset to align torso forward if hips are twisted in combat stance idle
-        const torsoOffset = (player.isCombatStance && !isMoving && !player.isJumping) ? 0.7 : 0;
+        const torsoOffset = (isCombatStance && !isMoving && !isJumping) ? 0.7 : 0;
 
         if (isSword || isKnife) {
             // SWORD SLASH: FOREHAND (Right -> Left)

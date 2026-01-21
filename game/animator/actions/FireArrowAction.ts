@@ -5,6 +5,9 @@ export class FireArrowAction {
     static animate(player: any, parts: any, dt: number, damp: number) {
         const lerp = THREE.MathUtils.lerp;
         const actionDamp = 15 * dt;
+        const combat = player.combat ?? player;
+        const bowState = combat.bowState ?? 'draw';
+        const bowCharge = combat.bowCharge ?? 0;
 
         // --- BODY ALIGNMENT ---
         // Torso Twist: Turn sideways (-1.2 rad approx 70 deg) to present profile to target
@@ -33,7 +36,7 @@ export class FireArrowAction {
         parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, 0, actionDamp); 
 
         // --- RIGHT ARM (Drawing String) ---
-        if (player.bowState === 'release') {
+        if (bowState === 'release') {
             const recoilDamp = 25 * dt;
             
             // RECOIL: Hand flies back past the ear
@@ -49,7 +52,7 @@ export class FireArrowAction {
 
         } else {
             // DRAW / HOLD
-            const drawProgress = Math.min(1.0, player.bowCharge);
+            const drawProgress = Math.min(1.0, bowCharge);
             
             // START POSE (Grabbing String):
             // Arm must reach across chest towards left hand.

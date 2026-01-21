@@ -53,6 +53,31 @@ export const GlobalModals: React.FC = () => {
     const { setIsCombatActive } = combatState;
 
     const isLand = activeScene === 'land';
+    const equipSlotMap: Record<string, string> = {
+        'Shirt': 'torso',
+        'Quilted Armor': 'torso',
+        'Leather Armor': 'torso',
+        'Heavy Leather Armor': 'torso',
+        'RingMail': 'torso',
+        'Plate Mail': 'torso',
+        'Pants': 'legs',
+        'Shoes': 'boots',
+        'Mask': 'mask',
+        'Hood': 'hood',
+        'Helm': 'helm'
+    };
+
+    const handleEquipFromInventory = (index: number) => {
+        const item = inventory[index];
+        if (!item) return;
+        const slotId = equipSlotMap[item.name];
+        if (!slotId) return;
+
+        const nextInv = [...inventory];
+        nextInv[index] = item.count > 1 ? { ...item, count: item.count - 1 } : null;
+        setInventory(nextInv);
+        handleEquipItem(item.name, slotId);
+    };
 
     const handleTravel = (scene: 'dev' | 'land' | 'combat') => {
         if (scene === activeScene) { setIsTravelOpen(false); return; }
@@ -76,15 +101,16 @@ export const GlobalModals: React.FC = () => {
         <Suspense fallback={null}>
             {isInventoryOpen && (
               <InventoryModal 
-                items={inventory} 
+                isOpen={isInventoryOpen}
+                config={config}
+                inventory={inventory} 
                 onClose={toggleInventory}
-                onUpdateItems={setInventory}
+                onInventoryChange={setInventory}
                 equipmentSlots={equipmentSlots}
-                onEquip={handleEquipItem}
-                onUnequip={handleUnequipItem}
+                onEquip={handleEquipFromInventory}
+                onEquipItem={handleEquipItem}
+                onUnequipItem={handleUnequipItem}
                 coins={coins}
-                stats={config.stats}
-                bodyType={config.bodyType}
               />
             )}
             {isTradeOpen && (
@@ -108,9 +134,10 @@ export const GlobalModals: React.FC = () => {
             )}
             {isForgeOpen && (
                 <ForgeModal 
+                    isOpen={isForgeOpen}
                     inventory={inventory}
                     onClose={() => setIsForgeOpen(false)}
-                    onUpdateInventory={setInventory}
+                    onInventoryChange={setInventory}
                 />
             )}
             {isKeybindsOpen && (

@@ -6,7 +6,8 @@ export class ClimbAction {
     static animate(player: any, parts: any, dt: number, damp: number) {
         const lerp = THREE.MathUtils.lerp;
         const climbDuration = 1.2;
-        const p = Math.min(player.ledgeGrabTime / climbDuration, 1.0);
+        const ledgeGrabTime = player.locomotion?.ledgeGrabTime ?? player.ledgeGrabTime ?? 0;
+        const p = Math.min(ledgeGrabTime / climbDuration, 1.0);
         
         // Reset base offsets for hips
         parts.hips.rotation.y = lerp(parts.hips.rotation.y, 0, damp);
@@ -75,18 +76,22 @@ export class ClimbAction {
             const finish = (p - 0.65) / 0.35; // 0 to 1
             const standDamp = damp * 6;
 
+            // Align visuals with physics target position more explicitly if needed
+            // However, ClimbAction primarily handles bone rotations.
+            // Let's ensure the body lean and leg plant look correct.
+
             // Arms: Push then Recover
-            if (finish < 0.4) {
+            if (finish < 0.5) {
                 // Pushing down hard (Triceps)
-                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.6, standDamp);
-                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, 0.6, standDamp);
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.8, standDamp * 2);
+                parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, 0.8, standDamp * 2);
                 
-                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.1, standDamp);
-                parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.1, standDamp);
+                parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.05, standDamp * 2);
+                parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.05, standDamp * 2);
                 
-                // Elbows out slightly for leverage
-                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.3, standDamp);
-                parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.3, standDamp);
+                // Elbows out for leverage
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.4, standDamp);
+                parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.4, standDamp);
             } else {
                 // Recovering to sides (Idle)
                 parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0, standDamp);
@@ -94,17 +99,13 @@ export class ClimbAction {
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.1, standDamp);
                 parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.1, standDamp);
                 
-                // Tuck in
                 parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.1, standDamp);
                 parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.1, standDamp);
             }
 
-            // Legs: Smooth plant into wide stance (avoiding feet together)
-            // Right leg was driving up, now it plants.
+            // Legs: Smooth plant
             parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0, standDamp);
             parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0, standDamp);
-
-            // Left leg catches up
             parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, 0, standDamp);
             parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0, standDamp);
 
@@ -113,16 +114,13 @@ export class ClimbAction {
             parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, spread, standDamp);
             parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -spread, standDamp);
 
-            // Hips & Spine
+            // Torso: Lean forward as we mantle over
+            const mantleLean = (finish < 0.6) ? 0.4 * (1 - finish) : 0;
+            parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, mantleLean, standDamp);
             parts.hips.rotation.x = lerp(parts.hips.rotation.x, 0, standDamp);
             
-            // Keep head slightly down looking at footing until very end
-            const lookDown = finish < 0.8 ? 0.2 : 0;
-            parts.neck.rotation.x = lerp(parts.neck.rotation.x, lookDown, standDamp);
-            
-            // Slight forward lean on torso that resolves smoothly
-            const lean = finish < 0.7 ? 0.2 : 0;
-            parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, lean, standDamp);
+            // Head looks forward
+            parts.neck.rotation.x = lerp(parts.neck.rotation.x, 0, standDamp);
         }
         
         playerModelResetFeet(parts, damp);
