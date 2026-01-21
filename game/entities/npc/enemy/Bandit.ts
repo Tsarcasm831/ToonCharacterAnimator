@@ -4,6 +4,7 @@ import { HumanoidEntity } from '../../HumanoidEntity';
 import { Environment } from '../../../environment/Environment';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
 import { AIUtils } from '../../../core/AIUtils';
+import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
 
 enum BanditState { IDLE, PATROL, CHASE, ATTACK, RETREAT }
@@ -23,11 +24,7 @@ export class Bandit extends HumanoidEntity {
     private strikeTimer: number = 0;
     private speedFactor: number = 0;
     
-    private healthBar: THREE.Mesh | null = null;
-    private healthBarBack: THREE.Mesh | null = null;
-    private chakraBar: THREE.Mesh | null = null;
-    private chakraBarBack: THREE.Mesh | null = null;
-    private barsGroup: THREE.Group | null = null;
+    // Properties removed: healthBar, etc. are now in HumanoidEntity
 
     private currentPath: { r: number, c: number }[] = [];
     private pathIndex: number = 0;
@@ -68,81 +65,61 @@ export class Bandit extends HumanoidEntity {
         this.stats = { ...CLASS_STATS.bandit };
         this.lastStuckPos.copy(this.position);
         
-        this.initStatBars();
+        // this.initStatBars(); // Handled by HumanoidEntity
         this.model.sync(this.config, true);
     }
 
-    private initStatBars() {
-        this.barsGroup = new THREE.Group();
-        this.model.group.add(this.barsGroup);
-
-        const barGeo = new THREE.PlaneGeometry(0.8, 0.1);
-        const healthMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
-        const chakraMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
-        const bgMat = new THREE.MeshBasicMaterial({ color: 0x333333, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-
-        const healthBg = new THREE.Mesh(barGeo, bgMat);
-        this.healthBar = new THREE.Mesh(barGeo, healthMat);
-        this.healthBar.position.z = 0.01;
-
-        const chakraBg = new THREE.Mesh(barGeo, bgMat);
-        this.chakraBar = new THREE.Mesh(barGeo, chakraMat);
-        this.chakraBar.position.z = 0.01;
-
-        // Add back-side meshes for visibility from both sides
-        this.healthBarBack = new THREE.Mesh(barGeo, healthMat);
-        this.healthBarBack.position.z = -0.01;
-        this.healthBarBack.rotation.y = Math.PI;
-        
-        this.chakraBarBack = new THREE.Mesh(barGeo, chakraMat);
-        this.chakraBarBack.position.z = -0.01;
-        this.chakraBarBack.rotation.y = Math.PI;
-
-        healthBg.position.y = 2.6;
-        this.healthBar.position.y = 2.6;
-        this.healthBarBack.position.y = 2.6;
-        
-        chakraBg.position.y = 2.45;
-        this.chakraBar.position.y = 2.45;
-        this.chakraBarBack.position.y = 2.45;
-
-        this.barsGroup.add(healthBg);
-        this.barsGroup.add(this.healthBar);
-        this.barsGroup.add(this.healthBarBack);
-        this.barsGroup.add(chakraBg);
-        this.barsGroup.add(this.chakraBar);
-        this.barsGroup.add(this.chakraBarBack);
+    private findPatrolPoint(environment: Environment | CombatEnvironment) {
+        const landmarks = environment.obstacles.filter(o => o.userData.type === 'hard');
+        if (landmarks.length > 0 && Math.random() > 0.4) {
+            const obj = landmarks[Math.floor(Math.random() * landmarks.length)];
+            const pos = new THREE.Vector3(); obj.getWorldPosition(pos);
+            const candidate = pos.clone().add(new THREE.Vector3((Math.random()-0.5)*25, 0, (Math.random()-0.5)*25));
+            if (PlayerUtils.isWithinBounds(candidate, 2.0)) this.targetPos.copy(candidate);
+            else this.targetPos.set(0, 0, 0);
+        } else {
+            const limit = 50; // Use a reasonable limit for dev scene
+            this.targetPos.set((Math.random() - 0.5) * (limit * 2), 0, (Math.random() - 0.5) * (limit * 2));
+        }
     }
 
-    private updateStatBars(cameraPos: THREE.Vector3, isCombatActive: boolean) {
-        if (!this.barsGroup) return;
-        
-        this.barsGroup.visible = isCombatActive;
-        if (!isCombatActive) return;
-
-        this.barsGroup.lookAt(cameraPos);
-        
-        if (this.healthBar && this.healthBarBack && this.stats) {
-            const scale = Math.max(0, this.stats.health / this.stats.maxHealth);
-            this.healthBar.scale.x = scale;
-            this.healthBarBack.scale.x = scale;
-            
-            const offset = -0.4 * (1 - scale);
-            this.healthBar.position.x = offset;
-            this.healthBarBack.position.x = -offset; // Inverted for back side
+    private updatePatrol(dt: number, environment: Environment | CombatEnvironment) {
+        // Patrol behavior similar to assassin
+        if (this.state === BanditState.IDLE || this.stateTimer > 20.0) {
+            this.state = BanditState.PATROL;
+            this.stateTimer = 0;
+            this.findPatrolPoint(environment);
         }
-        if (this.chakraBar && this.chakraBarBack && this.stats) {
-            const scale = Math.max(0, (this.stats.chakra || 0) / (this.stats.maxChakra || 100));
-            this.chakraBar.scale.x = scale;
-            this.chakraBarBack.scale.x = scale;
+
+        const moveSpeed = 2.5; // Patrol speed
+        const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
+        toGoal.y = 0;
+        
+        if (toGoal.length() > 0.1) {
+            this.rotationY += (Math.atan2(toGoal.x, toGoal.z) - this.rotationY) * 8.0 * dt;
+            const step = moveSpeed * dt;
+            const next = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step));
             
-            const offset = -0.4 * (1 - scale);
-            this.chakraBar.position.x = offset;
-            this.chakraBarBack.position.x = -offset; // Inverted for back side
+            // Simple collision check - just stay within bounds for now
+            if (PlayerUtils.isWithinBounds(next)) {
+                this.position.x = next.x;
+                this.position.z = next.z;
+            }
+        } else if (this.position.distanceTo(this.targetPos) < 1.5) {
+            // Reached target, find new point
+            this.findPatrolPoint(environment);
+            this.stateTimer = 0;
+        }
+
+        // Update speed factor for animation
+        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, moveSpeed, dt * 6);
+        if (toGoal.length() < 0.1) {
+            this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, 0, dt * 6);
         }
     }
 
     update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
+        if (this.isDead) return;
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -153,11 +130,30 @@ export class Bandit extends HumanoidEntity {
             if (env instanceof CombatEnvironment) {
                 const snapped = env.snapToGrid(this.position);
                 this.position.lerp(snapped, 5.0 * dt);
+            } else {
+                // Dev scene patrol behavior
+                this.updatePatrol(dt, environment);
+                this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
             }
             
             this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
+            
             if (skipAnimation) return;
+
+            const animContext = {
+                config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
+                isCombatStance: false,
+                isJumping: false, isAxeSwing: false, axeSwingTimer: 0, isPunch: false,
+                isPickingUp: false, pickUpTime: 0, isInteracting: false, isWaving: false, isSkinning: false,
+                isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
+            };
+            
+            this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
+            this.walkTime = animContext.walkTime;
+            this.lastStepCount = animContext.lastStepCount;
+            this.targetPosition.copy(this.position);
+            this.targetRotationY = this.rotationY;
             this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
@@ -165,7 +161,7 @@ export class Bandit extends HumanoidEntity {
 
         // --- NEW COMBAT AI ---
         const cameraPos = (env as any).scene?.userData?.camera?.position || new THREE.Vector3(0, 10, 10);
-        this.updateStatBars(cameraPos, isCombatActive);
+        // this.updateStatBars(cameraPos, isCombatActive); // Handled by EntityManager
 
         // Movement Logic
         const target = potentialTargets[0]; // Simple AI: target the first available target (Archer)
@@ -220,12 +216,16 @@ export class Bandit extends HumanoidEntity {
             }
         }
 
+        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles), dt * 6);
         this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
 
-        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, 0, dt * 6);
+        // Only lerp speed to 0 if not in combat movement
+        if (!(this.currentTarget && !this.currentTarget.isDead)) {
+            this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, 0, dt * 6);
+        }
         
         const animContext = {
             config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
@@ -235,9 +235,11 @@ export class Bandit extends HumanoidEntity {
             isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
+        this.targetPosition.copy(this.position);
+        this.targetRotationY = this.rotationY;
         this.updateModel(dt);
         this.model.sync(this.config, true);
     }

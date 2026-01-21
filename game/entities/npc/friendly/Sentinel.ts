@@ -1,25 +1,18 @@
 
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { DEFAULT_CONFIG } from '../../../../types';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { AIUtils } from '../../../core/AIUtils';
 import { CLASS_STATS } from '../../../../data/stats';
+import { HumanoidEntity } from '../../HumanoidEntity';
 
 enum SentinelState { IDLE, PATROL, INTERCEPT, GUARD, ATTACK }
 
-export class Sentinel {
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
-    stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    lastFramePos: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
+export class Sentinel extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    
     private state: SentinelState = SentinelState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
@@ -31,27 +24,24 @@ export class Sentinel {
     private isStriking: boolean = false;
     private strikeTimer: number = 0;
     private speedFactor: number = 0;
-    private lastStepCount: number = 0;
-    private walkTime: number = 0;
-    private status = { isDead: false, recoverTimer: 0 };
-    private cameraHandler = {
-        blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
-        eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,
-        headLookWeight: 0, cameraWorldPosition: new THREE.Vector3()
-    };
+    
     private smoothedHeadTarget = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
-        this.scene = scene;
-        this.position.copy(initialPos);
-        this.lastFramePos.copy(initialPos);
+        super(scene, initialPos, Sentinel.createConfig(tint));
+        
+        this.stats = { ...CLASS_STATS.sentinel };
         this.lastStuckPos.copy(this.position);
         
+        this.model.sync(this.config, true);
+    }
+
+    private static createConfig(tint?: string): any {
         // Sentinels are heavy defensive warriors - heavy/muscular builds with full armor
         const bodyVariants = ['heavy', 'muscular'] as const;
         const randomVariant = bodyVariants[Math.floor(Math.random() * bodyVariants.length)];
         
-        this.config = { 
+        return { 
             ...DEFAULT_CONFIG, 
             bodyType: 'male', 
             bodyVariant: randomVariant, 
@@ -73,13 +63,7 @@ export class Sentinel {
             weaponStance: 'side',
             isAssassinHostile: false,
             tintColor: tint 
-        };
-        this.stats = { ...CLASS_STATS.sentinel };
-        this.model = new PlayerModel(this.config);
-        this.animator = new PlayerAnimator();
-        this.model.group.position.copy(this.position);
-        this.scene.add(this.model.group);
-        this.model.sync(this.config, true);
+        } as any;
     }
 
     private setState(newState: SentinelState) {
@@ -109,10 +93,13 @@ export class Sentinel {
     }
 
     update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
+        if (this.isDead) return;
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
         const env = environment as any;
+        // const cameraPos = (env as any).scene?.userData?.camera?.position || new THREE.Vector3(0, 10, 10);
+        // this.updateStatBars(cameraPos, isCombatActive);
 
         // Snapping check for combat arena
         if (env instanceof CombatEnvironment && this.state !== SentinelState.ATTACK && this.state !== SentinelState.GUARD) {
@@ -121,10 +108,10 @@ export class Sentinel {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -230,7 +217,7 @@ export class Sentinel {
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
-        this.model.group.position.copy(this.position);
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
@@ -257,7 +244,7 @@ export class Sentinel {
         this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: this.state === SentinelState.INTERCEPT, isPickingUp: false, isDead: false, jump: false } as any);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
-        this.model.update(dt, new THREE.Vector3(0, 0, 0));
+        this.updateModel(dt);
         this.model.sync(this.config, true);
     }
 }

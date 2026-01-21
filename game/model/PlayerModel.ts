@@ -106,6 +106,26 @@ export class PlayerModel {
         this.hairSimulation.update(dt, velocity, this.parts.head);
     }
 
+    flashDamage() {
+        this.group.traverse((obj) => {
+            if (obj instanceof THREE.Mesh && obj.material) {
+                const mat = obj.material as THREE.MeshStandardMaterial;
+                if (mat.emissive) {
+                    const originalEmissive = mat.emissive.clone();
+                    const originalIntensity = mat.emissiveIntensity;
+                    
+                    mat.emissive.setHex(0xff0000);
+                    mat.emissiveIntensity = 0.5;
+                    
+                    setTimeout(() => {
+                        mat.emissive.copy(originalEmissive);
+                        mat.emissiveIntensity = originalIntensity;
+                    }, 100);
+                }
+            }
+        });
+    }
+
     updateHeldItem(itemName: string | null) {
         this.equipmentManager.updateHeldItem(itemName);
     }
@@ -137,6 +157,38 @@ export class PlayerModel {
         this.equipmentManager.updateEquipment(config);
         this.equipmentManager.updateHeldItem(config.selectedItem);
         this.equipmentManager.positionEquipment(config);
+    }
+
+    setOpacity(opacity: number) {
+        this.materials.setOpacity(opacity);
+        // Also handle equipped meshes if they need to be transparent
+        // For now, let's assume equipment manager materials might need similar treatment, 
+        // but PlayerMaterials only covers the base body and some items.
+        // If equipment uses different materials, we might need to traverse the group.
+        
+        this.group.traverse((obj) => {
+            if (obj instanceof THREE.Mesh) {
+                // If the material is not one of the PlayerMaterials managed ones (like equipment)
+                // we should also try to set its opacity.
+                // However, let's be careful not to mess up materials that shouldn't be transparent.
+                // For a stealth mode, everything on the player should probably be transparent.
+                
+                // Check if it's already handled by PlayerMaterials
+                const isManaged = Object.values(this.materials).includes(obj.material);
+                
+                if (!isManaged) {
+                     if (Array.isArray(obj.material)) {
+                         obj.material.forEach(m => {
+                             m.transparent = opacity < 1.0;
+                             m.opacity = opacity;
+                         });
+                     } else if (obj.material) {
+                         obj.material.transparent = opacity < 1.0;
+                         obj.material.opacity = opacity;
+                     }
+                }
+            }
+        });
     }
 
     dispose() {

@@ -1,5 +1,5 @@
 
-export type ActiveScene = 'dev' | 'land' | 'combat' | 'world';
+export type ActiveScene = 'dev' | 'land' | 'combat' | 'world' | 'mp';
 
 export type BodyVariant = 'average' | 'muscular' | 'slim' | 'heavy';
 export type OutfitType = 'nude' | 'naked' | 'peasant' | 'warrior' | 'noble';
@@ -89,6 +89,7 @@ export interface PlayerInput {
   toggleBuilder: boolean; 
   rotateGhost: boolean;
   fireball: boolean;
+  crouch: boolean;
 }
 
 // --- Configuration Interfaces ---

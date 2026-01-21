@@ -8,7 +8,7 @@ import { Player } from '../player/Player';
 import { PlayerUtils } from '../player/PlayerUtils';
 import { landCoordsToWorld, getLandHeightAt } from '../environment/landTerrain';
 
-export type SceneType = 'dev' | 'land' | 'combat';
+export type SceneType = 'dev' | 'land' | 'combat' | 'mp';
 
 export class SceneManager {
     public activeScene: SceneType;
@@ -46,7 +46,7 @@ export class SceneManager {
     public get currentEnvironment() {
         if (this.activeScene === 'dev') return this.environment;
         if (this.activeScene === 'land') return this.landEnvironment;
-        if (this.activeScene === 'combat') return this.combatEnvironment;
+        if (this.activeScene === 'combat' || this.activeScene === 'mp') return this.combatEnvironment;
         return null;
     }
 
@@ -58,10 +58,15 @@ export class SceneManager {
         // Visibility
         this.environment.setVisible(sceneName === 'dev');
         this.landEnvironment.setVisible(sceneName === 'land');
-        this.combatEnvironment.setVisible(sceneName === 'combat');
+        this.combatEnvironment.setVisible(sceneName === 'combat' || sceneName === 'mp');
+
+        if (sceneName === 'mp') {
+             this.combatEnvironment.isCombatStarted = false;
+        }
 
         // Reset dynamic entities
         this.entityManager.clearDynamicEntities();
+
         this.entityManager.clearStaticEntities(); // Clear static entities too when switching to combat
 
         // Set combat interaction manager activity
@@ -103,6 +108,13 @@ export class SceneManager {
             this.renderManager.camera.position.set(0, 15, 10);
             this.renderManager.camera.lookAt(0,0,0);
             this.renderManager.controls.enablePan = false; 
+        } else if (sceneName === 'mp') {
+            this.player.mesh.position.set(0, 0, 0);
+            this.renderManager.controls.target.set(0, 0, 0);
+            this.renderManager.camera.position.set(0, 5, 10);
+            this.renderManager.controls.enableRotate = true;
+            this.renderManager.controls.enableZoom = true;
+            this.renderManager.controls.enablePan = true;
         }
 
         if (!isInit) {
@@ -121,6 +133,8 @@ export class SceneManager {
         } else if (this.activeScene === 'land') {
             this.landEnvironment.update(delta, config, this.player.mesh.position);
         } else if (this.activeScene === 'combat') {
+            this.combatEnvironment.update(delta, config, this.player.mesh.position);
+        } else if (this.activeScene === 'mp') {
             this.combatEnvironment.update(delta, config, this.player.mesh.position);
         }
     }

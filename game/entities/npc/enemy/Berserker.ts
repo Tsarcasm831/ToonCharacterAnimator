@@ -1,26 +1,17 @@
-
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
+import { HumanoidEntity } from '../../HumanoidEntity';
 
 enum BerserkerState { IDLE, PATROL, RAGE, ATTACK, RECOVER }
 
-export class Berserker {
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
-    stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    lastFramePos: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
+export class Berserker extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    
     private state: BerserkerState = BerserkerState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
@@ -34,27 +25,22 @@ export class Berserker {
     private strikeTimer: number = 0;
     private comboCount: number = 0;
     private speedFactor: number = 0;
-    private lastStepCount: number = 0;
-    private walkTime: number = 0;
-    public status = { isDead: false, recoverTimer: 0 };
-    private cameraHandler = {
-        blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
-        eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,
-        headLookWeight: 0, cameraWorldPosition: new THREE.Vector3()
-    };
+    
     private smoothedHeadTarget = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
-        this.scene = scene;
-        this.position.copy(initialPos);
-        this.lastFramePos.copy(initialPos);
-        this.lastStuckPos.copy(this.position);
+        super(scene, initialPos, Berserker.createConfig(tint));
         
+        this.lastStuckPos.copy(this.position);
+        this.model.sync(this.config, true);
+    }
+
+    private static createConfig(tint?: string): PlayerConfig {
         // Berserkers are heavy/muscular builds
         const bodyVariants = ['muscular', 'heavy'] as const;
         const randomVariant = bodyVariants[Math.floor(Math.random() * bodyVariants.length)];
         
-        this.config = { 
+        return { 
             ...DEFAULT_CONFIG, 
             bodyType: 'male', 
             bodyVariant: randomVariant, 
@@ -77,13 +63,7 @@ export class Berserker {
             weaponStance: 'side',
             isAssassinHostile: true,
             tintColor: tint 
-        };
-        this.stats = { ...CLASS_STATS.berserker };
-        this.model = new PlayerModel(this.config);
-        this.animator = new PlayerAnimator();
-        this.model.group.position.copy(this.position);
-        this.scene.add(this.model.group);
-        this.model.sync(this.config, true);
+        } as any;
     }
 
     private setState(newState: BerserkerState) {
@@ -116,6 +96,7 @@ export class Berserker {
     }
 
     update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
+        if (this.isDead) return;
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -129,7 +110,7 @@ export class Berserker {
                 if (this.currentPath.length > 0) {
                     const targetGrid = this.currentPath[this.pathIndex];
                     const targetPos = env.getWorldPosition(targetGrid.r, targetGrid.c);
-                    
+
                     const distSq = this.position.distanceToSquared(targetPos);
                     if (distSq < 0.01) {
                         this.pathIndex++;
@@ -151,10 +132,14 @@ export class Berserker {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+
+            this.targetPosition.copy(this.position);
+            this.targetRotationY = this.rotationY;
+
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -263,7 +248,7 @@ export class Berserker {
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
-        this.model.group.position.copy(this.position);
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
@@ -287,10 +272,14 @@ export class Berserker {
             isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: this.state === BerserkerState.RAGE, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: this.state === BerserkerState.RAGE, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
-        this.model.update(dt, new THREE.Vector3(0, 0, 0));
+        
+        this.targetPosition.copy(this.position);
+        this.targetRotationY = this.rotationY;
+        
+        this.updateModel(dt);
         this.model.sync(this.config, true);
     }
 }

@@ -17,6 +17,7 @@ export class PlayerLocomotion {
     lastStepCount: number = 0;
     didStep: boolean = false;
     isJumping: boolean = false;
+    isCrouching: boolean = false;
     jumpVelocity: number = 0;
     jumpTimer: number = 0;
 
@@ -114,6 +115,19 @@ export class PlayerLocomotion {
         // 2. Handle Movement (if not dead/climbing)
         if (this.player.status.isDead || this.isLedgeGrabbing) return;
 
+        // Crouch Handling
+        if (input.crouch && !this.isJumping) {
+            if (!this.isCrouching) {
+                this.isCrouching = true;
+                this.player.model.setOpacity(0.05); // Stealth mode
+            }
+        } else {
+            if (this.isCrouching) {
+                this.isCrouching = false;
+                this.player.model.setOpacity(1.0); // Normal mode
+            }
+        }
+
         const isMoving = input.x !== 0 || input.y !== 0;
         
         // Reset walkTime when stopping to ensure animation starts clean next time
@@ -122,7 +136,12 @@ export class PlayerLocomotion {
             this.lastStepCount = 0;
         }
         
-        const baseSpeed = input.isRunning ? this.moveSpeed * 1.8 : this.moveSpeed;
+        let baseSpeed = input.isRunning ? this.moveSpeed * 1.8 : this.moveSpeed;
+        
+        if (this.isCrouching) {
+            baseSpeed *= 0.5; // Reduce speed while crouching
+        }
+
         let speedModifier = 1.0;
         
         // Environment Resistance (Bushes/Soft obstacles)

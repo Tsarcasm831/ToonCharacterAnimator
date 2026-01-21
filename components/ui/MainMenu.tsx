@@ -3,13 +3,14 @@ import React from 'react';
 import { MenuBackground } from './MenuBackground';
 
 interface MainMenuProps {
-    onStart: (startInCombat: boolean, startInLand: boolean) => void;
+    onStart: (startInCombat: boolean, startInLand: boolean, startInMP: boolean) => void;
     onShowEnemies: () => void;
 }
 
 export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies }) => {
     const [startInCombat, setStartInCombat] = React.useState(false);
     const [startInLand, setStartInLand] = React.useState(false);
+    const [startInMP, setStartInMP] = React.useState(false);
 
     return (
         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center">
@@ -31,7 +32,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies }) =>
                             onClick={() => {
                                 const next = !startInCombat;
                                 setStartInCombat(next);
-                                if (next) setStartInLand(false);
+                                if (next) {
+                                    setStartInLand(false);
+                                    setStartInMP(false);
+                                }
                             }}
                         >
                             <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${startInCombat ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/40'}`}>
@@ -49,7 +53,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies }) =>
                             onClick={() => {
                                 const next = !startInLand;
                                 setStartInLand(next);
-                                if (next) setStartInCombat(false);
+                                if (next) {
+                                    setStartInCombat(false);
+                                    setStartInMP(false);
+                                }
                             }}
                         >
                             <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${startInLand ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/40'}`}>
@@ -62,8 +69,29 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies }) =>
                             <span className="text-slate-300 text-xs font-black uppercase tracking-widest select-none">Start in Land Scene</span>
                         </div>
 
+                        <div
+                            className="flex items-center gap-3 bg-black/40 px-6 py-3 rounded-2xl border border-white/5 hover:border-white/20 transition-all group cursor-pointer"
+                            onClick={() => {
+                                const next = !startInMP;
+                                setStartInMP(next);
+                                if (next) {
+                                    setStartInCombat(false);
+                                    setStartInLand(false);
+                                }
+                            }}
+                        >
+                            <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${startInMP ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/40'}`}>
+                                {startInMP && (
+                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                )}
+                            </div>
+                            <span className="text-slate-300 text-xs font-black uppercase tracking-widest select-none">Multiplayer Test</span>
+                        </div>
+
                         <button 
-                            onClick={() => onStart(startInCombat, startInLand)}
+                            onClick={() => onStart(startInCombat, startInLand, startInMP)}
                             className="px-16 py-5 bg-white text-black font-black text-xl uppercase tracking-widest rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(59,130,246,0.6)] active:scale-95 transform hover:-translate-y-1"
                         >
                             Enter World

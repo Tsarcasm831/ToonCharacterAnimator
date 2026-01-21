@@ -49,6 +49,7 @@ export class LowLevelCityGuard extends HumanoidEntity {
     public isInCombat(): boolean { return this.state === GuardState.CHASE || this.state === GuardState.DUEL || this.state === GuardState.ATTACK; }
 
     update(dt: number, playerPosition: THREE.Vector3, environment: Environment | CombatEnvironment, enemies: { position: THREE.Vector3, isDead?: boolean }[] = [], skipAnimation: boolean = false, isCombatActive: boolean = true) {
+        if (this.isDead) return;
         this.stateTimer += dt; if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
         const env = environment as any;
@@ -73,8 +74,12 @@ export class LowLevelCityGuard extends HumanoidEntity {
                 }
             }
 
+            // Sync target vars to prevent snapping
+            this.targetPosition.copy(this.position);
+            this.targetRotationY = this.rotationY;
+
             const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: false, isJumping: false, isAxeSwing: false, axeSwingTimer: 0, isPunch: false, isPickingUp: false, isInteracting: false, isWaving: false, isLeftHandWaving: this.isLeftHandWaving, leftHandWaveTimer: this.leftHandWaveTimer, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false };
-            this.animator.animate(animContext, dt, false, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: false, jump: false } as any);
+            this.animator.animate(animContext, dt, false, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any);
             this.walkTime = animContext.walkTime;
             this.lastStepCount = animContext.lastStepCount;
 
@@ -82,6 +87,9 @@ export class LowLevelCityGuard extends HumanoidEntity {
             this.model.sync(this.config, false);
             return;
         }
+
+        const cameraPos = (env as any).scene?.userData?.camera?.position || new THREE.Vector3(0, 10, 10);
+        // this.updateStatBars(cameraPos, isCombatActive); // Handled by EntityManager
 
         let bestTarget = null; let bestDist = 25.0; // Increased search range
         for (const e of enemies) { if (e.isDead) continue; const d = this.position.distanceTo(e.position); if (d < bestDist) { bestDist = d; bestTarget = e; } }
@@ -208,10 +216,14 @@ export class LowLevelCityGuard extends HumanoidEntity {
         this.cameraHandler.cameraWorldPosition.copy(lookT).y += 1.6;
         
         const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: (this.state === GuardState.DUEL || this.state === GuardState.ATTACK), isJumping: false, isAxeSwing: this.isStriking, axeSwingTimer: this.strikeTimer, isPunch: false, isPickingUp: false, isInteracting: false, isWaving: false, isLeftHandWaving: this.isLeftHandWaving, leftHandWaveTimer: this.leftHandWaveTimer, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false };
-        this.animator.animate(animContext, dt, isMoving, { x: animX, y: animY, isRunning: moveSpeed > 3.0, isPickingUp: false, isDead: false, jump: false } as any);
+        this.animator.animate(animContext, dt, isMoving, { x: animX, y: animY, isRunning: moveSpeed > 3.0, isPickingUp: false, isDead: this.isDead, jump: false } as any);
         this.walkTime = animContext.walkTime; 
         this.lastStepCount = animContext.lastStepCount; 
         
+        // Sync target vars to prevent snapping
+        this.targetPosition.copy(this.position);
+        this.targetRotationY = this.rotationY;
+
         this.updateModel(dt);
         this.model.sync(this.config, !!this.currentTarget);
     }

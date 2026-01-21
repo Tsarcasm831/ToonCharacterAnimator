@@ -94,10 +94,13 @@ export class Monk extends HumanoidEntity {
     }
 
     update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
+        if (this.isDead) return;
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
         const env = environment as any;
+        // const cameraPos = (env as any).scene?.userData?.camera?.position || new THREE.Vector3(0, 10, 10);
+        // this.updateStatBars(cameraPos, isCombatActive);
 
         // Snapping check for combat arena
         if (env instanceof CombatEnvironment) {

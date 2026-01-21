@@ -261,20 +261,35 @@ export class PlayerCombat {
 
         // 2. Check Entities
         for (const ent of entities) {
-            if (ent && ent.hitbox && !ent.isDead) {
+            if (ent && !ent.isDead) {
                 if (p.owner === ent) continue; // Don't hit self
+
+                let hitboxParts: THREE.Object3D[] = [];
+                if (typeof ent.getHitboxParts === 'function') {
+                    hitboxParts = ent.getHitboxParts();
+                } else if (ent.hitbox) {
+                    hitboxParts = ent.hitbox.children;
+                }
 
                 const projectilePoint = pos;
                 let hit = false;
-                ent.hitbox.children.forEach((part: any) => {
-                    if (part instanceof THREE.Mesh) {
-                        part.updateMatrixWorld(true);
+                
+                for (const part of hitboxParts) {
+                    if (part instanceof THREE.Mesh || part instanceof THREE.Group) {
+                        // For Groups, setFromObject calculates AABB of all children
+                        // For Meshes, it calculates AABB of geometry transformed by world matrix
+                        // updateMatrixWorld should be called to ensure accuracy
+                        // Note: Calling updateMatrixWorld on every frame for every part might be expensive, 
+                        // but usually the scene update handles it. We force it just in case.
+                        // part.updateMatrixWorld(true); 
+                        
                         PlayerCombat._tempBox1.setFromObject(part);
                         if (PlayerCombat._tempBox1.containsPoint(projectilePoint)) {
                             hit = true;
+                            break;
                         }
                     }
-                });
+                }
 
                 if (hit) {
                     const damage = p.type === 'fireball' ? 15 : 5;

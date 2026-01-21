@@ -1,26 +1,17 @@
-
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
+import { HumanoidEntity } from '../../HumanoidEntity';
 
 enum WarlockState { IDLE, PATROL, CHASE, CAST, RETREAT }
 
-export class Warlock {
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
-    stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    lastFramePos: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
+export class Warlock extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    
     private state: WarlockState = WarlockState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
@@ -31,28 +22,23 @@ export class Warlock {
     private isCasting: boolean = false;
     private castTimer: number = 0;
     private speedFactor: number = 0;
-    private lastStepCount: number = 0;
-    private walkTime: number = 0;
-    public status = { isDead: false, recoverTimer: 0 };
-    private cameraHandler = {
-        blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
-        eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,
-        headLookWeight: 0, cameraWorldPosition: new THREE.Vector3()
-    };
+    
     private smoothedHeadTarget = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
-        this.scene = scene;
-        this.position.copy(initialPos);
-        this.lastFramePos.copy(initialPos);
-        this.lastStuckPos.copy(this.position);
+        super(scene, initialPos, Warlock.createConfig(tint));
         
+        this.lastStuckPos.copy(this.position);
+        this.model.sync(this.config, true);
+    }
+
+    private static createConfig(tint?: string): PlayerConfig {
         // Warlocks can be male or female, typically slim
         const isFemale = Math.random() > 0.5;
         const bodyVariants = ['slim', 'average'] as const;
         const randomVariant = bodyVariants[Math.floor(Math.random() * bodyVariants.length)];
-        
-        this.config = { 
+
+        return { 
             ...DEFAULT_CONFIG, 
             bodyType: isFemale ? 'female' : 'male', 
             bodyVariant: randomVariant, 
@@ -75,17 +61,11 @@ export class Warlock {
                 blacksmithApron: false, mageHat: true, bracers: true, cape: true, belt: true,
                 skirt: false, skullcap: false, shorts: false
             }, 
-            selectedItem: null,
-            weaponStance: 'side',
-            isAssassinHostile: true,
+            selectedItem: null, 
+            weaponStance: 'side', 
+            isAssassinHostile: true, 
             tintColor: tint 
-        };
-        this.stats = { ...CLASS_STATS.warlock };
-        this.model = new PlayerModel(this.config);
-        this.animator = new PlayerAnimator();
-        this.model.group.position.copy(this.position);
-        this.scene.add(this.model.group);
-        this.model.sync(this.config, true);
+        } as any;
     }
 
     private setState(newState: WarlockState) {
@@ -112,6 +92,7 @@ export class Warlock {
     }
 
     update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
+        if (this.isDead) return;
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -124,10 +105,14 @@ export class Warlock {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            
+            this.targetPosition.copy(this.position);
+            this.targetRotationY = this.rotationY;
+            
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -242,7 +227,7 @@ export class Warlock {
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
-        this.model.group.position.copy(this.position);
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
@@ -268,10 +253,14 @@ export class Warlock {
             isSummoning: this.isCasting, summonTimer: this.castTimer
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: this.state === WarlockState.CHASE, isPickingUp: false, isDead: false, jump: false } as any);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: this.state === WarlockState.CHASE, isPickingUp: false, isDead: this.isDead, jump: false } as any);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
-        this.model.update(dt, new THREE.Vector3(0, 0, 0));
+        
+        this.targetPosition.copy(this.position);
+        this.targetRotationY = this.rotationY;
+        
+        this.updateModel(dt);
         this.model.sync(this.config, true);
     }
 }

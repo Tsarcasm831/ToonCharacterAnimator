@@ -40,7 +40,8 @@ export enum InputCommand {
     SlotMinus = 'SlotMinus',
     SlotEqual = 'SlotEqual',
     SlotBackspace = 'SlotBackspace',
-    Die = 'Die'
+    Die = 'Die',
+    Crouch = 'Crouch'
 }
 
 export type KeyBindingMap = {
@@ -70,12 +71,13 @@ export const DEFAULT_KEYBINDINGS: KeyBindingMap = {
     [InputCommand.ToggleKeybinds]: ['Backquote'],
     [InputCommand.ToggleHitbox]: ['KeyG'],
     [InputCommand.ToggleObstacleHitboxes]: ['KeyU'],
-    [InputCommand.ToggleCamera]: ['KeyX'],
+    [InputCommand.ToggleCamera]: ['KeyZ'],
     [InputCommand.ToggleHands]: ['KeyH'],
     [InputCommand.ToggleSkeletonMode]: ['KeyJ'],
     [InputCommand.ToggleBuilder]: ['KeyB'],
     [InputCommand.ToggleGrid]: ['KeyT'], // Was shared with RotateGhost? 
     [InputCommand.RotateGhost]: ['KeyT'],
+    [InputCommand.Crouch]: ['KeyX'],
     [InputCommand.Slot1]: ['Digit1'],
     [InputCommand.Slot2]: ['Digit2'],
     [InputCommand.Slot3]: ['Digit3'],

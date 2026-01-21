@@ -21,7 +21,7 @@ import { CameraManager } from '../managers/CameraManager';
 import { LevelGenerator } from '../builder/LevelGenerator';
 
 export class Game {
-    private renderManager: RenderManager;
+    public renderManager: RenderManager;
     private clock: THREE.Clock;
     
     public player: Player;
@@ -67,6 +67,7 @@ export class Game {
     public onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
     public onToggleInventoryCallback?: () => void;
     public onEnvironmentReady?: () => void;
+    public onUpdate?: (dt: number) => void;
 
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
@@ -287,6 +288,11 @@ export class Game {
         if (delta <= 0) return;
 
         const input = this.inputManager.getInput();
+        
+        // Debug MP
+        if (this.sceneManager.activeScene === 'mp' && (input.x !== 0 || input.y !== 0)) {
+             // console.log(`[Game] MP Input: x=${input.x}, y=${input.y}, camRot=${cameraRotation}`);
+        }
 
         if (this.sceneManager.activeScene === 'combat') {
              this.cameraManager.handleCombatCamera(input, delta);
@@ -322,7 +328,8 @@ export class Game {
         this.entityManager.update(
             delta, 
             this.config, 
-            this.player.mesh.position, 
+            this.player.mesh.position,
+            this.renderManager.camera.position,
             currentEnv, 
             this.sceneManager.activeScene, 
             this.combatManager.isActive,
@@ -406,5 +413,6 @@ export class Game {
         }
         if (this.player.inventory.isDirty) { this.onInventoryUpdate?.([...this.player.inventory.items]); this.player.inventory.isDirty = false; }
         this.renderManager.render();
+        this.onUpdate?.(delta);
     }
 }

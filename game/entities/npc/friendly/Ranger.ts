@@ -1,25 +1,18 @@
 
 import * as THREE from 'three';
-import { EntityStats, PlayerConfig, DEFAULT_CONFIG } from '../../../../types';
+import { DEFAULT_CONFIG } from '../../../../types';
 import { CombatEnvironment } from '../../../environment/CombatEnvironment';
-import { PlayerModel } from '../../../model/PlayerModel';
-import { PlayerAnimator } from '../../../animator/PlayerAnimator';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { AIUtils } from '../../../core/AIUtils';
 import { CLASS_STATS } from '../../../../data/stats';
+import { HumanoidEntity } from '../../HumanoidEntity';
 
 enum RangerState { IDLE, PATROL, STALK, ATTACK, REPOSITION }
 
-export class Ranger {
-    scene: THREE.Scene;
-    model: PlayerModel;
-    animator: PlayerAnimator;
-    config: PlayerConfig;
-    stats: EntityStats;
-    position: THREE.Vector3 = new THREE.Vector3();
-    lastFramePos: THREE.Vector3 = new THREE.Vector3();
-    rotationY: number = 0;
+export class Ranger extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    
     private state: RangerState = RangerState.PATROL;
     private stateTimer: number = 0;
     private targetPos: THREE.Vector3 = new THREE.Vector3();
@@ -30,26 +23,23 @@ export class Ranger {
     private isStriking: boolean = false;
     private strikeTimer: number = 0;
     private speedFactor: number = 0;
-    private lastStepCount: number = 0;
-    private walkTime: number = 0;
-    private status = { isDead: false, recoverTimer: 0 };
-    private cameraHandler = {
-        blinkTimer: 0, isBlinking: false, eyeLookTarget: new THREE.Vector2(), eyeLookCurrent: new THREE.Vector2(),
-        eyeMoveTimer: 0, lookAtCameraTimer: 0, cameraGazeTimer: 0, isLookingAtCamera: false,
-        headLookWeight: 0, cameraWorldPosition: new THREE.Vector3()
-    };
+    
     private smoothedHeadTarget = new THREE.Vector3();
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, tint?: string) {
-        this.scene = scene;
-        this.position.copy(initialPos);
-        this.lastFramePos.copy(initialPos);
+        super(scene, initialPos, Ranger.createConfig(tint));
+        
+        this.stats = { ...CLASS_STATS.ranger };
         this.lastStuckPos.copy(this.position);
         
+        this.model.sync(this.config, true);
+    }
+
+    private static createConfig(tint?: string): any {
         // Rangers are agile forest protectors - slim/average builds with green attire
         const isFemale = Math.random() > 0.5;
         
-        this.config = { 
+        return { 
             ...DEFAULT_CONFIG, 
             bodyType: isFemale ? 'female' : 'male', 
             bodyVariant: 'slim', 
@@ -73,13 +63,7 @@ export class Ranger {
             weaponStance: 'side',
             isAssassinHostile: false,
             tintColor: tint || '#228b22'
-        };
-        this.stats = { ...CLASS_STATS.ranger };
-        this.model = new PlayerModel(this.config);
-        this.animator = new PlayerAnimator();
-        this.model.group.position.copy(this.position);
-        this.scene.add(this.model.group);
-        this.model.sync(this.config, true);
+        } as any;
     }
 
     private setState(newState: RangerState) {
@@ -106,10 +90,13 @@ export class Ranger {
     }
 
     update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
+        if (this.isDead) return;
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
         const env = environment as any;
+        // const cameraPos = (env as any).scene?.userData?.camera?.position || new THREE.Vector3(0, 10, 10);
+        // this.updateStatBars(cameraPos, isCombatActive);
 
         // Snapping check for combat arena
         if (env instanceof CombatEnvironment) {
@@ -120,10 +107,10 @@ export class Ranger {
         }
 
         if (!isCombatActive) {
-            this.model.group.position.copy(this.position);
+            this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
-            this.model.update(dt, new THREE.Vector3(0, 0, 0));
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -241,7 +228,7 @@ export class Ranger {
         }
 
         this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, env.obstacles), dt * 6);
-        this.model.group.position.copy(this.position);
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
@@ -269,7 +256,7 @@ export class Ranger {
         this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: this.state === RangerState.REPOSITION, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
-        this.model.update(dt, new THREE.Vector3(0, 0, 0));
+        this.updateModel(dt);
         this.model.sync(this.config, true);
     }
 }
