@@ -96,6 +96,29 @@ export const Game: React.FC = () => {
         setInteractionProgress(prog); 
     };
 
+    // Sync hotbar selection with character selected item
+    React.useEffect(() => {
+        const selectedItem = inventory[selectedSlot];
+        if (selectedItem) {
+            // Check if it's a weapon/tool
+            const isWeapon = [
+                'Sword', 'Axe', 'Pickaxe', 'Knife', 'Halberd', 
+                'Staff', 'Fishing Pole', 'Bow'
+            ].includes(selectedItem.name);
+            
+            if (isWeapon) {
+                setConfig(prev => ({ ...prev, selectedItem: selectedItem.name }));
+            } else {
+                // If selecting something else in hotbar (like a potion), 
+                // we might want to keep the current weapon or clear it.
+                // For now, let's only update if it's a weapon to match user intent.
+            }
+        } else {
+            // Empty slot selected
+            setConfig(prev => ({ ...prev, selectedItem: null }));
+        }
+    }, [selectedSlot, inventory]);
+
     const triggerAction = (key: keyof typeof manualInput) => {
         setManualInput(prev => ({ ...prev, [key]: true }));
         setTimeout(() => setManualInput(prev => ({ ...prev, [key]: false })), 100);

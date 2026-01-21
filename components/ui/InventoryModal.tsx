@@ -55,6 +55,7 @@ const EQUIPMENT_SLOTS = [
     { id: 'legs', type: 'pants', icon: '👖', label: 'Legs', style: { top: '39%', left: '12px' } },
     { id: 'boots', type: 'shoes', icon: '👢', label: 'Boots', style: { top: '51%', left: '12px' } },
     { id: 'mount', type: 'mount', icon: '🐎', label: 'Mount', style: { top: '63%', left: '12px' } },
+    { id: 'weapon', type: 'weapon', icon: '⚔️', label: 'Weapon', style: { top: '75%', left: '12px' } },
     { id: 'amulet', type: 'amulet', icon: '📿', label: 'Amulet', style: { top: '15%', right: '12px' }, tooltipSide: 'left' },
     { id: 'gloves', type: 'gloves', icon: '🧤', label: 'Gloves', style: { top: '27%', right: '12px' }, tooltipSide: 'left' },
     { id: 'ring1', type: 'ring', icon: '💍', label: 'Ring', style: { top: '39%', right: '12px' }, tooltipSide: 'left' },
@@ -73,6 +74,14 @@ const ITEM_TO_SLOT_MAP: Record<string, string> = {
     'Shoes': 'boots',
     'Mask': 'mask',
     'Hood': 'hood',
+    'Sword': 'weapon',
+    'Axe': 'weapon',
+    'Pickaxe': 'weapon',
+    'Knife': 'weapon',
+    'Halberd': 'weapon',
+    'Staff': 'weapon',
+    'Fishing Pole': 'weapon',
+    'Bow': 'weapon',
 };
 
 export const InventoryModal: React.FC<InventoryModalProps> = ({ 

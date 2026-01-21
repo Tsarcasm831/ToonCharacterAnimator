@@ -65,7 +65,15 @@ export const GlobalModals: React.FC = () => {
         'Shoes': 'boots',
         'Mask': 'mask',
         'Hood': 'hood',
-        'Helm': 'helm'
+        'Helm': 'helm',
+        'Sword': 'weapon',
+        'Axe': 'weapon',
+        'Pickaxe': 'weapon',
+        'Knife': 'weapon',
+        'Halberd': 'weapon',
+        'Staff': 'weapon',
+        'Fishing Pole': 'weapon',
+        'Bow': 'weapon'
     };
 
     const handleEquipFromInventory = (index: number) => {

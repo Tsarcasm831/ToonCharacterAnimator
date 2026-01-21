@@ -182,7 +182,7 @@ export class InputManager {
         }
 
         const isAttack1 = this.manualInput.attack1 || (this.isMouseDown && this.mouseButton === 0) || this.isCommandActive(InputCommand.Attack1);
-        const isAttack2 = this.manualInput.attack2 || (this.isMouseDown && this.mouseButton === 2) || this.isCommandActive(InputCommand.Attack2);
+        const isAttack2 = this.manualInput.attack2 || this.isCommandActive(InputCommand.Attack2);
 
         return {
             x: xInput,
