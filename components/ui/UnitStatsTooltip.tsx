@@ -19,8 +19,8 @@ export const UnitStatsTooltip: React.FC<UnitStatsTooltipProps> = ({
 }) => {
     if (!visible || !stats) return null;
 
-    const hpPercent = stats.maxHp > 0 ? (stats.hp / stats.maxHp) * 100 : 100;
-    const mpPercent = stats.maxMp > 0 ? (stats.mp / stats.maxMp) * 100 : 100;
+    const hpPercent = stats.maxHealth > 0 ? (stats.health / stats.maxHealth) * 100 : 100;
+    const mpPercent = stats.maxMana > 0 ? (stats.mana / stats.maxMana) * 100 : 100;
 
     return (
         <div 
@@ -42,7 +42,7 @@ export const UnitStatsTooltip: React.FC<UnitStatsTooltipProps> = ({
                 <div className="mb-2">
                     <div className="flex justify-between text-[10px] text-white/60 mb-1">
                         <span>HP</span>
-                        <span>{stats.hp}/{stats.maxHp}</span>
+                        <span>{stats.health}/{stats.maxHealth}</span>
                     </div>
                     <div className="h-2 bg-black/40 rounded-full overflow-hidden">
                         <div 
@@ -56,7 +56,7 @@ export const UnitStatsTooltip: React.FC<UnitStatsTooltipProps> = ({
                 <div className="mb-2">
                     <div className="flex justify-between text-[10px] text-white/60 mb-1">
                         <span>MP</span>
-                        <span>{stats.mp}/{stats.maxMp}</span>
+                        <span>{stats.mana}/{stats.maxMana}</span>
                     </div>
                     <div className="h-2 bg-black/40 rounded-full overflow-hidden">
                         <div 
@@ -70,7 +70,7 @@ export const UnitStatsTooltip: React.FC<UnitStatsTooltipProps> = ({
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
                     <div className="flex justify-between">
                         <span className="text-white/50">ATK</span>
-                        <span className="text-orange-400 font-bold">{stats.attack}</span>
+                        <span className="text-orange-400 font-bold">{stats.strength}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-white/50">DEF</span>
@@ -78,11 +78,11 @@ export const UnitStatsTooltip: React.FC<UnitStatsTooltipProps> = ({
                     </div>
                     <div className="flex justify-between">
                         <span className="text-white/50">SPD</span>
-                        <span className="text-green-400 font-bold">{stats.speed}</span>
+                        <span className="text-green-400 font-bold">{stats.attackSpeed}</span>
                     </div>
                     <div className="flex justify-between">
                         <span className="text-white/50">LVL</span>
-                        <span className="text-yellow-400 font-bold">{stats.level}</span>
+                        <span className="text-yellow-400 font-bold">{stats.dexterity}</span>
                     </div>
                 </div>
             </div>

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "dev:public": "concurrently -k \"vite --host 0.0.0.0 --port 3000\" \"npx -y cloudflared tunnel --url http://localhost:3000\"",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
+    "build:analyze": "vite build --mode analyze",
     "lint": "tsc --noEmit",
     "preview": "vite preview"
   },
@@ -19,9 +20,13 @@
     "three": "^0.182.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
+    "@types/node": "^22.19.7",
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.182.0",
     "@vitejs/plugin-react": "^5.1.2",
     "concurrently": "^9.2.1",
+    "terser": "^5.46.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

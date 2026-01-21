@@ -15,7 +15,7 @@ export class CombatInteractionManager {
     private dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     private dragOffset = new THREE.Vector3();
     
-    private selectedUnit: any | null = null;
+    public selectedUnit: any | null = null;
     private draggingUnit: any | null = null;
     private draggingUnitStartPos: THREE.Vector3 | null = null;
     private isWaitingForClick = false;

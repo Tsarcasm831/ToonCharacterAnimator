@@ -21,6 +21,7 @@ export function useUIState() {
   const [selectedUnit, setSelectedUnit] = useState<any | null>(null);
   const [interactionText, setInteractionText] = useState<string | null>(null);
   const [interactionProgress, setInteractionProgress] = useState<number | null>(null);
+  const [isTravelOpen, setIsTravelOpen] = useState(false);
   const [isDeadUI, setIsDeadUI] = useState(false);
 
   const toggleInventory = () => {
@@ -44,6 +45,7 @@ export function useUIState() {
     isSpawnModalOpen, setIsSpawnModalOpen,
     isEnemiesModalOpen, setIsEnemiesModalOpen,
     isCharacterStatsOpen, setIsCharacterStatsOpen,
+    isTravelOpen, setIsTravelOpen,
     dialogue, setDialogue,
     statsForModal, setStatsForModal,
     statsUnitName, setStatsUnitName,
