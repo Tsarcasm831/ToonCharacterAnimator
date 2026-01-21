@@ -49,12 +49,12 @@ export class SoundManager {
         }
 
         // Detect Jump
-        if (player.isJumping && !this.prevIsJumping) {
+        if (player.locomotion.isJumping && !this.prevIsJumping) {
             this.playJump();
         }
 
         // Detect Landing
-        const isGrounded = !player.isJumping && Math.abs(player.jumpVelocity) < 0.1;
+        const isGrounded = !player.locomotion.isJumping && Math.abs(player.locomotion.jumpVelocity) < 0.1;
         if (isGrounded && !this.prevIsGrounded) {
             this.playLand();
         }
@@ -65,7 +65,7 @@ export class SoundManager {
         }
 
         // Detect Footsteps (Locomotion)
-        if (player.didStep && !player.isJumping && isGrounded && !isDead) {
+        if (player.locomotion.didStep && !player.locomotion.isJumping && isGrounded && !isDead) {
             const speed = player.velocity.length();
             const vol = speed > 8 ? 0.35 : 0.15;
             
@@ -73,12 +73,12 @@ export class SoundManager {
             const terrain = this.getTerrainAt(player.mesh.position);
             
             this.playFootstep(vol, terrain);
-            player.didStep = false;
+            player.locomotion.didStep = false;
         }
 
         // Update previous states
         this.prevIsDead = isDead;
-        this.prevIsJumping = player.isJumping;
+        this.prevIsJumping = player.locomotion.isJumping;
         this.prevIsPickingUp = player.isPickingUp;
         this.prevIsGrounded = isGrounded;
     }

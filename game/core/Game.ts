@@ -221,10 +221,11 @@ export class Game {
         }
     }
 
+    private combatInitialized: boolean = false;
+    
     public setCombatActive(active: boolean) {
-        console.log(`[Game] Setting combat active: ${active}`);
         this.combatManager.setCombatActive(active);
-        if (active && this.sceneManager.activeScene === 'combat') {
+        if (active && this.sceneManager.activeScene === 'combat' && !this.combatInitialized) {
             this.config.isAssassinHostile = true;
             if (this.sceneManager.combatEnvironment) {
                 this.sceneManager.combatEnvironment.setCombatStarted(true);
@@ -232,6 +233,9 @@ export class Game {
             // Initialize turn-based or tracked combat system
             const enemies = this.entityManager.getEntitiesForScene('combat');
             this.combatSystem.initializeCombat(this.player, [], enemies);
+            this.combatInitialized = true;
+        } else if (!active) {
+            this.combatInitialized = false;
         }
     }
 
@@ -354,8 +358,8 @@ export class Game {
                 this.player.model.group.position.copy(this.player.mesh.position);
                 this.player.model.group.rotation.copy(this.player.mesh.rotation);
             }
-            if (this.isBuilding && this.inputManager.mousePosition) {
-                this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv, this.renderManager.camera, this.inputManager.mousePosition);
+            if (this.isBuilding && this.inputManager.mousePosition && this.sceneManager.activeScene === 'dev') {
+                this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv as any, this.renderManager.camera, this.inputManager.mousePosition);
             }
         }
         this.soundManager.update(this.player, delta);

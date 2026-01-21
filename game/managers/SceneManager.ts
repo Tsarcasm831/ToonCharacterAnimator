@@ -97,9 +97,9 @@ export class SceneManager {
             
             const reservedCells = [];
 
-            // Spawn custom encounter: 1 Archer on green side, 1 Bandit on red side
-            this.entityManager.spawnCombatEncounter('archer', 1, this.combatEnvironment, reservedCells);
-            this.entityManager.spawnCombatEncounter('bandit', 1, this.combatEnvironment, [...reservedCells, ...this.entityManager.combatArchers.map(a => this.combatEnvironment.getGridPosition(a.position)).filter((p): p is {r: number, c: number} => p !== null)]);
+            // Spawn custom encounter: 1 Ranger on green side, 1 Bandit on red side
+            this.entityManager.spawnCombatEncounter('ranger', 1, this.combatEnvironment, reservedCells);
+            this.entityManager.spawnCombatEncounter('bandit', 1, this.combatEnvironment, [...reservedCells, ...this.entityManager.rangers.map(a => this.combatEnvironment.getGridPosition(a.position)).filter((p): p is {r: number, c: number} => p !== null)]);
             
             this.player.mesh.rotation.y = Math.PI; 
             this.renderManager.controls.target.set(0, 0, 0);
@@ -109,9 +109,9 @@ export class SceneManager {
         }
 
         if (!isInit) {
-            this.player.velocity.set(0,0,0);
-            this.player.jumpVelocity = 0;
-            this.player.isJumping = false;
+            this.player.locomotion.velocity.set(0,0,0);
+            this.player.locomotion.jumpVelocity = 0;
+            this.player.locomotion.isJumping = false;
             if (sceneName !== 'dev') {
                 this.onEnvironmentReady?.();
             }

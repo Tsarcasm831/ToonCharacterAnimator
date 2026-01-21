@@ -38,7 +38,6 @@ export class CombatInteractionManager {
 
     public setCombatActive(active: boolean) {
         this.isActive = active;
-        console.log(`[CombatInteractionManager] Interaction active: ${active}`);
     }
 
     private clearRangeHighlight() {
@@ -157,7 +156,7 @@ export class CombatInteractionManager {
 
     private isFriendlyUnit(unit: any): boolean {
         if (unit === this.player) return true;
-        const friendlyTypes = ['Cleric', 'Knight', 'Paladin', 'Monk', 'Ranger', 'Sentinel', 'Archer'];
+        const friendlyTypes = ['Cleric', 'Knight', 'Paladin', 'Monk', 'Ranger', 'Sentinel'];
         const unitType = unit?.constructor?.name || '';
         return friendlyTypes.includes(unitType) || this.entityManager.combatArchers.includes(unit);
     }
@@ -198,10 +197,11 @@ export class CombatInteractionManager {
                     const targetGrid = combatEnvironment.getGridPosition(unitPos);
                     const units = [this.player, ...this.entityManager.getEntitiesForScene('combat')];
                     
-                    // Friendly side is rows 4-7 (including bench at 7)
-                    // Enemy side is rows 0-3 (including bench at 0)
+                    // Friendly side is rows 7-12 (including bench at 11-12) for 13x13 grid
+                    // Enemy side is rows 0-5 (including bench at 0-1)
                     // We only allow friendly units to be placed on friendly rows
-                    const isOnFriendlySide = targetGrid ? targetGrid.r >= 4 : false;
+                    // Also constrain to central columns (2-10) for better positioning
+                    const isOnFriendlySide = targetGrid ? targetGrid.r >= 7 && targetGrid.c >= 2 && targetGrid.c <= 10 : false;
                     
                     if (targetGrid && isOnFriendlySide) {
                         // Check for occupancy

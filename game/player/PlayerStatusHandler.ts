@@ -14,6 +14,10 @@ export class PlayerStatusHandler {
     evasion: number = 8;
     damage: number = 15;
     soak: number = 2;
+    mana: number = 0;
+    maxMana: number = 100;
+    attackSpeed: number = 1.0;
+    range: number = 1.5;
 
     isDead: boolean = false;
     deathTime: number = 0;
@@ -56,7 +60,11 @@ export class PlayerStatusHandler {
             defense: this.defense,
             evasion: this.evasion,
             damage: this.damage,
-            soak: this.soak
+            soak: this.soak,
+            mana: this.mana,
+            maxMana: this.maxMana,
+            attackSpeed: this.attackSpeed,
+            range: this.range
         };
     }
 }

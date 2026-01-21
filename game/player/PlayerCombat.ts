@@ -56,17 +56,23 @@ export class PlayerCombat {
     needsReclick: boolean = false;
 
     // Projectiles
-    activeProjectiles: Projectile[] = [];
-    private _tempBox1 = new THREE.Box3();
-    private _tempBox2 = new THREE.Box3();
+    static activeProjectiles: Projectile[] = [];
+    private static _tempBox1 = new THREE.Box3();
+    private static _tempBox2 = new THREE.Box3();
 
     constructor(player: Player) {
         this.player = player;
     }
 
     update(dt: number, input: PlayerInput, environment: any, particleManager: ParticleManager, entities: any[] = []) {
-        this.updateProjectiles(dt, environment, particleManager, entities);
-
+        // Projectiles are updated globally by Game.ts, but if not, we can do it here?
+        // Game.ts calls PlayerCombat.updateProjectiles.
+        // So we don't need to call it here if Game.ts does it.
+        // But Player.ts calls this.combat.update.
+        // If we remove it from here, Player projectiles won't update if Game.ts doesn't call it.
+        // But Game.ts DOES call it (line 350).
+        // So I will remove it from here to avoid double update.
+        
         // Input Handling
         this.handleInput(dt, input, particleManager);
 
@@ -130,7 +136,7 @@ export class PlayerCombat {
         this.wasAttack2Pressed = !!input.attack2;
     }
 
-    spawnProjectile(
+    static spawnProjectile(
         scene: THREE.Scene,
         startPos: THREE.Vector3,
         direction: THREE.Vector3,
@@ -180,7 +186,7 @@ export class PlayerCombat {
 
         const velocity = direction.clone().normalize().multiplyScalar(speed);
         
-        this.activeProjectiles.push({
+        PlayerCombat.activeProjectiles.push({
             mesh,
             velocity,
             life,
@@ -190,9 +196,9 @@ export class PlayerCombat {
         });
     }
 
-    private updateProjectiles(dt: number, environment: any, particleManager: ParticleManager, entities: any[]) {
-        for (let i = this.activeProjectiles.length - 1; i >= 0; i--) {
-            const p = this.activeProjectiles[i];
+    static updateProjectiles(dt: number, environment: any, particleManager: ParticleManager, entities: any[]) {
+        for (let i = PlayerCombat.activeProjectiles.length - 1; i >= 0; i--) {
+            const p = PlayerCombat.activeProjectiles[i];
             
             // Move
             const moveStep = p.velocity.clone().multiplyScalar(dt);
@@ -212,28 +218,28 @@ export class PlayerCombat {
             }
 
             // Check Collision
-            if (this.checkProjectileCollision(p, environment, particleManager, entities)) {
+            if (PlayerCombat.checkProjectileCollision(p, environment, particleManager, entities)) {
                 if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
-                this.activeProjectiles.splice(i, 1);
+                PlayerCombat.activeProjectiles.splice(i, 1);
                 continue;
             }
 
             // Check Max Distance
             if (p.mesh.position.distanceTo(p.startPos) > 40.0) {
                  if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
-                 this.activeProjectiles.splice(i, 1);
+                 PlayerCombat.activeProjectiles.splice(i, 1);
                  continue;
             }
 
             p.life -= dt;
             if (p.life <= 0) {
                 if (p.mesh.parent) p.mesh.parent.remove(p.mesh);
-                this.activeProjectiles.splice(i, 1);
+                PlayerCombat.activeProjectiles.splice(i, 1);
             }
         }
     }
 
-    private checkProjectileCollision(p: Projectile, environment: any, particleManager: ParticleManager, entities: any[]): boolean {
+    private static checkProjectileCollision(p: Projectile, environment: any, particleManager: ParticleManager, entities: any[]): boolean {
         const pos = p.mesh.position;
         // 1. Check Obstacles
         for (const obs of environment.obstacles) {
@@ -256,13 +262,15 @@ export class PlayerCombat {
         // 2. Check Entities
         for (const ent of entities) {
             if (ent && ent.hitbox && !ent.isDead) {
+                if (p.owner === ent) continue; // Don't hit self
+
                 const projectilePoint = pos;
                 let hit = false;
                 ent.hitbox.children.forEach((part: any) => {
                     if (part instanceof THREE.Mesh) {
                         part.updateMatrixWorld(true);
-                        this._tempBox1.setFromObject(part);
-                        if (this._tempBox1.containsPoint(projectilePoint)) {
+                        PlayerCombat._tempBox1.setFromObject(part);
+                        if (PlayerCombat._tempBox1.containsPoint(projectilePoint)) {
                             hit = true;
                         }
                     }
@@ -325,7 +333,7 @@ export class PlayerCombat {
         const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
         spawnPos.addScaledVector(forward, 1.0);
 
-        this.spawnProjectile(this.player.scene, spawnPos, forward, 'fireball', this.player);
+        PlayerCombat.spawnProjectile(this.player.scene, spawnPos, forward, 'fireball', this.player);
         particleManager.emit(spawnPos, 10, 'spark'); 
     }
 
@@ -378,7 +386,7 @@ export class PlayerCombat {
         spawnPos.addScaledVector(forward, 0.8);
         spawnPos.addScaledVector(left, 0.2); 
 
-        this.spawnProjectile(this.player.scene, spawnPos, forward, 'arrow', this.player);
+        PlayerCombat.spawnProjectile(this.player.scene, spawnPos, forward, 'arrow', this.player);
         particleManager.emit(spawnPos, 5, 'spark'); 
     }
 
@@ -509,8 +517,8 @@ export class PlayerCombat {
 
         if (!dealer) return;
 
-        this._tempBox1.setFromObject(dealer);
-        this._tempBox1.expandByScalar(0.25);
+        PlayerCombat._tempBox1.setFromObject(dealer);
+        PlayerCombat._tempBox1.expandByScalar(0.25);
 
         for (const ent of entities) {
             if (ent && ent.hitbox && !ent.isDead) {
@@ -519,8 +527,8 @@ export class PlayerCombat {
                     ent.hitbox.children.forEach((part: any) => {
                         if (part instanceof THREE.Mesh) {
                             part.updateMatrixWorld(true);
-                            this._tempBox2.setFromObject(part);
-                            if (this._tempBox1.intersectsBox(this._tempBox2)) {
+                            PlayerCombat._tempBox2.setFromObject(part);
+                            if (PlayerCombat._tempBox1.intersectsBox(PlayerCombat._tempBox2)) {
                                 hit = true;
                             }
                         }
@@ -529,7 +537,7 @@ export class PlayerCombat {
                     if (hit) {
                         ent.takeDamage(damage);
                         const impactPoint = new THREE.Vector3();
-                        this._tempBox1.getCenter(impactPoint);
+                        PlayerCombat._tempBox1.getCenter(impactPoint);
                         particleManager.emit(impactPoint, 10, 'wood'); 
                         return; 
                     }
@@ -573,7 +581,7 @@ export class PlayerCombat {
 
         if (closest) { 
              const obsPos = new THREE.Vector3();
-             closest.getWorldPosition(obsPos);
+             (closest as THREE.Object3D).getWorldPosition(obsPos);
              const impactPos = playerPos.clone().lerp(obsPos, 0.5);
              impactPos.y += 1.1; 
 

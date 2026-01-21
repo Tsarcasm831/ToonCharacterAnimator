@@ -64,8 +64,6 @@ export class Monk extends HumanoidEntity {
         this.lastFramePos.copy(this.position);
     }
     
-    private lastFramePos: THREE.Vector3 = new THREE.Vector3();
-
     private setState(newState: MonkState) {
         if (this.state === newState) return;
         this.state = newState;

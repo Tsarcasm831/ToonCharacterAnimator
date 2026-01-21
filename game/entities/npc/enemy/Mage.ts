@@ -63,9 +63,6 @@ export class Mage extends HumanoidEntity {
         this.lastFramePos.copy(this.position);
     }
     
-    // Used for velocity calculation if needed, base doesn't expose it public/protected for write easily yet
-    private lastFramePos: THREE.Vector3 = new THREE.Vector3();
-
     private setState(newState: MageState) {
         if (this.state === newState) return;
         this.state = newState; 

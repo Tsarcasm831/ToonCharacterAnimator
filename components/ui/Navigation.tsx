@@ -19,8 +19,8 @@ export const Navigation: React.FC<NavigationProps> = ({ activePage, onPageChange
     ];
 
     return (
-        <header className="fixed top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none">
-            <nav className="mt-4 flex items-center gap-2 px-4 py-3 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl pointer-events-auto">
+        <header className="w-full h-20 bg-slate-900 border-b border-white/10 flex justify-center items-center shrink-0 z-[100]">
+            <nav className="flex items-center gap-2">
                 {navItems.map((item) => {
                     const Icon = item.icon;
                     const isActive = activePage === item.id;
@@ -29,9 +29,9 @@ export const Navigation: React.FC<NavigationProps> = ({ activePage, onPageChange
                             key={item.id}
                             onClick={() => onPageChange(item.id)}
                             className={`
-                                flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 group
+                                flex items-center gap-2 px-6 py-3 rounded-xl transition-all duration-300 group
                                 ${isActive 
-                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20 scale-105' 
+                                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
                                     : 'text-slate-400 hover:text-white hover:bg-white/5'}
                             `}
                         >
