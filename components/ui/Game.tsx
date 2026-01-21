@@ -31,7 +31,7 @@ export const Game: React.FC = () => {
         dialogue, 
         selectedSlot, setSelectedSlot,
         interactionText, interactionProgress, setInteractionText, setInteractionProgress,
-        isInventoryOpen, isTradeOpen, isShopkeeperChatOpen, isForgeOpen, isKeybindsOpen, isQuestLogOpen, isSpawnModalOpen, isEnemiesModalOpen, isCharacterStatsOpen, isLandMapOpen,
+        isInventoryOpen, isTradeOpen, isShopkeeperChatOpen, isForgeOpen, isKeybindsOpen, isQuestLogOpen, isSpawnModalOpen, isEnemiesModalOpen, isCharacterStatsOpen, isLandMapOpen, isTravelOpen,
         setIsTravelOpen, setIsLandMapOpen,
         setDialogue,
         setIsDeadUI, isDeadUI,
@@ -41,14 +41,14 @@ export const Game: React.FC = () => {
         setSelectedUnitStats, setSelectedUnit,
         setIsTradeOpen, setIsShopkeeperChatOpen, setIsForgeOpen
     } = uiState;
-    const { isCombatActive, setIsCombatActive, combatLog, setShowGrid, showGrid, addCombatLog } = combatState;
+    const { isCombatActive, setIsCombatActive, combatLog, addCombatLog } = combatState;
     const { 
         currentBiome, playerRotation, setPlayerRotation, isBuilderMode, activeStructure, setPlayerPosForMap, 
         setIsEnvironmentBuilt, setIsVisualLoadingDone, isEnvironmentBuilt, isVisualLoadingDone,
-        setIsBuilderMode, setCurrentBiome, setActiveStructure, setBuildingType 
+        setIsBuilderMode, setCurrentBiome, setActiveStructure, showGrid, setShowGrid 
     } = environmentState;
 
-    const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || gameState !== 'PLAYING';
+    const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || gameState !== 'PLAYING' || isTravelOpen;
 
     // Handlers
     const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false) => {
@@ -74,7 +74,7 @@ export const Game: React.FC = () => {
             
             if (!gameInstance.current.entityManager) return;
             
-            gameInstance.current.entityManager.spawnAnimalGroup('spider', 1, gameInstance.current.environment, spawnPos);
+            gameInstance.current.entityManager.spawnAnimalGroup('spider', 1, gameInstance.current.sceneManager.environment, spawnPos);
           }
         }, 2000);
     };
@@ -168,7 +168,7 @@ export const Game: React.FC = () => {
     const handleExport = () => {
          import('../../game/core/ModelExporter').then(({ ModelExporter }) => {
              if (gameInstance.current && gameInstance.current.player) {
-                 ModelExporter.exportAndDownloadZip(gameInstance.current.player.mesh);
+                 ModelExporter.exportAndDownloadZip(gameInstance.current.player.mesh as any);
              }
          });
     };
@@ -267,14 +267,14 @@ export const Game: React.FC = () => {
                                         stats={config.stats}
                                         isFemale={config.bodyType === 'female'}
                                         combatLog={combatLog}
-                                        onOpenTravel={handleMapToggle}
+                                        onOpenTravel={() => handleMapToggle(environmentState.playerPosForMap || new THREE.Vector3())}
                                         onToggleBestiary={onShowEnemies}
                                     />
                                     
                                     {isBuilderMode && (
                                         <BuilderUI 
-                                            activeStructure={activeStructure} 
-                                            onSelectStructure={onSelectStructure} 
+                                            activeType={activeStructure} 
+                                            onSelectType={onSelectStructure} 
                                         />
                                     )}
                                     

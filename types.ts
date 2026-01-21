@@ -1,4 +1,6 @@
 
+export type ActiveScene = 'dev' | 'land' | 'combat' | 'world';
+
 export type BodyVariant = 'average' | 'muscular' | 'slim' | 'heavy';
 export type OutfitType = 'nude' | 'naked' | 'peasant' | 'warrior' | 'noble';
 export type WeaponStance = 'side' | 'shoulder';

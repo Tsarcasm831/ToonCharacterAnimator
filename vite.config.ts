@@ -17,37 +17,54 @@ export default defineConfig(({ mode }) => {
       },
       resolve: {
         alias: {
-          // Replaced __dirname with '.' for resolve path
           '@': path.resolve('.'),
         }
       },
       build: {
+        target: 'es2020',
+        outDir: 'dist',
+        assetsDir: 'assets',
+        sourcemap: true,
+        minify: 'terser',
         rollupOptions: {
+          input: {
+            main: path.resolve(__dirname, 'index.html')
+          },
           output: {
             manualChunks: {
-              'three': ['three'],
-              'react-vendor': ['react', 'react-dom'],
+              'vendor-three': ['three'],
+              'vendor-react': ['react', 'react-dom'],
+              'vendor-ui': ['lucide-react'],
               'game-core': [
                 './game/core/Game.ts',
-                './game/player/Player.ts',
-                './game/model/PlayerModel.ts',
-                './game/animator/PlayerAnimator.ts'
+                './game/entities/BaseEntity.ts',
+                './game/entities/HumanoidEntity.ts',
+                './game/animator/LocomotionAnimator.ts',
+                './game/core/EnemyCache.ts'
               ],
-              'game-entities': [
-                './game/managers/EntityManager.ts'
+              'game-systems': [
+                './hooks/useCombatState.ts',
+                './hooks/useEnvironmentState.ts',
+                './hooks/useEconomyLogic.ts'
               ],
               'ui-components': [
-                './components/ui/ControlPanel.tsx',
-                './components/ui/InventoryModal.tsx',
-                './components/ui/TradeModal.tsx'
+                './components/ui/BuilderUI.tsx',
+                './components/CombatScene.tsx',
+                './components/WorldScene.tsx',
+                './components/LandScene.tsx'
               ]
-            }
+            },
+            chunkFileNames: 'assets/[name]-[hash].js',
+            entryFileNames: 'assets/[name]-[hash].js',
+            assetFileNames: 'assets/[name]-[hash].[ext]'
           }
         },
-        chunkSizeWarningLimit: 1000
+        chunkSizeWarningLimit: 1500,
+        cssCodeSplit: true
       },
       optimizeDeps: {
-        include: ['three', 'react', 'react-dom']
-      }
+        include: ['three', 'react', 'react-dom', 'lucide-react']
+      },
+      assetsInclude: ['**/*.glb', '**/*.gltf', '**/*.png', '**/*.jpg', '**/*.svg', '**/*.mp3']
     };
 });

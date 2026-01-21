@@ -25,6 +25,16 @@
     },
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "forceConsistentCasingInFileNames": true
-  }
+    "outDir": "./dist",
+    "forceConsistentCasingInFileNames": true,
+    "strict": false
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

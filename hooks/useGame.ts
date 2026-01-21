@@ -1,15 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { Game } from '../game/core/Game';
-import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
+import { PlayerConfig, PlayerInput, InventoryItem, ActiveScene } from '../types';
 import { SceneType } from '../game/managers/SceneManager';
 import * as THREE from 'three';
 
 interface UseGameProps {
-    containerRef: React.RefObject<HTMLDivElement>;
+    containerRef: React.RefObject<HTMLDivElement | null>;
     config: PlayerConfig;
     manualInput: Partial<PlayerInput>;
     initialInventory: (InventoryItem | null)[];
-    activeScene: SceneType;
+    activeScene: ActiveScene;
     onGameReady?: (game: Game) => void;
     onEnvironmentReady?: () => void;
     onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
@@ -54,7 +54,7 @@ export const useGame = ({
         // Prevent double init if strict mode
         if (gameRef.current) return;
 
-        const game = new Game(containerRef.current, config, manualInput, initialInventory, activeScene);
+        const game = new Game(containerRef.current, config, manualInput, initialInventory, activeScene as any);
         gameRef.current = game;
 
         if (onGameReady) onGameReady(game);
@@ -115,8 +115,8 @@ export const useGame = ({
         // If scene changed in props but we initialized with a fixed one, handle switch?
         // Game constructor takes activeScene. SwitchScene is method on Game/SceneManager.
         // If activeScene prop changes, we should switch scene.
-        if (game.getActiveScene() !== activeScene) {
-            game.switchScene(activeScene);
+        if (game.getActiveScene() !== (activeScene as any)) {
+            game.switchScene(activeScene as any);
         }
 
         game.setConfig(config);

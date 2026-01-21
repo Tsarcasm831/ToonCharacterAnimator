@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react';
+import { PlayerConfig, PlayerInput, InventoryItem, ActiveScene } from '../../types';
 import { useGlobalState } from '../../contexts/GlobalContext';
 import { FastTravelMenu } from './FastTravelMenu';
 import * as THREE from 'three';
@@ -79,21 +80,21 @@ export const GlobalModals: React.FC = () => {
         handleEquipItem(item.name, slotId);
     };
 
-    const handleTravel = (scene: 'dev' | 'land' | 'combat') => {
-        if (scene === activeScene) { setIsTravelOpen(false); return; }
+    const handleTravel = (scene: ActiveScene) => {
+        if (scene === (activeScene as any)) { setIsTravelOpen(false); return; }
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
         setGameState('LOADING');
         setIsTravelOpen(false);
-        setTimeout(() => setActiveScene(scene), 100);
+        setTimeout(() => setActiveScene(scene as any), 100);
     };
 
     const handleSpawnAnimal = (type: string, count: number) => { 
         if (gameInstance.current) {
             const playerPos = gameInstance.current.player.position;
             const spawnPos = playerPos.clone().add(new THREE.Vector3(2, 0, 2));
-            gameInstance.current.entityManager.spawnAnimalGroup(type, count, gameInstance.current.environment, spawnPos);
+            gameInstance.current.entityManager.spawnAnimalGroup(type, count, gameInstance.current.sceneManager.environment, spawnPos);
         }
     };
 
@@ -125,8 +126,9 @@ export const GlobalModals: React.FC = () => {
             )}
             {isShopkeeperChatOpen && (
                 <ShopkeeperChatModal 
+                    isOpen={isShopkeeperChatOpen}
                     onClose={() => setIsShopkeeperChatOpen(false)}
-                    onOpenTrade={() => {
+                    onTrade={() => {
                         setIsShopkeeperChatOpen(false);
                         setIsTradeOpen(true);
                     }}
@@ -141,10 +143,11 @@ export const GlobalModals: React.FC = () => {
                 />
             )}
             {isKeybindsOpen && (
-                <KeybindsModal onClose={toggleKeybinds} />
+                <KeybindsModal isOpen={isKeybindsOpen} onClose={toggleKeybinds} />
             )}
             {isQuestLogOpen && (
                 <QuestLogModal 
+                    isOpen={isQuestLogOpen}
                     quests={quests}
                     onClose={toggleQuestLog}
                     onClaimReward={claimQuestReward}
@@ -159,6 +162,7 @@ export const GlobalModals: React.FC = () => {
             )}
             {isSpawnModalOpen && (
                 <SpawnAnimalsModal 
+                    isOpen={isSpawnModalOpen}
                     onClose={() => setIsSpawnModalOpen(false)}
                     onSpawn={handleSpawnAnimal}
                 />
@@ -167,7 +171,11 @@ export const GlobalModals: React.FC = () => {
                 <EnemiesModal isOpen={isEnemiesModalOpen} onClose={() => setIsEnemiesModalOpen(false)} />
             )}
             {isLand && isLandMapOpen && (
-                <LandMapModal isOpen={isLandMapOpen} onClose={() => setIsLandMapOpen(false)} />
+                <LandMapModal 
+                    isOpen={isLandMapOpen} 
+                    onClose={() => setIsLandMapOpen(false)} 
+                    playerPos={gameInstance.current?.player.position || new THREE.Vector3()}
+                />
             )}
             {/* {isCharacterStatsOpen && (
                 <CharacterStatsModal 

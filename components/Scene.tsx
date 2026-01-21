@@ -1,12 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { Game } from "../game/core/Game";
-import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
+import { PlayerConfig, PlayerInput, InventoryItem, ActiveScene } from '../types';
 import { WorldMapModal } from './ui/WorldMapModal';
 import { useGame } from '../hooks/useGame';
 
 interface SceneProps {
-  activeScene: 'dev' | 'land' | 'combat';
+  activeScene: ActiveScene;
   config: PlayerConfig;
   manualInput: Partial<PlayerInput>;
   initialInventory: (InventoryItem | null)[];

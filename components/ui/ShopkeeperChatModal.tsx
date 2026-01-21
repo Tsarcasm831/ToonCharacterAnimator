@@ -2,14 +2,14 @@ import React from 'react';
 
 interface ShopkeeperChatModalProps {
     isOpen: boolean;
+    onClose: () => void;
     onTrade: () => void;
-    onCancel: () => void;
 }
 
 export const ShopkeeperChatModal: React.FC<ShopkeeperChatModalProps> = ({
     isOpen,
     onTrade,
-    onCancel
+    onClose
 }) => {
     if (!isOpen) return null;
 
@@ -26,7 +26,7 @@ export const ShopkeeperChatModal: React.FC<ShopkeeperChatModalProps> = ({
                 </div>
                 <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-3">
                     <button
-                        onClick={onCancel}
+                        onClick={onClose}
                         className="px-5 py-2 rounded-full text-xs font-black uppercase tracking-widest bg-slate-700 text-slate-200 hover:bg-slate-600 transition-all"
                     >
                         Cancel

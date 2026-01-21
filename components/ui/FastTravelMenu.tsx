@@ -1,8 +1,9 @@
 import React from 'react';
+import { ActiveScene } from '../../types';
 
 interface FastTravelMenuProps {
-  activeScene: 'dev' | 'world' | 'combat';
-  onTravel: (scene: 'dev' | 'world' | 'combat') => void;
+  activeScene: ActiveScene;
+  onTravel: (scene: ActiveScene) => void;
   onClose: () => void;
 }
 

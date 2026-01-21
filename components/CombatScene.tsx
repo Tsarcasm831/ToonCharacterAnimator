@@ -112,6 +112,8 @@ const CombatScene: React.FC<CombatSceneProps> = ({
                 stats={config.stats}
                 isFemale={config.bodyType === 'female'}
                 combatLog={combatLog}
+                onOpenTravel={() => {}}
+                onToggleBestiary={() => {}}
             />
             
             {/* Unit Stats Tooltip (shown on right-click) */}
