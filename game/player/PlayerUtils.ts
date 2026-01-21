@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
-import { getLandHeightAt } from '../environment/landTerrain';
+import { getLandHeightAt, isWorldPointInLand } from '../environment/landTerrain';
 
 export class PlayerUtils {
     // Matching constants from Environment.ts to calculate pond depth mathematically
@@ -70,6 +70,9 @@ export class PlayerUtils {
     }
 
     static isWithinBounds(pos: THREE.Vector3, margin: number = 0.5): boolean {
+        if (this.useLandTerrain) {
+            return isWorldPointInLand(pos.x, pos.z);
+        }
         const limit = this.WORLD_LIMIT - margin;
         return pos.x >= -limit && pos.x <= limit && pos.z >= -limit && pos.z <= limit;
     }

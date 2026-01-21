@@ -52,7 +52,15 @@ export class Wolf {
         } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
 
         this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
-        this.group.position.copy(this.position); this.group.rotation.y = this.rotationY;
+        
+        const lerpSpeed = 15;
+        const lerpFactor = Math.min(dt * lerpSpeed, 1.0);
+        this.group.position.lerp(this.position, lerpFactor);
+        
+        let rotDiff = this.rotationY - this.group.rotation.y;
+        while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+        while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+        this.group.rotation.y += rotDiff * lerpFactor;
 
         if (skipAnimation) return;
         this.animate(dt, moveSpeed);
