@@ -235,6 +235,7 @@ export class CombatEnvironment {
                 mesh.position.y = -this.HEX_HEIGHT / 2; // Top surface at y=0
                 mesh.receiveShadow = true;
                 mesh.userData.originalMat = isTopHalf ? matRed : matGreen;
+                mesh.userData.type = 'ground'; // Mark as ground
                 this.hexMeshes.push(mesh);
                 
                 // Slight inset for border visual

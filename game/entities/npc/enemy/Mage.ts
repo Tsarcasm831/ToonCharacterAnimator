@@ -95,6 +95,7 @@ export class Mage extends HumanoidEntity {
     }
 
     update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean, isWolf?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
+        if (this.isDead) return;
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -133,10 +134,29 @@ export class Mage extends HumanoidEntity {
             this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
+            
+            // Sync target vars to prevent snapping
+            this.targetPosition.copy(this.position);
+            this.targetRotationY = this.rotationY;
+
+            const animContext = {
+                config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
+                isCombatStance: false,
+                isJumping: false, isAxeSwing: false, axeSwingTimer: 0, isPunch: false,
+                isPickingUp: false, pickUpTime: 0, isInteracting: false, isWaving: false, isSkinning: false,
+                isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
+            };
+            this.animator.animate(animContext, dt, false, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
+            this.walkTime = animContext.walkTime;
+            this.lastStepCount = animContext.lastStepCount;
+
             this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
+
+        const cameraPos = (env as any).scene?.userData?.camera?.position || new THREE.Vector3(0, 10, 10);
+        // this.updateStatBars(cameraPos, isCombatActive); // Handled by EntityManager
 
         let bestTarget = null; let bestDist = 40.0; // Increased from 25.0
         for (const t of potentialTargets) {
@@ -289,9 +309,11 @@ export class Mage extends HumanoidEntity {
             fireballTimer: this.castTimer 
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: animX, y: animY, isRunning: this.state === MageState.CHASE, isPickingUp: false, isDead: false, jump: false } as any, (environment as any).obstacles);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: animX, y: animY, isRunning: this.state === MageState.CHASE, isPickingUp: false, isDead: this.isDead, jump: false } as any, (environment as any).obstacles);
         this.walkTime = animContext.walkTime; 
         this.lastStepCount = animContext.lastStepCount; 
+        this.targetPosition.copy(this.position);
+        this.targetRotationY = this.rotationY;
         this.updateModel(dt);
         this.model.sync(this.config, true);
     }

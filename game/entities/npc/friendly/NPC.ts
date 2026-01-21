@@ -21,7 +21,12 @@ export class NPC extends HumanoidEntity {
     }
 
     update(dt: number, targetEyePosition: THREE.Vector3, environment: Environment, skipAnimation: boolean = false) {
+        if (this.isDead) return;
         this.updateGroundHeight(environment);
+        
+        // Use targetEyePosition (player's eye) as camera pos for stat bars in dev scene
+        // We assume 'isCombatActive' is false for pure NPCs usually, but we want bars if damaged.
+        // this.updateStatBars(targetEyePosition, false); // Handled by EntityManager
         
         if (!PlayerUtils.isWithinBounds(this.position)) {
             const limit = PlayerUtils.WORLD_LIMIT - 1.0;

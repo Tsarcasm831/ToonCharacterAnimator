@@ -7,6 +7,7 @@ export class IdleAction {
         const t = player.locomotion?.walkTime ?? (Date.now() * 0.002);
         const isMale = player.config.bodyType === 'male';
         const isCombatStance = player.combat?.isCombatStance ?? player.isCombatStance ?? false;
+        const isCrouching = player.locomotion?.isCrouching ?? false;
         
         // 1. Update walkTime if in locomotion (for seamless transitions)
         if (player.locomotion) {
@@ -23,32 +24,51 @@ export class IdleAction {
 
         const lerp = THREE.MathUtils.lerp;
         const baseHeight = 0.89 * player.config.legScale;
+        let targetHeight = baseHeight;
+        
+        let thighBend = 0;
+        let shinBend = 0;
+        let torsoBend = 0;
+        let headBend = 0;
+
+        if (isCrouching) {
+             targetHeight -= 0.35;
+             thighBend = -1.2; // Legs forward/up
+             shinBend = 2.2;   // Knees bent back
+             torsoBend = 0.5;  // Lean forward
+             headBend = -0.4;  // Look up slightly to compensate for lean
+        }
         
         parts.hips.position.x = lerp(parts.hips.position.x, 0, damp);
         parts.hips.position.z = lerp(parts.hips.position.z, 0, damp);
         parts.hips.rotation.set(0, 0, 0);
         
-        parts.hips.position.y = lerp(parts.hips.position.y, baseHeight, damp);
+        parts.hips.position.y = lerp(parts.hips.position.y, targetHeight, damp);
         
         parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, 0, damp);
         parts.torsoContainer.rotation.z = lerp(parts.torsoContainer.rotation.z, 0, damp);
-        parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, Math.sin(t) * 0.02, damp);
+        parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, Math.sin(t) * 0.02 + torsoBend, damp);
 
         parts.neck.rotation.y = lerp(parts.neck.rotation.y, 0, damp);
-        parts.neck.rotation.x = -Math.sin(t) * 0.02;
-        parts.head.rotation.x = 0.1 + Math.sin(t - 1) * 0.02;
+        parts.neck.rotation.x = -Math.sin(t) * 0.02 + (isCrouching ? 0.2 : 0);
+        parts.head.rotation.x = 0.1 + Math.sin(t - 1) * 0.02 + headBend;
         
         // Leg Splay
         const spread = isMale ? 0.15 : 0.12;
-        parts.leftThigh.rotation.set(0, 0, spread);
-        parts.rightThigh.rotation.set(0, 0, -spread);
+        parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, thighBend, damp);
+        parts.leftThigh.rotation.y = 0;
+        parts.leftThigh.rotation.z = spread;
+
+        parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, thighBend, damp);
+        parts.rightThigh.rotation.y = 0;
+        parts.rightThigh.rotation.z = -spread;
         
-        parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0, damp);
-        parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0, damp);
+        parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, shinBend, damp);
+        parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, shinBend, damp);
         
         // Feet Compensation
-        applyFootRot(parts.leftShin, 0, -spread);
-        applyFootRot(parts.rightShin, 0, spread);
+        applyFootRot(parts.leftShin, isCrouching ? -0.5 : 0, -spread);
+        applyFootRot(parts.rightShin, isCrouching ? -0.5 : 0, spread);
         
         this.animateArmsIdle(player, parts, damp, t, skipRightArm);
     }

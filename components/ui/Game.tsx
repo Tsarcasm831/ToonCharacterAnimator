@@ -2,6 +2,7 @@ import React from 'react';
 import Scene from '../Scene';
 import LandScene from '../LandScene';
 import CombatScene from '../CombatScene';
+import MPTestScene from '../MPTestScene';
 import { useGlobalState } from '../../contexts/GlobalContext';
 import { CombatLogEntry } from './CombatLog';
 import { MainMenu } from './MainMenu';
@@ -51,7 +52,7 @@ export const Game: React.FC = () => {
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || gameState !== 'PLAYING' || isTravelOpen;
 
     // Handlers
-    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false) => {
+    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInMP: boolean = false) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
@@ -60,6 +61,8 @@ export const Game: React.FC = () => {
           setActiveScene('land');
         } else if (startInCombat) {
           setActiveScene('combat');
+        } else if (startInMP) {
+          setActiveScene('mp');
         }
         // Spawn a spider for testing
         setTimeout(() => {
@@ -231,6 +234,23 @@ export const Game: React.FC = () => {
                                     combatLog={combatLog}
                                     showGrid={showGrid}
                                     setShowGrid={setShowGrid}
+                                />
+                            ) : activeScene === 'mp' ? (
+                                <MPTestScene 
+                                    config={config} 
+                                    manualInput={manualInput}
+                                    initialInventory={inventory}
+                                    onInventoryUpdate={setInventory}
+                                    onSlotSelect={setSelectedSlot}
+                                    onInteractionUpdate={handleInteractionUpdate}
+                                    onGameReady={onGameReady}
+                                    onEnvironmentReady={() => {
+                                        handleEnvironmentReady();
+                                        handleVisualLoadingFinished();
+                                    }}
+                                    onToggleQuestLog={uiState.toggleQuestLog}
+                                    showGrid={showGrid}
+                                    isCombatActive={isCombatActive}
                                 />
                             ) : activeScene === 'land' ? (
                                 <LandScene 

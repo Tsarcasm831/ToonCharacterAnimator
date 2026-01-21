@@ -30,6 +30,7 @@ import { Rogue } from '../entities/npc/enemy/Rogue';
 import { Warlock } from '../entities/npc/enemy/Warlock';
 import { Environment } from '../environment/Environment';
 import { CombatEnvironment } from '../environment/CombatEnvironment';
+import { HumanoidEntity } from '../entities/HumanoidEntity';
 import { PlayerConfig } from '../../types';
 
 export class EntityManager {
@@ -52,6 +53,7 @@ export class EntityManager {
     public assassin: Assassin;
     public archer: Archer;
     public mage: Mage;
+    public bandit: Bandit;
     public wolf: Wolf; 
 
     // Dynamic Entities
@@ -96,6 +98,7 @@ export class EntityManager {
         this.assassin = new Assassin(scene, new THREE.Vector3(30, 0, 0));
         this.archer = new Archer(scene, new THREE.Vector3(-5, 0, 4));
         this.mage = new Mage(scene, new THREE.Vector3(0, 0, 15), '#6366f1');
+        this.bandit = new Bandit(scene, new THREE.Vector3(10, 0, 5));
 
         this.wolf = new Wolf(scene, new THREE.Vector3(40, 0, -40));
         environment?.addObstacle(this.wolf.hitbox);
@@ -156,7 +159,7 @@ export class EntityManager {
             }
         };
 
-        [this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.wolf].forEach(hideEntity);
+        [this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit, this.wolf].forEach(hideEntity);
     }
 
     spawnCombatEncounter(type: string, count: number, arena: CombatEnvironment | null, reservedCells: { r: number; c: number }[] = []) {
@@ -276,9 +279,15 @@ export class EntityManager {
         }
     }
 
-    update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, environment: any | null, activeScene: string, isCombatActive: boolean, onAttackHit?: (type: string, count: number) => void) {
+    update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, cameraPosition: THREE.Vector3, environment: any | null, activeScene: string, isCombatActive: boolean, onAttackHit?: (type: string, count: number) => void) {
         const now = performance.now();
         this.tempPlayerPos.copy(playerPosition);
+        
+        // Store camera position in scene userData for entities to access (e.g. for stat bars)
+        if (this.scene) {
+            if (!this.scene.userData.camera) this.scene.userData.camera = {};
+            this.scene.userData.camera.position = cameraPosition;
+        }
         
         if (now - this.lastRangeCheck >= this.rangeCheckIntervalMs) {
             this.lastRangeCheck = now;
@@ -311,6 +320,11 @@ export class EntityManager {
             
             if (visible) {
                 this.updateEntity(entity, delta, config, animate, environment, enemyTargets, playerTargets, isCombatActive, onAttackHit);
+                
+                // Update Stat Bars if Humanoid
+                if (entity instanceof HumanoidEntity) {
+                    entity.updateStatBars(cameraPosition, isCombatActive);
+                }
             }
         });
         
@@ -346,6 +360,9 @@ export class EntityManager {
         } else if (entity === this.mage && config.showAssassin) {
             this.mage.config.isAssassinHostile = config.isAssassinHostile;
             this.mage.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
+        } else if (entity === this.bandit && config.showAssassin) {
+            this.bandit.config.isAssassinHostile = config.isAssassinHostile;
+            this.bandit.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
         } else if (entity instanceof Berserker) {
             entity.update(delta, environment as any, playerTargets, skipAnimation, isCombatActive);
         } else if (entity instanceof Rogue) {
@@ -438,7 +455,7 @@ export class EntityManager {
             ].filter(e => e !== null);
         } else if (sceneName === 'dev') {
             return [
-                this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage,
+                this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit,
                 this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
                 ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
             ].filter(e => e !== null);
@@ -454,7 +471,7 @@ export class EntityManager {
 
     getAllEntities(): any[] {
         return [
-            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage,
+            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit,
             this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses, 
             ...this.bandits, ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,

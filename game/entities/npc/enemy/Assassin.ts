@@ -99,7 +99,45 @@ export class Assassin extends HumanoidEntity {
         }
     }
 
+    private updatePatrol(dt: number, environment: Environment | CombatEnvironment) {
+        // Patrol behavior for dev scene
+        if (this.state === AssassinState.IDLE || this.stateTimer > 20.0) {
+            this.setState(AssassinState.PATROL);
+            this.findPatrolPoint(environment);
+        }
+
+        const moveSpeed = 2.8; // Same as combat patrol speed
+        const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
+        toGoal.y = 0;
+        
+        if (toGoal.length() > 0.1) {
+            this.rotationY += (Math.atan2(toGoal.x, toGoal.z) - this.rotationY) * 8.0 * dt;
+            const step = moveSpeed * dt;
+            const next = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step));
+            
+            // Simple collision check - just stay within bounds for now
+            if (PlayerUtils.isWithinBounds(next)) {
+                this.position.x = next.x;
+                this.position.z = next.z;
+            }
+        } else if (this.position.distanceTo(this.targetPos) < 1.5) {
+            // Reached target, find new point
+            this.findPatrolPoint(environment);
+            this.stateTimer = 0;
+        }
+
+        // Update speed factor for animation
+        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, moveSpeed, dt * 6);
+        if (toGoal.length() < 0.1) {
+            this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, 0, dt * 6);
+        }
+
+        // Update ground height
+        this.position.y = THREE.MathUtils.lerp(this.position.y, PlayerUtils.getGroundHeight(this.position, this.config, environment.obstacles), dt * 6);
+    }
+
     update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
+        if (this.isDead) return;
         this.stateTimer += dt;
         if (this.attackCooldown > 0) this.attackCooldown -= dt;
 
@@ -135,13 +173,39 @@ export class Assassin extends HumanoidEntity {
         }
 
         if (!isCombatActive) {
-            this.group.position.copy(this.position);
-            this.model.group.rotation.y = this.rotationY;
+            // Dev scene patrol behavior
+            if (env instanceof CombatEnvironment) {
+                // Just update position for combat arena pre-combat
+                this.group.position.copy(this.position);
+                this.model.group.rotation.y = this.rotationY;
+            } else {
+                // Dev scene patrol behavior
+                this.updatePatrol(dt, environment);
+                this.group.position.copy(this.position);
+                this.model.group.rotation.y = this.rotationY;
+            }
+            
             if (skipAnimation) return;
+
+            const animContext = { 
+                config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, 
+                isCombatStance: false, 
+                isJumping: false, isAxeSwing: false, axeSwingTimer: 0, isPunch: false, 
+                isPickingUp: this.isPickingUp, pickUpTime: this.pickUpTimer, isInteracting: false, isWaving: false, isSkinning: false, 
+                isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false 
+            };
+            this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: 0, isRunning: false, isPickingUp: this.isPickingUp, isDead: this.isDead, jump: false } as any, env.obstacles);
+            this.walkTime = animContext.walkTime; 
+            this.lastStepCount = animContext.lastStepCount;
+            this.targetPosition.copy(this.position);
+            this.targetRotationY = this.rotationY;
             this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
+
+        const cameraPos = (env as any).scene?.userData?.camera?.position || new THREE.Vector3(0, 10, 10);
+        // this.updateStatBars(cameraPos, isCombatActive); // Handled by EntityManager
 
         let bestTarget = null; let bestDist = 35.0; // Increased from 20.0
         for (const t of potentialTargets) {
@@ -223,8 +287,10 @@ export class Assassin extends HumanoidEntity {
         let animY = (this.state === AssassinState.RETREAT) ? 1 : (Math.abs(this.speedFactor) > 0.1 ? -1 : 0);
 
         const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: (this.state === AssassinState.DUEL || this.state === AssassinState.ATTACK || this.state === AssassinState.RETREAT), isJumping: false, isAxeSwing: this.isStriking, axeSwingTimer: this.strikeTimer, isPunch: false, isPickingUp: this.isPickingUp, pickUpTime: this.pickUpTimer, isInteracting: false, isWaving: false, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false };
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === AssassinState.DUEL, { x: animX, y: animY, isRunning: this.state === AssassinState.CHASE, isPickingUp: this.isPickingUp, isDead: false, jump: false } as any, env.obstacles);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1 || this.state === AssassinState.DUEL, { x: animX, y: animY, isRunning: this.state === AssassinState.CHASE, isPickingUp: this.isPickingUp, isDead: this.isDead, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime; this.lastStepCount = animContext.lastStepCount;
+        this.targetPosition.copy(this.position);
+        this.targetRotationY = this.rotationY;
         this.updateModel(dt);
         this.model.sync(this.config, true);
     }

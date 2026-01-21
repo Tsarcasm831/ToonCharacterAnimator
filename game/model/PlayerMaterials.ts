@@ -89,18 +89,18 @@ export class PlayerMaterials {
     brain: THREE.MeshPhysicalMaterial;
 
     constructor(config: PlayerConfig) {
-        this.skin = new THREE.MeshToonMaterial({ color: config.skinColor });
-        this.shirt = new THREE.MeshToonMaterial({ color: 0x888888 });
-        this.pants = new THREE.MeshToonMaterial({ color: 0x444444 });
-        this.boots = new THREE.MeshToonMaterial({ color: 0x222222 });
-        this.lip = new THREE.MeshToonMaterial({ color: config.lipColor });
+        this.skin = new THREE.MeshToonMaterial({ color: config.skinColor, transparent: true, opacity: 1.0 });
+        this.shirt = new THREE.MeshToonMaterial({ color: 0x888888, transparent: true, opacity: 1.0 });
+        this.pants = new THREE.MeshToonMaterial({ color: 0x444444, transparent: true, opacity: 1.0 });
+        this.boots = new THREE.MeshToonMaterial({ color: 0x222222, transparent: true, opacity: 1.0 });
+        this.lip = new THREE.MeshToonMaterial({ color: config.lipColor, transparent: true, opacity: 1.0 });
         
-        this.sclera = new THREE.MeshToonMaterial({ color: config.scleraColor });
-        this.iris = new THREE.MeshToonMaterial({ color: config.eyeColor });
-        this.pupil = new THREE.MeshToonMaterial({ color: config.pupilColor });
+        this.sclera = new THREE.MeshToonMaterial({ color: config.scleraColor, transparent: true, opacity: 1.0 });
+        this.iris = new THREE.MeshToonMaterial({ color: config.eyeColor, transparent: true, opacity: 1.0 });
+        this.pupil = new THREE.MeshToonMaterial({ color: config.pupilColor, transparent: true, opacity: 1.0 });
         
-        this.underwear = new THREE.MeshToonMaterial({ color: 0xeaeaea });
-        this.hair = new THREE.MeshToonMaterial({ color: config.hairColor, side: THREE.DoubleSide });
+        this.underwear = new THREE.MeshToonMaterial({ color: 0xeaeaea, transparent: true, opacity: 1.0 });
+        this.hair = new THREE.MeshToonMaterial({ color: config.hairColor, side: THREE.DoubleSide, transparent: true, opacity: 1.0 });
         
         // Brain Material setup - Physical for wet/organic look
         const brainTex = createBrainTexture();
@@ -114,9 +114,25 @@ export class PlayerMaterials {
             clearcoatRoughness: 0.25,
             sheen: 0.3,        // Soft velvet-like highlight on ridges
             sheenColor: new THREE.Color(0xffddee),
+            transparent: true,
+            opacity: 1.0
         });
         
         this.sync(config);
+    }
+
+    setOpacity(opacity: number) {
+        const materials = [
+            this.skin, this.shirt, this.pants, this.boots, 
+            this.sclera, this.iris, this.pupil, this.lip, 
+            this.underwear, this.hair, this.brain
+        ];
+        
+        materials.forEach(mat => {
+            mat.opacity = opacity;
+            mat.transparent = opacity < 1.0;
+            mat.needsUpdate = true;
+        });
     }
 
     sync(config: PlayerConfig) {

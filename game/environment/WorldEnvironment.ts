@@ -22,7 +22,7 @@ export class WorldEnvironment {
 
     private build() {
         // Build a terrain mesh that only includes triangles fully inside the land polygon.
-        const step = 1;
+        const step = 4;
         const segmentsX = Math.max(1, Math.floor(worldWidth / step));
         const segmentsZ = Math.max(1, Math.floor(worldDepth / step));
         const vertsX = segmentsX + 1;

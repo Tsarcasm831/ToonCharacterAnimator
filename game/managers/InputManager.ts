@@ -9,7 +9,7 @@ export class InputManager {
         x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false,
         attack1: false, attack2: false, interact: false, combat: false,
         toggleFirstPerson: false, wave: false, leftHandWave: false, summon: false, toggleBuilder: false, rotateGhost: false,
-        fireball: false
+        fireball: false, crouch: false
     };
     isBlocked: boolean = false;
     
@@ -169,7 +169,7 @@ export class InputManager {
                 x: 0, y: 0, isRunning: false, jump: false, isDead: false, isPickingUp: false,
                 attack1: false, attack2: false, interact: false, combat: false,
                 toggleFirstPerson: false, wave: false, leftHandWave: false, summon: false, toggleBuilder: false, rotateGhost: false,
-                fireball: false
+                fireball: false, crouch: false
             };
         }
 
@@ -188,6 +188,7 @@ export class InputManager {
             x: xInput,
             y: yInput,
             isRunning: !!(this.isCommandActive(InputCommand.Run) || this.manualInput.isRunning),
+            crouch: !!(this.isCommandActive(InputCommand.Crouch)),
             jump: !!(this.isCommandActive(InputCommand.Jump) || this.manualInput.jump),
             isDead: !!(this.isCommandActive(InputCommand.Die) || this.manualInput.isDead),
             isPickingUp: !!(this.isCommandActive(InputCommand.PickUp) || this.manualInput.isPickingUp),
