@@ -1,4 +1,5 @@
 import { LAND_SHAPE_POINTS } from '../../data/landShape';
+import { CITIES } from '../../data/lands/cities';
 
 export const LAND_THICKNESS = 10.0;
 export const LAND_SCALE = 50.0;
@@ -72,7 +73,29 @@ export const landCoordsToWorld = (x: number, z: number) => ({
     z: (z - centerZ) * LAND_SCALE
 });
 
+const isPointInPolygon = (x: number, z: number, points: number[][]) => {
+    let inside = false;
+    for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+        const xi = (points[i][0] - centerX) * LAND_SCALE, zi = (points[i][1] - centerZ) * LAND_SCALE;
+        const xj = (points[j][0] - centerX) * LAND_SCALE, zj = (points[j][1] - centerZ) * LAND_SCALE;
+
+        const intersect = ((zi > z) !== (zj > z))
+            && (x < (xj - xi) * (z - zi) / (zj - zi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+};
+
+export const isWorldPointInLand = (x: number, z: number) => (
+    isPointInPolygon(x, z, LAND_SHAPE_POINTS)
+);
+
 export const getLandHeightAt = (x: number, z: number) => {
+    // Check if point is inside the land polygon
+    if (!isWorldPointInLand(x, z)) {
+        return -30.0; // Underwater
+    }
+
     // Terrain smooth rectangle defined by the bounding box and edgeFade.
     
     const northness = (z - worldMinZ) / zRange;
@@ -93,10 +116,21 @@ export const getLandHeightAt = (x: number, z: number) => {
     const heightNorth = plateaus + (mountains - plateaus) * northBlend;
     const height = heightSouth + (heightNorth - heightSouth) * smoothstep(0.4, 0.6, northness);
 
+    // Canyon at Yureigakure (City-11)
+    const yureigakure = CITIES.find((city: any) => city.id === 'City-11' || city.name === 'Yureigakure');
+    const canyonLandX = yureigakure?.x ?? 48.64;
+    const canyonLandZ = yureigakure?.y ?? 7.90;
+    const canyonX = (canyonLandX - centerX) * LAND_SCALE;
+    const canyonZ = (canyonLandZ - centerZ) * LAND_SCALE;
+    const distToCanyon = Math.sqrt(Math.pow(x - canyonX, 2) + Math.pow(z - canyonZ, 2));
+    
+    // Large wide canyon: 150m wide, 100m transition
+    const canyonMask = 1.0 - smoothstep(150, 250, distToCanyon);
+    const canyonDepth = 105.0; // Deep enough to go below water level (3x deeper than before)
+    const finalHeight = height * (1.0 - canyonMask) + (height - canyonDepth) * canyonMask;
+
     // Subtract LAND_THICKNESS to account for extrusion depth.
-    // Also drop the seabed well below water level (-18) at the edges using edgeFade inverse.
-    // When edgeFade is 1 (center), we subtract 0 extra.
-    // When edgeFade is 0 (edge), we subtract 20 extra, putting total height at -30.
-    return (height * edgeFade * (0.65 + 0.35 * centerWeight)) - LAND_THICKNESS - (1.0 - edgeFade) * 20.0;
+    // Also drop the seabed well below water level (-25) at the edges using edgeFade inverse.
+    return (finalHeight * edgeFade * (0.65 + 0.35 * centerWeight)) - LAND_THICKNESS - (1.0 - edgeFade) * 30.0;
 };
 

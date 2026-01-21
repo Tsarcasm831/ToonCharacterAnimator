@@ -29,6 +29,7 @@ export abstract class HumanoidEntity extends BaseEntity {
     };
 
     protected lastFramePos: THREE.Vector3 = new THREE.Vector3();
+    protected interpolationSpeed: number = 15;
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3, config: PlayerConfig) {
         super(scene, initialPos);
@@ -47,12 +48,22 @@ export abstract class HumanoidEntity extends BaseEntity {
     protected updateGroundHeight(environment: any) {
         // Assuming environment has obstacles
         const obstacles = environment.obstacles || [];
-        const groundHeight = PlayerUtils.getGroundHeight(this.position, this.config, obstacles);
-        this.position.y = groundHeight;
-        this.group.position.y = groundHeight;
+        const groundHeight = PlayerUtils.getGroundHeight(this.targetPosition, this.config, obstacles);
+        this.targetPosition.y = groundHeight;
     }
 
     protected updateModel(dt: number) {
+        // 1. Interpolate position and rotation for smoothness
+        const lerpFactor = Math.min(dt * this.interpolationSpeed, 1.0);
+        this.position.lerp(this.targetPosition, lerpFactor);
+        
+        // Handle rotation wrapping
+        let rotDiff = this.targetRotationY - this.rotationY;
+        while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+        while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+        this.rotationY += rotDiff * lerpFactor;
+
+        this.group.position.copy(this.position);
         this.model.group.rotation.y = this.rotationY;
         
         let moveVelocity = new THREE.Vector3(0, 0, 0);

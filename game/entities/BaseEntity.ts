@@ -7,7 +7,9 @@ export abstract class BaseEntity {
     public group: THREE.Group;
     public scene: THREE.Scene;
     public position: THREE.Vector3;
+    public targetPosition: THREE.Vector3;
     public rotationY: number = 0;
+    public targetRotationY: number = 0;
     public isDead: boolean = false;
     public stats?: EntityStats;
     public config?: PlayerConfig;
@@ -20,6 +22,8 @@ export abstract class BaseEntity {
         this.scene = scene;
         this.uuid = THREE.MathUtils.generateUUID();
         this.position = initialPos.clone();
+        this.targetPosition = initialPos.clone();
+        this.targetRotationY = 0;
         this.group = new THREE.Group();
         this.group.position.copy(this.position);
         scene.add(this.group);

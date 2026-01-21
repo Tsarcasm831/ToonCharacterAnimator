@@ -7,7 +7,7 @@ export class PlayerLocomotion {
     private player: Player;
 
     // Configuration
-    moveSpeed: number = 5;
+    moveSpeed: number = 8.5; // Increased from 5
     turnSpeed: number = 10;
     gravity: number = -30;
     jumpPower: number = 11;
@@ -21,7 +21,9 @@ export class PlayerLocomotion {
     jumpTimer: number = 0;
 
     previousPosition: THREE.Vector3 = new THREE.Vector3();
+    position: THREE.Vector3 = new THREE.Vector3();
     velocity: THREE.Vector3 = new THREE.Vector3();
+    rotationY: number = 0;
 
     // Ledge Climbing State
     isLedgeGrabbing: boolean = false;
@@ -31,12 +33,14 @@ export class PlayerLocomotion {
 
     constructor(player: Player) {
         this.player = player;
-        this.previousPosition.copy(player.mesh.position);
+        this.position.copy(player.mesh.position);
+        this.previousPosition.copy(this.position);
+        this.rotationY = player.mesh.rotation.y;
     }
 
     update(dt: number, input: PlayerInput, cameraAngle: number, obstacles: THREE.Object3D[]) {
         // 1. Handle Ground & Gravity
-        const pos = this.player.mesh.position;
+        const pos = this.position;
         // Use getLandingHeight to avoid snapping to overhead obstacles (lintels)
         let groundHeight = PlayerUtils.getLandingHeight(pos, this.player.config, obstacles);
         const waterDepth = PlayerUtils.getTerrainHeight(pos.x, pos.z);
@@ -59,15 +63,15 @@ export class PlayerLocomotion {
 
         if (this.isJumping) {
             this.jumpVelocity += this.gravity * dt;
-            this.player.mesh.position.y += this.jumpVelocity * dt;
+            this.position.y += this.jumpVelocity * dt;
             
             // Ledge Detection
             if (this.jumpVelocity > -8) {
                 this.checkLedgeGrab(obstacles);
             }
 
-            if (this.player.mesh.position.y <= groundHeight) {
-                this.player.mesh.position.y = groundHeight;
+            if (this.position.y <= groundHeight) {
+                this.position.y = groundHeight;
                 this.isJumping = false;
                 this.jumpVelocity = 0;
             }
@@ -75,11 +79,11 @@ export class PlayerLocomotion {
 
         } else {
             // Gravity if falling
-            if (this.player.mesh.position.y > groundHeight) {
+            if (this.position.y > groundHeight) {
                 this.jumpVelocity += this.gravity * dt;
-                this.player.mesh.position.y += this.jumpVelocity * dt;
-                if (this.player.mesh.position.y < groundHeight) {
-                    this.player.mesh.position.y = groundHeight;
+                this.position.y += this.jumpVelocity * dt;
+                if (this.position.y < groundHeight) {
+                    this.position.y = groundHeight;
                     this.jumpVelocity = 0;
                 }
             } else if (input.jump && !this.player.isPickingUp && !this.player.isSkinning && !this.player.status.isDead) {
@@ -91,15 +95,15 @@ export class PlayerLocomotion {
                 this.jumpVelocity = this.jumpPower * jumpPowerMod;
                 this.jumpTimer = 0;
             } else {
-                this.player.mesh.position.y = groundHeight;
+                this.position.y = groundHeight;
             }
         }
 
         // Calculate velocity for animation/state
         if (dt > 0) {
-            this.velocity.subVectors(this.player.mesh.position, this.previousPosition).divideScalar(dt);
+            this.velocity.subVectors(this.position, this.previousPosition).divideScalar(dt);
         }
-        this.previousPosition.copy(this.player.mesh.position);
+        this.previousPosition.copy(this.position);
 
         // Ledge Climbing Update
         if (this.isLedgeGrabbing) {
@@ -122,7 +126,7 @@ export class PlayerLocomotion {
         let speedModifier = 1.0;
         
         // Environment Resistance (Bushes/Soft obstacles)
-        const playerBox = PlayerUtils.getHitboxBounds(this.player.mesh.position, this.player.config);
+        const playerBox = PlayerUtils.getHitboxBounds(this.position, this.player.config);
         for (const obs of obstacles) {
             if (obs.userData.type === 'soft') {
                 const obsBox = new THREE.Box3().setFromObject(obs);
@@ -139,10 +143,10 @@ export class PlayerLocomotion {
 
         if (isMoving && !this.player.isPickingUp && !this.player.isSkinning) {
             const targetRotation = cameraAngle + Math.PI;
-            let rotDiff = targetRotation - this.player.mesh.rotation.y;
+            let rotDiff = targetRotation - this.rotationY;
             while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
             while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-            this.player.mesh.rotation.y += rotDiff * this.turnSpeed * dt;
+            this.rotationY += rotDiff * this.turnSpeed * dt;
 
             const inputLen = Math.sqrt(input.x * input.x + input.y * input.y);
             if (inputLen > 0) {
@@ -155,27 +159,26 @@ export class PlayerLocomotion {
                 const dx = (fX * normY + rX * normX) * finalSpeed * dt;
                 const dz = (fZ * normY + rZ * normX) * finalSpeed * dt;
 
-                const nextPos = this.player.mesh.position.clone();
+                const nextPos = this.position.clone();
                 nextPos.x += dx;
                 nextPos.z += dz;
 
                 if (!PlayerUtils.checkCollision(nextPos, this.player.config, obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
-                    this.player.mesh.position.copy(nextPos);
+                    this.position.copy(nextPos);
                 }
             }
         }
     }
 
     private checkLedgeGrab(obstacles: THREE.Object3D[]) {
-        const worldDir = new THREE.Vector3();
-        this.player.mesh.getWorldDirection(worldDir); 
+        const worldDir = new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY));
         const forward = worldDir.normalize(); 
         
-        const bounds = PlayerUtils.getHitboxBounds(this.player.mesh.position, this.player.config);
+        const bounds = PlayerUtils.getHitboxBounds(this.position, this.player.config);
         const boundsHeight = bounds.max.y - bounds.min.y;
         const rayY = bounds.min.y + boundsHeight * 0.85; 
 
-        const rayOrigin = this.player.mesh.position.clone();
+        const rayOrigin = this.position.clone();
         rayOrigin.y = rayY;
 
         const raycaster = new THREE.Raycaster(rayOrigin, forward, 0, 0.8);
@@ -192,15 +195,15 @@ export class PlayerLocomotion {
                 this.isLedgeGrabbing = true;
                 this.isJumping = false;
                 this.ledgeGrabTime = 0;
-                this.ledgeStartPos.copy(this.player.mesh.position);
+                this.ledgeStartPos.copy(this.position);
                 this.ledgeTargetPos.set(
-                    this.player.mesh.position.x + forward.x * 0.7, 
+                    this.position.x + forward.x * 0.7, 
                     ledgeTopY, 
-                    this.player.mesh.position.z + forward.z * 0.7
+                    this.position.z + forward.z * 0.7
                 );
                 const hangOffset = boundsHeight + 0.05;
-                this.player.mesh.position.y = ledgeTopY - hangOffset;
-                this.ledgeStartPos.y = this.player.mesh.position.y;
+                this.position.y = ledgeTopY - hangOffset;
+                this.ledgeStartPos.y = this.position.y;
             }
         }
     }
@@ -211,30 +214,30 @@ export class PlayerLocomotion {
         const progress = Math.min(this.ledgeGrabTime / climbDuration, 1.0);
         
         if (progress < 0.15) {
-            this.player.mesh.position.copy(this.ledgeStartPos);
+            this.position.copy(this.ledgeStartPos);
         } else if (progress < 0.65) {
             const t = (progress - 0.15) / 0.5; 
             const ease = 1 - Math.pow(1 - t, 3); 
             
-            this.player.mesh.position.x = this.ledgeStartPos.x;
-            this.player.mesh.position.z = this.ledgeStartPos.z;
-            this.player.mesh.position.y = THREE.MathUtils.lerp(this.ledgeStartPos.y, this.ledgeTargetPos.y, ease);
+            this.position.x = this.ledgeStartPos.x;
+            this.position.z = this.ledgeStartPos.z;
+            this.position.y = THREE.MathUtils.lerp(this.ledgeStartPos.y, this.ledgeTargetPos.y, ease);
         } else {
             const t = (progress - 0.65) / 0.35; 
             const ease = 1 - Math.pow(1 - t, 2); 
             
-            this.player.mesh.position.y = this.ledgeTargetPos.y;
+            this.position.y = this.ledgeTargetPos.y;
             
             const startVec = new THREE.Vector3(this.ledgeStartPos.x, 0, this.ledgeStartPos.z);
             const targetVec = new THREE.Vector3(this.ledgeTargetPos.x, 0, this.ledgeTargetPos.z);
             const currentVec = new THREE.Vector3().lerpVectors(startVec, targetVec, ease);
             
-            this.player.mesh.position.x = currentVec.x;
-            this.player.mesh.position.z = currentVec.z;
+            this.position.x = currentVec.x;
+            this.position.z = currentVec.z;
         }
 
         if (progress >= 1.0) {
-            this.player.mesh.position.copy(this.ledgeTargetPos);
+            this.position.copy(this.ledgeTargetPos);
             this.isLedgeGrabbing = false;
             this.ledgeGrabTime = 0;
             this.isJumping = false;
@@ -243,15 +246,14 @@ export class PlayerLocomotion {
     }
 
     applyForwardImpulse(dt: number, strength: number, obstacles: THREE.Object3D[]) {
-        const worldDir = new THREE.Vector3();
-        this.player.mesh.getWorldDirection(worldDir);
+        const worldDir = new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY));
         const dist = strength * dt;
-        const nextPos = this.player.mesh.position.clone();
+        const nextPos = this.position.clone();
         nextPos.x += worldDir.x * dist;
         nextPos.z += worldDir.z * dist;
         
         if (!PlayerUtils.checkCollision(nextPos, this.player.config, obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
-            this.player.mesh.position.copy(nextPos);
+            this.position.copy(nextPos);
         }
     }
 }

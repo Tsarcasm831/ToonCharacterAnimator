@@ -4,10 +4,15 @@ import { playerModelResetFeet, animateBreathing, applyFootRot } from '../Animati
 
 export class IdleAction {
     static animate(player: any, parts: any, damp: number, skipRightArm: boolean = false) {
-        const t = Date.now() * 0.002;
+        const t = player.locomotion?.walkTime ?? (Date.now() * 0.002);
         const isMale = player.config.bodyType === 'male';
         const isCombatStance = player.combat?.isCombatStance ?? player.isCombatStance ?? false;
         
+        // 1. Update walkTime if in locomotion (for seamless transitions)
+        if (player.locomotion) {
+            // Smoothly decay walkTime or keep it for breathing sync
+        }
+
         // Breathing Effect
         animateBreathing(player, parts, t, 1.0);
 
@@ -114,7 +119,9 @@ export class IdleAction {
             parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, damp);
         } else {
             // Default and Staff relaxed pose
-            parts.leftArm.rotation.set(Math.sin(t)*0.03, 0, 0.15);
+            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, Math.sin(t)*0.03, damp);
+            parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0, damp);
+            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.15, damp);
             parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.15, damp);
             parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI / 2, damp);
             parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, 0, damp);
@@ -125,17 +132,23 @@ export class IdleAction {
         // RIGHT ARM LOGIC
         if (holdingItem) {
              if (isBow) {
-                 parts.rightArm.rotation.set(Math.sin(t+1)*0.03, 0, -0.15);
+                 parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, Math.sin(t+1)*0.03, damp);
+                 parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0, damp);
+                 parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.15, damp);
                  parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.15, damp);
                  parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI / 2, damp);
                  parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, 0, damp);
              } else if (stance === 'shoulder') {
-                parts.rightArm.rotation.set(-0.5 + Math.sin(t)*0.03, 0, -0.1);
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.5 + Math.sin(t)*0.03, damp);
+                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0, damp);
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.1, damp);
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -2.2, damp);
                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI / 2, damp);
                 parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, 0, damp);
             } else {
-                parts.rightArm.rotation.set(0.2, 0, -0.2);
+                parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.2, damp);
+                parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0, damp);
+                parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.2, damp);
                 parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.3, damp);
                 parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -1.2, damp);
                 parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, -0.3, damp);
@@ -143,7 +156,9 @@ export class IdleAction {
         } else {
             parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI / 2, damp);
             parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, 0, damp);
-            parts.rightArm.rotation.set(Math.sin(t + 1)*0.03, 0, -0.15);
+            parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, Math.sin(t + 1)*0.03, damp);
+            parts.rightArm.rotation.y = lerp(parts.rightArm.rotation.y, 0, damp);
+            parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.15, damp);
             parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.15, damp);
         }
     }

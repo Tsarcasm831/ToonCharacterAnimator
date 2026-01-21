@@ -13,6 +13,7 @@ export class SoundManager {
     private prevIsJumping = false;
     private prevIsPickingUp = false;
     private prevIsGrounded = true;
+    private prevJumpVelocity = 0;
 
     constructor() {
         if (typeof window !== 'undefined') {
@@ -55,9 +56,13 @@ export class SoundManager {
 
         // Detect Landing
         const isGrounded = !player.locomotion.isJumping && Math.abs(player.locomotion.jumpVelocity) < 0.1;
-        if (isGrounded && !this.prevIsGrounded) {
+        // Only play landing sound if falling at a significant speed before hitting ground
+        if (isGrounded && !this.prevIsGrounded && this.prevJumpVelocity < -5.0) {
             this.playLand();
         }
+
+        // Update velocity for next frame landing check
+        this.prevJumpVelocity = player.locomotion.jumpVelocity;
 
         // Detect Pickup
         if (player.isPickingUp && !this.prevIsPickingUp) {

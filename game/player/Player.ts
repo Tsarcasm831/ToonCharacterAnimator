@@ -86,8 +86,9 @@ export class Player {
     }
 
     get mesh() { return this.model.group; }
-    get position() { return this.mesh.position; }
+    get position() { return this.locomotion.position; }
     get velocity() { return this.locomotion.velocity; }
+    get rotationY() { return this.locomotion.rotationY; }
 
     // Helpers exposed for Interaction/Game
     addItem(itemName: string, count: number = 1, skipHotbar: boolean = false) { 
@@ -118,6 +119,17 @@ export class Player {
         
         // 1. Physics & Model Update
         this.locomotion.update(dt, input, cameraAngle, environment.obstacles);
+        
+        // Interpolate player visual mesh to physics position
+        const lerpFactor = Math.min(dt * 15, 1.0);
+        this.model.group.position.lerp(this.locomotion.position, lerpFactor);
+        
+        // Handle rotation wrapping for player
+        let rotDiff = this.locomotion.rotationY - this.model.group.rotation.y;
+        while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
+        while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
+        this.model.group.rotation.y += rotDiff * lerpFactor;
+
         this.model.update(dt, this.locomotion.velocity);
         
         // 2. State Logic
