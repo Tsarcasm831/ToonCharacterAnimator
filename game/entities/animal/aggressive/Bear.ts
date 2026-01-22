@@ -13,11 +13,14 @@ export class Bear {
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene; this.position.copy(initialPos); this.lastStuckPos.copy(this.position);
         const bearData = ObjectFactory.createBearModel(0x5C4033); this.group = new THREE.Group(); this.group.add(bearData.group); this.model = bearData;
-        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this }; this.group.add(this.hitbox);
+        this.group.userData.entityType = 'Bear';
+        this.model.group.userData.type = 'creature';
+        this.model.group.userData.entityType = 'Bear';
+        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this, entityType: 'Bear' }; this.group.add(this.hitbox);
         const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
-        const bodyHitbox = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 2.2), hitboxMat); bodyHitbox.position.y = 0.9; bodyHitbox.userData = { type: 'creature' }; this.hitbox.add(bodyHitbox);
-        const headHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), hitboxMat); headHitbox.position.set(0, 1.3, 1.2); headHitbox.userData = { type: 'creature' }; this.hitbox.add(headHitbox);
-        const snoutHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.5), hitboxMat); snoutHitbox.position.set(0, 1.2, 1.7); snoutHitbox.userData = { type: 'creature' }; this.hitbox.add(snoutHitbox);
+        const bodyHitbox = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.4, 2.2), hitboxMat); bodyHitbox.position.y = 0.9; bodyHitbox.userData = { type: 'creature', parent: this, entityType: 'Bear' }; this.hitbox.add(bodyHitbox);
+        const headHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.9), hitboxMat); headHitbox.position.set(0, 1.3, 1.2); headHitbox.userData = { type: 'creature', parent: this, entityType: 'Bear' }; this.hitbox.add(headHitbox);
+        const snoutHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.5), hitboxMat); snoutHitbox.position.set(0, 1.2, 1.7); snoutHitbox.userData = { type: 'creature', parent: this, entityType: 'Bear' }; this.hitbox.add(snoutHitbox);
         this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 2.5, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.18), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(1.16, 0.14); fgGeo.translate(0.58, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.58, 0, 0.01); this.healthBarGroup.add(this.healthBarFill); this.group.add(this.healthBarGroup);
         this.group.position.copy(this.position); this.scene.add(this.group);
     }

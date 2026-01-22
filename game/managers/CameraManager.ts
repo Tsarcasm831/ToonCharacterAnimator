@@ -122,20 +122,22 @@ export class CameraManager {
         }
 
         // Consume input for movement so it doesn't affect other things if shared
-        input.x = 0;
-        input.y = 0;
-        input.isRunning = false;
+        // NOTE: Do not mutate the shared input object. Downstream systems (player
+        // locomotion, animations) rely on these values to move and to trigger
+        // walk cycles. If we need to “consume” input for camera-only behavior,
+        // operate on a copy at the call site instead of zeroing here.
     }
 
-    public update(activeScene: string) {
-        // Return rotation for player update if needed
-        let cameraRotation = this.isFirstPerson 
+    public getCameraRotation(): number {
+        return this.isFirstPerson 
             ? (this.fpvYaw - Math.PI) 
             : Math.atan2(
                 this.renderManager.camera.position.x - this.renderManager.controls.target.x, 
                 this.renderManager.camera.position.z - this.renderManager.controls.target.z
               );
+    }
 
+    public updatePosition(activeScene: string) {
         if (activeScene !== 'combat') {
             this.tempTargetPos.copy(this.player.mesh.position);
             let heightOffset = this.cameraFocusMode === 1 ? 1.0 : (this.cameraFocusMode === 2 ? 0.4 : 1.7);
@@ -173,7 +175,5 @@ export class CameraManager {
         } else {
              this.renderManager.controls.update();
         }
-
-        return cameraRotation;
     }
 }

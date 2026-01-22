@@ -21,20 +21,28 @@ export class MovementAction {
         // Inputs
         const forwardInput = -input.y;
         const sideInput = input.x;
+        const inputLen = Math.sqrt(forwardInput * forwardInput + sideInput * sideInput);
         const isPureStrafe = Math.abs(sideInput) > 0.6 && Math.abs(forwardInput) < 0.3;
 
         // Smoothly blend into strafe speed instead of snapping
         const strafeBlendRaw = ((Math.abs(sideInput) - 0.4) / 0.4) * (1 - Math.abs(forwardInput) / 0.3);
         const strafeBlend = clamp(strafeBlendRaw, 0, 1);
+        
+        // Scale animation speed by input magnitude to prevent sliding at low stick tilt
         let speedMult = lerp(isRunning ? 18 : 9, 10, strafeBlend);
+        if (inputLen < 1.0) speedMult *= inputLen;
         
         if (isCrouching) {
             speedMult *= 0.6; // Slower animation when crouching
         }
 
         const strafeDamp = isPureStrafe ? damp * 2 : damp;
+        const animationDamp = isPureStrafe ? damp * 2.5 : damp * 1.5;
         const walkDt = dt || 0;
-        locomotion.walkTime = (locomotion.walkTime || 0) + walkDt * speedMult;
+        
+        // Ensure walkTime doesn't jump due to large dt
+        const cappedWalkDt = Math.min(walkDt, 0.1);
+        locomotion.walkTime = (locomotion.walkTime || 0) + cappedWalkDt * speedMult;
         const t = locomotion.walkTime;
 
         // Step Sound Detection
@@ -106,23 +114,23 @@ export class MovementAction {
             if (isStrafingRight) roll += 0.06;
         }
 
-        parts.hips.position.x = lerp(parts.hips.position.x, sway, strafeDamp);
-        parts.hips.rotation.y = lerp(parts.hips.rotation.y, twist, strafeDamp);
-        parts.hips.rotation.z = lerp(parts.hips.rotation.z, roll, strafeDamp);
+        parts.hips.position.x = lerp(parts.hips.position.x, sway, animationDamp);
+        parts.hips.rotation.y = lerp(parts.hips.rotation.y, twist, animationDamp);
+        parts.hips.rotation.z = lerp(parts.hips.rotation.z, roll, animationDamp);
 
         // Forward Lean
         const leanBaseForward = isRunning ? 0.35 : 0.1;
         const leanBase = isBackward ? 0.1 : leanBaseForward;
         const leanBob = Math.abs(cos(t)) * 0.05;
-        parts.hips.rotation.x = lerp(parts.hips.rotation.x, (isPureStrafe ? 0.05 : leanBase) + leanBob, strafeDamp);
+        parts.hips.rotation.x = lerp(parts.hips.rotation.x, (isPureStrafe ? 0.05 : leanBase) + leanBob, animationDamp);
 
-        parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -twist * 0.7 + (isPureStrafe ? (isStrafingLeft ? -0.2 : 0.2) : 0), strafeDamp); 
-        parts.torsoContainer.rotation.z = lerp(parts.torsoContainer.rotation.z, -parts.hips.rotation.z * 0.5, strafeDamp); 
+        parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -twist * 0.7 + (isPureStrafe ? (isStrafingLeft ? -0.2 : 0.2) : 0), animationDamp); 
+        parts.torsoContainer.rotation.z = lerp(parts.torsoContainer.rotation.z, -parts.hips.rotation.z * 0.5, animationDamp); 
         
         // Removed direct torso override logic here as it's merged into the lerp above
 
         const targetTorsoX = (isRunning && !isPureStrafe) ? 0.1 : 0.02;
-        parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, targetTorsoX + torsoLeanOffset, strafeDamp);
+        parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, targetTorsoX + torsoLeanOffset, animationDamp);
         
         // --- DYNAMIC SKIRT FLARING ---
         if (parts.pelvis && parts.pelvis.children.length > 0) {
@@ -138,8 +146,8 @@ export class MovementAction {
                 // Flare more aggressively for the skirt
         const flare = 1.0 + (legMove * 0.45);
         if (!isNaN(flare) && isFinite(flare)) {
-            skirt.scale.x = lerp(skirt.scale.x, flare, strafeDamp);
-            skirt.scale.z = lerp(skirt.scale.z, flare, strafeDamp);
+            skirt.scale.x = lerp(skirt.scale.x, flare, animationDamp);
+            skirt.scale.z = lerp(skirt.scale.z, flare, animationDamp);
         }
             }
         }
@@ -225,14 +233,14 @@ export class MovementAction {
             // Left Leg (Trail) needs to point Left (+Z) to drag behind body moving Right.
             // Right Leg (Lead) needs to point Right (-Z) to step out.
             
-            parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, isLeft ? leadOpen : trailOpen, strafeDamp);
-            parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, isLeft ? -trailOpen : -leadOpen, strafeDamp); 
+            parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, isLeft ? leadOpen : trailOpen, animationDamp);
+            parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, isLeft ? -trailOpen : -leadOpen, animationDamp); 
 
-            parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, 0, strafeDamp);
-            parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0, strafeDamp);
+            parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, 0, animationDamp);
+            parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0, animationDamp);
 
-            parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, isLeft ? leadLift : trailLift, strafeDamp);
-            parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, isLeft ? trailLift : leadLift, strafeDamp);
+            parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, isLeft ? leadLift : trailLift, animationDamp);
+            parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, isLeft ? trailLift : leadLift, animationDamp);
 
             // Feet Compensation: Rotate Z opposite to Thigh to stay flat
             applyFootRot(parts.leftShin, isLeft ? leadFoot : trailFoot, isLeft ? -leadOpen : -trailOpen);

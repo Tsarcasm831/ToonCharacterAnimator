@@ -50,12 +50,38 @@ export class Environment {
 
     setVisible(visible: boolean) {
         this.group.visible = visible;
-        // Optionally toggle lighting visibility or updates if shared?
         // LightingManager adds lights to scene, not group. 
-        // If we want to hide lights when environment is hidden, we might need logic in LightingManager.
-        // For now, keeping behavior consistent with original: lights might persist or depend on update.
-        // Original code updated lights in update(), which guarded on group.visible.
-        // So lights would freeze state if not visible.
+        if (!visible) {
+            this.lightingManager.dispose();
+        } else {
+            // Re-init lights if we become visible again? 
+            // Actually, with the new scene management, we'll re-create the whole Environment.
+        }
+    }
+
+    dispose() {
+        if (this.scene && this.group) {
+            this.scene.remove(this.group);
+        }
+
+        this.group.traverse((child) => {
+            if (child instanceof THREE_LIB.Mesh) {
+                child.geometry.dispose();
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+        });
+
+        this.lightingManager.dispose();
+        this.terrainManager.dispose();
+        this.debrisSystem.dispose();
+        this.obstacleManager.dispose();
+        if (this.grassManager) this.grassManager.dispose();
+        if (this.snowSystem) this.snowSystem.dispose();
+        this.worldGrid.dispose();
     }
 
     get obstacles(): THREE_LIB.Object3D[] {

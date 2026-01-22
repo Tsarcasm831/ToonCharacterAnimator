@@ -78,8 +78,15 @@ export class LowLevelCityGuard extends HumanoidEntity {
             this.targetPosition.copy(this.position);
             this.targetRotationY = this.rotationY;
 
+            // Calculate speed for animation
+            const dist = this.position.distanceTo(this.lastFramePos);
+            const speed = dist / dt;
+            // Guards are slower/heavier
+            const animSpeed = THREE.MathUtils.lerp(0, speed, dt * 6); 
+            const animY = Math.abs(animSpeed) > 0.1 ? -1 : 0;
+
             const animContext = { config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler, isCombatStance: false, isJumping: false, isAxeSwing: false, axeSwingTimer: 0, isPunch: false, isPickingUp: false, isInteracting: false, isWaving: false, isLeftHandWaving: this.isLeftHandWaving, leftHandWaveTimer: this.leftHandWaveTimer, isSkinning: false, isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false };
-            this.animator.animate(animContext, dt, false, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any);
+            this.animator.animate(animContext, dt, Math.abs(animSpeed) > 0.1, { x: 0, y: animY, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any);
             this.walkTime = animContext.walkTime;
             this.lastStepCount = animContext.lastStepCount;
 

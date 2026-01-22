@@ -311,4 +311,62 @@ export class ObstacleManager {
             }
         });
     }
+
+    dispose() {
+        this.decorativeItems.forEach(item => {
+            this.parent.remove(item);
+            item.traverse(child => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            });
+        });
+        this.trees.forEach(tree => {
+            this.parent.remove(tree.group);
+            tree.group.traverse(child => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            });
+        });
+        this.rocks.forEach(rock => {
+            this.parent.remove(rock.mesh.parent || rock.mesh);
+            const target = rock.mesh.parent || rock.mesh;
+            target.traverse(child => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            });
+        });
+        this.collectibleLogs.forEach(log => {
+            this.parent.remove(log.mesh);
+            log.mesh.geometry.dispose();
+            if (Array.isArray(log.mesh.material)) {
+                log.mesh.material.forEach(m => m.dispose());
+            } else {
+                log.mesh.material.dispose();
+            }
+        });
+
+        this.obstacles = [];
+        this.trees.clear();
+        this.rocks.clear();
+        this.decorativeItems = [];
+        this.collectibleLogs = [];
+    }
 }

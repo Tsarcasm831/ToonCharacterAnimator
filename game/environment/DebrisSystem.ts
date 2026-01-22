@@ -104,4 +104,31 @@ export class DebrisSystem {
             }
         }
     }
+
+    dispose() {
+        this.fallingObjects.forEach(obj => {
+            this.parent.remove(obj.mesh);
+            obj.mesh.traverse(child => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            });
+        });
+        this.rockDebris.forEach(deb => {
+            this.parent.remove(deb.mesh);
+            deb.mesh.geometry.dispose();
+            if (Array.isArray(deb.mesh.material)) {
+                deb.mesh.material.forEach(m => m.dispose());
+            } else {
+                deb.mesh.material.dispose();
+            }
+        });
+        this.fallingObjects = [];
+        this.rockDebris = [];
+    }
 }

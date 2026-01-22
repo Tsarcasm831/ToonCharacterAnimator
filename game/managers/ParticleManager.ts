@@ -14,6 +14,7 @@ export class ParticleManager {
     private scene: THREE.Scene;
     private mesh: THREE.InstancedMesh;
     private particles: ParticleData[] = [];
+    private activeParticles: Set<number> = new Set();
     private dummy = new THREE.Object3D();
     private count = 100; // Optimized count
     
@@ -73,6 +74,7 @@ export class ParticleManager {
                 this.dummy.scale.setScalar(p.scale);
                 this.dummy.updateMatrix();
                 this.mesh.setMatrixAt(i, this.dummy.matrix);
+                this.activeParticles.add(i);
                 spawned++;
                 if (spawned >= count) break;
             }
@@ -81,33 +83,39 @@ export class ParticleManager {
     }
 
     update(dt: number) {
+        if (this.activeParticles.size === 0) return;
+
         let needsUpdate = false;
         const gravity = -20;
-        for (let i = 0; i < this.count; i++) {
+        
+        for (const i of this.activeParticles) {
             const p = this.particles[i];
-            if (p.active) {
-                needsUpdate = true;
-                p.life += dt;
-                if (p.life >= p.maxLife) {
-                    p.active = false;
-                    this.dummy.position.set(0, -1000, 0);
-                    this.dummy.updateMatrix();
-                    this.mesh.setMatrixAt(i, this.dummy.matrix);
-                    continue;
-                }
-                p.velocity.y += gravity * dt;
-                this.mesh.getMatrixAt(i, this.dummy.matrix);
-                this.dummy.position.setFromMatrixPosition(this.dummy.matrix);
-                this.dummy.position.addScaledVector(p.velocity, dt);
-                this.dummy.rotation.x += p.rotationSpeed.x * dt;
-                this.dummy.rotation.y += p.rotationSpeed.y * dt;
-                this.dummy.rotation.z += p.rotationSpeed.z * dt;
-                const scale = Math.max(0, p.scale * (1.0 - (p.life / p.maxLife)));
-                this.dummy.scale.setScalar(scale);
+            
+            p.life += dt;
+            if (p.life >= p.maxLife) {
+                p.active = false;
+                this.activeParticles.delete(i);
+                this.dummy.position.set(0, -1000, 0);
                 this.dummy.updateMatrix();
                 this.mesh.setMatrixAt(i, this.dummy.matrix);
+                needsUpdate = true;
+                continue;
             }
+            
+            needsUpdate = true;
+            p.velocity.y += gravity * dt;
+            this.mesh.getMatrixAt(i, this.dummy.matrix);
+            this.dummy.position.setFromMatrixPosition(this.dummy.matrix);
+            this.dummy.position.addScaledVector(p.velocity, dt);
+            this.dummy.rotation.x += p.rotationSpeed.x * dt;
+            this.dummy.rotation.y += p.rotationSpeed.y * dt;
+            this.dummy.rotation.z += p.rotationSpeed.z * dt;
+            const scale = Math.max(0, p.scale * (1.0 - (p.life / p.maxLife)));
+            this.dummy.scale.setScalar(scale);
+            this.dummy.updateMatrix();
+            this.mesh.setMatrixAt(i, this.dummy.matrix);
         }
+        
         if (needsUpdate) this.mesh.instanceMatrix.needsUpdate = true;
     }
 }

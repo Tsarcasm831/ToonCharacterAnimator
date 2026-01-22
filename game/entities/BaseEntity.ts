@@ -25,6 +25,7 @@ export abstract class BaseEntity {
         this.targetPosition = initialPos.clone();
         this.targetRotationY = 0;
         this.group = new THREE.Group();
+        this.group.userData.entityType = this.constructor.name;
         this.group.position.copy(this.position);
         scene.add(this.group);
     }

@@ -13,10 +13,13 @@ export class Wolf {
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene; const spawnPos = initialPos.clone(); if (!this.isInsideGrove(spawnPos)) spawnPos.copy(this.GROVE_CENTER); this.position.copy(spawnPos); this.lastStuckPos.copy(this.position);
         const wolfData = ObjectFactory.createWolfModel(0x666666); this.group = new THREE.Group(); this.group.add(wolfData.group); this.model = wolfData;
-        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this }; this.group.add(this.hitbox); const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
-        const bodyHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 1.3), hitboxMat); bodyHitbox.position.y = 0.55; bodyHitbox.userData = { type: 'creature' }; this.hitbox.add(bodyHitbox);
-        const headHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.6), hitboxMat); headHitbox.position.set(0, 0.95, 0.6); headHitbox.userData = { type: 'creature' }; this.hitbox.add(headHitbox);
-        const snoutHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.5), hitboxMat); snoutHitbox.position.set(0, 0.8, 1.1); snoutHitbox.userData = { type: 'creature' }; this.hitbox.add(snoutHitbox);
+        this.group.userData.entityType = 'Wolf';
+        this.model.group.userData.type = 'creature';
+        this.model.group.userData.entityType = 'Wolf';
+        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this, entityType: 'Wolf' }; this.group.add(this.hitbox); const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
+        const bodyHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 1.3), hitboxMat); bodyHitbox.position.y = 0.55; bodyHitbox.userData = { type: 'creature', parent: this, entityType: 'Wolf' }; this.hitbox.add(bodyHitbox);
+        const headHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.6), hitboxMat); headHitbox.position.set(0, 0.95, 0.6); headHitbox.userData = { type: 'creature', parent: this, entityType: 'Wolf' }; this.hitbox.add(headHitbox);
+        const snoutHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.5), hitboxMat); snoutHitbox.position.set(0, 0.8, 1.1); snoutHitbox.userData = { type: 'creature', parent: this, entityType: 'Wolf' }; this.hitbox.add(snoutHitbox);
         this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 1.7, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.15), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(0.96, 0.11); fgGeo.translate(0.48, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.48, 0, 0.01); this.healthBarGroup.add(this.healthBarFill); this.group.add(this.healthBarGroup);
         this.group.position.copy(this.position); this.scene.add(this.group);
     }

@@ -139,4 +139,14 @@ export class GrassManager {
             this.mesh.material.uniforms.uTime.value = performance.now() * 0.001;
         }
     }
+
+    dispose() {
+        this.parent.remove(this.mesh);
+        this.mesh.geometry.dispose();
+        if (Array.isArray(this.mesh.material)) {
+            this.mesh.material.forEach(m => m.dispose());
+        } else {
+            this.mesh.material.dispose();
+        }
+    }
 }

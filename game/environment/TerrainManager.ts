@@ -139,4 +139,25 @@ export class TerrainManager {
             this.waterMesh.material.uniforms.uTime.value += dt;
         }
     }
+
+    dispose() {
+        this.meshes.forEach(mesh => {
+            mesh.geometry.dispose();
+            if (Array.isArray(mesh.material)) {
+                mesh.material.forEach(m => m.dispose());
+            } else {
+                mesh.material.dispose();
+            }
+        });
+        if (this.waterMesh) {
+            this.waterMesh.geometry.dispose();
+            if (Array.isArray(this.waterMesh.material)) {
+                this.waterMesh.material.forEach(m => m.dispose());
+            } else {
+                this.waterMesh.material.dispose();
+            }
+        }
+        this.meshes = [];
+        this.waterMesh = null;
+    }
 }

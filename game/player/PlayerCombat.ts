@@ -60,6 +60,10 @@ export class PlayerCombat {
     private static _tempBox1 = new THREE.Box3();
     private static _tempBox2 = new THREE.Box3();
 
+    private static readonly _tempVec1 = new THREE.Vector3();
+    private static readonly _tempVec2 = new THREE.Vector3();
+    private static readonly _tempQuat = new THREE.Quaternion();
+
     constructor(player: Player) {
         this.player = player;
     }
@@ -201,8 +205,8 @@ export class PlayerCombat {
             const p = PlayerCombat.activeProjectiles[i];
             
             // Move
-            const moveStep = p.velocity.clone().multiplyScalar(dt);
-            p.mesh.position.add(moveStep);
+            this._tempVec1.copy(p.velocity).multiplyScalar(dt);
+            p.mesh.position.add(this._tempVec1);
             
             // Fireball visuals
             if (p.type === 'fireball') {
@@ -243,10 +247,9 @@ export class PlayerCombat {
         const pos = p.mesh.position;
         // 1. Check Obstacles
         for (const obs of environment.obstacles) {
-            const obsPos = new THREE.Vector3();
-            obs.getWorldPosition(obsPos);
+            obs.getWorldPosition(this._tempVec1);
             
-            const dist = pos.distanceTo(obsPos);
+            const dist = pos.distanceTo(this._tempVec1);
             if (dist < 1.5) {
                 const matType = obs.userData.type === 'hard' ? 'stone' : 'wood';
                 if (p.type === 'fireball') {
@@ -321,11 +324,11 @@ export class PlayerCombat {
             
             if (!this.hasSpawnedFireball && this.fireballTimer < 0.4) {
                 if (Math.random() > 0.5) {
-                    const spawnPos = this.player.mesh.position.clone();
-                    spawnPos.y += 1.3;
-                    const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
-                    spawnPos.addScaledVector(forward, 0.4);
-                    particleManager.emit(spawnPos, 1, 'spark');
+                    PlayerCombat._tempVec1.copy(this.player.mesh.position);
+                    PlayerCombat._tempVec1.y += 1.3;
+                    PlayerCombat._tempVec2.set(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
+                    PlayerCombat._tempVec1.addScaledVector(PlayerCombat._tempVec2, 0.4);
+                    particleManager.emit(PlayerCombat._tempVec1, 1, 'spark');
                 }
             }
 
@@ -342,14 +345,14 @@ export class PlayerCombat {
     }
 
     private spawnFireball(particleManager: ParticleManager) {
-        const spawnPos = this.player.mesh.position.clone();
-        spawnPos.y += 1.35; 
+        PlayerCombat._tempVec1.copy(this.player.mesh.position);
+        PlayerCombat._tempVec1.y += 1.35; 
         
-        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
-        spawnPos.addScaledVector(forward, 1.0);
+        PlayerCombat._tempVec2.set(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
+        PlayerCombat._tempVec1.addScaledVector(PlayerCombat._tempVec2, 1.0);
 
-        PlayerCombat.spawnProjectile(this.player.scene, spawnPos, forward, 'fireball', this.player);
-        particleManager.emit(spawnPos, 10, 'spark'); 
+        PlayerCombat.spawnProjectile(this.player.scene, PlayerCombat._tempVec1, PlayerCombat._tempVec2, 'fireball', this.player);
+        particleManager.emit(PlayerCombat._tempVec1, 10, 'spark'); 
     }
 
     private handleBowInput(dt: number, input: PlayerInput, particleManager: ParticleManager) {
@@ -392,17 +395,18 @@ export class PlayerCombat {
     }
 
     private fireArrow(particleManager: ParticleManager) {
-        const spawnPos = this.player.mesh.position.clone();
-        spawnPos.y += 1.35; 
+        PlayerCombat._tempVec1.copy(this.player.mesh.position);
+        PlayerCombat._tempVec1.y += 1.35; 
         
-        const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
-        const left = new THREE.Vector3(1, 0, 0).applyQuaternion(this.player.mesh.quaternion);
+        const forward = PlayerCombat._tempVec2.set(0, 0, 1).applyQuaternion(this.player.mesh.quaternion);
+        const left = PlayerCombat._tempVec1.clone(); // Need to not overwrite tempVec1 yet, or use a 3rd temp
+        left.set(1, 0, 0).applyQuaternion(this.player.mesh.quaternion);
         
-        spawnPos.addScaledVector(forward, 0.8);
-        spawnPos.addScaledVector(left, 0.2); 
+        PlayerCombat._tempVec1.addScaledVector(forward, 0.8);
+        PlayerCombat._tempVec1.addScaledVector(left, 0.2); 
 
-        PlayerCombat.spawnProjectile(this.player.scene, spawnPos, forward, 'arrow', this.player);
-        particleManager.emit(spawnPos, 5, 'spark'); 
+        PlayerCombat.spawnProjectile(this.player.scene, PlayerCombat._tempVec1, forward, 'arrow', this.player);
+        particleManager.emit(PlayerCombat._tempVec1, 5, 'spark'); 
     }
 
     private updateBowLogic(dt: number) {
@@ -536,24 +540,36 @@ export class PlayerCombat {
         PlayerCombat._tempBox1.expandByScalar(0.25);
 
         for (const ent of entities) {
-            if (ent && ent.hitbox && !ent.isDead) {
-                if (playerPos.distanceTo(ent.group.position) < 4.5) {
+            if (ent && !ent.isDead) {
+                // Check distance first to avoid expensive hitbox checks
+                const dist = playerPos.distanceTo(ent.group ? ent.group.position : ent.position);
+                if (dist < 4.5) {
                     let hit = false;
-                    ent.hitbox.children.forEach((part: any) => {
+                    
+                    let hitboxParts: THREE.Object3D[] = [];
+                    if (typeof ent.getHitboxParts === 'function') {
+                        hitboxParts = ent.getHitboxParts();
+                    } else if (ent.hitbox) {
+                        hitboxParts = ent.hitbox.children;
+                    }
+
+                    for (const part of hitboxParts) {
                         if (part instanceof THREE.Mesh) {
                             part.updateMatrixWorld(true);
                             PlayerCombat._tempBox2.setFromObject(part);
                             if (PlayerCombat._tempBox1.intersectsBox(PlayerCombat._tempBox2)) {
                                 hit = true;
+                                break;
                             }
                         }
-                    });
+                    }
 
                     if (hit) {
                         ent.takeDamage(damage);
                         const impactPoint = new THREE.Vector3();
                         PlayerCombat._tempBox1.getCenter(impactPoint);
-                        particleManager.emit(impactPoint, 10, 'wood'); 
+                        // Emit blood/flesh effect for entities, wood for objects is handled below
+                        particleManager.emit(impactPoint, 10, 'spark'); 
                         return; 
                     }
                 }

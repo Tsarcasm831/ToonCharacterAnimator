@@ -161,11 +161,21 @@ export class Game {
         this.inputManager.onToggleHitbox = () => this.player.toggleHitbox();
         this.inputManager.onToggleObstacleHitboxes = () => {
             this.showObstacleHitboxes = !this.showObstacleHitboxes;
-            let obstacles: THREE.Object3D[] = [];
-            const currentEnv = this.sceneManager.currentEnvironment;
-            if (currentEnv) obstacles = currentEnv.obstacles;
             
-            if (obstacles) PlayerDebug.updateObstacleHitboxVisuals(obstacles, this.showObstacleHitboxes);
+            // 1. Collect environment obstacles
+            let debugObjects: THREE.Object3D[] = [];
+            const currentEnv = this.sceneManager.currentEnvironment;
+            if (currentEnv) debugObjects = [...currentEnv.obstacles];
+            
+            // 2. Collect NPCs and units
+            const entities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
+            entities.forEach(entity => {
+                if (entity.group) debugObjects.push(entity.group);
+            });
+            
+            if (debugObjects.length > 0) {
+                PlayerDebug.updateObstacleHitboxVisuals(debugObjects, this.showObstacleHitboxes);
+            }
         };
         
         this.inputManager.onToggleCamera = () => this.cameraManager.toggleCameraFocus();
@@ -284,7 +294,10 @@ export class Game {
 
     private animate(time: number = 0) {
         this.animationId = requestAnimationFrame(this.animate);
-        const delta = Math.min(this.clock.getDelta(), 0.1);
+        
+        // Use a fixed delta for logic if real delta is too erratic
+        let delta = this.clock.getDelta();
+        if (delta > 0.1) delta = 0.1; // Cap large spikes
         if (delta <= 0) return;
 
         const input = this.inputManager.getInput();
@@ -315,16 +328,26 @@ export class Game {
             const currentEnv = this.sceneManager.currentEnvironment;
             if (currentEnv) {
                 this.builderManager.build(currentEnv);
-                if (this.showObstacleHitboxes) PlayerDebug.updateObstacleHitboxVisuals(currentEnv.obstacles, true);
+                if (this.showObstacleHitboxes) {
+                    const debugObjects: THREE.Object3D[] = [...currentEnv.obstacles];
+                    const entities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
+                    entities.forEach(entity => {
+                        if (entity.group) debugObjects.push(entity.group);
+                    });
+                    PlayerDebug.updateObstacleHitboxVisuals(debugObjects, true);
+                }
             }
         }
         this.wasAttack1Pressed = !!input.attack1;
 
-        const cameraRotation = this.cameraManager.update(this.sceneManager.activeScene);
+        // 1. Get Camera Rotation (for input relative movement)
+        const cameraRotation = this.cameraManager.getCameraRotation();
 
         this.sceneManager.update(delta, this.config);
         
         const currentEnv = this.sceneManager.currentEnvironment;
+        const currentEntities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
+        
         this.entityManager.update(
             delta, 
             this.config, 
@@ -333,7 +356,8 @@ export class Game {
             currentEnv, 
             this.sceneManager.activeScene, 
             this.combatManager.isActive,
-            this.onAttackHit
+            this.onAttackHit,
+            currentEntities
         );
 
         // Update Auto-Battler System
@@ -342,8 +366,6 @@ export class Game {
                 this.combatSystem.update(delta, this.sceneManager.combatEnvironment);
             }
         }
-
-        const currentEntities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
 
         this.particleManager.update(delta);
         
@@ -370,6 +392,10 @@ export class Game {
                 this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv as any, this.renderManager.camera, this.inputManager.mousePosition);
             }
         }
+
+        // 2. Update Camera Position (AFTER player has moved to prevent jitter)
+        this.cameraManager.updatePosition(this.sceneManager.activeScene);
+
         this.soundManager.update(this.player, delta);
         
         if (time - this.lastRotationUpdate >= this.rotationUpdateIntervalMs || Math.abs(cameraRotation - this.lastRotationValue) >= this.rotationUpdateEpsilon) {

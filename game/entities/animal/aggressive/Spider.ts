@@ -12,9 +12,12 @@ export class Spider {
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene; this.position.copy(initialPos); this.lastStuckPos.copy(this.position);
         const spiderData = ObjectFactory.createSpiderModel ? ObjectFactory.createSpiderModel(0x1a1a1a) : ObjectFactory.createBearModel(0x1a1a1a); this.group = new THREE.Group(); this.group.add(spiderData.group); this.model = spiderData;
-        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this }; this.group.add(this.hitbox); const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
-        const thoraxHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.8), hitboxMat); thoraxHitbox.position.set(0, 0.6, 0.5); thoraxHitbox.userData = { type: 'creature' }; this.hitbox.add(thoraxHitbox);
-        const abdomenHitbox = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.4), hitboxMat); abdomenHitbox.position.set(0, 0.8, -0.6); abdomenHitbox.userData = { type: 'creature' }; this.hitbox.add(abdomenHitbox);
+        this.group.userData.entityType = 'Spider';
+        this.model.group.userData.type = 'creature';
+        this.model.group.userData.entityType = 'Spider';
+        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this, entityType: 'Spider' }; this.group.add(this.hitbox); const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
+        const thoraxHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.8), hitboxMat); thoraxHitbox.position.set(0, 0.6, 0.5); thoraxHitbox.userData = { type: 'creature', parent: this, entityType: 'Spider' }; this.hitbox.add(thoraxHitbox);
+        const abdomenHitbox = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.4), hitboxMat); abdomenHitbox.position.set(0, 0.8, -0.6); abdomenHitbox.userData = { type: 'creature', parent: this, entityType: 'Spider' }; this.hitbox.add(abdomenHitbox);
         this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 2.0, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.15), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(0.96, 0.11); fgGeo.translate(0.48, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.48, 0, 0.01); this.healthBarGroup.add(this.healthBarFill); this.group.add(this.healthBarGroup);
         this.group.position.copy(this.position); this.scene.add(this.group);
     }

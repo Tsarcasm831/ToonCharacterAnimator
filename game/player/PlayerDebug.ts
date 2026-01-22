@@ -90,10 +90,62 @@ export class PlayerDebug {
         }
     }
 
-    static updateObstacleHitboxVisuals(obstacles: THREE.Object3D[], show: boolean) {
-        obstacles.forEach((obs) => {
+    private static materials = {
+        red: new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true, depthTest: false, transparent: true, opacity: 0.3 }),
+        green: new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, depthTest: false, transparent: true, opacity: 0.5 }),
+        blue: new THREE.MeshBasicMaterial({ color: 0x0000ff, wireframe: true, depthTest: false, transparent: true, opacity: 0.5 }),
+        orange: new THREE.MeshBasicMaterial({ color: 0xffa500, wireframe: true, depthTest: false, transparent: true, opacity: 0.5 }),
+        pink: new THREE.MeshBasicMaterial({ color: 0xffc0cb, wireframe: true, depthTest: false, transparent: true, opacity: 0.5 }),
+        white: new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, depthTest: false, transparent: true, opacity: 0.5 })
+    };
+
+    private static getDebugMaterial(obj: THREE.Object3D): THREE.MeshBasicMaterial {
+        let type = obj.constructor.name;
+        
+        // If it's a generic Group or Object3D, check if it has a specific type in userData
+        if (type === 'Group' || type === 'Object3D') {
+            if (obj.userData.entityType) {
+                type = obj.userData.entityType;
+            } else if (obj.userData.parent && obj.userData.parent.constructor) {
+                // If it's a child (like a hitbox or model part), use the parent's type
+                type = obj.userData.parent.constructor.name;
+            } else if (obj.userData.type === 'creature') {
+                // Fallback for general creatures if no specific entityType is set
+                return this.materials.red;
+            }
+        }
+
+        // Green: Blacksmith, NPC, Shopkeeper
+        if (['Blacksmith', 'NPC', 'Shopkeeper'].includes(type)) return this.materials.green;
+        
+        // Red: Player, Archer, Assassin, Bandit, Berserker, Mage, Rogue, Warlock
+        if (['Player', 'Archer', 'Assassin', 'Bandit', 'Berserker', 'Mage', 'Rogue', 'Warlock'].includes(type)) return this.materials.red;
+        
+        // Blue: Cleric, Knight, LowLevelCityGuard, Monk, Paladin, Ranger, Sentinel
+        if (['Cleric', 'Knight', 'LowLevelCityGuard', 'Monk', 'Paladin', 'Ranger', 'Sentinel'].includes(type)) return this.materials.blue;
+        
+        // Orange: Bear, Spider, Wolf, Yeti
+        if (['Bear', 'Spider', 'Wolf', 'Yeti'].includes(type)) return this.materials.orange;
+        
+        // Pink: Horse
+        if (type === 'Horse') return this.materials.pink;
+        
+        // White: Chicken, Deer, Lizard, Owl, Pig, Sheep
+        if (['Chicken', 'Deer', 'Lizard', 'Owl', 'Pig', 'Sheep'].includes(type)) return this.materials.white;
+
+        // Default: Green for environment obstacles, Red for unknown creatures
+        const isCreature = obj.userData.type === 'creature' || 
+                         (obj.parent && obj.parent.userData.type === 'creature');
+        return isCreature ? this.materials.red : this.materials.green;
+    }
+
+    static updateObstacleHitboxVisuals(objects: THREE.Object3D[], show: boolean) {
+        objects.forEach((obj) => {
+            // Get the root entity/object to determine color
+            const debugMat = this.getDebugMaterial(obj);
+
             // Traverse to handle both single meshes and groups
-            obs.traverse((child) => {
+            obj.traverse((child) => {
                 if (child.name === 'ObstacleHitboxOverlay') return;
                 
                 if (child instanceof THREE.Mesh) {
@@ -101,11 +153,6 @@ export class PlayerDebug {
                     
                     if (show) {
                         if (!overlay && child.parent) {
-                            // Check if this is a living creature (e.g. Wolf)
-                            const isCreature = child.userData.type === 'creature' || obs.userData.type === 'creature';
-                            // Use red for creatures, green for static obstacles
-                            const debugMat = isCreature ? this.material : this.obstacleMaterial;
-                            
                             const m = new THREE.Mesh(child.geometry, debugMat);
                             m.name = 'ObstacleHitboxOverlay';
                             child.add(m);
@@ -122,6 +169,7 @@ export class PlayerDebug {
             });
         });
     }
+
 
     private static updateSkeleton(player: Player) {
         if (!this.skeletonGroup) {
