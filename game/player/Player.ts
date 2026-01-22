@@ -71,6 +71,7 @@ export class Player {
         this.scene = scene;
         this.config = { ...DEFAULT_CONFIG };
         this.model = new PlayerModel(this.config);
+        this.model.group.userData.entityType = 'Player';
         this.animator = new PlayerAnimator();
         this.scene.add(this.model.group);
         this.model.group.position.set(-24, 0, 50);
@@ -98,6 +99,8 @@ export class Player {
     toggleHitbox() {
         this.isDebugHitbox = !this.isDebugHitbox;
         PlayerDebug.updateHitboxVisuals(this);
+        // Also update the obstacle-style visuals for the player to ensure color consistency
+        PlayerDebug.updateObstacleHitboxVisuals([this.mesh], this.isDebugHitbox);
     }
 
     toggleSkeletonMode() {
@@ -121,14 +124,12 @@ export class Player {
         this.locomotion.update(dt, input, cameraAngle, environment.obstacles);
         
         // Interpolate player visual mesh to physics position
-        const lerpFactor = Math.min(dt * 15, 1.0);
-        this.model.group.position.lerp(this.locomotion.position, lerpFactor);
+        // Using a higher lerp factor or direct copy to avoid visual lag behind physics
+        this.model.group.position.copy(this.locomotion.position);
         
-        // Handle rotation wrapping for player
-        let rotDiff = this.locomotion.rotationY - this.model.group.rotation.y;
-        while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
-        while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-        this.model.group.rotation.y += rotDiff * lerpFactor;
+        // Directly copy rotation from locomotion to avoid double-smoothing lag
+        // Locomotion already handles turn speed interpolation
+        this.model.group.rotation.y = this.locomotion.rotationY;
 
         this.model.update(dt, this.locomotion.velocity);
         

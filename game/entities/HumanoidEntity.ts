@@ -48,6 +48,7 @@ export abstract class HumanoidEntity extends BaseEntity {
         }
         
         this.model = new PlayerModel(this.config);
+        this.model.group.userData.type = 'creature';
         this.animator = new PlayerAnimator();
         
         // Add model group to entity group instead of scene directly

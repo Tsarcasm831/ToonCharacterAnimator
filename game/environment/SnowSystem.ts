@@ -155,4 +155,13 @@ export class SnowSystem {
         
         this.particleSystem.visible = this.presence > 0.001 && this.currentIntensity > 0.01;
     }
+
+    dispose() {
+        this.particleSystem.geometry.dispose();
+        if (Array.isArray(this.particleSystem.material)) {
+            this.particleSystem.material.forEach(m => m.dispose());
+        } else {
+            this.particleSystem.material.dispose();
+        }
+    }
 }

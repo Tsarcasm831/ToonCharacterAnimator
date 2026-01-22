@@ -3,6 +3,14 @@ import { PlayerConfig } from '../../types';
 import { getLandHeightAt, isWorldPointInLand } from '../environment/landTerrain';
 
 export class PlayerUtils {
+    private static readonly _tempRayOrigin = new THREE.Vector3();
+    private static readonly _tempRayDir = new THREE.Vector3(0, -1, 0);
+    private static readonly _tempBox = new THREE.Box3();
+    private static readonly _tempBox2 = new THREE.Box3();
+    private static readonly _tempVec1 = new THREE.Vector3();
+    private static readonly _tempVec2 = new THREE.Vector3();
+    private static readonly _raycaster = new THREE.Raycaster();
+
     // Matching constants from Environment.ts to calculate pond depth mathematically
     static POND_X = 8;
     static POND_Z = 6;
@@ -31,21 +39,18 @@ export class PlayerUtils {
         const rX = width / 2;
         const rZ = depth / 2;
         
-        const box = new THREE.Box3();
-        const stepOffset = 0.5; 
+        this._tempBox.min.set(position.x - rX, position.y + 0.5, position.z - rZ);
+        this._tempBox.max.set(position.x + rX, position.y + totalHeight, position.z + rZ);
         
-        box.min.set(position.x - rX, position.y + stepOffset, position.z - rZ);
-        box.max.set(position.x + rX, position.y + totalHeight, position.z + rZ);
-        
-        return box;
+        return this._tempBox;
     }
 
     static checkCollision(pos: THREE.Vector3, config: PlayerConfig, obstacles: THREE.Object3D[]): boolean {
         const playerBox = this.getHitboxBounds(pos, config);
         for (const obs of obstacles) {
             if (obs.userData.type === 'soft' || obs.userData.type === 'ground') continue;
-            const obsBox = new THREE.Box3().setFromObject(obs);
-            if (obsBox.intersectsBox(playerBox)) return true;
+            this._tempBox2.setFromObject(obs);
+            if (this._tempBox2.intersectsBox(playerBox)) return true;
         }
         return false;
     }
@@ -56,15 +61,15 @@ export class PlayerUtils {
     static checkBoxCollision(pos: THREE.Vector3, size: THREE.Vector3, obstacles: THREE.Object3D[]): boolean {
         const halfX = size.x / 2;
         const halfZ = size.z / 2;
-        const box = new THREE.Box3(
-            new THREE.Vector3(pos.x - halfX, pos.y + 0.1, pos.z - halfZ),
-            new THREE.Vector3(pos.x + halfX, pos.y + size.y, pos.z + halfZ)
-        );
+        this._tempBox.min.set(pos.x - halfX, pos.y + 0.1, pos.z - halfZ);
+        this._tempBox.max.set(pos.x + halfX, pos.y + size.y, pos.z + halfZ);
 
         for (const obs of obstacles) {
             if (obs.userData.type === 'soft' || obs.userData.type === 'creature' || obs.userData.type === 'ground') continue;
-            const obsBox = new THREE.Box3().setFromObject(obs);
-            if (obsBox.intersectsBox(box)) return true;
+            // obsBox was reusing _tempVec1 which is fine, but we need a box
+            // Using _tempBox2 for obstacle
+            this._tempBox2.setFromObject(obs);
+            if (this._tempBox2.intersectsBox(this._tempBox)) return true;
         }
         return false;
     }
@@ -106,11 +111,11 @@ export class PlayerUtils {
         const groundMeshes = obstacles.filter(o => o.userData.type === 'ground');
         if (groundMeshes.length > 0) {
             // Cast from high up downwards
-            const rayOrigin = new THREE.Vector3(pos.x, 200, pos.z);
-            const rayDir = new THREE.Vector3(0, -1, 0);
-            const raycaster = new THREE.Raycaster(rayOrigin, rayDir, 0, 300); // Check 200 down to -100
+            this._tempRayOrigin.set(pos.x, 200, pos.z);
+            this._raycaster.set(this._tempRayOrigin, this._tempRayDir);
+            this._raycaster.far = 300;
             
-            const intersects = raycaster.intersectObjects(groundMeshes);
+            const intersects = this._raycaster.intersectObjects(groundMeshes);
             if (intersects.length > 0) {
                 // Use the highest hit point directly, overriding the mathematical fallback
                 highest = intersects[0].point.y;
@@ -120,10 +125,9 @@ export class PlayerUtils {
         const width = (config as any).torsoWidth ? 0.6 * config.torsoWidth : 0.6;
         const depth = width * 0.7;
         
-        const pBox = new THREE.Box3().setFromCenterAndSize(
-            new THREE.Vector3(pos.x, 50, pos.z), 
-            new THREE.Vector3(width, 100, depth)
-        );
+        this._tempVec1.set(width, 100, depth);
+        this._tempVec2.set(pos.x, 50, pos.z);
+        this._tempBox.setFromCenterAndSize(this._tempVec2, this._tempVec1);
 
         for (const obs of obstacles) {
             if (obs.userData.type === 'soft' || obs.userData.type === 'creature' || obs.userData.type === 'ground') continue; 
@@ -144,8 +148,8 @@ export class PlayerUtils {
             }
 
             const obsBox = new THREE.Box3().setFromObject(obs);
-            if (pBox.min.x < obsBox.max.x && pBox.max.x > obsBox.min.x &&
-                pBox.min.z < obsBox.max.z && pBox.max.z > obsBox.min.z) {
+            if (this._tempBox.min.x < obsBox.max.x && this._tempBox.max.x > obsBox.min.x &&
+                this._tempBox.min.z < obsBox.max.z && this._tempBox.max.z > obsBox.min.z) {
                 highest = Math.max(highest, obsBox.max.y);
             }
         }

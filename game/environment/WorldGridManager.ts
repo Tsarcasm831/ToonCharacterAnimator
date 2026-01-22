@@ -212,4 +212,30 @@ export class WorldGridManager {
             this.lastUpdatePos.set(Infinity, Infinity, Infinity);
         }
     }
+
+    dispose() {
+        this.parent.remove(this.group);
+        this.group.traverse(child => {
+            if (child instanceof THREE.LineSegments) {
+                child.geometry.dispose();
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+            if (child instanceof THREE.Mesh) {
+                child.geometry.dispose();
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+        });
+        this.labelPool.forEach(member => {
+            member.texture.dispose();
+        });
+        this.labelPool = [];
+    }
 }

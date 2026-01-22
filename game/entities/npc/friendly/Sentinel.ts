@@ -111,6 +111,24 @@ export class Sentinel extends HumanoidEntity {
             this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
+            
+            // Calculate speed for animation
+            const dist = this.position.distanceTo(this.lastFramePos);
+            const speed = dist / dt;
+            this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, speed, dt * 6);
+            const animY = Math.abs(this.speedFactor) > 0.1 ? -1 : 0;
+
+            const animContext = {
+                config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
+                isCombatStance: false,
+                isJumping: false, isAxeSwing: false, axeSwingTimer: 0, isPunch: false,
+                isPickingUp: false, pickUpTime: 0, isInteracting: false, isWaving: false, isSkinning: false,
+                isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
+            };
+            this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: false, isPickingUp: false, isDead: false, jump: false } as any);
+            this.walkTime = animContext.walkTime;
+            this.lastStepCount = animContext.lastStepCount;
+
             this.updateModel(dt);
             this.model.sync(this.config, true);
             return;

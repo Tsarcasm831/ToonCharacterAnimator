@@ -40,6 +40,7 @@ export class PlayerLocomotion {
     }
 
     update(dt: number, input: PlayerInput, cameraAngle: number, obstacles: THREE.Object3D[]) {
+        const fixedDt = 1 / 60; // Use fixed timestep for physics to prevent stuttering
         // 1. Handle Ground & Gravity
         const pos = this.position;
         // Use getLandingHeight to avoid snapping to overhead obstacles (lintels)
@@ -113,7 +114,10 @@ export class PlayerLocomotion {
         }
 
         // 2. Handle Movement (if not dead/climbing)
-        if (this.player.status.isDead || this.isLedgeGrabbing) return;
+        if (this.player.status.isDead || this.isLedgeGrabbing) {
+            this.velocity.set(0, 0, 0);
+            return;
+        }
 
         // Crouch Handling
         if (input.crouch && !this.isJumping) {
@@ -165,7 +169,10 @@ export class PlayerLocomotion {
             let rotDiff = targetRotation - this.rotationY;
             while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
             while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-            this.rotationY += rotDiff * this.turnSpeed * dt;
+            
+            // Smoother rotation interpolation
+            const rotLerp = Math.min(dt * this.turnSpeed, 1.0);
+            this.rotationY += rotDiff * rotLerp;
 
             const inputLen = Math.sqrt(input.x * input.x + input.y * input.y);
             if (inputLen > 0) {
@@ -182,8 +189,30 @@ export class PlayerLocomotion {
                 nextPos.x += dx;
                 nextPos.z += dz;
 
-                if (!PlayerUtils.checkCollision(nextPos, this.player.config, obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
+                const tryMove = (p: THREE.Vector3) => {
+                    return PlayerUtils.isWithinBounds(p) && !PlayerUtils.checkCollision(p, this.player.config, obstacles);
+                };
+
+                // 1. Try full movement
+                if (tryMove(nextPos)) {
                     this.position.copy(nextPos);
+                } else {
+                    // 2. Try sliding X
+                    const nextPosX = this.position.clone();
+                    nextPosX.x += dx;
+                    // Only try if there is significant X movement
+                    if (Math.abs(dx) > 0.0001 && tryMove(nextPosX)) {
+                        this.position.copy(nextPosX);
+                    } 
+                    // 3. Try sliding Z
+                    else {
+                        const nextPosZ = this.position.clone();
+                        nextPosZ.z += dz;
+                        // Only try if there is significant Z movement
+                        if (Math.abs(dz) > 0.0001 && tryMove(nextPosZ)) {
+                            this.position.copy(nextPosZ);
+                        }
+                    }
                 }
             }
         }
@@ -230,6 +259,14 @@ export class PlayerLocomotion {
     private updateClimb(dt: number) {
         this.ledgeGrabTime += dt;
         const climbDuration = 1.2; 
+        
+        // Failsafe
+        if (this.ledgeGrabTime > climbDuration * 2) {
+            this.isLedgeGrabbing = false;
+            this.ledgeGrabTime = 0;
+            return;
+        }
+
         const progress = Math.min(this.ledgeGrabTime / climbDuration, 1.0);
         
         if (progress < 0.15) {

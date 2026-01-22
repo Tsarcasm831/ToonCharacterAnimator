@@ -139,6 +139,12 @@ export class Mage extends HumanoidEntity {
             this.targetPosition.copy(this.position);
             this.targetRotationY = this.rotationY;
 
+            // Calculate speed for animation
+            const dist = this.position.distanceTo(this.lastFramePos);
+            const speed = dist / dt;
+            this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, speed, dt * 6);
+            const animY = Math.abs(this.speedFactor) > 0.1 ? -1 : 0;
+
             const animContext = {
                 config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
                 isCombatStance: false,
@@ -146,7 +152,7 @@ export class Mage extends HumanoidEntity {
                 isPickingUp: false, pickUpTime: 0, isInteracting: false, isWaving: false, isSkinning: false,
                 isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
             };
-            this.animator.animate(animContext, dt, false, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
+            this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
             this.walkTime = animContext.walkTime;
             this.lastStepCount = animContext.lastStepCount;
 

@@ -12,9 +12,10 @@ export type SceneType = 'dev' | 'land' | 'combat' | 'mp';
 
 export class SceneManager {
     public activeScene: SceneType;
-    public environment: Environment;
-    public landEnvironment: WorldEnvironment;
-    public combatEnvironment: CombatEnvironment;
+    private scene: THREE.Scene;
+    public environment: Environment | null = null;
+    public landEnvironment: WorldEnvironment | null = null;
+    public combatEnvironment: CombatEnvironment | null = null;
     
     private renderManager: RenderManager;
     private entityManager: EntityManager;
@@ -29,14 +30,45 @@ export class SceneManager {
         player: Player,
         initialScene: SceneType
     ) {
+        this.scene = scene;
         this.renderManager = renderManager;
         this.entityManager = entityManager;
         this.player = player;
         this.activeScene = initialScene;
 
-        this.environment = new Environment(scene);
-        this.landEnvironment = new WorldEnvironment(scene);
-        this.combatEnvironment = new CombatEnvironment(scene);
+        this.initEnvironment(initialScene);
+    }
+
+    private initEnvironment(sceneName: SceneType) {
+        if (sceneName === 'dev') {
+            if (!this.environment) {
+                this.environment = new Environment(this.scene);
+                this.environment.buildAsync();
+            }
+        } else if (sceneName === 'land') {
+            if (!this.landEnvironment) {
+                this.landEnvironment = new WorldEnvironment(this.scene);
+            }
+        } else if (sceneName === 'combat' || sceneName === 'mp') {
+            if (!this.combatEnvironment) {
+                this.combatEnvironment = new CombatEnvironment(this.scene);
+            }
+        }
+    }
+
+    private unloadEnvironments(except: SceneType) {
+        if (except !== 'dev' && this.environment) {
+            this.environment.dispose();
+            this.environment = null;
+        }
+        if (except !== 'land' && this.landEnvironment) {
+            this.landEnvironment.dispose();
+            this.landEnvironment = null;
+        }
+        if (except !== 'combat' && except !== 'mp' && this.combatEnvironment) {
+            this.combatEnvironment.dispose();
+            this.combatEnvironment = null;
+        }
     }
 
     public setEntityManager(entityManager: EntityManager) {
@@ -51,16 +83,16 @@ export class SceneManager {
     }
 
     public switchScene(sceneName: SceneType, isInit: boolean = false) {
+        const previousScene = this.activeScene;
         this.activeScene = sceneName;
         const GRID_CELL_SIZE = 1.3333;
         PlayerUtils.setUseLandTerrain(sceneName === 'land');
 
-        // Visibility
-        this.environment.setVisible(sceneName === 'dev');
-        this.landEnvironment.setVisible(sceneName === 'land');
-        this.combatEnvironment.setVisible(sceneName === 'combat' || sceneName === 'mp');
+        // Unload old environments and load the new one
+        this.unloadEnvironments(sceneName);
+        this.initEnvironment(sceneName);
 
-        if (sceneName === 'mp') {
+        if (sceneName === 'mp' && this.combatEnvironment) {
              this.combatEnvironment.isCombatStarted = false;
         }
 
@@ -70,7 +102,7 @@ export class SceneManager {
         this.entityManager.clearStaticEntities(); // Clear static entities too when switching to combat
 
         // Set combat interaction manager activity
-        if (this.activeScene === 'combat') {
+        if (this.activeScene === 'combat' && this.combatEnvironment) {
             this.combatEnvironment.isCombatStarted = false; // Reset combat state for interaction
         }
         if (sceneName === 'dev') {
@@ -97,11 +129,13 @@ export class SceneManager {
         } else if (sceneName === 'combat') {
             this.player.mesh.position.set(0, 0, 0);
 
-            const reservedCells = [];
+            const reservedCells: any[] = [];
 
-            // Spawn custom encounter: 1 Ranger on green side, 1 Bandit on red side
-            this.entityManager.spawnCombatEncounter('ranger', 1, this.combatEnvironment, reservedCells);
-            this.entityManager.spawnCombatEncounter('bandit', 1, this.combatEnvironment, [...reservedCells, ...this.entityManager.rangers.map(a => this.combatEnvironment.getGridPosition(a.position)).filter((p): p is {r: number, c: number} => p !== null)]);
+            if (this.combatEnvironment) {
+                // Spawn custom encounter: 1 Ranger on green side, 1 Bandit on red side
+                this.entityManager.spawnCombatEncounter('ranger', 1, this.combatEnvironment, reservedCells);
+                this.entityManager.spawnCombatEncounter('bandit', 1, this.combatEnvironment, [...reservedCells, ...this.entityManager.rangers.map(a => this.combatEnvironment!.getGridPosition(a.position)).filter((p): p is {r: number, c: number} => p !== null)]);
+            }
             
             this.player.mesh.rotation.y = Math.PI; 
             this.renderManager.controls.target.set(0, 0, 0);
@@ -117,6 +151,10 @@ export class SceneManager {
             this.renderManager.controls.enablePan = true;
         }
 
+        this.player.locomotion.position.copy(this.player.mesh.position);
+        this.player.locomotion.previousPosition.copy(this.player.mesh.position);
+        this.player.locomotion.rotationY = this.player.mesh.rotation.y;
+
         if (!isInit) {
             this.player.locomotion.velocity.set(0,0,0);
             this.player.locomotion.jumpVelocity = 0;
@@ -128,13 +166,13 @@ export class SceneManager {
     }
     
     public update(delta: number, config: any) {
-        if (this.activeScene === 'dev') {
+        if (this.activeScene === 'dev' && this.environment) {
             this.environment.update(delta, config, this.player.mesh.position);
-        } else if (this.activeScene === 'land') {
+        } else if (this.activeScene === 'land' && this.landEnvironment) {
             this.landEnvironment.update(delta, config, this.player.mesh.position);
-        } else if (this.activeScene === 'combat') {
+        } else if (this.activeScene === 'combat' && this.combatEnvironment) {
             this.combatEnvironment.update(delta, config, this.player.mesh.position);
-        } else if (this.activeScene === 'mp') {
+        } else if (this.activeScene === 'mp' && this.combatEnvironment) {
             this.combatEnvironment.update(delta, config, this.player.mesh.position);
         }
     }

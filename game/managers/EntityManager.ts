@@ -7,8 +7,8 @@ import { Mage } from '../entities/npc/enemy/Mage';
 import { Bandit } from '../entities/npc/enemy/Bandit';
 import { Wolf } from '../entities/animal/aggressive/Wolf';
 import { Bear } from '../entities/animal/aggressive/Bear';
+import { Yeti } from '../entities/animal/aggressive/Yeti';
 import { Owl } from '../entities/animal/neutral/Owl';
-import { Yeti } from '../entities/animal/neutral/Yeti';
 import { Deer } from '../entities/animal/neutral/Deer';
 import { Chicken } from '../entities/animal/neutral/Chicken';
 import { Pig } from '../entities/animal/neutral/Pig';
@@ -70,8 +70,8 @@ export class EntityManager {
     public bandits: Bandit[] = [];
     public combatArchers: Archer[] = [];
 
-    private readonly animationRangeSq = 40 * 40;
-    private readonly visibilityRangeSq = 120 * 120;
+    private readonly animationRangeSq = 100 * 100; // Increased to 100m for dev scene visibility
+    private readonly visibilityRangeSq = 150 * 150;
     private readonly rangeCheckIntervalMs = 100;
     private lastRangeCheck = -Infinity;
     
@@ -82,6 +82,7 @@ export class EntityManager {
     private readonly tempEyePos = new THREE.Vector3();
     private readonly eyeOffset = new THREE.Vector3(0, 1.7, 0);
     private readonly tempEnemyTargets: { position: THREE.Vector3, isDead?: boolean }[] = [];
+    private readonly tempPlayerTargets: { position: THREE.Vector3, isDead?: boolean }[] = [];
     private lastEnemyCount: number = 0;
 
     constructor(scene: THREE.Scene, environment: any | null, initialConfig: PlayerConfig) {
@@ -95,13 +96,47 @@ export class EntityManager {
         this.shopkeeper = new Shopkeeper(scene, shopkeeperPos);
         this.guard = new LowLevelCityGuard(scene, new THREE.Vector3(-8, 0, -2));
         
+        // Enemies
         this.assassin = new Assassin(scene, new THREE.Vector3(30, 0, 0));
         this.archer = new Archer(scene, new THREE.Vector3(-5, 0, 4));
         this.mage = new Mage(scene, new THREE.Vector3(0, 0, 15), '#6366f1');
         this.bandit = new Bandit(scene, new THREE.Vector3(10, 0, 5));
-
         this.wolf = new Wolf(scene, new THREE.Vector3(40, 0, -40));
         environment?.addObstacle(this.wolf.hitbox);
+
+        // Spawn one of each animal and NPC type for testing
+        const spawnOffset = new THREE.Vector3(10, 0, 10);
+        let zRow = 0;
+        const nextPos = () => {
+            const pos = new THREE.Vector3(zRow * 5, 0, -10 - (zRow * 2));
+            zRow++;
+            return pos;
+        };
+
+        // Animals
+        this.spawnAnimalGroup('spider', 1, environment, nextPos());
+        this.spawnAnimalGroup('bear', 1, environment, nextPos());
+        this.spawnAnimalGroup('yeti', 1, environment, nextPos());
+        this.spawnAnimalGroup('owl', 1, environment, nextPos());
+        this.spawnAnimalGroup('deer', 1, environment, nextPos());
+        this.spawnAnimalGroup('chicken', 1, environment, nextPos());
+        this.spawnAnimalGroup('pig', 1, environment, nextPos());
+        this.spawnAnimalGroup('sheep', 1, environment, nextPos());
+        this.spawnAnimalGroup('lizard', 1, environment, nextPos());
+        this.spawnAnimalGroup('horse', 1, environment, nextPos());
+
+        // NPCs
+        const cleric = new Cleric(scene, nextPos()); this.clerics.push(cleric);
+        const knight = new Knight(scene, nextPos()); this.knights.push(knight);
+        const paladin = new Paladin(scene, nextPos()); this.paladins.push(paladin);
+        const monk = new Monk(scene, nextPos()); this.monks.push(monk);
+        const ranger = new Ranger(scene, nextPos(), '#228b22'); this.rangers.push(ranger);
+        const sentinel = new Sentinel(scene, nextPos()); this.sentinels.push(sentinel);
+        
+        // Enemies (Dynamic)
+        const berserker = new Berserker(scene, nextPos()); this.berserkers.push(berserker);
+        const rogue = new Rogue(scene, nextPos()); this.rogues.push(rogue);
+        const warlock = new Warlock(scene, nextPos()); this.warlocks.push(warlock);
     }
 
     /**
@@ -161,6 +196,9 @@ export class EntityManager {
 
         [this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit, this.wolf].forEach(hideEntity);
     }
+
+    private readonly tempSpawnOffset = new THREE.Vector3();
+    private readonly tempSpawnPos = new THREE.Vector3();
 
     spawnCombatEncounter(type: string, count: number, arena: CombatEnvironment | null, reservedCells: { r: number; c: number }[] = []) {
         if (!arena) return;
@@ -222,53 +260,53 @@ export class EntityManager {
 
     spawnAnimalGroup(type: string, count: number, environment: Environment | null, spawnCenter: THREE.Vector3) {
         for (let i = 0; i < count; i++) {
-            const offset = new THREE.Vector3((Math.random() - 0.5) * 5, 0, (Math.random() - 0.5) * 5);
-            const pos = spawnCenter.clone().add(offset);
+            this.tempSpawnOffset.set((Math.random() - 0.5) * 5, 0, (Math.random() - 0.5) * 5);
+            this.tempSpawnPos.copy(spawnCenter).add(this.tempSpawnOffset);
             
             let animal: any = null;
             switch (type.toLowerCase()) {
                 case 'wolf':
-                    animal = new Wolf(this.scene, pos);
+                    animal = new Wolf(this.scene, this.tempSpawnPos.clone());
                     this.bears.push(animal as any);
                     break;
                 case 'bear':
-                    animal = new Bear(this.scene, pos);
+                    animal = new Bear(this.scene, this.tempSpawnPos.clone());
                     this.bears.push(animal);
                     break;
                 case 'owl':
-                    animal = new Owl(this.scene, pos);
+                    animal = new Owl(this.scene, this.tempSpawnPos.clone());
                     this.owls.push(animal);
                     break;
                 case 'yeti':
-                    animal = new Yeti(this.scene, pos);
+                    animal = new Yeti(this.scene, this.tempSpawnPos.clone());
                     this.yetis.push(animal);
                     break;
                 case 'deer':
-                    animal = new Deer(this.scene, pos);
+                    animal = new Deer(this.scene, this.tempSpawnPos.clone());
                     this.deers.push(animal);
                     break;
                 case 'chicken':
-                    animal = new Chicken(this.scene, pos);
+                    animal = new Chicken(this.scene, this.tempSpawnPos.clone());
                     this.chickens.push(animal);
                     break;
                 case 'pig':
-                    animal = new Pig(this.scene, pos);
+                    animal = new Pig(this.scene, this.tempSpawnPos.clone());
                     this.pigs.push(animal);
                     break;
                 case 'sheep':
-                    animal = new Sheep(this.scene, pos);
+                    animal = new Sheep(this.scene, this.tempSpawnPos.clone());
                     this.sheeps.push(animal);
                     break;
                 case 'spider':
-                    animal = new Spider(this.scene, pos);
+                    animal = new Spider(this.scene, this.tempSpawnPos.clone());
                     this.spiders.push(animal);
                     break;
                 case 'lizard':
-                    animal = new Lizard(this.scene, pos);
+                    animal = new Lizard(this.scene, this.tempSpawnPos.clone());
                     this.lizards.push(animal);
                     break;
                 case 'horse':
-                    animal = new Horse(this.scene, pos);
+                    animal = new Horse(this.scene, this.tempSpawnPos.clone());
                     this.horses.push(animal);
                     break;
             }
@@ -279,7 +317,7 @@ export class EntityManager {
         }
     }
 
-    update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, cameraPosition: THREE.Vector3, environment: any | null, activeScene: string, isCombatActive: boolean, onAttackHit?: (type: string, count: number) => void) {
+    update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, cameraPosition: THREE.Vector3, environment: any | null, activeScene: string, isCombatActive: boolean, onAttackHit?: (type: string, count: number) => void, sceneEntities?: any[]) {
         const now = performance.now();
         this.tempPlayerPos.copy(playerPosition);
         
@@ -291,13 +329,13 @@ export class EntityManager {
         
         if (now - this.lastRangeCheck >= this.rangeCheckIntervalMs) {
             this.lastRangeCheck = now;
-            this.refreshRangeCache(activeScene);
+            this.refreshRangeCache(activeScene, sceneEntities);
         }
 
         const isVisible = (entity: any) => this.visibilityCache.get(entity) ?? false;
         const isNear = (entity: any) => this.nearCache.get(entity) ?? false;
-        const enemyTargets = this.getEnemyTargets(activeScene);
-        const playerTargets = this.getPlayerTargets(activeScene);
+        const enemyTargets = this.getEnemyTargets(activeScene, sceneEntities);
+        const playerTargets = this.getPlayerTargets(activeScene, sceneEntities);
 
         if (activeScene === 'combat' && isCombatActive) {
             // Only log when enemy count changes
@@ -307,8 +345,8 @@ export class EntityManager {
             }
         }
 
-        const sceneEntities = this.getEntitiesForScene(activeScene);
-        sceneEntities.forEach((entity: any) => {
+        const entitiesToUpdate = sceneEntities || this.getEntitiesForScene(activeScene);
+        entitiesToUpdate.forEach((entity: any) => {
             if (!entity) return;
             // In Combat Scene, we usually want entities always updated if they are nearby, 
             // but for a small arena, we can just update all of them.
@@ -318,13 +356,13 @@ export class EntityManager {
             if (entity.group) entity.group.visible = visible;
             if (entity.model?.group) entity.model.group.visible = visible;
             
-            if (visible) {
-                this.updateEntity(entity, delta, config, animate, environment, enemyTargets, playerTargets, isCombatActive, onAttackHit);
-                
-                // Update Stat Bars if Humanoid
-                if (entity instanceof HumanoidEntity) {
-                    entity.updateStatBars(cameraPosition, isCombatActive);
-                }
+            // Always update entities that are visible or near, 
+            // but if they just became "not near", ensure we run one last update with skipAnimation=true 
+            // to allow them to transition to idle or finish their current state.
+            this.updateEntity(entity, delta, config, animate, environment, enemyTargets, playerTargets, isCombatActive, onAttackHit);
+            
+            if (visible && entity instanceof HumanoidEntity) {
+                entity.updateStatBars(cameraPosition, isCombatActive);
             }
         });
         
@@ -388,21 +426,22 @@ export class EntityManager {
         }
     }
 
-    private getEnemyTargets(sceneName: string): { position: THREE.Vector3, isDead?: boolean }[] {
+    private getEnemyTargets(sceneName: string, sceneEntities?: any[]): { position: THREE.Vector3, isDead?: boolean }[] {
         this.tempEnemyTargets.length = 0;
         if (sceneName !== 'combat') {
             return this.tempEnemyTargets;
         }
         // Friendly units are targets for Enemies (Bandits)
-        const friendlyUnits = [
-            ...this.clerics,
-            ...this.knights,
-            ...this.paladins,
-            ...this.monks,
-            ...this.rangers,
-            ...this.sentinels,
-            ...this.combatArchers // The Archer is friendly in this encounter
-        ];
+        const entities = sceneEntities || this.getEntitiesForScene(sceneName);
+        const friendlyUnits = entities.filter(e => 
+            e instanceof Cleric || 
+            e instanceof Knight || 
+            e instanceof Paladin || 
+            e instanceof Monk || 
+            e instanceof Ranger || 
+            e instanceof Sentinel || 
+            (e instanceof Archer && this.combatArchers.includes(e))
+        );
         
         this.tempEnemyTargets.push({ position: this.tempPlayerPos, isDead: false });
         
@@ -415,26 +454,27 @@ export class EntityManager {
         return this.tempEnemyTargets;
     }
 
-    private getPlayerTargets(activeScene: string): { position: THREE.Vector3, isDead?: boolean }[] {
-        const targets: { position: THREE.Vector3, isDead?: boolean }[] = [];
+    private getPlayerTargets(activeScene: string, sceneEntities?: any[]): { position: THREE.Vector3, isDead?: boolean }[] {
+        this.tempPlayerTargets.length = 0;
         if (activeScene !== 'combat') {
-            targets.push({ position: this.tempPlayerPos });
-            return targets;
+            this.tempPlayerTargets.push({ position: this.tempPlayerPos });
+            return this.tempPlayerTargets;
         }
         // Enemy units are targets for Friendlies (Archer)
-        const enemyUnits = [
-            ...this.bandits,
-            ...this.berserkers,
-            ...this.rogues,
-            ...this.warlocks
-        ];
+        const entities = sceneEntities || this.getEntitiesForScene(activeScene);
+        const enemyUnits = entities.filter(e => 
+            e instanceof Bandit || 
+            e instanceof Berserker || 
+            e instanceof Rogue || 
+            e instanceof Warlock
+        );
         for (const unit of enemyUnits) {
             if (!unit) continue;
             const pos = unit.position;
             if (!pos) continue;
-            targets.push({ position: pos, isDead: unit.status?.isDead ?? false });
+            this.tempPlayerTargets.push({ position: pos, isDead: unit.status?.isDead ?? false });
         }
-        return targets;
+        return this.tempPlayerTargets;
     }
 
     getEntitiesForScene(sceneName: string): any[] {
@@ -457,7 +497,9 @@ export class EntityManager {
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit,
                 this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
-                ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
+                ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses,
+                ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
+                ...this.berserkers, ...this.rogues, ...this.warlocks
             ].filter(e => e !== null);
         } else if (sceneName === 'land') {
             return [
@@ -479,8 +521,8 @@ export class EntityManager {
         ].filter(e => e !== null);
     }
 
-    private refreshRangeCache(activeScene: string) {
-        const relevant = this.getEntitiesForScene(activeScene);
+    private refreshRangeCache(activeScene: string, sceneEntities?: any[]) {
+        const relevant = sceneEntities || this.getEntitiesForScene(activeScene);
         relevant.forEach(entity => {
             const distSq = entity.position.distanceToSquared(this.tempPlayerPos);
             this.nearCache.set(entity, distSq <= this.animationRangeSq);

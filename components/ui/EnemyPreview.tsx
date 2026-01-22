@@ -16,13 +16,13 @@ import { Sentinel } from '../../game/entities/npc/friendly/Sentinel';
 import { Wolf } from '../../game/entities/animal/aggressive/Wolf';
 import { Bear } from '../../game/entities/animal/aggressive/Bear';
 import { Spider } from '../../game/entities/animal/aggressive/Spider';
+import { Yeti } from '../../game/entities/animal/aggressive/Yeti';
 import { Deer } from '../../game/entities/animal/neutral/Deer';
 import { Chicken } from '../../game/entities/animal/neutral/Chicken';
 import { Lizard } from '../../game/entities/animal/neutral/Lizard';
 import { Owl } from '../../game/entities/animal/neutral/Owl';
 import { Pig } from '../../game/entities/animal/neutral/Pig';
 import { Sheep } from '../../game/entities/animal/neutral/Sheep';
-import { Yeti } from '../../game/entities/animal/neutral/Yeti';
 import { EnemyCache } from '../../game/core/EnemyCache';
 
 interface EnemyPreviewProps {

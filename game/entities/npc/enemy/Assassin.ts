@@ -194,7 +194,9 @@ export class Assassin extends HumanoidEntity {
                 isPickingUp: this.isPickingUp, pickUpTime: this.pickUpTimer, isInteracting: false, isWaving: false, isSkinning: false, 
                 isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false 
             };
-            this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: 0, isRunning: false, isPickingUp: this.isPickingUp, isDead: this.isDead, jump: false } as any, env.obstacles);
+            const animY = Math.abs(this.speedFactor) > 0.1 ? -1 : 0;
+            
+            this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: false, isPickingUp: this.isPickingUp, isDead: this.isDead, jump: false } as any, env.obstacles);
             this.walkTime = animContext.walkTime; 
             this.lastStepCount = animContext.lastStepCount;
             this.targetPosition.copy(this.position);

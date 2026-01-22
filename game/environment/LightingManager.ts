@@ -65,6 +65,20 @@ export class LightingManager {
         this.updateDayNight(dt, config);
     }
 
+    dispose() {
+        this.scene.remove(this.hemiLight);
+        this.scene.remove(this.sunLight);
+        this.scene.remove(this.skySphere);
+        this.hemiLight.dispose();
+        this.sunLight.dispose();
+        this.skySphere.geometry.dispose();
+        if (Array.isArray(this.skySphere.material)) {
+            this.skySphere.material.forEach(m => m.dispose());
+        } else {
+            this.skySphere.material.dispose();
+        }
+    }
+
     private updateDayNight(dt: number, config: PlayerConfig) {
         if (config.isAutoTime) {
             this.cycleTimer = (this.cycleTimer + dt * config.timeSpeed) % this.CYCLE_DURATION;

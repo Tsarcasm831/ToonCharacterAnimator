@@ -45,11 +45,40 @@ export class CombatEnvironment {
         this.buildGrid();
     }
 
-    setVisible(visible: boolean) {
+    public setVisible(visible: boolean) {
         this.group.visible = visible;
         if (!visible && this.gridLabelsGroup) {
             this.gridLabelsGroup.visible = false;
         }
+    }
+
+    public dispose() {
+        // Remove from scene
+        if (this.scene && this.group) {
+            this.scene.remove(this.group);
+        }
+
+        // Dispose geometries and materials
+        this.group.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                child.geometry.dispose();
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => m.dispose());
+                } else {
+                    child.material.dispose();
+                }
+            }
+        });
+
+        if (this.neutralMat) {
+            this.neutralMat.dispose();
+        }
+
+        // Clear references
+        this.hexMeshes = [];
+        this.obstacles = [];
+        this.occupiedCells.clear();
+        this.gridLabelsGroup = null;
     }
 
     public toggleGridLabels(visible: boolean) {

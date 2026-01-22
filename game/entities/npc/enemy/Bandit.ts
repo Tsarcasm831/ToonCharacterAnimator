@@ -97,13 +97,28 @@ export class Bandit extends HumanoidEntity {
         
         if (toGoal.length() > 0.1) {
             this.rotationY += (Math.atan2(toGoal.x, toGoal.z) - this.rotationY) * 8.0 * dt;
-            const step = moveSpeed * dt;
-            const next = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step));
             
-            // Simple collision check - just stay within bounds for now
-            if (PlayerUtils.isWithinBounds(next)) {
-                this.position.x = next.x;
-                this.position.z = next.z;
+            // Use AIUtils for collision-aware movement
+            const nextPos = AIUtils.getNextPosition(
+                this.position,
+                this.rotationY,
+                moveSpeed,
+                dt,
+                new THREE.Vector3(1.0, 2.0, 1.0), // Standard humanoid size
+                environment.obstacles
+            );
+
+            // Check if stuck (movement blocked by collision)
+            if (this.position.distanceToSquared(nextPos) < 0.000001) {
+                this.stuckTimer += dt;
+                if (this.stuckTimer > 1.0) {
+                    // Pick a new target if stuck for too long
+                    this.findPatrolPoint(environment);
+                    this.stuckTimer = 0;
+                }
+            } else {
+                this.stuckTimer = 0;
+                this.position.copy(nextPos);
             }
         } else if (this.position.distanceTo(this.targetPos) < 1.5) {
             // Reached target, find new point
@@ -141,6 +156,15 @@ export class Bandit extends HumanoidEntity {
             
             if (skipAnimation) return;
 
+            const moveInput = {
+                x: 0,
+                y: Math.abs(this.speedFactor) > 0.1 ? -1 : 0,
+                isRunning: false,
+                isPickingUp: false,
+                isDead: this.isDead,
+                jump: false
+            } as any;
+
             const animContext = {
                 config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
                 isCombatStance: false,
@@ -149,7 +173,7 @@ export class Bandit extends HumanoidEntity {
                 isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
             };
             
-            this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
+            this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, moveInput, env.obstacles);
             this.walkTime = animContext.walkTime;
             this.lastStepCount = animContext.lastStepCount;
             this.targetPosition.copy(this.position);
@@ -227,6 +251,8 @@ export class Bandit extends HumanoidEntity {
             this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, 0, dt * 6);
         }
         
+        const animY = Math.abs(this.speedFactor) > 0.1 ? -1 : 0;
+        
         const animContext = {
             config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
             isCombatStance: true,
@@ -235,7 +261,7 @@ export class Bandit extends HumanoidEntity {
             isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
+        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
         this.targetPosition.copy(this.position);

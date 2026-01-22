@@ -94,15 +94,16 @@ export class PlayerInteraction {
         }
     }
 
+    private static readonly _tempVec = new THREE.Vector3();
+
     private static getSkinnableTargetNearby(player: Player, obstacles: THREE.Object3D[]): THREE.Object3D | null {
         const skinnables = obstacles.filter(o => o.userData.isSkinnable);
         let best = null;
         let minDist = 1.5;
 
         for (const sk of skinnables) {
-            const skPos = new THREE.Vector3();
-            sk.getWorldPosition(skPos);
-            const dist = player.mesh.position.distanceTo(skPos);
+            sk.getWorldPosition(this._tempVec);
+            const dist = player.mesh.position.distanceTo(this._tempVec);
             if (dist < minDist) { 
                 minDist = dist;
                 best = sk;
@@ -117,9 +118,8 @@ export class PlayerInteraction {
         let minDist = 2.0;
 
         for (const it of interactables) {
-            const itPos = new THREE.Vector3();
-            it.getWorldPosition(itPos);
-            const dist = player.mesh.position.distanceTo(itPos);
+            it.getWorldPosition(this._tempVec);
+            const dist = player.mesh.position.distanceTo(this._tempVec);
             if (dist < minDist) { 
                 minDist = dist;
                 best = it;
