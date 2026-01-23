@@ -10,9 +10,24 @@ export class Owl {
     scene: THREE.Scene; group: THREE.Group; model: any; position: THREE.Vector3 = new THREE.Vector3(); rotationY: number = 0; state: OwlState = OwlState.PATROL; stateTimer: number = 0; targetPos: THREE.Vector3 = new THREE.Vector3(); currentTarget: { position: THREE.Vector3, isDead?: boolean } | null = null; isDead: boolean = false; isSkinned: boolean = false; maxHealth: number = 8; health: number = 8; private verticalSpeed: number = 0; hitbox: THREE.Group; private healthBarGroup: THREE.Group; private healthBarFill: THREE.Mesh; private animTime: number = 0; private attackCooldown: number = 0;
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
-        this.scene = scene; const terrainH = PlayerUtils.getTerrainHeight(initialPos.x, initialPos.z); this.position.set(initialPos.x, terrainH + 5, initialPos.z);
+        this.scene = scene; const terrainH = PlayerUtils.getTerrainHeight(initialPos.x, initialPos.z); this.position.set(initialPos.x, terrainH + 8, initialPos.z);
         const owlData = ObjectFactory.createOwlModel(0x8B4513); this.group = new THREE.Group(); this.group.add(owlData.group); this.model = owlData;
-        this.hitbox = this.model.group;
+        
+        // Ensure model and children are marked as soft to avoid blocking player
+        this.model.group.userData.type = 'soft';
+        this.model.group.traverse((child: THREE.Object3D) => {
+             child.userData.type = 'soft';
+        });
+
+        const bbox = new THREE.Box3().setFromObject(this.model.group);
+        const hitboxSize = bbox.getSize(new THREE.Vector3());
+        const hitboxCenter = bbox.getCenter(new THREE.Vector3());
+        // Reduce hitbox height for flying entity to allow walking under
+        const hitboxMesh = new THREE.Mesh(new THREE.BoxGeometry(hitboxSize.x, 1.0, hitboxSize.z), new THREE.MeshBasicMaterial({ visible: false }));
+        hitboxMesh.position.copy(hitboxCenter);
+        this.hitbox = new THREE.Group();
+        this.hitbox.add(hitboxMesh);
+        this.model.group.add(this.hitbox);
         this.hitbox.userData = { type: 'soft', parent: this };
         this.hitbox.traverse((child: THREE.Object3D) => {
             if ((child as THREE.Mesh).isMesh) {
@@ -34,7 +49,7 @@ export class Owl {
     }
 
     private updateMovement(dt: number) {
-        let moveSpeed = 4.0; let terrainY = PlayerUtils.getTerrainHeight(this.position.x, this.position.z); let desiredY = terrainY + 6.0;
+        let moveSpeed = 4.0; let terrainY = PlayerUtils.getTerrainHeight(this.position.x, this.position.z); let desiredY = terrainY + 8.0;
         if (this.position.distanceTo(this.targetPos) < 1.0) this.findPatrolPoint(); 
         const toTarget = new THREE.Vector3(this.targetPos.x - this.position.x, 0, this.targetPos.z - this.position.z);
         if (toTarget.length() > 0.1) {

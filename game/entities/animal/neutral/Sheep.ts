@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Environment } from '../../../environment/Environment';
 import { ObjectFactory } from '../../../environment/ObjectFactory';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { AIUtils } from '../../../core/AIUtils';
 
 export enum SheepState { IDLE, PATROL, FLEE, DEAD }
 
@@ -30,13 +31,21 @@ export class Sheep {
         if (currentSpeed > 0) {
             if (this.position.distanceTo(this.targetPos) < 1.0 || this.stateTimer > 15.0) { this.findPatrolPoint(); this.stateTimer = 0; }
             const toTarget = new THREE.Vector3().subVectors(this.targetPos, this.position); toTarget.y = 0;
-            if (toTarget.length() > 0.1) { this.rotationY += (Math.atan2(toTarget.x, toTarget.z) - this.rotationY) * 2.0 * dt; const step = currentSpeed * dt; const nextPos = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)); if (PlayerUtils.isWithinBounds(nextPos) && !PlayerUtils.checkBoxCollision(nextPos, this.collisionSize, environment.obstacles)) { this.position.x = nextPos.x; this.position.z = nextPos.z; } }
+            if (toTarget.length() > 0.1) {
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, 2.0);
+                const avoidanceRot = AIUtils.getAdvancedAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 5.0);
+                
+                const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, currentSpeed, dt, this.collisionSize, environment.obstacles);
+                this.position.x = nextPos.x;
+                this.position.z = nextPos.z;
+            }
             this.walkTime += dt * currentSpeed;
             if (this.position.distanceTo(this.lastStuckPos) < 0.001) { this.stuckTimer += dt; if (this.stuckTimer > 1.5) { this.findPatrolPoint(); this.stuckTimer = 0; this.stateTimer = 0; } }
             else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
         } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
 
-        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
+        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.1;
         this.group.position.copy(this.position); this.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;

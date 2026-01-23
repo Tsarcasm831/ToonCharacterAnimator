@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { AIUtils } from '../../../core/AIUtils';
 
 export enum YetiState { IDLE, PATROL, DEAD }
 
@@ -268,29 +269,16 @@ export class Yeti {
         toTarget.y = 0;
 
         if (toTarget.length() > 0.1) {
-            // Smooth rotation
-            const targetRotation = Math.atan2(toTarget.x, toTarget.z);
-            let rotDiff = targetRotation - this.rotationY;
-            // Normalize angle
-            while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
-            while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-            
-            this.rotationY += rotDiff * 5.0 * dt;
+            this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, 3.0);
+            const avoidanceRot = AIUtils.getAdvancedAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
+            this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 5.0);
 
-            const nextPos = this.position.clone().add(
-                new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(moveSpeed * dt)
-            );
-
-            if (PlayerUtils.isWithinBounds(nextPos) && 
-                !PlayerUtils.checkBoxCollision(nextPos, this.collisionSize, environment.obstacles)) {
-                this.position.x = nextPos.x;
-                this.position.z = nextPos.z;
-            }
+            const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, moveSpeed, dt, this.collisionSize, environment.obstacles);
+            this.position.x = nextPos.x;
+            this.position.z = nextPos.z;
         }
-
+        
         this.walkTime += dt * moveSpeed;
-
-        // Stuck detection
         if (moveSpeed > 0) {
             if (this.position.distanceTo(this.lastStuckPos) < 0.01) {
                 this.stuckTimer += dt;
@@ -303,9 +291,12 @@ export class Yeti {
                 this.stuckTimer = 0;
                 this.lastStuckPos.copy(this.position);
             }
+        } else {
+            this.stuckTimer = 0;
+            this.lastStuckPos.copy(this.position);
         }
 
-        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
+        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.1;
         this.group.position.copy(this.position);
         this.group.rotation.y = this.rotationY;
 
@@ -407,7 +398,7 @@ export class Yeti {
         } else {
             setTimeout(() => {
                 if (!this.isDead) {
-                     this.model.group.traverse((child: any) => {
+                    this.model.group.traverse((child: any) => {
                         if (child.isMesh && child.material && child.material.emissive) {
                             child.material.emissiveIntensity = 0;
                         }
@@ -432,11 +423,11 @@ export class Yeti {
 
         // Fall over logic (Face down or back)
         const fallAnim = () => {
-             if (this.model.group.rotation.x < Math.PI / 2) {
-                 this.model.group.rotation.x += 0.1;
-                 this.model.group.position.y = Math.max(0.5, this.model.group.position.y - 0.1);
-                 requestAnimationFrame(fallAnim);
-             }
+            if (this.model.group.rotation.x < Math.PI / 2) {
+                this.model.group.rotation.x += 0.1;
+                this.model.group.position.y = Math.max(0.5, this.model.group.position.y - 0.1);
+                requestAnimationFrame(fallAnim);
+            }
         }
         fallAnim();
     }

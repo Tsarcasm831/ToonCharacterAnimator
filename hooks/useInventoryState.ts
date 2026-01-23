@@ -7,7 +7,8 @@ const getInitialInventory = (): (InventoryItem | null)[] => {
   
   // Hotbar (Slots 0-7)
   inv[0] = { name: 'Potion of Healing', count: 3 };
-  inv[1] = { name: 'Mana Potion', count: 2 };
+  inv[1] = { name: 'Axe', count: 1 };
+  inv[2] = { name: 'Mana Potion', count: 2 };
   
   // Equipment placeholders (Slots 8+)
   inv[8] = { name: 'Sword', count: 1 };

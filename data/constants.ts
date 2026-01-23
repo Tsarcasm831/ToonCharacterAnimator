@@ -105,5 +105,12 @@ export const ITEM_ICONS: Record<string, string> = {
   'Hood': '🧥',
   'Robe': '🥋',
   'Wood': '🪵',
-  'Coal': '🌑'
+  'Coal': '🌑',
+  'Potion of Healing': '🧪',
+  'Mana Potion': '🧪'
+};
+
+export const ITEM_IMAGES: Record<string, string> = {
+  'Potion of Healing': '/assets/images/health_pot.jpg',
+  'Mana Potion': '/assets/images/mana_pot.jpg'
 };

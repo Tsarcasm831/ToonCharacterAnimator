@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { PlayerConfig, InventoryItem } from '../../types';
-import { ITEM_ICONS } from '../../data/constants';
+import { ITEM_ICONS, ITEM_IMAGES } from '../../data/constants';
 import { PlayerPreview } from './PlayerPreview';
 
 // --- Types & Constants ---

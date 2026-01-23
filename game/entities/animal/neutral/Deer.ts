@@ -292,7 +292,7 @@ export class Deer {
             if (toTarget.length() > 0.1) {
                 const lerpSpeed = this.isFleeing ? 8.0 : 3.0;
                 this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, lerpSpeed);
-                const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
+                const avoidanceRot = AIUtils.getAdvancedAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
                 this.rotationY = AIUtils.smoothLookAt(
                     this.rotationY,
                     this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))),
