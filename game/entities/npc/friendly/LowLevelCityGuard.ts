@@ -109,7 +109,7 @@ export class LowLevelCityGuard extends HumanoidEntity {
             if (this.state === GuardState.PATROL) this.setState(GuardState.CHASE);
             if (this.state === GuardState.CHASE) { if (dist < 3.0) this.setState(GuardState.DUEL); else if (dist > 15.0) this.setState(GuardState.PATROL); else { 
                 this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.currentTarget.position, this.position, dt, 8.0);
-                const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                const avoidanceRot = AIUtils.getAdvancedAvoidanceSteering(this.position, this.rotationY, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
                 this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 12.0);
 
                 if (moveSpeed > 0) {
@@ -156,7 +156,7 @@ export class LowLevelCityGuard extends HumanoidEntity {
                 toGoal.y = 0;
                 if (toGoal.length() > 0.1) {
                     this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.patrolTarget, this.position, dt, 8.0);
-                    const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
+                    const avoidanceRot = AIUtils.getAdvancedAvoidanceSteering(this.position, this.rotationY, new THREE.Vector3(0.6, 2.0, 0.6), env.obstacles);
                     this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 12.0);
 
                     if (moveSpeed > 0) {

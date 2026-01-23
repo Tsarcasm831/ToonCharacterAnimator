@@ -107,7 +107,7 @@ export class Bear {
             const toTarget = new THREE.Vector3().subVectors(this.targetPos, this.position); toTarget.y = 0;
             if (toTarget.length() > 0.1) {
                 this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, 3.0);
-                const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
+                const avoidanceRot = AIUtils.getAdvancedAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
                 this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 5.0);
 
                 const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, moveSpeed, dt, this.collisionSize, environment.obstacles);
@@ -119,7 +119,7 @@ export class Bear {
             else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
         } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
 
-        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
+        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.1;
         this.group.position.copy(this.position); this.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;

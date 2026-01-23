@@ -22,6 +22,8 @@ export interface EntityStats {
   maxChakra: number;
   mana: number;
   maxMana: number;
+  xp: number;
+  maxXp: number;
   strength: number;
   dexterity: number;
   defense: number;
@@ -385,6 +387,8 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     maxChakra: 50,
     mana: 0,
     maxMana: 100,
+    xp: 0,
+    maxXp: 1000,
     strength: 10,
     dexterity: 10,
     defense: 10,

@@ -85,7 +85,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
 
             {/* Bottom Controls / Hotbars */}
             {!isCombat && !isBuilderMode && (activeScene === 'dev' || activeScene === 'land' || activeScene === 'singleBiome') && (
-                <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={onSelectSlot} />
+                <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={onSelectSlot} stats={stats} />
             )}
 
             {isCombat && (

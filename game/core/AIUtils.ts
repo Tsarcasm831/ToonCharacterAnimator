@@ -23,54 +23,54 @@ export class AIUtils {
 
     /**
      * Checks for collisions in front of the entity and suggests a steering direction if blocked.
-     * Simple ray-casting approach to "peek" ahead.
+     * Uses a multi-ray sensor system to find the best path.
      */
-    static getAvoidanceSteering(
+    static getAdvancedAvoidanceSteering(
         currentPos: THREE.Vector3,
         rotationY: number,
         collisionSize: THREE.Vector3,
         obstacles: THREE.Object3D[],
-        lookAheadDist: number = 2.0
+        lookAheadDist: number = 3.0
     ): number {
+        // Multi-ray sensor array - wider coverage
+        const sensorAngles = [
+            0,           // Forward
+            Math.PI / 6, // 30° left
+            -Math.PI / 6, // 30° right
+            Math.PI / 4, // 45° left
+            -Math.PI / 4  // 45° right
+        ];
+        
         const forward = new THREE.Vector3(Math.sin(rotationY), 0, Math.cos(rotationY));
-        const checkPos = currentPos.clone().add(forward.multiplyScalar(lookAheadDist));
-
-        if (!PlayerUtils.checkBoxCollision(checkPos, collisionSize, obstacles)) {
+        
+        // Check if forward path is clear
+        const forwardCheck = currentPos.clone().add(forward.multiplyScalar(lookAheadDist));
+        if (!PlayerUtils.checkBoxCollision(forwardCheck, collisionSize, obstacles)) {
             return rotationY;
         }
-
-        const distances = [lookAheadDist, lookAheadDist * 1.5];
-        const candidates = [
-            rotationY + Math.PI / 4,
-            rotationY - Math.PI / 4,
-            rotationY + Math.PI / 2,
-            rotationY - Math.PI / 2
-        ];
-
-        const scoreCandidate = (candidateRot: number): number => {
-            let blockedCount = 0;
-            for (const dist of distances) {
-                const pos = currentPos.clone().add(
-                    new THREE.Vector3(Math.sin(candidateRot), 0, Math.cos(candidateRot)).multiplyScalar(dist)
-                );
-                if (PlayerUtils.checkBoxCollision(pos, collisionSize, obstacles)) blockedCount += 1;
+        
+        // Find best alternative direction
+        let bestDirection = rotationY;
+        let bestScore = Infinity;
+        
+        for (const angleOffset of sensorAngles) {
+            const testRotation = rotationY + angleOffset;
+            const testDirection = new THREE.Vector3(Math.sin(testRotation), 0, Math.cos(testRotation));
+            const testPos = currentPos.clone().add(testDirection.multiplyScalar(lookAheadDist));
+            
+            // Score based on collision and direction preference
+            const hasCollision = PlayerUtils.checkBoxCollision(testPos, collisionSize, obstacles);
+            const directionCost = Math.abs(angleOffset); // Prefer smaller turns
+            
+            const score = hasCollision ? 1000 : directionCost;
+            
+            if (score < bestScore) {
+                bestScore = score;
+                bestDirection = testRotation;
             }
-            return blockedCount;
-        };
-
-        const scored = candidates.map((candidateRot) => ({
-            rot: candidateRot,
-            score: scoreCandidate(candidateRot),
-            turn: Math.abs(candidateRot - rotationY)
-        }));
-
-        scored.sort((a, b) => {
-            if (a.score !== b.score) return a.score - b.score;
-            if (a.turn !== b.turn) return a.turn - b.turn;
-            return Math.sin(rotationY) >= 0 ? b.rot - a.rot : a.rot - b.rot;
-        });
-
-        return scored[0].rot;
+        }
+        
+        return bestDirection;
     }
 
     /**

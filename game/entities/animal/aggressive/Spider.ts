@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { Environment } from '../../../environment/Environment';
 import { ObjectFactory } from '../../../environment/ObjectFactory';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { AIUtils } from '../../../core/AIUtils';
 
 export enum SpiderState { IDLE, PATROL, CHASE, ATTACK, DEAD }
 
@@ -108,32 +109,19 @@ export class Spider {
             if (toTarget.length() > 0.1) {
                 // Smooth rotation
                 const targetRotation = Math.atan2(toTarget.x, toTarget.z);
-                let rotDiff = targetRotation - this.rotationY;
-                // Normalize angle to -PI to PI
-                while (rotDiff > Math.PI) rotDiff -= Math.PI * 2;
-                while (rotDiff < -Math.PI) rotDiff += Math.PI * 2;
-                
-                this.rotationY += rotDiff * 5.0 * dt;
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, 5.0);
+                const avoidanceRot = AIUtils.getAdvancedAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 10.0);
 
-                const step = currentSpeed * dt;
-                const nextPos = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step));
-
-                if (PlayerUtils.isWithinBounds(nextPos) && !PlayerUtils.checkBoxCollision(nextPos, this.collisionSize, environment.obstacles)) {
-                    this.position.x = nextPos.x;
-                    this.position.z = nextPos.z;
-                }
+                const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, currentSpeed, dt, this.collisionSize, environment.obstacles);
+                this.position.x = nextPos.x;
+                this.position.z = nextPos.z;
             }
-
             this.walkTime += dt * currentSpeed;
 
-            // Stuck detection
             if (this.position.distanceTo(this.lastStuckPos) < 0.001) {
                 this.stuckTimer += dt;
-                if (this.stuckTimer > 1.5) {
-                    this.findPatrolPoint();
-                    this.stuckTimer = 0;
-                    this.stateTimer = 0;
-                }
+                if (this.stuckTimer > 1.5) { this.findPatrolPoint(); this.stuckTimer = 0; this.stateTimer = 0; }
             } else {
                 this.stuckTimer = 0;
                 this.lastStuckPos.copy(this.position);
@@ -143,7 +131,7 @@ export class Spider {
             this.lastStuckPos.copy(this.position);
         }
 
-        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
+        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.1;
         this.group.position.copy(this.position);
         this.group.rotation.y = this.rotationY;
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
+import { AIUtils } from '../../../core/AIUtils';
 
 export enum PigState { IDLE, PATROL, FLEE, DEAD }
 
@@ -212,15 +213,13 @@ export class Pig {
             toTarget.y = 0;
 
             if (toTarget.length() > 0.1) {
-                this.rotationY += (Math.atan2(toTarget.x, toTarget.z) - this.rotationY) * 3.0 * dt;
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, 3.0);
+                const avoidanceRot = AIUtils.getAdvancedAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
+                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, 6.0);
                 
-                const step = currentSpeed * dt;
-                const nextPos = this.position.clone().add(new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step));
-
-                if (PlayerUtils.isWithinBounds(nextPos) && !PlayerUtils.checkBoxCollision(nextPos, this.collisionSize, environment.obstacles)) {
-                    this.position.x = nextPos.x;
-                    this.position.z = nextPos.z;
-                }
+                const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, currentSpeed, dt, this.collisionSize, environment.obstacles);
+                this.position.x = nextPos.x;
+                this.position.z = nextPos.z;
             }
             this.walkTime += dt * currentSpeed;
 
@@ -237,7 +236,7 @@ export class Pig {
         }
 
         // Slightly lift pig so hooves don't clip through ground
-        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.08;
+        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.1;
         this.group.position.copy(this.position);
         this.group.rotation.y = this.rotationY;
 
