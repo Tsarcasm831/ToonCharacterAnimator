@@ -37,9 +37,9 @@ export class CapeBuilder {
         const torsoDepthScale = 0.65;
         const torsoLen = 0.56;
         
-        const capeWidth = 0.65;
-        const capeLength = 0.85;
-        const capeGeo = new THREE.PlaneGeometry(capeWidth, capeLength, 12, 16);
+        const capeWidth = 0.6;
+        const capeLength = 0.9;
+        const capeGeo = new THREE.PlaneGeometry(capeWidth, capeLength, 14, 18);
         
         // Sculpt the cape shape - curve it away from the body
         const pos = capeGeo.attributes.position;
@@ -47,30 +47,38 @@ export class CapeBuilder {
         
         for (let i = 0; i < pos.count; i++) {
             v.fromBufferAttribute(pos, i);
-            
+
             // Taper at bottom for elegant flow
             const t = (v.y + capeLength / 2) / capeLength; // 0 at bottom, 1 at top
             v.x *= 0.5 + t * 0.5;
-            
+
             // Shirt logic reference (TorsoBuilder.ts)
             // Torso is at y = torsoLen / 2 + 0.1
             // Torso radius top is 0.28, depth scale 0.65
             const surfaceZ = torsoRadiusTop * torsoDepthScale;
-            
-            // Curve AWAY from body (negative Z) - more pronounced curve
-            // Top stays close to body surface, bottom flows outward
-            const curveAmount = (1 - t) * 0.35 + 0.05; // Added offset to stay behind shirt
-            v.z = -curveAmount - surfaceZ; // Offset by torso depth
-            
-            // Add gentle wave for natural fabric look
-            v.z -= Math.sin(v.x * 5) * 0.015 * (1 - t);
-            
-            // Slight wrap around sides at top
-            if (t > 0.7) {
-                const wrapFactor = (t - 0.7) / 0.3;
-                v.z -= Math.abs(v.x) * wrapFactor * 0.15;
+            const spineZ = -surfaceZ - 0.04; // hug upper back
+
+            // Curve away from body with slight flare at bottom
+            const flare = (1 - t) * 0.28;
+            v.z = spineZ - flare;
+
+            // Gentle folds that relax toward the hem
+            const fold = Math.sin((v.x + 0.2) * 6 + t * 2) * 0.02 * (1 - t * 0.6);
+            v.z += fold;
+
+            // Wrap toward shoulders near the top so it follows traps
+            if (t > 0.6) {
+                const wrapFactor = (t - 0.6) / 0.4;
+                v.x *= 0.9 - wrapFactor * 0.25;
+                v.z -= Math.abs(v.x) * wrapFactor * 0.08;
             }
-            
+
+            // Subtle forward tuck near the neck to avoid floating behind
+            if (t > 0.85) {
+                const tuck = (t - 0.85) / 0.15;
+                v.z += tuck * 0.04;
+            }
+
             pos.setXYZ(i, v.x, v.y, v.z);
         }
         capeGeo.computeVertexNormals();
@@ -78,8 +86,8 @@ export class CapeBuilder {
         const cape = new THREE.Mesh(capeGeo, capeMat);
         // Position relative to torso origin
         // TorsoBuilder: torso.position.y = torsoLen / 2 + 0.1;
-        cape.position.set(0, torsoLen / 2 + 0.1, 0);
-        cape.rotation.x = 0.1; // Slight forward tilt
+        cape.position.set(0, torsoLen / 2 + 0.08, -0.02);
+        cape.rotation.x = -0.05; // hang along spine with slight back lean
         cape.castShadow = true;
         cape.receiveShadow = true;
         
@@ -89,19 +97,27 @@ export class CapeBuilder {
             createdMeshes.push(cape);
         }
 
-        // Shoulder drape - connects cape to shoulders, wraps around back
-        // Matching TorsoBuilder.ts shoulder/trap geometry
-        const drapeGeo = new THREE.CylinderGeometry(0.32, 0.28, 0.1, 16, 1, true, Math.PI * 0.25, Math.PI * 1.5);
+        // Shoulder drape - softer collar that hugs the traps
+        const drapeGeo = new THREE.TorusGeometry(0.32, 0.02, 10, 28, Math.PI);
         const drape = new THREE.Mesh(drapeGeo, capeMat);
-        // TorsoBuilder: topCap.position.y = torsoLen / 2; (inside torso mesh which is at y=0.38)
-        // Drape should sit at the top of the torso
-        drape.position.set(0, torsoLen + 0.12, 0);
-        drape.rotation.x = -0.05;
+        drape.position.set(0, torsoLen + 0.09, 0.02);
+        drape.rotation.set(Math.PI / 2.2, 0, Math.PI);
         drape.castShadow = true;
-        
+
         if (parts.torsoContainer) {
             parts.torsoContainer.add(drape);
             createdMeshes.push(drape);
+        }
+
+        // Collar fold for extra thickness at the anchor point
+        const collarGeo = new THREE.BoxGeometry(0.5, 0.05, 0.08);
+        const collar = new THREE.Mesh(collarGeo, liningMat);
+        collar.position.set(0, torsoLen + 0.08, -0.02);
+        collar.rotation.x = -0.2;
+        collar.castShadow = true;
+        if (parts.torsoContainer) {
+            parts.torsoContainer.add(collar);
+            createdMeshes.push(collar);
         }
 
         // Clasps at front

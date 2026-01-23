@@ -1,5 +1,5 @@
 
-export type ActiveScene = 'dev' | 'land' | 'combat' | 'world' | 'mp';
+export type ActiveScene = 'dev' | 'land' | 'combat' | 'world' | 'mp' | 'singleBiome';
 
 export type BodyVariant = 'average' | 'muscular' | 'slim' | 'heavy';
 export type OutfitType = 'nude' | 'naked' | 'peasant' | 'warrior' | 'noble';
@@ -52,6 +52,7 @@ export interface EquipmentState {
   shield: boolean;
   shirt: boolean;
   pants: boolean;
+  greaves: boolean;
   blacksmithApron: boolean;
   shoes: boolean;
   mask: boolean;
@@ -355,6 +356,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     shield: false,
     shirt: false,
     pants: false,
+    greaves: false,
     shoes: false,
     mask: false,
     hood: false,

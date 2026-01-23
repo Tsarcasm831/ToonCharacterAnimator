@@ -86,7 +86,7 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                             {id: 'mask', label: 'Mask'}, {id: 'shoulders', label: 'Pads'}, {id: 'shield', label: 'Shield'},
                             {id: 'robe', label: 'Robe'}, {id: 'skirt', label: 'Skirt'}, {id: 'quiltedArmor', label: 'Quilted'}, {id: 'leatherArmor', label: 'Leather'},
                             {id: 'heavyLeatherArmor', label: 'H.Leather'}, {id: 'ringMail', label: 'RingMail'}, {id: 'plateMail', label: 'PlateMail'},
-                            {id: 'shirt', label: 'Shirt'}, {id: 'pants', label: 'Pants'}, {id: 'shorts', label: 'Shorts'}, {id: 'shoes', label: 'Shoes'},
+                            {id: 'shirt', label: 'Shirt'}, {id: 'pants', label: 'Pants'}, {id: 'greaves', label: 'Greaves'}, {id: 'shorts', label: 'Shorts'}, {id: 'shoes', label: 'Shoes'},
                             {id: 'bracers', label: 'Bracers'}, {id: 'cape', label: 'Cape'}, {id: 'belt', label: 'Belt'}
                         ].map((eq) => (
                             <ToggleButton 

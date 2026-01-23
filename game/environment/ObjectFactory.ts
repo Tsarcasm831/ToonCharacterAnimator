@@ -10,6 +10,7 @@ import { VegetationFactory } from './objects/VegetationFactory';
 import { HumanRemnantsFactory } from './objects/HumanRemnantsFactory';
 import { AtmosphereFactory } from './objects/AtmosphereFactory';
 import { ForgeBuilder } from './objects/ForgeBuilder';
+import { Wall } from '../builder/wall';
 
 export class ObjectFactory {
     // Trees
@@ -78,6 +79,13 @@ export class ObjectFactory {
     // Structures
     static createForge(position: THREE.Vector3, rotationY: number) {
         return ForgeBuilder.build(position, rotationY);
+    }
+
+    static createWall(position: THREE.Vector3, rotationY: number = 0) {
+        const group = Wall.create(false);
+        group.position.copy(position);
+        group.rotation.y = rotationY;
+        return { group, obstacle: group };
     }
 
     // Atmosphere

@@ -16,6 +16,7 @@ import { Sheep } from '../entities/animal/neutral/Sheep';
 import { Spider } from '../entities/animal/aggressive/Spider';
 import { Lizard } from '../entities/animal/neutral/Lizard';
 import { Horse } from '../entities/animal/tameable/Horse';
+import { Imp } from '../entities/resonant/demon/imp';
 import { Shopkeeper } from '../entities/npc/friendly/Shopkeeper';
 import { Blacksmith } from '../entities/npc/friendly/Blacksmith';
 import { LowLevelCityGuard } from '../entities/npc/friendly/LowLevelCityGuard';
@@ -58,6 +59,7 @@ export class EntityManager {
 
     // Dynamic Entities
     public bears: Bear[] = [];
+    public wolves: Wolf[] = [];
     public owls: Owl[] = [];
     public yetis: Yeti[] = [];
     public deers: Deer[] = [];
@@ -67,6 +69,7 @@ export class EntityManager {
     public spiders: Spider[] = [];
     public lizards: Lizard[] = [];
     public horses: Horse[] = [];
+    public imps: Imp[] = [];
     public bandits: Bandit[] = [];
     public combatArchers: Archer[] = [];
 
@@ -139,6 +142,23 @@ export class EntityManager {
         const warlock = new Warlock(scene, nextPos()); this.warlocks.push(warlock);
     }
 
+    spawnAllAnimals(environment: Environment | null, origin: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
+        let row = 0;
+        const nextPos = () => new THREE.Vector3(origin.x + row * 3, origin.y, origin.z - row * 2);
+        this.spawnAnimalGroup('imp', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('spider', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('wolf', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('bear', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('yeti', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('owl', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('deer', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('chicken', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('pig', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('sheep', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('lizard', 1, environment, nextPos()); row++;
+        this.spawnAnimalGroup('horse', 1, environment, nextPos());
+    }
+
     /**
      * Clears all dynamic entities from the scene graph and tracking arrays.
      */
@@ -152,8 +172,8 @@ export class EntityManager {
             }
         };
 
-        [...this.bandits, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, 
-         ...this.chickens, ...this.pigs, ...this.sheeps, ...this.spiders, 
+        [...this.bandits, ...this.bears, ...this.wolves, ...this.owls, ...this.yetis, ...this.deers, 
+         ...this.chickens, ...this.pigs, ...this.sheeps, ...this.spiders, ...this.imps,
          ...this.lizards, ...this.horses, ...this.clerics, ...this.knights,
          ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
          ...this.berserkers, ...this.rogues, ...this.warlocks, ...this.combatArchers].forEach(disposeEntity);
@@ -161,12 +181,14 @@ export class EntityManager {
         this.bandits = [];
         this.bears = [];
         this.owls = [];
+        this.wolves = [];
         this.yetis = [];
         this.deers = [];
         this.chickens = [];
         this.pigs = [];
         this.sheeps = [];
         this.spiders = [];
+        this.imps = [];
         this.lizards = [];
         this.horses = [];
         this.clerics = [];
@@ -265,9 +287,13 @@ export class EntityManager {
             
             let animal: any = null;
             switch (type.toLowerCase()) {
+                case 'imp':
+                    animal = new Imp(this.scene, this.tempSpawnPos.clone());
+                    this.imps.push(animal);
+                    break;
                 case 'wolf':
                     animal = new Wolf(this.scene, this.tempSpawnPos.clone());
-                    this.bears.push(animal as any);
+                    this.wolves.push(animal as any);
                     break;
                 case 'bear':
                     animal = new Bear(this.scene, this.tempSpawnPos.clone());
@@ -497,7 +523,7 @@ export class EntityManager {
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit,
                 this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
-                ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses,
+                ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses,
                 ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
                 ...this.berserkers, ...this.rogues, ...this.warlocks
             ].filter(e => e !== null);
@@ -505,7 +531,13 @@ export class EntityManager {
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard,
                 this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs,
-                ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses
+                ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses
+            ].filter(e => e !== null);
+        } else if (sceneName === 'singleBiome') {
+            return [
+                ...this.bears, ...this.wolves, ...this.owls, ...this.yetis, ...this.deers,
+                ...this.chickens, ...this.pigs, ...this.sheeps, ...this.spiders, ...this.imps,
+                ...this.lizards, ...this.horses
             ].filter(e => e !== null);
         }
         return [];
@@ -514,8 +546,8 @@ export class EntityManager {
     getAllEntities(): any[] {
         return [
             this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit,
-            this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
-            ...this.sheeps, ...this.spiders, ...this.lizards, ...this.horses, 
+            this.wolf, ...this.bears, ...this.wolves, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
+            ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses, 
             ...this.bandits, ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
             ...this.berserkers, ...this.rogues, ...this.warlocks, ...this.combatArchers
         ].filter(e => e !== null);

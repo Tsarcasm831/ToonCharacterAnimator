@@ -6,7 +6,7 @@ import { WATER_VERTEX_SHADER, WATER_FRAGMENT_SHADER } from './Shaders';
 export class TerrainManager {
     private group: THREE.Group;
     private meshes: THREE.Mesh[] = [];
-    private waterMesh: THREE.Mesh | null = null;
+    private waterMeshes: THREE.Mesh[] = [];
 
     constructor(group: THREE.Group) {
         this.group = group;
@@ -43,12 +43,14 @@ export class TerrainManager {
                 const type = biomeData.type;
                 
                 // Only use high resolution if near the pond for vertex deformation
-                const distToPond = Math.sqrt(Math.pow(centerX - ENV_CONSTANTS.POND_X, 2) + Math.pow(centerZ - ENV_CONSTANTS.POND_Z, 2));
                 const patchDiagRadius = (patchSize / 2) * 1.414;
+                const distToNearestPond = Math.min(
+                    ...ENV_CONSTANTS.PONDS.map(p => Math.hypot(centerX - p.x, centerZ - p.z))
+                );
                 
                 let geo: THREE.BufferGeometry;
                 
-                if (distToPond < (ENV_CONSTANTS.POND_RADIUS + patchDiagRadius)) {
+                if (distToNearestPond < Math.max(...ENV_CONSTANTS.PONDS.map(p => p.radius)) + patchDiagRadius) {
                     // NEAR POND: Deformable High-Res
                     geo = highResSharedGeo.clone();
                     const posAttribute = geo.attributes.position;
@@ -57,14 +59,18 @@ export class TerrainManager {
                         vertex.fromBufferAttribute(posAttribute, i);
                         const wX = centerX + vertex.x;
                         const wZ = centerZ - vertex.y; 
-                        const pdx = wX - ENV_CONSTANTS.POND_X;
-                        const pdz = wZ - ENV_CONSTANTS.POND_Z;
-                        const dist = Math.sqrt(pdx*pdx + pdz*pdz);
-                        if (dist < ENV_CONSTANTS.POND_RADIUS) {
-                            const normDist = dist / ENV_CONSTANTS.POND_RADIUS;
-                            const depth = ENV_CONSTANTS.POND_DEPTH * (1 - normDist * normDist);
-                            vertex.z -= depth; 
+                        let depthOffset = 0;
+                        for (const pond of ENV_CONSTANTS.PONDS) {
+                            const pdx = wX - pond.x;
+                            const pdz = wZ - pond.z;
+                            const dist = Math.sqrt(pdx * pdx + pdz * pdz);
+                            if (dist < pond.radius) {
+                                const normDist = dist / pond.radius;
+                                const depth = pond.depth * (1 - normDist * normDist);
+                                depthOffset = Math.max(depthOffset, depth);
+                            }
                         }
+                        vertex.z -= depthOffset; 
                         posAttribute.setZ(i, vertex.z);
                     }
                     geo.computeVertexNormals();
@@ -115,28 +121,36 @@ export class TerrainManager {
     }
 
     private buildWater() {
-        const waterGeo = new THREE.CircleGeometry(ENV_CONSTANTS.POND_RADIUS, 32);
-        const waterMat = new THREE.ShaderMaterial({
-            vertexShader: WATER_VERTEX_SHADER,
-            fragmentShader: WATER_FRAGMENT_SHADER,
-            uniforms: {
-                uTime: { value: 0 },
-                uColor: { value: new THREE.Color(0x2196f3) },
-                uFoamColor: { value: new THREE.Color(0xffffff) }
-            },
-            transparent: true,
-            side: THREE.DoubleSide
-        });
-        this.waterMesh = new THREE.Mesh(waterGeo, waterMat);
-        this.waterMesh.rotation.x = -Math.PI / 2;
-        this.waterMesh.position.set(ENV_CONSTANTS.POND_X, -0.4, ENV_CONSTANTS.POND_Z);
-        this.waterMesh.name = 'pond_water';
-        this.group.add(this.waterMesh);
+        this.waterMeshes = [];
+        for (const pond of ENV_CONSTANTS.PONDS) {
+            const waterGeo = new THREE.CircleGeometry(pond.radius, 32);
+            const waterMat = new THREE.ShaderMaterial({
+                vertexShader: WATER_VERTEX_SHADER,
+                fragmentShader: WATER_FRAGMENT_SHADER,
+                uniforms: {
+                    uTime: { value: 0 },
+                    uColor: { value: new THREE.Color(0x2196f3) },
+                    uFoamColor: { value: new THREE.Color(0xffffff) },
+                    uCenter: { value: new THREE.Vector2(pond.x, pond.z) },
+                    uRadius: { value: pond.radius }
+                },
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            const mesh = new THREE.Mesh(waterGeo, waterMat);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(pond.x, -0.4, pond.z);
+            mesh.name = 'pond_water';
+            this.group.add(mesh);
+            this.waterMeshes.push(mesh);
+        }
     }
 
     update(dt: number) {
-        if (this.waterMesh && this.waterMesh.material instanceof THREE.ShaderMaterial) {
-            this.waterMesh.material.uniforms.uTime.value += dt;
+        for (const mesh of this.waterMeshes) {
+            if (mesh.material instanceof THREE.ShaderMaterial) {
+                mesh.material.uniforms.uTime.value += dt;
+            }
         }
     }
 
@@ -149,15 +163,15 @@ export class TerrainManager {
                 mesh.material.dispose();
             }
         });
-        if (this.waterMesh) {
-            this.waterMesh.geometry.dispose();
-            if (Array.isArray(this.waterMesh.material)) {
-                this.waterMesh.material.forEach(m => m.dispose());
+        for (const mesh of this.waterMeshes) {
+            mesh.geometry.dispose();
+            if (Array.isArray(mesh.material)) {
+                mesh.material.forEach(m => m.dispose());
             } else {
-                this.waterMesh.material.dispose();
+                mesh.material.dispose();
             }
         }
         this.meshes = [];
-        this.waterMesh = null;
+        this.waterMeshes = [];
     }
 }

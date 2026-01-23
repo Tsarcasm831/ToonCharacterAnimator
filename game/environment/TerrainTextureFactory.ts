@@ -58,8 +58,12 @@ export class TerrainTextureFactory {
     private static applyRepeat(type: string, tex: THREE.Texture) {
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(8, 8);
-        if (type === 'Wood' || type === 'Metal' || type === 'Marble') tex.repeat.set(4, 4);
+        // Match the dev grid (10 cells per patch) so textures align with the grid lines.
+        const baseRepeat = 10;
+        tex.repeat.set(baseRepeat, baseRepeat);
+
+        // Slightly lower repetition for patterns that need larger features.
+        if (type === 'Wood' || type === 'Metal' || type === 'Marble') tex.repeat.set(baseRepeat / 2.5, baseRepeat / 2.5);
     }
 
     private static applyImageToTexture(tex: THREE.Texture, image: CanvasImageSource) {

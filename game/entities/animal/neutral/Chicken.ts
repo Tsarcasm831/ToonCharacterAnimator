@@ -13,10 +13,13 @@ export class Chicken {
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene; this.position.copy(initialPos); this.lastStuckPos.copy(this.position);
         const chickenData = ObjectFactory.createChickenModel ? ObjectFactory.createChickenModel(0xFFFFFF) : ObjectFactory.createBearModel(0xFFFFFF); this.group = new THREE.Group(); this.group.add(chickenData.group); this.model = chickenData; if (!ObjectFactory.createChickenModel) chickenData.group.scale.set(0.3, 0.3, 0.3);
-        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this }; this.group.add(this.hitbox);
-        const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
-        const bodyHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.6), hitboxMat); bodyHitbox.position.y = 0.4; bodyHitbox.userData = { type: 'creature' }; this.hitbox.add(bodyHitbox);
-        const headHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), hitboxMat); headHitbox.position.set(0, 0.7, 0.4); headHitbox.userData = { type: 'creature' }; this.hitbox.add(headHitbox);
+        this.hitbox = this.model.group;
+        this.hitbox.userData = { type: 'creature', parent: this };
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            if ((child as THREE.Mesh).isMesh) {
+                child.userData = { ...child.userData, type: 'creature', parent: this };
+            }
+        });
         this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 1.0, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.1), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(0.56, 0.06); fgGeo.translate(0.28, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.28, 0, 0.01); this.healthBarGroup.add(this.healthBarFill); this.group.add(this.healthBarGroup);
         this.group.position.copy(this.position); this.scene.add(this.group);
     }
@@ -52,6 +55,30 @@ export class Chicken {
     private findPatrolPoint() { const range = 8; this.targetPos.set(this.position.x + (Math.random() - 0.5) * range, 0, this.position.z + (Math.random() - 0.5) * range); if (!PlayerUtils.isWithinBounds(this.targetPos)) this.targetPos.set(0, 0, 0); }
     private animate(dt: number, currentSpeed: number) { const parts = this.model.parts; if (currentSpeed > 0) { const legSwing = Math.sin(this.walkTime * 5.0) * 0.4; if(parts.legFR) parts.legFR.rotation.x = legSwing; if(parts.legBL) parts.legBL.rotation.x = legSwing; if(parts.legFL) parts.legFL.rotation.x = -legSwing; if(parts.legBR) parts.legBR.rotation.x = -legSwing; if(parts.head) { parts.head.position.z = 0.4 + (Math.sin(this.walkTime * 5.0) * 0.1); parts.head.rotation.x = 0; } } else if(parts.head) { if (this.stateTimer % 5.0 > 2.5 && this.stateTimer % 5.0 < 4.5) { parts.head.rotation.x = 0.8 + Math.abs(Math.sin(this.stateTimer * 10.0)) * 0.3; parts.head.position.y = 0.5 - Math.abs(Math.sin(this.stateTimer * 10.0)) * 0.1; } else { parts.head.rotation.x = 0; parts.head.position.y = 0.7; if (Math.random() < 0.05) parts.head.rotation.y = (Math.random() - 0.5); } } }
     takeDamage(amount: number) { if (this.isDead) return; this.health -= amount; this.moveSpeedVal = 4.0; this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth); if(this.model.parts.body.material) { this.model.parts.body.material.emissive.setHex(0xff0000); this.model.parts.body.material.emissiveIntensity = 0.5; } if (this.health <= 0) this.die(); else setTimeout(() => { if (!this.isDead && this.model.parts.body.material) { this.model.parts.body.material.emissiveIntensity = 0; this.moveSpeedVal = 2.0; } }, 500); }
-    private die() { this.isDead = true; this.state = ChickenState.DEAD; this.healthBarGroup.visible = false; this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'chicken_meat'; this.model.group.rotation.z = Math.PI; this.model.group.position.y = 0.3; this.hitbox.position.y = -0.3; }
-    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.setHex(0xffaaaa); } }); }
+    private die() { 
+        this.isDead = true; 
+        this.state = ChickenState.DEAD; 
+        this.healthBarGroup.visible = false; 
+        this.hitbox.userData.isSkinnable = true; 
+        this.hitbox.userData.material = 'chicken_meat'; 
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            child.userData.isSkinnable = true;
+            child.userData.material = 'chicken_meat';
+        });
+        this.model.group.rotation.z = Math.PI; 
+        this.model.group.position.y = 0.3; 
+    }
+    markAsSkinned() { 
+        this.isSkinned = true; 
+        this.hitbox.userData.isSkinnable = false; 
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            child.userData.isSkinnable = false;
+        });
+        this.model.group.traverse((obj: any) => { 
+            if (obj.isMesh && obj.material) { 
+                obj.material = obj.material.clone(); 
+                obj.material.color.setHex(0xffaaaa); 
+            } 
+        }); 
+    }
 }

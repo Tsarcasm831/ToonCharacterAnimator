@@ -8,7 +8,7 @@ import { Player } from '../player/Player';
 import { PlayerUtils } from '../player/PlayerUtils';
 import { landCoordsToWorld, getLandHeightAt } from '../environment/landTerrain';
 
-export type SceneType = 'dev' | 'land' | 'combat' | 'mp';
+export type SceneType = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome';
 
 export class SceneManager {
     public activeScene: SceneType;
@@ -40,7 +40,7 @@ export class SceneManager {
     }
 
     private initEnvironment(sceneName: SceneType) {
-        if (sceneName === 'dev') {
+        if (sceneName === 'dev' || sceneName === 'singleBiome') {
             if (!this.environment) {
                 this.environment = new Environment(this.scene);
                 this.environment.buildAsync();
@@ -57,7 +57,7 @@ export class SceneManager {
     }
 
     private unloadEnvironments(except: SceneType) {
-        if (except !== 'dev' && this.environment) {
+        if (except !== 'dev' && except !== 'singleBiome' && this.environment) {
             this.environment.dispose();
             this.environment = null;
         }
@@ -76,7 +76,7 @@ export class SceneManager {
     }
 
     public get currentEnvironment() {
-        if (this.activeScene === 'dev') return this.environment;
+        if (this.activeScene === 'dev' || this.activeScene === 'singleBiome') return this.environment;
         if (this.activeScene === 'land') return this.landEnvironment;
         if (this.activeScene === 'combat' || this.activeScene === 'mp') return this.combatEnvironment;
         return null;
@@ -105,12 +105,13 @@ export class SceneManager {
         if (this.activeScene === 'combat' && this.combatEnvironment) {
             this.combatEnvironment.isCombatStarted = false; // Reset combat state for interaction
         }
-        if (sceneName === 'dev') {
+        if (sceneName === 'dev' || sceneName === 'singleBiome') {
             const startX = -17 * GRID_CELL_SIZE;
             const startZ = 30 * GRID_CELL_SIZE;
             this.player.mesh.position.set(startX, 0, startZ);
             this.renderManager.controls.target.set(startX, 1.7, startZ);
             this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
+
             this.renderManager.controls.enableRotate = true;
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
@@ -166,7 +167,7 @@ export class SceneManager {
     }
     
     public update(delta: number, config: any) {
-        if (this.activeScene === 'dev' && this.environment) {
+        if ((this.activeScene === 'dev' || this.activeScene === 'singleBiome') && this.environment) {
             this.environment.update(delta, config, this.player.mesh.position);
         } else if (this.activeScene === 'land' && this.landEnvironment) {
             this.landEnvironment.update(delta, config, this.player.mesh.position);

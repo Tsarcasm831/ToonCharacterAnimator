@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PageType } from '../components/ui/Navigation';
 
 export type GameState = 'MENU' | 'LOADING' | 'READY' | 'PLAYING';
-export type ActiveScene = 'dev' | 'land' | 'combat' | 'mp';
+export type ActiveScene = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome';
 
 export function useGameState() {
   const [gameState, setGameState] = useState<GameState>('MENU');

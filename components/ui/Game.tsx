@@ -3,6 +3,7 @@ import Scene from '../Scene';
 import LandScene from '../LandScene';
 import CombatScene from '../CombatScene';
 import MPTestScene from '../MPTestScene';
+import SingleBiomeScene from '../SingleBiomeScene';
 import { useGlobalState } from '../../contexts/GlobalContext';
 import { CombatLogEntry } from './CombatLog';
 import { MainMenu } from './MainMenu';
@@ -63,6 +64,8 @@ export const Game: React.FC = () => {
           setActiveScene('combat');
         } else if (startInMP) {
           setActiveScene('mp');
+        } else {
+          setActiveScene('singleBiome');
         }
         // Spawn a spider for testing
         setTimeout(() => {
@@ -255,6 +258,25 @@ export const Game: React.FC = () => {
                             ) : activeScene === 'land' ? (
                                 <LandScene 
                                     config={config} 
+                                    manualInput={manualInput}
+                                    initialInventory={inventory}
+                                    onInventoryUpdate={setInventory}
+                                    onSlotSelect={setSelectedSlot}
+                                    onInteractionUpdate={handleInteractionUpdate}
+                                    onGameReady={onGameReady}
+                                    onEnvironmentReady={() => {
+                                        handleEnvironmentReady();
+                                        handleVisualLoadingFinished();
+                                    }}
+                                    onToggleWorldMap={handleMapToggle}
+                                    onToggleQuestLog={uiState.toggleQuestLog}
+                                    showGrid={showGrid}
+                                    isCombatActive={isCombatActive}
+                                />
+                            ) : activeScene === 'singleBiome' ? (
+                                <SingleBiomeScene
+                                    activeScene={activeScene}
+                                    config={config}
                                     manualInput={manualInput}
                                     initialInventory={inventory}
                                     onInventoryUpdate={setInventory}

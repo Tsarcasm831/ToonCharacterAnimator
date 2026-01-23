@@ -12,9 +12,13 @@ export class Owl {
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene; const terrainH = PlayerUtils.getTerrainHeight(initialPos.x, initialPos.z); this.position.set(initialPos.x, terrainH + 5, initialPos.z);
         const owlData = ObjectFactory.createOwlModel(0x8B4513); this.group = new THREE.Group(); this.group.add(owlData.group); this.model = owlData;
-        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this }; this.group.add(this.hitbox);
-        const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
-        const bodyHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.7), hitboxMat); bodyHitbox.userData = { type: 'creature' }; this.hitbox.add(bodyHitbox);
+        this.hitbox = this.model.group;
+        this.hitbox.userData = { type: 'creature', parent: this };
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            if ((child as THREE.Mesh).isMesh) {
+                child.userData = { ...child.userData, type: 'creature', parent: this };
+            }
+        });
         this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 0.8, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.1), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(0.58, 0.08); fgGeo.translate(0.29, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.29, 0, 0.01); this.healthBarGroup.add(this.healthBarFill);
         this.group.add(this.healthBarGroup); this.group.position.copy(this.position); this.scene.add(this.group);
     }
@@ -48,6 +52,31 @@ export class Owl {
     private animate(dt: number) { const parts = this.model.parts; this.animTime += dt * 4.0; const angle = Math.sin(this.animTime) * 0.5; parts.wingL.rotation.z = angle + 0.2; parts.wingR.rotation.z = -angle - 0.2; }
     takeDamage(amount: number) { if (this.isDead) return; this.health -= amount; this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth); this.model.parts.body.material.emissive.setHex(0xff0000); this.model.parts.body.material.emissiveIntensity = 0.5; if (this.health <= 0) this.die(); else setTimeout(() => { if (!this.isDead) this.model.parts.body.material.emissiveIntensity = 0; }, 100); }
     private die() { this.isDead = true; this.state = OwlState.FALLING; this.healthBarGroup.visible = false; }
-    private settleDeath() { this.state = OwlState.DEAD; this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'feathers'; this.hitbox.children.forEach(child => { child.userData.isSkinnable = true; child.userData.material = 'feathers'; }); this.group.rotation.set(0, 0, 0); this.model.group.rotation.x = Math.PI / 2; this.model.group.position.y = 0.1; this.model.parts.wingL.rotation.z = 1.5; this.model.parts.wingR.rotation.z = -1.5; }
-    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.hitbox.children.forEach(child => { child.userData.isSkinnable = false; }); this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.multiplyScalar(0.3); } }); }
+    private settleDeath() { 
+        this.state = OwlState.DEAD; 
+        this.hitbox.userData.isSkinnable = true; 
+        this.hitbox.userData.material = 'feathers'; 
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            child.userData.isSkinnable = true;
+            child.userData.material = 'feathers';
+        });
+        this.group.rotation.set(0, 0, 0); 
+        this.model.group.rotation.x = Math.PI / 2; 
+        this.model.group.position.y = 0.1; 
+        this.model.parts.wingL.rotation.z = 1.5; 
+        this.model.parts.wingR.rotation.z = -1.5; 
+    }
+    markAsSkinned() { 
+        this.isSkinned = true; 
+        this.hitbox.userData.isSkinnable = false; 
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            child.userData.isSkinnable = false;
+        });
+        this.model.group.traverse((obj: any) => { 
+            if (obj.isMesh && obj.material) { 
+                obj.material = obj.material.clone(); 
+                obj.material.color.multiplyScalar(0.3); 
+            } 
+        }); 
+    }
 }

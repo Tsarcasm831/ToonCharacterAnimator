@@ -1,6 +1,7 @@
 
 import * as THREE from 'three';
 import { ENV_CONSTANTS } from './EnvironmentTypes';
+import { PlayerUtils } from '../player/PlayerUtils';
 
 const GRASS_VERTEX_SHADER = `
 varying vec2 vUv;
@@ -47,7 +48,7 @@ void main() {
 
 export class GrassManager {
     private mesh: THREE.InstancedMesh;
-    private count: number = 2000; // Further reduced for maximum snappiness
+    private count: number = 4000; // Wider coverage across the whole scene
     private parent: THREE.Object3D;
 
     constructor(parent: THREE.Object3D) {
@@ -89,13 +90,9 @@ export class GrassManager {
 
     private populate() {
         const dummy = new THREE.Object3D();
-        const patchSize = 39; 
+        const patchSize = 180; 
         const color = new THREE.Color();
-        
-        const pondX = ENV_CONSTANTS.POND_X;
-        const pondZ = ENV_CONSTANTS.POND_Z;
-        const pondRadiusSq = Math.pow(ENV_CONSTANTS.POND_RADIUS + 1.2, 2);
-        
+
         let i = 0;
         let attempts = 0;
         const maxAttempts = this.count * 5;
@@ -104,15 +101,23 @@ export class GrassManager {
             attempts++;
             const x = (Math.random() - 0.5) * patchSize;
             const z = (Math.random() - 0.5) * patchSize;
-            
-            const dx = x - pondX;
-            const dz = z - pondZ;
-            if (dx*dx + dz*dz < pondRadiusSq) continue;
+
+            let insidePond = false;
+            for (const pond of ENV_CONSTANTS.PONDS) {
+                const dx = x - pond.x;
+                const dz = z - pond.z;
+                if (dx * dx + dz * dz < Math.pow(pond.radius + 1.2, 2)) {
+                    insidePond = true;
+                    break;
+                }
+            }
+            if (insidePond) continue;
 
             const tx = x + (Math.random() - 0.5) * 0.4;
             const tz = z + (Math.random() - 0.5) * 0.4;
-            
-            dummy.position.set(tx, 0, tz);
+
+            const ty = PlayerUtils.getTerrainHeight(tx, tz);
+            dummy.position.set(tx, ty, tz);
             dummy.rotation.y = Math.random() * Math.PI * 2;
             
             const scaleY = 0.7 + Math.random() * 0.6;

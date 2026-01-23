@@ -124,13 +124,18 @@ export class PantsBuilder {
             }
         }
 
-        // 2. Legs
-         const legs = [
-            { parent: parts.leftThigh, len: 0.4, topR: 0.11, botR: 0.085 },
-            { parent: parts.rightThigh, len: 0.4, topR: 0.11, botR: 0.085 },
-            { parent: parts.leftShin, len: 0.42, topR: 0.095, botR: 0.065 },
-            { parent: parts.rightShin, len: 0.42, topR: 0.095, botR: 0.065 },
-        ];
+        // 2. Legs (skip shin coverage if greaves are equipped so they remain visible)
+         const legs = config.equipment.greaves
+            ? [
+                { parent: parts.leftThigh, len: 0.4, topR: 0.11, botR: 0.085 },
+                { parent: parts.rightThigh, len: 0.4, topR: 0.11, botR: 0.085 },
+            ]
+            : [
+                { parent: parts.leftThigh, len: 0.4, topR: 0.11, botR: 0.085 },
+                { parent: parts.rightThigh, len: 0.4, topR: 0.11, botR: 0.085 },
+                { parent: parts.leftShin, len: 0.42, topR: 0.095, botR: 0.065 },
+                { parent: parts.rightShin, len: 0.42, topR: 0.095, botR: 0.065 },
+            ];
 
         legs.forEach(leg => {
             if (!leg.parent) return;
