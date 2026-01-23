@@ -120,7 +120,9 @@ export class Wall {
     private static createRocks(): THREE.Mesh {
         const geometries: THREE.BufferGeometry[] = [];
         const numRocks = 40; // Adjust for density
-        const baseGeo = new THREE.DodecahedronGeometry(0.15, 0); // Low poly sphere-ish shape
+        // Use non-indexed geometry so all merged rocks share identical attribute sets
+        const baseGeo = new THREE.DodecahedronGeometry(0.15, 0).toNonIndexed(); // Low poly sphere-ish shape
+        baseGeo.deleteAttribute('uv');
 
         for (let i = 0; i < numRocks; i++) {
             const geo = baseGeo.clone();
@@ -143,7 +145,11 @@ export class Wall {
         }
 
         // Add a central filler block to ensure no gaps look straight through
-        const filler = new THREE.BoxGeometry(this.GRID_SIZE * 0.9, this.ROCK_HEIGHT * 0.8, this.WALL_DEPTH * 0.6);
+        // Convert to non-indexed and strip UVs so it matches the rock geometries' attribute set
+        const fillerBox = new THREE.BoxGeometry(this.GRID_SIZE * 0.9, this.ROCK_HEIGHT * 0.8, this.WALL_DEPTH * 0.6);
+        let filler = fillerBox.toNonIndexed();
+
+        filler.deleteAttribute('uv');
         filler.translate(0, this.ROCK_HEIGHT / 2, 0);
         geometries.push(filler);
 
