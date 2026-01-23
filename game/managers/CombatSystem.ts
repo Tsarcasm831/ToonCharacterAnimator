@@ -77,7 +77,7 @@ export class CombatSystem {
     private getDefaultStats(): EntityStats {
         return {
             health: 100, maxHealth: 100, chakra: 50, maxChakra: 50,
-            mana: 0, maxMana: 100,
+            mana: 0, maxMana: 100, xp: 0, maxXp: 1000,
             strength: 10, dexterity: 10, defense: 10, evasion: 10, damage: 10, soak: 2,
             attackSpeed: 1.0, range: 1.5
         };

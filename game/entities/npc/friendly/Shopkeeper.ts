@@ -19,6 +19,7 @@ export class Shopkeeper extends NPC {
                     shield: false,
                     shirt: true,
                     pants: true,
+                    greaves: false,
                     shoes: true,
                     mask: false,
                     hood: false,

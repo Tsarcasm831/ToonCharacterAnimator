@@ -55,14 +55,16 @@ export class PlayerStatusHandler {
             maxHealth: this.maxHealth,
             chakra: this.chakra,
             maxChakra: this.maxChakra,
+            mana: this.mana,
+            maxMana: this.maxMana,
+            xp: 0,
+            maxXp: 1000,
             strength: this.strength,
             dexterity: this.dexterity,
             defense: this.defense,
             evasion: this.evasion,
             damage: this.damage,
             soak: this.soak,
-            mana: this.mana,
-            maxMana: this.maxMana,
             attackSpeed: this.attackSpeed,
             range: this.range
         };
