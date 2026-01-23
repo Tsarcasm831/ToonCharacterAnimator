@@ -16,10 +16,13 @@ export class Wolf {
         this.group.userData.entityType = 'Wolf';
         this.model.group.userData.type = 'creature';
         this.model.group.userData.entityType = 'Wolf';
-        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this, entityType: 'Wolf' }; this.group.add(this.hitbox); const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
-        const bodyHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 1.3), hitboxMat); bodyHitbox.position.y = 0.55; bodyHitbox.userData = { type: 'creature', parent: this, entityType: 'Wolf' }; this.hitbox.add(bodyHitbox);
-        const headHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.6, 0.6), hitboxMat); headHitbox.position.set(0, 0.95, 0.6); headHitbox.userData = { type: 'creature', parent: this, entityType: 'Wolf' }; this.hitbox.add(headHitbox);
-        const snoutHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.5), hitboxMat); snoutHitbox.position.set(0, 0.8, 1.1); snoutHitbox.userData = { type: 'creature', parent: this, entityType: 'Wolf' }; this.hitbox.add(snoutHitbox);
+        this.hitbox = this.model.group;
+        this.hitbox.userData = { type: 'creature', parent: this, entityType: 'Wolf' };
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            if ((child as THREE.Mesh).isMesh) {
+                child.userData = { ...child.userData, type: 'creature', parent: this, entityType: 'Wolf' };
+            }
+        });
         this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 1.7, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.15), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(0.96, 0.11); fgGeo.translate(0.48, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.48, 0, 0.01); this.healthBarGroup.add(this.healthBarFill); this.group.add(this.healthBarGroup);
         this.group.position.copy(this.position); this.scene.add(this.group);
     }
@@ -72,6 +75,30 @@ export class Wolf {
     private findPatrolPoint() { if (!this.isInsideGrove(this.position)) { this.targetPos.copy(this.GROVE_CENTER); return; } const range = 15; const candidate = new THREE.Vector3(this.position.x + (Math.random() - 0.5) * range, 0, this.position.z + (Math.random() - 0.5) * range); candidate.x = THREE.MathUtils.clamp(candidate.x, this.GROVE_X_MIN + 1, this.GROVE_X_MAX - 1); candidate.z = THREE.MathUtils.clamp(candidate.z, this.GROVE_Z_MIN + 1, this.GROVE_Z_MAX - 1); this.targetPos.copy(candidate); }
     private animate(dt: number, moveSpeed: number) { const parts = this.model.parts; if (moveSpeed > 0) { const legSwing = Math.sin(this.walkTime * 2.0) * 0.5; parts.legFR.rotation.x = legSwing; parts.legBL.rotation.x = legSwing; parts.legFL.rotation.x = -legSwing; parts.legBR.rotation.x = -legSwing; parts.body.position.y = 0.6 + Math.abs(Math.cos(this.walkTime * 2.0)) * 0.1; parts.tail.rotation.y = Math.sin(this.walkTime * 4.0) * 0.3; } else { const breath = Math.sin(this.stateTimer * 2.0) * 0.02; parts.body.scale.set(1 + breath, 1 + breath, 1 + breath); } }
     takeDamage(amount: number) { if (this.isDead) return; this.health -= amount; this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth); this.model.parts.body.material.emissive.setHex(0xff0000); this.model.parts.body.material.emissiveIntensity = 0.5; if (this.health <= 0) this.die(); else { setTimeout(() => { if (!this.isDead) { this.model.parts.body.material.emissiveIntensity = 0; } }, 100); this.state = WolfState.CHASE; } }
-    private die() { this.isDead = true; this.state = WolfState.DEAD; this.healthBarGroup.visible = false; this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'flesh'; this.hitbox.children.forEach(child => { child.userData.isSkinnable = true; child.userData.material = 'flesh'; }); this.model.group.rotation.z = Math.PI / 2; this.model.group.position.y = 0.15; this.hitbox.position.y = -0.4; }
-    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.hitbox.children.forEach(child => { child.userData.isSkinnable = false; }); this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.multiplyScalar(0.3); } }); }
+    private die() { 
+        this.isDead = true; 
+        this.state = WolfState.DEAD; 
+        this.healthBarGroup.visible = false; 
+        this.hitbox.userData.isSkinnable = true; 
+        this.hitbox.userData.material = 'flesh'; 
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            child.userData.isSkinnable = true;
+            child.userData.material = 'flesh';
+        });
+        this.model.group.rotation.z = Math.PI / 2; 
+        this.model.group.position.y = 0.15; 
+    }
+    markAsSkinned() { 
+        this.isSkinned = true; 
+        this.hitbox.userData.isSkinnable = false; 
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            child.userData.isSkinnable = false;
+        });
+        this.model.group.traverse((obj: any) => { 
+            if (obj.isMesh && obj.material) { 
+                obj.material = obj.material.clone(); 
+                obj.material.color.multiplyScalar(0.3); 
+            } 
+        }); 
+    }
 }

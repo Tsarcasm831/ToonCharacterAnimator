@@ -89,11 +89,12 @@ export class WorldGridManager {
             const mat = new THREE.MeshBasicMaterial({ 
                 map: tex, 
                 transparent: true,
-                depthTest: true,
+                depthTest: false, // keep labels visible over terrain textures
                 depthWrite: false, 
             });
 
             const mesh = new THREE.Mesh(labelGeo, mat);
+            mesh.renderOrder = 2;
             mesh.rotation.x = -Math.PI / 2;
             mesh.visible = false;
             mesh.frustumCulled = true;

@@ -69,6 +69,8 @@ export class Game {
     public onEnvironmentReady?: () => void;
     public onUpdate?: (dt: number) => void;
 
+    private hasSpawnedAllAnimals: boolean = false;
+
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
     private lastRotationValue = 0;
@@ -125,16 +127,22 @@ export class Game {
         }
         this.sceneManager.onEnvironmentReady = () => this.onEnvironmentReady?.();
 
-        LevelGenerator.buildDevLevel(this.sceneManager.environment);
-        this.sceneManager.environment.obstacleManager.onLogPickedUp = () => {
-            this.player.addItem('Wood', 8, true);
-        };
+        if (activeScene === 'dev') {
+            LevelGenerator.buildDevLevel(this.sceneManager.environment);
+            this.sceneManager.environment.obstacleManager.onLogPickedUp = () => {
+                this.player.addItem('Wood', 8, true);
+            };
+        }
         
         this.spawnLowLevelGuard(-32, 0, 13, Math.PI);
         
         requestAnimationFrame(() => {
             this.sceneManager.environment.buildAsync().then(() => {
                 if (this.sceneManager.activeScene === 'dev') this.onEnvironmentReady?.();
+                if (this.sceneManager.activeScene === 'singleBiome' && !this.hasSpawnedAllAnimals) {
+                    this.entityManager.spawnAllAnimals(this.sceneManager.environment, new THREE.Vector3(5, 0, 5));
+                    this.hasSpawnedAllAnimals = true;
+                }
             });
             if (this.sceneManager.activeScene !== 'dev') this.onEnvironmentReady?.();
         });

@@ -25,6 +25,17 @@ export const FastTravelMenu: React.FC<FastTravelMenuProps> = ({ activeScene, onT
         )}
       </button>
       <button 
+        onClick={() => onTravel('singleBiome')} 
+        className={`w-full px-4 py-4 rounded-2xl text-left text-xs font-black uppercase tracking-widest transition-all flex items-center justify-between group mt-1 ${activeScene === 'singleBiome' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-300 hover:bg-white/5'}`}
+      >
+        <span>Single Biome</span>
+        {activeScene === 'singleBiome' ? (
+          <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+        ) : (
+          <div className="w-1.5 h-1.5 rounded-full bg-white/10 group-hover:bg-white/30" />
+        )}
+      </button>
+      <button 
         onClick={() => onTravel('land')} 
         className={`w-full px-4 py-4 rounded-2xl text-left text-xs font-black uppercase tracking-widest transition-all flex items-center justify-between group mt-1 ${activeScene === 'land' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-300 hover:bg-white/5'}`}
       >

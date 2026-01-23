@@ -6,6 +6,7 @@ import { PlayerPartsRegistry } from './PlayerPartsRegistry';
 import { ShirtBuilder } from './mesh/ShirtBuilder';
 import { PantsBuilder } from './mesh/PantsBuilder';
 import { ShortsBuilder } from './mesh/ShortsBuilder';
+import { GreavesBuilder } from './mesh/GreavesBuilder';
 import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
 import { ApronBuilder } from './mesh/ApronBuilder';
@@ -16,11 +17,13 @@ export class PlayerClothingManager {
 
     private shirtMeshes: THREE.Object3D[] = [];
     private pantsMeshes: THREE.Object3D[] = [];
+    private greavesMeshes: THREE.Object3D[] = [];
     private shortsMeshes: THREE.Object3D[] = [];
     private apronMeshes: THREE.Object3D[] = [];
     
     private lastShirtConfigHash: string = '';
     private lastPantsConfigHash: string = '';
+    private lastGreavesConfigHash: string = '';
     private lastShortsConfigHash: string = '';
     private lastApronConfigHash: string = '';
     private lastShoeState: boolean | null = null;
@@ -36,6 +39,7 @@ export class PlayerClothingManager {
 
     update(config: PlayerConfig) {
         this.updatePants(config);
+        this.updateGreaves(config);
         this.updateShorts(config);
         this.updateShirt(config);
         this.updateApron(config);
@@ -65,7 +69,7 @@ export class PlayerClothingManager {
     }
 
     private updatePants(config: PlayerConfig) {
-        const hash = `${config.outfit}_${config.equipment.pants}_${config.pantsColor}`;
+        const hash = `${config.outfit}_${config.equipment.pants}_${config.equipment.greaves}_${config.pantsColor}`;
         if (hash === this.lastPantsConfigHash) return;
         this.lastPantsConfigHash = hash;
 
@@ -78,6 +82,23 @@ export class PlayerClothingManager {
         const meshes = PantsBuilder.build(this.partsRegistry.parts, config);
         if (meshes) {
             this.pantsMeshes = meshes;
+        }
+    }
+
+    private updateGreaves(config: PlayerConfig) {
+        const hash = `${config.outfit}_${config.equipment.greaves}_${config.pantsColor}`;
+        if (hash === this.lastGreavesConfigHash) return;
+        this.lastGreavesConfigHash = hash;
+
+        this.greavesMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if ((m as THREE.Mesh).geometry) (m as THREE.Mesh).geometry.dispose();
+        });
+        this.greavesMeshes = [];
+
+        const meshes = GreavesBuilder.build(this.partsRegistry.parts, config);
+        if (meshes) {
+            this.greavesMeshes = meshes;
         }
     }
 

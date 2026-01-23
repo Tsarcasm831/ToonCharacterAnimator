@@ -1,5 +1,3 @@
-import { ENV_CONSTANTS } from './EnvironmentTypes';
-
 export const WATER_VERTEX_SHADER = `
 varying vec2 vUv;
 varying vec3 vWorldPosition;
@@ -22,6 +20,8 @@ varying vec3 vWorldPosition;
 uniform float uTime;
 uniform vec3 uColor;
 uniform vec3 uFoamColor;
+uniform vec2 uCenter;
+uniform float uRadius;
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -36,9 +36,8 @@ float noise(vec2 p) {
 }
 
 void main() {
-    vec2 center = vec2(8.0, 6.0);
-    float dist = length(vWorldPosition.xz - center);
-    float radius = ${ENV_CONSTANTS.POND_RADIUS.toFixed(1)};
+    float dist = length(vWorldPosition.xz - uCenter);
+    float radius = uRadius;
     float n1 = noise(vUv * 15.0 + uTime * 0.5);
     float n2 = noise(vUv * 25.0 - uTime * 0.3);
     float caustics = pow(n1 * n2, 1.5) * 0.5;

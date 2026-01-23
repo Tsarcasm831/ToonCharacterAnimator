@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
 import { getLandHeightAt, isWorldPointInLand } from '../environment/landTerrain';
+import { ENV_CONSTANTS } from '../environment/EnvironmentTypes';
 
 export class PlayerUtils {
     private static readonly _tempRayOrigin = new THREE.Vector3();
@@ -12,10 +13,10 @@ export class PlayerUtils {
     private static readonly _raycaster = new THREE.Raycaster();
 
     // Matching constants from Environment.ts to calculate pond depth mathematically
-    static POND_X = 8;
-    static POND_Z = 6;
-    static POND_RADIUS = 4.5;
-    static POND_DEPTH = 1.8;
+    static POND_X = ENV_CONSTANTS.POND_X;
+    static POND_Z = ENV_CONSTANTS.POND_Z;
+    static POND_RADIUS = ENV_CONSTANTS.POND_RADIUS;
+    static POND_DEPTH = ENV_CONSTANTS.POND_DEPTH;
 
     // World size
     static WORLD_LIMIT = 1000;
@@ -87,15 +88,18 @@ export class PlayerUtils {
             const h = getLandHeightAt(x, z);
             return h;
         }
-        const dx = x - this.POND_X;
-        const dz = z - this.POND_Z;
-        const dist = Math.sqrt(dx*dx + dz*dz);
-        
-        if (dist < this.POND_RADIUS) {
-            const normDist = dist / this.POND_RADIUS;
-            return -this.POND_DEPTH * (1 - normDist * normDist);
+        let maxDepth = 0;
+        for (const pond of ENV_CONSTANTS.PONDS) {
+            const dx = x - pond.x;
+            const dz = z - pond.z;
+            const dist = Math.sqrt(dx * dx + dz * dz);
+            if (dist < pond.radius) {
+                const normDist = dist / pond.radius;
+                const depth = -pond.depth * (1 - normDist * normDist);
+                maxDepth = Math.min(maxDepth, depth);
+            }
         }
-        return 0;
+        return maxDepth;
     }
 
     static getGroundHeight(pos: THREE.Vector3, config: PlayerConfig, obstacles: THREE.Object3D[] | undefined | null): number {

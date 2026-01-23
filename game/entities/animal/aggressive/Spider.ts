@@ -15,9 +15,13 @@ export class Spider {
         this.group.userData.entityType = 'Spider';
         this.model.group.userData.type = 'creature';
         this.model.group.userData.entityType = 'Spider';
-        this.hitbox = new THREE.Group(); this.hitbox.userData = { type: 'creature', parent: this, entityType: 'Spider' }; this.group.add(this.hitbox); const hitboxMat = new THREE.MeshBasicMaterial({ visible: false, wireframe: true, color: 0xff0000 });
-        const thoraxHitbox = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 0.8), hitboxMat); thoraxHitbox.position.set(0, 0.6, 0.5); thoraxHitbox.userData = { type: 'creature', parent: this, entityType: 'Spider' }; this.hitbox.add(thoraxHitbox);
-        const abdomenHitbox = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.4), hitboxMat); abdomenHitbox.position.set(0, 0.8, -0.6); abdomenHitbox.userData = { type: 'creature', parent: this, entityType: 'Spider' }; this.hitbox.add(abdomenHitbox);
+        this.hitbox = this.model.group;
+        this.hitbox.userData = { type: 'creature', parent: this, entityType: 'Spider' };
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            if ((child as THREE.Mesh).isMesh) {
+                child.userData = { ...child.userData, type: 'creature', parent: this, entityType: 'Spider' };
+            }
+        });
         this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 2.0, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.15), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(0.96, 0.11); fgGeo.translate(0.48, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.48, 0, 0.01); this.healthBarGroup.add(this.healthBarFill); this.group.add(this.healthBarGroup);
         this.group.position.copy(this.position); this.scene.add(this.group);
     }
@@ -114,6 +118,30 @@ export class Spider {
         }
     }
     takeDamage(amount: number) { if (this.isDead) return; this.health -= amount; this.healthBarFill.scale.x = Math.max(0, this.health / this.maxHealth); const mainPart = this.model.parts.body || this.model.parts.abdomen; if(mainPart && mainPart.material) { mainPart.material.emissive.setHex(0xff0000); mainPart.material.emissiveIntensity = 0.5; } if (this.health <= 0) this.die(); else setTimeout(() => { if (!this.isDead && mainPart && mainPart.material) mainPart.material.emissiveIntensity = 0; }, 100); }
-    private die() { this.isDead = true; this.state = SpiderState.DEAD; this.healthBarGroup.visible = false; this.hitbox.userData.isSkinnable = true; this.hitbox.userData.material = 'silk'; this.model.group.rotation.x = Math.PI; this.model.group.position.y = 0.5; this.hitbox.position.y = -0.5; }
-    markAsSkinned() { this.isSkinned = true; this.hitbox.userData.isSkinnable = false; this.model.group.traverse((obj: any) => { if (obj.isMesh && obj.material) { obj.material = obj.material.clone(); obj.material.color.setHex(0x555555); } }); }
+    private die() { 
+        this.isDead = true; 
+        this.state = SpiderState.DEAD; 
+        this.healthBarGroup.visible = false; 
+        this.hitbox.userData.isSkinnable = true; 
+        this.hitbox.userData.material = 'silk'; 
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            child.userData.isSkinnable = true;
+            child.userData.material = 'silk';
+        });
+        this.model.group.rotation.x = Math.PI; 
+        this.model.group.position.y = 0.5; 
+    }
+    markAsSkinned() { 
+        this.isSkinned = true; 
+        this.hitbox.userData.isSkinnable = false; 
+        this.hitbox.traverse((child: THREE.Object3D) => {
+            child.userData.isSkinnable = false;
+        });
+        this.model.group.traverse((obj: any) => { 
+            if (obj.isMesh && obj.material) { 
+                obj.material = obj.material.clone(); 
+                obj.material.color.setHex(0x555555); 
+            } 
+        }); 
+    }
 }

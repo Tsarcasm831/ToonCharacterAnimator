@@ -41,6 +41,21 @@ export async function initBiomes(ctx: ObstacleInitContext, options?: PopulateOpt
                z > (houseMinZ - houseMargin) && z < (houseMaxZ + houseMargin);
     };
 
+    // Simple palisade wall line bordering the cabin approach on the single-biome scene
+    const wallStartX = -24 * GRID_SIZE;
+    const wallStartZ = 32 * GRID_SIZE;
+    const wallCount = 5;
+    for (let i = 0; i < wallCount; i++) {
+        const x = wallStartX + i * GRID_SIZE;
+        const z = wallStartZ;
+        if (isInsideHouse(x, z)) continue;
+        const y = PlayerUtils.getTerrainHeight(x, z);
+        const { group, obstacle } = ObjectFactory.createWall(new THREE.Vector3(x, y, z));
+        ctx.scene.add(group);
+        ctx.obstacles.push(obstacle);
+        await maybeYield(i + 1, options);
+    }
+
     // Golden Dunes
     const duneX = 40, duneZ = 0;
     for (let i = 0; i < 15; i++) {
@@ -137,6 +152,41 @@ export async function initBiomes(ctx: ObstacleInitContext, options?: PopulateOpt
         ctx.obstacles.push(obstacle);
         await maybeYield(i + 1, options);
     }
+
+    // Meadow Spread: distribute trees, rocks, and bushes across the wider single-biome field
+    let meadowIndex = 0;
+    const meadowSpan = 160;
+    const pondBuffers = ENV_CONSTANTS.PONDS.map(p => (p.radius + 1.2) * (p.radius + 1.2));
+    for (let i = 0; i < 140; i++) {
+        const x = (Math.random() - 0.5) * meadowSpan;
+        const z = (Math.random() - 0.5) * meadowSpan;
+        if (isInsideHouse(x, z)) continue;
+        let insidePond = false;
+        for (let idx = 0; idx < ENV_CONSTANTS.PONDS.length; idx++) {
+            const pond = ENV_CONSTANTS.PONDS[idx];
+            const dx = x - pond.x;
+            const dz = z - pond.z;
+            if (dx * dx + dz * dz < pondBuffers[idx]) {
+                insidePond = true;
+                break;
+            }
+        }
+        if (insidePond) continue;
+
+        const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
+        const roll = Math.random();
+        if (roll < 0.4) {
+            ctx.createAutumnTree(pos);
+        } else if (roll < 0.7) {
+            ctx.createRockAt(new THREE.Vector2(x, z), 0.8 + Math.random() * 0.6);
+        } else {
+            const bush = ObjectFactory.createBush(pos, 0.8 + Math.random() * 0.6);
+            ctx.scene.add(bush);
+            ctx.decorativeItems.push(bush);
+        }
+        meadowIndex += 1;
+        await maybeYield(meadowIndex, options);
+    }
 }
 
 export async function initWorldScatter(ctx: ObstacleInitContext, options?: PopulateOptions) {
@@ -218,12 +268,22 @@ export async function initWorldScatter(ctx: ObstacleInitContext, options?: Popul
         await maybeYield(rockIndex, options);
     }
 
-    for (let i = 0; i < 40; i++) {
-        const x = (Math.random() - 0.5) * 40;
-        const z = (Math.random() - 0.5) * 40;
+    for (let i = 0; i < 160; i++) {
+        const x = (Math.random() - 0.5) * 180;
+        const z = (Math.random() - 0.5) * 180;
         if (isInsideHouse(x, z)) continue;
+        let insidePond = false;
+        for (const pond of ENV_CONSTANTS.PONDS) {
+            const dx = x - pond.x;
+            const dz = z - pond.z;
+            if (dx * dx + dz * dz < Math.pow(pond.radius + 0.8, 2)) {
+                insidePond = true;
+                break;
+            }
+        }
+        if (insidePond) continue;
         const y = PlayerUtils.getTerrainHeight(x, z);
-        if (y > -0.1) {
+        if (y > -2.0) {
             const grass = Math.random() > 0.5 
                 ? ObjectFactory.createGrassTuft(new THREE.Vector3(x, y, z))
                 : ObjectFactory.createGrass(new THREE.Vector3(x, y, z), Math.random() > 0.8 ? 'tall' : 'short');
@@ -335,20 +395,21 @@ export async function initMidLevelFillers(ctx: ObstacleInitContext, options?: Po
         }
         await maybeYield(treeIndex, options);
     }
-    const radius = ENV_CONSTANTS.POND_RADIUS;
-    const centerX = ENV_CONSTANTS.POND_X;
-    const centerZ = ENV_CONSTANTS.POND_Z;
-    for (let i = 0; i < 10; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const r = radius + 0.4 + Math.random() * 0.8;
-        const x = centerX + Math.cos(angle) * r;
-        const z = centerZ + Math.sin(angle) * r;
-        if (isInsideHouse(x, z)) continue;
-        const y = PlayerUtils.getTerrainHeight(x, z);
-        const reeds = ObjectFactory.createReeds(new THREE.Vector3(x, y, z));
-        ctx.scene.add(reeds);
-        ctx.decorativeItems.push(reeds);
-        await maybeYield(i + 1, options);
+    let pondReedIndex = 0;
+    for (const pond of ENV_CONSTANTS.PONDS) {
+        for (let i = 0; i < 10; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = pond.radius + 0.4 + Math.random() * 0.8;
+            const x = pond.x + Math.cos(angle) * r;
+            const z = pond.z + Math.sin(angle) * r;
+            if (isInsideHouse(x, z)) continue;
+            const y = PlayerUtils.getTerrainHeight(x, z);
+            const reeds = ObjectFactory.createReeds(new THREE.Vector3(x, y, z));
+            ctx.scene.add(reeds);
+            ctx.decorativeItems.push(reeds);
+            pondReedIndex += 1;
+            await maybeYield(pondReedIndex, options);
+        }
     }
 }
 
@@ -488,42 +549,44 @@ export async function initPondDecorations(ctx: ObstacleInitContext, options?: Po
                z > (houseMinZ - houseMargin) && z < (houseMaxZ + houseMargin);
     };
 
-    const radius = ENV_CONSTANTS.POND_RADIUS;
-    const centerX = ENV_CONSTANTS.POND_X;
-    const centerZ = ENV_CONSTANTS.POND_Z;
+    let decorIndex = 0;
+    for (const pond of ENV_CONSTANTS.PONDS) {
+        for (let i = 0; i < 18; i++) {
+            const angle = (i / 18) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+            const r = pond.radius + (Math.random() - 0.5) * 0.4;
+            const x = pond.x + Math.cos(angle) * r;
+            const z = pond.z + Math.sin(angle) * r;
+            if (isInsideHouse(x, z)) continue;
+            const y = PlayerUtils.getTerrainHeight(x, z);
+            const cattail = ObjectFactory.createCattail(new THREE.Vector3(x, y, z));
+            ctx.scene.add(cattail);
+            ctx.decorativeItems.push(cattail);
+            decorIndex += 1;
+            await maybeYield(decorIndex, options);
+        }
 
-    for (let i = 0; i < 18; i++) {
-        const angle = (i / 18) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
-        const r = radius + (Math.random() - 0.5) * 0.4;
-        const x = centerX + Math.cos(angle) * r;
-        const z = centerZ + Math.sin(angle) * r;
-        if (isInsideHouse(x, z)) continue;
-        const y = PlayerUtils.getTerrainHeight(x, z);
-        const cattail = ObjectFactory.createCattail(new THREE.Vector3(x, y, z));
-        ctx.scene.add(cattail);
-        ctx.decorativeItems.push(cattail);
-        await maybeYield(i + 1, options);
-    }
+        for (let i = 0; i < 12; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const r = Math.random() * (pond.radius - 1.0);
+            const x = pond.x + Math.cos(angle) * r;
+            const z = pond.z + Math.sin(angle) * r;
+            if (isInsideHouse(x, z)) continue;
+            const pad = ObjectFactory.createLilyPad(new THREE.Vector3(x, 0, z));
+            pad.rotation.z = Math.PI / 2;
+            ctx.scene.add(pad);
+            ctx.decorativeItems.push(pad);
+            decorIndex += 1;
+            await maybeYield(decorIndex, options);
+        }
 
-    for (let i = 0; i < 12; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const r = Math.random() * (radius - 1.0);
-        const x = centerX + Math.cos(angle) * r;
-        const z = centerZ + Math.sin(angle) * r;
-        if (isInsideHouse(x, z)) continue;
-        const pad = ObjectFactory.createLilyPad(new THREE.Vector3(x, 0, z));
-        pad.rotation.z = Math.PI / 2;
-        ctx.scene.add(pad);
-        ctx.decorativeItems.push(pad);
-        await maybeYield(i + 1, options);
-    }
-
-    for (let i = 0; i < 6; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const x = centerX + Math.cos(angle) * (radius + 0.2);
-        const z = centerZ + Math.sin(angle) * (radius + 0.2);
-        if (isInsideHouse(x, z)) continue;
-        ctx.createRockAt(new THREE.Vector2(x, z), 0.3 + Math.random() * 0.4);
-        await maybeYield(i + 1, options);
+        for (let i = 0; i < 6; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const x = pond.x + Math.cos(angle) * (pond.radius + 0.2);
+            const z = pond.z + Math.sin(angle) * (pond.radius + 0.2);
+            if (isInsideHouse(x, z)) continue;
+            ctx.createRockAt(new THREE.Vector2(x, z), 0.3 + Math.random() * 0.4);
+            decorIndex += 1;
+            await maybeYield(decorIndex, options);
+        }
     }
 }

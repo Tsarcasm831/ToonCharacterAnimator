@@ -36,10 +36,17 @@ export interface Debris {
 }
 
 export const ENV_CONSTANTS = {
-    POND_X: 8,
-    POND_Z: 6,
-    POND_RADIUS: 4.5,
-    POND_DEPTH: 1.8,
+    // Multiple ponds across the scene to make the landscape feel fuller.
+    PONDS: [
+        { x: 8, z: 6, radius: 4.5, depth: 1.8 },
+        { x: -22, z: -14, radius: 5.2, depth: 1.5 },
+        { x: 26, z: -10, radius: 4.2, depth: 1.4 }
+    ],
+    // Legacy single-pond values kept for code paths that haven't been updated yet.
+    get POND_X() { return this.PONDS[0].x; },
+    get POND_Z() { return this.PONDS[0].z; },
+    get POND_RADIUS() { return this.PONDS[0].radius; },
+    get POND_DEPTH() { return this.PONDS[0].depth; },
     PATCH_SIZE: 13.3333,
     BIOME_SIZE: 40.0
 };
