@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
         allowedHosts: ['.trycloudflare.com']
       },
-      plugins: [react()],
+      plugins: [
+        react()
+      ],
       define: {
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
@@ -26,6 +28,7 @@ export default defineConfig(({ mode }) => {
         assetsDir: 'assets',
         sourcemap: true,
         minify: 'terser',
+        copyPublicDir: true,
         rollupOptions: {
           input: {
             main: path.resolve(__dirname, 'index.html')

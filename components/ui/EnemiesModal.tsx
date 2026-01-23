@@ -22,7 +22,7 @@ import { Lizard } from '../../game/entities/animal/neutral/Lizard';
 import { Owl } from '../../game/entities/animal/neutral/Owl';
 import { Pig } from '../../game/entities/animal/neutral/Pig';
 import { Sheep } from '../../game/entities/animal/neutral/Sheep';
-import { Yeti } from '../../game/entities/animal/neutral/Yeti';
+import { Yeti } from '../../game/entities/animal/aggressive/Yeti';
 import { EnemyPreview } from './EnemyPreview';
 
 interface EnemiesModalProps {
