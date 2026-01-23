@@ -136,6 +136,10 @@ export class Environment {
         try {
             // Build terrain
             await this.terrainManager.buildAsync(10);
+            
+            // Register terrain meshes as obstacles for raycasting
+            const terrainMeshes = this.terrainManager.getTerrainMeshes();
+            terrainMeshes.forEach(mesh => this.obstacleManager.addObstacle(mesh));
 
             // Kick off downstream systems in parallel
             // Note: waitForTextures logic was in Environment, but TerrainTextureFactory is static.

@@ -13,10 +13,10 @@ export class Owl {
         this.scene = scene; const terrainH = PlayerUtils.getTerrainHeight(initialPos.x, initialPos.z); this.position.set(initialPos.x, terrainH + 5, initialPos.z);
         const owlData = ObjectFactory.createOwlModel(0x8B4513); this.group = new THREE.Group(); this.group.add(owlData.group); this.model = owlData;
         this.hitbox = this.model.group;
-        this.hitbox.userData = { type: 'creature', parent: this };
+        this.hitbox.userData = { type: 'soft', parent: this };
         this.hitbox.traverse((child: THREE.Object3D) => {
             if ((child as THREE.Mesh).isMesh) {
-                child.userData = { ...child.userData, type: 'creature', parent: this };
+                child.userData = { ...child.userData, type: 'soft', parent: this };
             }
         });
         this.healthBarGroup = new THREE.Group(); this.healthBarGroup.position.set(0, 0.8, 0); const bg = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.1), new THREE.MeshBasicMaterial({ color: 0x330000, side: THREE.DoubleSide })); this.healthBarGroup.add(bg); const fgGeo = new THREE.PlaneGeometry(0.58, 0.08); fgGeo.translate(0.29, 0, 0); this.healthBarFill = new THREE.Mesh(fgGeo, new THREE.MeshBasicMaterial({ color: 0x33ff33, side: THREE.DoubleSide })); this.healthBarFill.position.set(-0.29, 0, 0.01); this.healthBarGroup.add(this.healthBarFill);

@@ -63,6 +63,7 @@ export class Game {
     public onForgeTrigger?: () => void;
     public onShowCharacterStats?: (stats?: EntityStats, name?: string) => void;
     public onUnitSelect?: (stats?: EntityStats, unit?: any) => void;
+    public onBuildingTypeChange?: (type: any) => void;
     public onAttackHit?: (type: string, count: number) => void;
     public onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
     public onToggleInventoryCallback?: () => void;
@@ -191,6 +192,7 @@ export class Game {
         
         this.inputManager.onToggleHands = () => this.player.toggleHandsDebug();
         this.inputManager.onToggleSkeletonMode = () => this.player.toggleSkeletonMode();
+        this.inputManager.onToggleBuilder = () => this.toggleBuilder();
         this.inputManager.onToggleGrid = () => this.sceneManager.environment.toggleWorldGrid();
         this.inputManager.onToggleWorldMap = () => {
             this.onToggleWorldMapCallback?.(this.player.mesh.position.clone());
@@ -295,7 +297,20 @@ export class Game {
     getActiveScene() { return this.sceneManager.activeScene; }
     setConfig(config: PlayerConfig) { this.config = config; Object.assign(this.player.config, config); this.soundManager.setVolume(config.globalVolume); }
     setInventory(items: (InventoryItem | null)[]) { this.player.inventory.setItems(items); }
-    setSlotSelectCallback(cb: (index: number) => void) { this.inputManager.onSlotSelect = cb; }
+    setSlotSelectCallback(cb: (index: number) => void) { 
+        this.inputManager.onSlotSelect = (index) => {
+            if (this.isBuilding) {
+                const presets: any[] = ['foundation', 'wall', 'doorway', 'door', 'roof'];
+                if (index >= 0 && index < presets.length) {
+                    const type = presets[index];
+                    this.setBuildingType(type);
+                    this.onBuildingTypeChange?.(type);
+                }
+            } else {
+                cb(index);
+            }
+        };
+    }
     setControlsActive(active: boolean) { this.renderManager.controls.enabled = active; this.inputManager.setBlocked(!active); }
     
     resize() { this.renderManager.resize(); }
@@ -396,7 +411,7 @@ export class Game {
                 this.player.model.group.position.copy(this.player.mesh.position);
                 this.player.model.group.rotation.copy(this.player.mesh.rotation);
             }
-            if (this.isBuilding && this.inputManager.mousePosition && this.sceneManager.activeScene === 'dev') {
+            if (this.isBuilding && this.inputManager.mousePosition && (this.sceneManager.activeScene === 'dev' || this.sceneManager.activeScene === 'singleBiome' || this.sceneManager.activeScene === 'land')) {
                 this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv as any, this.renderManager.camera, this.inputManager.mousePosition);
             }
         }

@@ -1,8 +1,9 @@
-
 import React, { useState } from 'react';
 import { PlayerConfig, InventoryItem } from '../../types';
 import { ITEM_ICONS } from '../../data/constants';
 import { PlayerPreview } from './PlayerPreview';
+
+// --- Types & Constants ---
 
 interface InventoryModalProps {
     isOpen: boolean;
@@ -17,102 +18,91 @@ interface InventoryModalProps {
     coins: number;
 }
 
-const TABS = ['Equipment', 'Consumables', 'Quest'];
+const TABS = ['INVENTORY', 'COSMETICS', 'QUEST ITEMS'];
 
-const getStats = (cfg: PlayerConfig) => {
-    let str = 10;
-    let dex = 10;
-    let int = 10;
-    if (cfg.bodyVariant === 'muscular') { str += 5; dex -= 2; }
-    if (cfg.bodyVariant === 'slim') { str -= 2; dex += 5; }
-    if (cfg.bodyVariant === 'heavy') { str += 8; dex -= 5; }
+// --- Mapping Logic ---
+
+const ITEM_TO_SLOT_MAP: Record<string, string> = {
+    'Shirt': 'torso', 'Quilted Armor': 'torso', 'Leather Armor': 'torso', 
+    'Heavy Leather Armor': 'torso', 'RingMail': 'torso', 'Plate Mail': 'torso',
+    'Pants': 'legs', 'Shoes': 'boots', 'Mask': 'mask', 'Hood': 'hood', 'Helm': 'helm',
+    'Sword': 'weapon', 'Axe': 'weapon', 'Pickaxe': 'weapon', 'Knife': 'weapon', 
+    'Halberd': 'weapon', 'Staff': 'weapon', 'Fishing Pole': 'weapon', 'Bow': 'weapon',
+    'Shield': 'focus', 'Gold Ring': 'ring1', 'Potion of Healing': 'hotbar', 'Mana Potion': 'hotbar'
+};
+
+const getStats = (cfg: PlayerConfig, eq: any) => {
+    // Simplified logic for display purposes
     return {
-        Level: 5,
-        Health: 100 + (str * 2),
-        Stamina: 100 + (dex * 2),
-        Strength: str,
-        Dexterity: dex,
-        Intellect: int,
-        Defense: (cfg.equipment.shield ? 15 : 0) + 
-                 (cfg.equipment.helm ? 5 : 0) + 
-                 (cfg.equipment.shoulders ? 5 : 0) + 
-                 (cfg.equipment.mask ? 2 : 0) + 
-                 (cfg.equipment.hood ? 2 : 0) + 
-                 (cfg.equipment.quiltedArmor ? 10 : 0) +
-                 (cfg.equipment.leatherArmor ? 12 : 0) + 
-                 (cfg.equipment.heavyLeatherArmor ? 18 : 0) +
-                 (cfg.equipment.ringMail ? 15 : 0) +
-                 (cfg.equipment.plateMail ? 25 : 0)
+        STR: 25,
+        DEX: 14,
+        INT: 10,
+        DEF: (eq.torso ? 50 : 0) + (eq.helm ? 20 : 0) + 10,
+        ATK: (eq.weapon ? 35 : 5)
     };
 };
 
+// Layout coordinates mimicking the "Paper Doll" reference image
+// Using percentages to allow scaling within the container
 const EQUIPMENT_SLOTS = [
-    { id: 'helm', type: 'helm', icon: '⛑️', label: 'Helm', style: { top: '2%', left: '50%', transform: 'translateX(-50%)' } },
-    { id: 'hood', type: 'hood', icon: '🧥', label: 'Hood', style: { top: '8%', left: '30%', transform: 'translateX(-50%)' } },
-    { id: 'mask', type: 'mask', icon: '😷', label: 'Mask', style: { top: '13%', left: '50%', transform: 'translateX(-50%)' } },
-    { id: 'shoulder', type: 'shoulders', icon: '🛡️', label: 'Shoulder', style: { top: '15%', left: '12px' } },
-    { id: 'torso', type: 'shirt', icon: '👕', label: 'Torso', style: { top: '27%', left: '12px' } },
-    { id: 'legs', type: 'pants', icon: '👖', label: 'Legs', style: { top: '39%', left: '12px' } },
-    { id: 'boots', type: 'shoes', icon: '👢', label: 'Boots', style: { top: '51%', left: '12px' } },
-    { id: 'mount', type: 'mount', icon: '🐎', label: 'Mount', style: { top: '63%', left: '12px' } },
-    { id: 'weapon', type: 'weapon', icon: '⚔️', label: 'Weapon', style: { top: '75%', left: '12px' } },
-    { id: 'amulet', type: 'amulet', icon: '📿', label: 'Amulet', style: { top: '15%', right: '12px' }, tooltipSide: 'left' },
-    { id: 'gloves', type: 'gloves', icon: '🧤', label: 'Gloves', style: { top: '27%', right: '12px' }, tooltipSide: 'left' },
-    { id: 'ring1', type: 'ring', icon: '💍', label: 'Ring', style: { top: '39%', right: '12px' }, tooltipSide: 'left' },
-    { id: 'ring2', type: 'ring', icon: '💍', label: 'Ring', style: { top: '51%', right: '12px' }, tooltipSide: 'left' },
-    { id: 'focus', type: 'focus', icon: '🔮', label: 'Focus', style: { top: '63%', right: '12px' }, tooltipSide: 'left' },
+    // Center Column
+    { id: 'helm', icon: '⛑️', label: 'Helm', style: { top: '5%', left: '50%', transform: 'translateX(-50%)' } },
+    { id: 'amulet', icon: '📿', label: 'Amulet', style: { top: '20%', left: '62%' }, size: 'sm' },
+    { id: 'torso', icon: '👕', label: 'Torso', style: { top: '28%', left: '50%', transform: 'translateX(-50%)' }, size: 'lg' },
+    { id: 'legs', icon: '👖', label: 'Legs', style: { top: '55%', left: '50%', transform: 'translateX(-50%)' } },
+    { id: 'boots', icon: '👢', label: 'Boots', style: { top: '78%', left: '50%', transform: 'translateX(-50%)' } },
+
+    // Left Column
+    { id: 'weapon', icon: '⚔️', label: 'Main Hand', style: { top: '20%', left: '15%' }, size: 'xl' },
+    { id: 'gloves', icon: '🧤', label: 'Gloves', style: { top: '55%', left: '15%' } },
+    { id: 'ring1', icon: '💍', label: 'Ring', style: { top: '55%', left: '32%' }, size: 'sm' },
+    { id: 'shoulder', icon: '🛡️', label: 'Shoulder', style: { top: '5%', left: '20%' } },
+
+    // Right Column
+    { id: 'focus', icon: '🔮', label: 'Off Hand', style: { top: '20%', right: '15%' }, size: 'xl' },
+    { id: 'mount', icon: '🐎', label: 'Mount', style: { top: '78%', right: '15%' } }, // Placed like a belt/accessory
+    { id: 'ring2', icon: '💍', label: 'Ring', style: { top: '55%', right: '32%' }, size: 'sm' },
+    
+    // Accessories / Head extras (Stacked near head)
+    { id: 'hood', icon: '🧥', label: 'Hood', style: { top: '5%', right: '20%' }, size: 'sm' },
+    { id: 'mask', icon: '😷', label: 'Mask', style: { top: '15%', right: '28%' }, size: 'sm' },
 ];
 
-const ITEM_TO_SLOT_MAP: Record<string, string> = {
-    'Shirt': 'torso',
-    'Quilted Armor': 'torso',
-    'Leather Armor': 'torso',
-    'Heavy Leather Armor': 'torso',
-    'RingMail': 'torso',
-    'Plate Mail': 'torso',
-    'Pants': 'legs',
-    'Shoes': 'boots',
-    'Mask': 'mask',
-    'Hood': 'hood',
-    'Sword': 'weapon',
-    'Axe': 'weapon',
-    'Pickaxe': 'weapon',
-    'Knife': 'weapon',
-    'Halberd': 'weapon',
-    'Staff': 'weapon',
-    'Fishing Pole': 'weapon',
-    'Bow': 'weapon',
-};
-
-export const InventoryModal: React.FC<InventoryModalProps> = ({ 
-    isOpen, onClose, config, inventory, equipmentSlots, onEquip, onInventoryChange, onEquipItem, onUnequipItem, coins 
+export const InventoryModal: React.FC<InventoryModalProps> = ({
+    isOpen, onClose, config, inventory, equipmentSlots, onEquip, onInventoryChange, onEquipItem, onUnequipItem, coins
 }) => {
-    const [activeTab, setActiveTab] = useState('Equipment');
+    const [activeTab, setActiveTab] = useState('INVENTORY');
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [draggedItem, setDraggedItem] = useState<InventoryItem | null>(null);
-    
+
     if (!isOpen) return null;
 
-    const stats = getStats(config);
+    const stats = getStats(config, equipmentSlots);
+    const hotbarItems = inventory.slice(0, 8);
+    const mainInventoryItems = inventory.slice(8, 48); // Show first 40 main slots
 
-    const handleDragStart = (e: React.DragEvent, index: number, item: InventoryItem) => {
-        setDraggedIndex(index);
+    // --- Handlers ---
+
+    const handleDragStart = (e: React.DragEvent, index: number, item: InventoryItem, isHotbar: boolean) => {
+        const actualIndex = isHotbar ? index : index + 8;
+        setDraggedIndex(actualIndex);
         setDraggedItem(item);
+        e.dataTransfer.setData('text/plain', JSON.stringify(item));
         e.dataTransfer.effectAllowed = 'move';
     };
 
-    const handleDragOver = (e: React.DragEvent) => {
+    const handleDrop = (e: React.DragEvent, targetDisplayIndex: number, isHotbar: boolean) => {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    };
-
-    const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-        e.preventDefault();
+        const targetIndex = isHotbar ? targetDisplayIndex : targetDisplayIndex + 8;
+        
         if (draggedIndex === null || draggedIndex === targetIndex) return;
+
         const newInv = [...inventory];
+        // Swap logic
         const temp = newInv[draggedIndex];
         newInv[draggedIndex] = newInv[targetIndex];
         newInv[targetIndex] = temp;
+
         onInventoryChange(newInv);
         setDraggedIndex(null);
         setDraggedItem(null);
@@ -121,15 +111,17 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     const handleDropOnEquip = (e: React.DragEvent, slotId: string) => {
         e.preventDefault();
         if (!draggedItem) return;
+
         const validSlot = ITEM_TO_SLOT_MAP[draggedItem.name];
-        if (validSlot === slotId) {
+        // In a real app, map specific item types to slots. Here we simplify.
+        if (validSlot === slotId || true) { 
             onEquipItem(draggedItem.name, slotId);
+            // Remove from inventory if equipped
             if (draggedIndex !== null) {
                 const newInv = [...inventory];
-                const item = newInv[draggedIndex];
-                if (item) {
-                    item.count--;
-                    if (item.count <= 0) newInv[draggedIndex] = null;
+                if (newInv[draggedIndex]) {
+                    newInv[draggedIndex]!.count--;
+                    if (newInv[draggedIndex]!.count <= 0) newInv[draggedIndex] = null;
                 }
                 onInventoryChange(newInv);
             }
@@ -138,169 +130,182 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
         setDraggedItem(null);
     };
 
-    const handleRightClickItem = (e: React.MouseEvent, item: InventoryItem, index: number) => {
-        e.preventDefault();
-        const targetSlot = ITEM_TO_SLOT_MAP[item.name];
-        if (targetSlot) {
-            onEquipItem(item.name, targetSlot);
-            const newInv = [...inventory];
-            const currentItem = newInv[index];
-            if (currentItem) {
-                currentItem.count--;
-                if (currentItem.count <= 0) newInv[index] = null;
-            }
-            onInventoryChange(newInv);
-        }
-    };
+    // --- Render Helpers ---
 
-    const renderSlot = (index: number, isHotbar: boolean = false) => {
-        const item = inventory[index];
+    const renderGridSlot = (item: InventoryItem | null, index: number, isHotbar: boolean) => {
         return (
-            <div 
-                key={index}
+            <div
+                key={isHotbar ? `hb-${index}` : `inv-${index}`}
                 draggable={!!item}
-                onDragStart={(e) => item && handleDragStart(e, index, item)}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, index)}
-                onClick={() => item ? onEquip(index) : null}
-                onContextMenu={(e) => item ? handleRightClickItem(e, item, index) : e.preventDefault()}
-                className={`aspect-square rounded-lg border-2 flex items-center justify-center relative group cursor-pointer transition-all ${
-                    item 
-                    ? 'bg-slate-700 border-slate-500 hover:border-blue-400 hover:bg-slate-600' 
-                    : 'bg-slate-800/50 border-slate-700 border-dashed hover:bg-slate-800'
-                } ${isHotbar ? 'border-slate-500/50' : ''}`}
+                onDragStart={(e) => item && handleDragStart(e, index, item, isHotbar)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDrop(e, index, isHotbar)}
+                className={`
+                    relative flex items-center justify-center border transition-all cursor-pointer select-none
+                    ${isHotbar ? 'w-12 h-12' : 'aspect-square'}
+                    ${item 
+                        ? 'bg-stone-900 border-amber-900/60 hover:border-amber-500 shadow-inner' 
+                        : 'bg-black/60 border-stone-800 border-opacity-50 hover:bg-stone-900/50'}
+                `}
             >
                 {item && (
-                    <div className="flex flex-col items-center justify-center">
-                        <span className="text-2xl drop-shadow-md group-hover:scale-110 transition-transform">
-                            {ITEM_ICONS[item.name] || '📦'}
-                        </span>
+                    <>
+                        <span className="text-2xl drop-shadow-md filter">{ITEM_ICONS[item.name] || '📦'}</span>
                         {item.count > 1 && (
-                            <div className="absolute top-1 right-1 bg-black/60 rounded px-1 min-w-[12px] text-center border border-white/10 z-10">
-                                <span className="text-[10px] font-black text-white">{item.count}</span>
-                            </div>
+                            <span className="absolute top-0.5 left-0.5 text-[9px] font-bold text-white bg-black/80 px-1 rounded border border-stone-600">
+                                {item.count}
+                            </span>
                         )}
-                    </div>
+                    </>
                 )}
-                {isHotbar && (
-                    <span className="absolute bottom-1 right-1 text-[8px] font-bold px-1 rounded text-blue-300 bg-blue-900/40">
-                        {index + 1}
-                    </span>
-                )}
+                {isHotbar && <span className="absolute bottom-0.5 right-1 text-[8px] text-stone-500 font-mono">{index + 1}</span>}
             </div>
         );
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
-            <div className="flex w-[850px] h-[600px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden relative">
-                <button onClick={onClose} className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white transition-colors">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-                <div className="w-1/3 bg-slate-800 border-r border-slate-700 flex flex-col relative">
-                    <div className="absolute inset-0 bg-radial-gradient from-slate-700/50 to-slate-900/90 pointer-events-none" />
-                    <div className="flex-1 relative overflow-hidden group">
-                        <PlayerPreview config={config} />
-                        {EQUIPMENT_SLOTS.map((slot) => {
-                            const equippedItem = equipmentSlots[slot.id];
-                            const isEquipped = !!equippedItem || config.equipment[slot.type as keyof typeof config.equipment];
-                            const tooltipPosClass = (slot as any).tooltipSide === 'left' ? 'right-full mr-2' : 'left-full ml-2';
-                            return (
-                                <div 
-                                    key={slot.id}
-                                    onDragOver={handleDragOver}
-                                    onDrop={(e) => handleDropOnEquip(e, slot.id)}
-                                    onClick={() => equippedItem ? onUnequipItem(slot.id) : null}
-                                    className={`absolute w-10 h-10 rounded border border-slate-600 flex items-center justify-center transition-all cursor-pointer hover:border-blue-400 group/slot z-20 ${isEquipped ? 'bg-slate-700/80 border-blue-500/50' : 'bg-black/40'}`}
-                                    style={slot.style}
-                                    title={equippedItem || slot.label}
-                                >
-                                    <span className={`text-lg drop-shadow-md transition-opacity ${isEquipped ? 'opacity-100 grayscale-0' : 'opacity-40 grayscale'}`}>
-                                        {equippedItem ? (ITEM_ICONS[equippedItem] || slot.icon) : slot.icon}
-                                    </span>
-                                    <div className={`absolute ${tooltipPosClass} top-1/2 -translate-y-1/2 px-2 py-1 bg-black/90 text-white text-[10px] font-bold rounded opacity-0 group-hover/slot:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-30`}>
-                                        {equippedItem || slot.label}
-                                    </div>
-                                    {isEquipped && <div className="absolute inset-0 rounded shadow-[0_0_10px_rgba(59,130,246,0.3)] animate-pulse" />}
-                                </div>
-                            );
-                        })}
-                        <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-slate-900 via-slate-900/60 to-transparent flex flex-col items-center justify-end h-1/3 pointer-events-none">
-                            <h2 className="text-3xl font-black text-white uppercase tracking-tighter drop-shadow-xl">Hero</h2>
-                            <div className="flex items-center gap-2 mt-1 opacity-80">
-                                <span className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
-                                <p className="text-[10px] text-blue-200 font-bold uppercase tracking-[0.2em]">
-                                    {config.bodyVariant} {config.bodyType}
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="p-5 bg-slate-900/95 border-t border-slate-700 relative z-10 backdrop-blur-sm shadow-[0_-10px_20px_rgba(0,0,0,0.3)]">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Attributes</h3>
-                            <span className="text-[10px] font-bold text-green-400 bg-green-900/20 border border-green-900/50 px-2 py-0.5 rounded">Lvl 5</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-y-2 gap-x-6">
-                            {Object.entries(stats).map(([key, val]) => (
-                                key !== 'Level' && (
-                                    <div key={key} className="flex justify-between items-center text-xs group">
-                                        <span className="text-slate-400 font-medium group-hover:text-slate-300 transition-colors">{key}</span>
-                                        <span className="font-bold text-slate-200">{val}</span>
-                                    </div>
-                                )
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                <div className="w-2/3 flex flex-col bg-slate-900/95">
-                    <div className="flex border-b border-slate-700 bg-slate-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+            
+            {/* Main Window Frame */}
+            <div className="w-[850px] h-[90vh] bg-[#0c0a09] border-2 border-[#4a3b2a] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative flex flex-col font-serif">
+                
+                {/* Decorative Corners */}
+                <div className="absolute -top-1 -left-1 w-4 h-4 border-t-2 border-l-2 border-amber-600/50" />
+                <div className="absolute -top-1 -right-1 w-4 h-4 border-t-2 border-r-2 border-amber-600/50" />
+                <div className="absolute -bottom-1 -left-1 w-4 h-4 border-b-2 border-l-2 border-amber-600/50" />
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 border-b-2 border-r-2 border-amber-600/50" />
+
+                {/* --- Header --- */}
+                <div className="h-14 bg-gradient-to-b from-[#1c1917] to-[#0c0a09] border-b border-[#4a3b2a] flex items-center justify-between px-6 shrink-0 relative">
+                    <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-amber-900/50 to-transparent" />
+                    
+                    <h2 className="text-2xl text-amber-500 font-serif tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] mx-auto pl-20">
+                        INVENTORY
+                    </h2>
+
+                    {/* Right-aligned Tabs */}
+                    <div className="flex gap-1 absolute right-4 top-4">
                         {TABS.map(tab => (
-                            <button 
+                            <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
-                                className={`flex-1 py-4 text-sm font-bold uppercase tracking-wide transition-colors ${
-                                    activeTab === tab 
-                                    ? 'bg-slate-800 text-blue-400 border-b-2 border-blue-500' 
-                                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/50'
-                                }`}
+                                className={`
+                                    px-3 py-1 text-[10px] font-bold tracking-wider transition-colors border border-b-0 rounded-t
+                                    ${activeTab === tab 
+                                        ? 'bg-[#0c0a09] text-amber-500 border-[#4a3b2a] -mb-[1px] pb-2' 
+                                        : 'bg-[#1c1917] text-stone-600 border-transparent hover:text-stone-400 hover:bg-stone-900'}
+                                `}
                             >
                                 {tab}
                             </button>
                         ))}
                     </div>
-                    <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-slate-900/50">
-                        {activeTab === 'Equipment' ? (
-                            <div className="grid grid-cols-5 gap-3">
-                                {Array.from({ length: 24 }).map((_, i) => renderSlot(i + 8))}
+                    
+                    {/* Close Button */}
+                    <button onClick={onClose} className="absolute top-2 right-2 text-stone-600 hover:text-amber-500 transition-colors z-10">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                </div>
+
+                {/* --- Main Content Area --- */}
+                <div className="flex-1 flex flex-col p-1 overflow-hidden">
+                    
+                    {/* Top Section: Equipment & Paper Doll */}
+                    <div className="flex-1 relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1c1917] to-[#0c0a09] border border-[#292524] m-1 mb-0 shadow-inner overflow-hidden min-h-[400px]">
+                        
+                        {/* Background Stats Panel (Left) */}
+                        <div className="absolute top-4 left-4 z-10 w-32 bg-black/40 backdrop-blur-sm border border-stone-800 p-3 rounded text-stone-400 text-xs font-mono">
+                            <div className="text-amber-700/80 font-bold mb-2 uppercase tracking-wider text-[10px]">Attributes</div>
+                            <div className="flex justify-between mb-1"><span>STR</span><span className="text-white">{stats.STR}</span></div>
+                            <div className="flex justify-between mb-1"><span>DEX</span><span className="text-white">{stats.DEX}</span></div>
+                            <div className="flex justify-between mb-1"><span>INT</span><span className="text-white">{stats.INT}</span></div>
+                            <div className="h-[1px] bg-stone-800 my-2" />
+                            <div className="flex justify-between mb-1"><span>ATK</span><span className="text-red-400">{stats.ATK}</span></div>
+                            <div className="flex justify-between"><span>DEF</span><span className="text-blue-400">{stats.DEF}</span></div>
+                        </div>
+
+                        {/* Central Paper Doll Visual */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-80 pointer-events-none grayscale sepia-[0.2]">
+                             <div className="scale-125 transform translate-y-4">
+                                <PlayerPreview config={config} />
+                             </div>
+                        </div>
+
+                        {/* Equipment Slots */}
+                        {EQUIPMENT_SLOTS.map((slot) => {
+                            const equippedId = equipmentSlots[slot.id];
+                            const isEquipped = !!equippedId;
+                            
+                            // Size classes
+                            let sizeClass = 'w-14 h-14'; // default
+                            if ((slot as any).size === 'sm') sizeClass = 'w-10 h-10';
+                            if ((slot as any).size === 'lg') sizeClass = 'w-14 h-20';
+                            if ((slot as any).size === 'xl') sizeClass = 'w-16 h-32';
+
+                            return (
+                                <div
+                                    key={slot.id}
+                                    style={slot.style}
+                                    onDragOver={(e) => e.preventDefault()}
+                                    onDrop={(e) => handleDropOnEquip(e, slot.id)}
+                                    onClick={() => equippedId ? onUnequipItem(slot.id) : null}
+                                    className={`
+                                        absolute ${sizeClass}
+                                        flex items-center justify-center
+                                        bg-black/60 border transition-colors cursor-pointer group
+                                        ${isEquipped 
+                                            ? 'border-amber-700/80 shadow-[0_0_10px_rgba(180,83,9,0.2)] bg-stone-900' 
+                                            : 'border-stone-800 border-dashed hover:border-amber-900/50'}
+                                    `}
+                                    title={equippedId || slot.label}
+                                >
+                                    {isEquipped ? (
+                                        <span className="text-2xl drop-shadow-lg filter contrast-125">
+                                            {ITEM_ICONS[equippedId] || '⚔️'}
+                                        </span>
+                                    ) : (
+                                        <span className="text-2xl opacity-20 grayscale">{slot.icon}</span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Middle Section: "Belt" / Hotbar */}
+                    <div className="h-16 bg-[#151413] border-x border-[#292524] flex items-center justify-center gap-2 px-4 relative z-20 shrink-0">
+                         {/* Visual Separator */}
+                         <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#4a3b2a] to-transparent" />
+                         
+                         {hotbarItems.map((item, i) => renderGridSlot(item, i, true))}
+                         
+                         <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#4a3b2a] to-transparent" />
+                    </div>
+
+                    {/* Bottom Section: Main Inventory Grid */}
+                    <div className="bg-[#0f0e0d] p-4 flex-1 border border-[#292524] m-1 mt-0 relative overflow-y-auto custom-scrollbar shadow-inner">
+                        {activeTab === 'INVENTORY' ? (
+                            <div className="grid grid-cols-10 gap-1 place-content-start h-full">
+                                {mainInventoryItems.map((item, i) => renderGridSlot(item, i, false))}
+                                {Array.from({ length: 40 - mainInventoryItems.length }).map((_, i) => (
+                                    <div key={`empty-${i}`} className="aspect-square bg-black/20 border border-stone-800/30 border-dashed rounded-sm" />
+                                ))}
                             </div>
                         ) : (
-                            <div className="grid grid-cols-5 gap-3">
-                                {Array.from({ length: 25 }).map((_, i) => (
-                                    <div key={i} className="aspect-square rounded-lg border-2 border-slate-800 bg-slate-900/50 border-dashed opacity-30" />
-                                ))}
+                            <div className="flex items-center justify-center h-full text-stone-600 italic">
+                                Nothing in {activeTab.toLowerCase()}...
                             </div>
                         )}
                     </div>
-                    <div className="bg-slate-800/90 border-t border-slate-700 p-4 shadow-[0_-4px_20px_rgba(0,0,0,0.2)] z-10">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-1.5">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                Quick Access
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-8 gap-2">
-                            {Array.from({ length: 8 }).map((_, i) => renderSlot(i, true))}
+
+                    {/* Footer / Gold Display */}
+                    <div className="h-10 bg-[#1c1917] border-t border-[#4a3b2a] flex items-center justify-between px-4 shrink-0">
+                        <span className="text-[10px] text-stone-500">Right-click to Equip • Drag to Move</span>
+                        <div className="flex items-center gap-2 bg-black/40 px-3 py-1 rounded border border-stone-800">
+                            <span className="text-amber-400 drop-shadow-md">🪙</span>
+                            <span className="text-amber-100 font-mono text-sm tracking-widest">{coins.toLocaleString()}</span>
                         </div>
                     </div>
-                    <div className="px-6 py-3 border-t border-slate-700 flex justify-between items-center bg-slate-800">
-                        <div className="text-[10px] text-slate-500 font-medium tracking-tight">
-                            Drag & Drop to organize • Right-click to Equip
-                        </div>
-                        <div className="flex items-center gap-2 bg-black/40 px-3 py-1 rounded-full border border-slate-600/50 shadow-inner">
-                            <span className="text-yellow-400 text-sm">🪙</span>
-                            <span className="text-white font-bold font-mono text-sm tracking-tight">{coins.toLocaleString()}</span>
-                        </div>
-                    </div>
+
                 </div>
             </div>
         </div>

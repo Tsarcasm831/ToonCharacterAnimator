@@ -276,47 +276,73 @@ export class Deer {
         this.stateTimer += dt;
         if (this.isFleeing && this.stateTimer > 5.0) { this.isFleeing = false; this.moveSpeedVal = 2.2; }
         if (this.state !== DeerState.PATROL) { this.state = DeerState.PATROL; this.findPatrolPoint(); }
-        let currentSpeed = this.isFleeing ? 5.0 : ((this.stateTimer % 5.0 > 3.0) ? 0 : this.moveSpeedVal);
-        
-        if (this.state === DeerState.PATROL && currentSpeed > 0) { 
-            if (this.position.distanceTo(this.targetPos) < 1.0 || (this.stateTimer > 10.0 && !this.isFleeing)) { 
-                this.findPatrolPoint(); this.stateTimer = 0; 
-            } 
+
+        const currentSpeed = this.isFleeing ? 5.0 : ((this.stateTimer % 5.0 > 3.0) ? 0 : this.moveSpeedVal);
+
+        if (this.state === DeerState.PATROL && currentSpeed > 0) {
+            if (this.position.distanceTo(this.targetPos) < 1.0 || (this.stateTimer > 10.0 && !this.isFleeing)) {
+                this.findPatrolPoint();
+                this.stateTimer = 0;
+            }
         }
 
         if (currentSpeed > 0) {
-            const toTarget = new THREE.Vector3().subVectors(this.targetPos, this.position); toTarget.y = 0;
+            const toTarget = new THREE.Vector3().subVectors(this.targetPos, this.position);
+            toTarget.y = 0;
             if (toTarget.length() > 0.1) {
                 const lerpSpeed = this.isFleeing ? 8.0 : 3.0;
                 this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.targetPos, this.position, dt, lerpSpeed);
                 const avoidanceRot = AIUtils.getAvoidanceSteering(this.position, this.rotationY, this.collisionSize, environment.obstacles);
-                this.rotationY = AIUtils.smoothLookAt(this.rotationY, this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))), this.position, dt, lerpSpeed * 1.5);
+                this.rotationY = AIUtils.smoothLookAt(
+                    this.rotationY,
+                    this.position.clone().add(new THREE.Vector3(Math.sin(avoidanceRot), 0, Math.cos(avoidanceRot))),
+                    this.position,
+                    dt,
+                    lerpSpeed * 1.5
+                );
 
                 const nextPos = AIUtils.getNextPosition(this.position, this.rotationY, currentSpeed, dt, this.collisionSize, environment.obstacles);
                 this.position.x = nextPos.x;
                 this.position.z = nextPos.z;
             }
-            this.walkTime += dt * currentSpeed;
-            if (this.position.distanceTo(this.lastStuckPos) < 0.001) { 
-                this.stuckTimer += dt; 
-                if (this.stuckTimer > 1.5) { this.findPatrolPoint(); this.stuckTimer = 0; this.stateTimer = 0; this.isFleeing = false; } 
-            } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
-        } else { this.stuckTimer = 0; this.lastStuckPos.copy(this.position); }
 
-        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
-        this.group.position.copy(this.position); this.group.rotation.y = this.rotationY;
+            this.walkTime += dt * currentSpeed;
+            if (this.position.distanceTo(this.lastStuckPos) < 0.001) {
+                this.stuckTimer += dt;
+                if (this.stuckTimer > 1.5) {
+                    this.findPatrolPoint();
+                    this.stuckTimer = 0;
+                    this.stateTimer = 0;
+                }
+            } else {
+                this.stuckTimer = 0;
+                this.lastStuckPos.copy(this.position);
+            }
+        } else {
+            this.stuckTimer = 0;
+            this.lastStuckPos.copy(this.position);
+        }
+
+        // Lift slightly so hooves don't sink into ground
+        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.12;
+        this.group.position.copy(this.position);
+        this.group.rotation.y = this.rotationY;
 
         if (skipAnimation) return;
         this.animate(dt, currentSpeed);
     }
 
-    private findPatrolPoint() { const range = this.isFleeing ? 40 : 25; this.targetPos.set(this.position.x + (Math.random() - 0.5) * range, 0, this.position.z + (Math.random() - 0.5) * range); if (!PlayerUtils.isWithinBounds(this.targetPos)) this.targetPos.set(0, 0, 0); }
+    private findPatrolPoint() {
+        const range = this.isFleeing ? 40 : 25;
+        this.targetPos.set(this.position.x + (Math.random() - 0.5) * range, 0, this.position.z + (Math.random() - 0.5) * range);
+        if (!PlayerUtils.isWithinBounds(this.targetPos)) this.targetPos.set(0, 0, 0);
+    }
 
     // --- ARTICULATED ANIMATION SYSTEM ---
     private animate(dt: number, currentSpeed: number) {
         const parts = this.model.parts;
         const speedMult = this.isFleeing ? 1.8 : 1.0;
-        const t = this.walkTime * 1.2 * speedMult; 
+        const t = this.walkTime * 1.2 * speedMult;
         const baseBodyY = this.isMale ? 1.45 : 1.35;
 
         if (currentSpeed > 0) {
