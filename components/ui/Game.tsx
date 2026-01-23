@@ -44,11 +44,15 @@ export const Game: React.FC = () => {
         setIsTradeOpen, setIsShopkeeperChatOpen, setIsForgeOpen
     } = uiState;
     const { isCombatActive, setIsCombatActive, combatLog, addCombatLog } = combatState;
-    const { 
+    const {
         currentBiome, playerRotation, setPlayerRotation, isBuilderMode, activeStructure, setPlayerPosForMap, 
         setIsEnvironmentBuilt, setIsVisualLoadingDone, isEnvironmentBuilt, isVisualLoadingDone,
         setIsBuilderMode, setCurrentBiome, setActiveStructure, showGrid, setShowGrid 
     } = environmentState;
+
+    // Gate scene mounting so the loading screen can paint before heavy initialization begins
+    const [shouldMountScene, setShouldMountScene] = React.useState(false);
+    const mountSceneTimeout = React.useRef<number | null>(null);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || gameState !== 'PLAYING' || isTravelOpen;
 
@@ -58,6 +62,8 @@ export const Game: React.FC = () => {
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
         setGameState('LOADING');
+        setShouldMountScene(false);
+        if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
         if (startInLand) {
           setActiveScene('land');
         } else if (startInCombat) {
@@ -67,6 +73,10 @@ export const Game: React.FC = () => {
         } else {
           setActiveScene('singleBiome');
         }
+        // Defer mounting the scene to next tick to allow loading UI to paint
+        mountSceneTimeout.current = window.setTimeout(() => {
+          setShouldMountScene(true);
+        }, 0);
         // Spawn a spider for testing
         setTimeout(() => {
           if (gameInstance.current) {
@@ -134,6 +144,12 @@ export const Game: React.FC = () => {
         triggerAction('isDead'); 
         setIsDeadUI(prev => !prev); 
     };
+
+    React.useEffect(() => {
+        return () => {
+            if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
+        };
+    }, []);
 
     const handleMapToggle = (pos: THREE.Vector3) => {
         setPlayerPosForMap(pos);
@@ -216,7 +232,7 @@ export const Game: React.FC = () => {
                         <MainMenu onStart={handleEnterWorld} onShowEnemies={onShowEnemies} />
                     ) : (
                         <>
-                            {activeScene === 'combat' ? (
+                            {shouldMountScene && (activeScene === 'combat' ? (
                                 <CombatScene 
                                     config={config}
                                     manualInput={manualInput}
@@ -311,7 +327,7 @@ export const Game: React.FC = () => {
                                     showGrid={showGrid}
                                     isCombatActive={isCombatActive}
                                 />
-                            )}
+                            ))}
                             
                             {!isHUDDisabled && (
                                 <>
