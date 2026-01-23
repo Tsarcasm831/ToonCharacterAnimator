@@ -28,12 +28,13 @@ interface GameHUDProps {
     combatLog: CombatLogEntry[];
     onOpenTravel: () => void;
     onToggleBestiary: () => void;
+    isBuilderMode?: boolean;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
     activeScene, currentBiome, playerRotation, inventory, bench, selectedSlot, onSelectSlot,
     selectedUnit, interactionText, interactionProgress, showGrid, setShowGrid, isCombatActive, setIsCombatActive,
-    stats, isFemale, combatLog, onOpenTravel, onToggleBestiary
+    stats, isFemale, combatLog, onOpenTravel, onToggleBestiary, isBuilderMode
 }) => {
     const isCombat = activeScene === 'combat';
 
@@ -83,7 +84,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <InteractionOverlay text={interactionText} progress={interactionProgress} />
 
             {/* Bottom Controls / Hotbars */}
-            {!isCombat && (activeScene === 'dev' || activeScene === 'land' || activeScene === 'singleBiome') && (
+            {!isCombat && !isBuilderMode && (activeScene === 'dev' || activeScene === 'land' || activeScene === 'singleBiome') && (
                 <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={onSelectSlot} />
             )}
 

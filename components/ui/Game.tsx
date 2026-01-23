@@ -188,6 +188,7 @@ export const Game: React.FC = () => {
         game.inputManager.onToggleKeybinds = uiState.toggleKeybinds;
         game.inputManager.onToggleQuestLog = uiState.toggleQuestLog;
         game.onBuilderToggle = (active: boolean) => environmentState.setIsBuilderMode(active);
+        game.onBuildingTypeChange = (type: any) => environmentState.setActiveStructure(type);
         game.onBiomeUpdate = (b: any) => environmentState.setCurrentBiome(b);
         game.onDialogueTrigger = (content: string) => setDialogue(content);
         game.onTradeTrigger = () => uiState.setIsTradeOpen(true);
@@ -350,6 +351,7 @@ export const Game: React.FC = () => {
                                         combatLog={combatLog}
                                         onOpenTravel={() => handleMapToggle(environmentState.playerPosForMap || new THREE.Vector3())}
                                         onToggleBestiary={onShowEnemies}
+                                        isBuilderMode={isBuilderMode}
                                     />
                                     
                                     {isBuilderMode && (

@@ -338,7 +338,16 @@ export class EntityManager {
             }
 
             if (animal && animal.hitbox) {
-                environment?.addObstacle(animal.hitbox);
+                const isFlyingCreature = type.toLowerCase() === 'owl';
+                if (isFlyingCreature) {
+                    const obs = environment?.obstacles;
+                    if (obs) {
+                        const idx = obs.indexOf(animal.hitbox);
+                        if (idx !== -1) obs.splice(idx, 1);
+                    }
+                } else {
+                    environment?.addObstacle(animal.hitbox);
+                }
             }
         }
     }

@@ -12,7 +12,8 @@ export class TerrainManager {
         this.group = group;
     }
 
-    async buildAsync(batchSize: number = 10) {
+    public async buildAsync(batchSize: number = 10) {
+        const start = performance.now();
         const yieldFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
         // Terrain Optimization: Use LODs for patches
@@ -173,5 +174,9 @@ export class TerrainManager {
         }
         this.meshes = [];
         this.waterMeshes = [];
+    }
+    
+    public getTerrainMeshes(): THREE.Mesh[] {
+        return this.meshes;
     }
 }

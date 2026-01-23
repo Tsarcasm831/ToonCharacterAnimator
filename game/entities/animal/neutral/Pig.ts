@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { Environment } from '../../../environment/Environment';
-import { ObjectFactory } from '../../../environment/ObjectFactory';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 
 export enum PigState { IDLE, PATROL, FLEE, DEAD }
@@ -92,7 +91,6 @@ export class Pig {
         const eyeMaterial = new THREE.MeshBasicMaterial({ color: eyeColor });
 
         // 1. MAIN BODY (The "Barrel")
-        // The image shows a long, heavy body.
         const bodyGeo = new THREE.BoxGeometry(0.9, 0.9, 1.7);
         const bodyMesh = new THREE.Mesh(bodyGeo, material);
         bodyMesh.position.y = 0.8; // Lift body off ground
@@ -100,24 +98,20 @@ export class Pig {
         pigGroup.add(bodyMesh);
 
         // 2. HEAD GROUP (Attached to Body)
-        // The head needs to pivot for animations
         const headGroup = new THREE.Group();
-        headGroup.position.set(0, 0.3, 0.85); // Position at front-top of body
+        headGroup.position.set(0, 0.3, 0.85);
         bodyMesh.add(headGroup);
 
-        // Head Mesh
         const headGeo = new THREE.BoxGeometry(0.75, 0.7, 0.8);
         const headMesh = new THREE.Mesh(headGeo, material);
-        headMesh.position.set(0, 0, 0.3); // Push forward relative to pivot
+        headMesh.position.set(0, 0, 0.3);
         headGroup.add(headMesh);
 
-        // Snout (Distinct flat nose)
         const snoutGeo = new THREE.BoxGeometry(0.35, 0.25, 0.15);
-        const snoutMesh = new THREE.Mesh(snoutGeo, material); // Or slightly darker pink
-        snoutMesh.position.set(0, -0.1, 0.45); // Tip of face
+        const snoutMesh = new THREE.Mesh(snoutGeo, material);
+        snoutMesh.position.set(0, -0.1, 0.45);
         headMesh.add(snoutMesh);
         
-        // Nostrils (Optional detail)
         const nostrilGeo = new THREE.BoxGeometry(0.06, 0.06, 0.05);
         const nostrilL = new THREE.Mesh(nostrilGeo, new THREE.MeshLambertMaterial({color: 0x8b5a5a}));
         const nostrilR = new THREE.Mesh(nostrilGeo, new THREE.MeshLambertMaterial({color: 0x8b5a5a}));
@@ -126,12 +120,11 @@ export class Pig {
         snoutMesh.add(nostrilL);
         snoutMesh.add(nostrilR);
 
-        // Ears (Pointy and upright)
         const earGeo = new THREE.BoxGeometry(0.15, 0.25, 0.05);
         const earL = new THREE.Mesh(earGeo, material);
         earL.position.set(0.28, 0.4, 0.1);
-        earL.rotation.z = -0.2; // Angle out
-        earL.rotation.x = 0.2;  // Angle forward
+        earL.rotation.z = -0.2;
+        earL.rotation.x = 0.2;
         headMesh.add(earL);
 
         const earR = new THREE.Mesh(earGeo, material);
@@ -140,7 +133,6 @@ export class Pig {
         earR.rotation.x = 0.2;
         headMesh.add(earR);
 
-        // Eyes
         const eyeGeo = new THREE.BoxGeometry(0.05, 0.05, 0.02);
         const eyeL = new THREE.Mesh(eyeGeo, eyeMaterial);
         eyeL.position.set(0.38, 0.1, 0.2);
@@ -151,22 +143,18 @@ export class Pig {
         headMesh.add(eyeR);
 
         // 3. LEGS (With Pivot Points and Hooves)
-        // Helper to create a leg
         const createLeg = (x: number, z: number) => {
             const legGroup = new THREE.Group();
-            // Pivot point is at the hip/shoulder (top of leg)
-            legGroup.position.set(x, -0.3, z); 
+            legGroup.position.set(x, -0.3, z);
 
-            // Leg Upper
             const legGeo = new THREE.BoxGeometry(0.25, 0.5, 0.25);
             const legMesh = new THREE.Mesh(legGeo, material);
-            legMesh.position.y = -0.25; // Offset mesh down so 0,0,0 is the joint
+            legMesh.position.y = -0.25;
             legMesh.castShadow = true;
             
-            // Hoof
             const hoofGeo = new THREE.BoxGeometry(0.24, 0.12, 0.24);
             const hoofMesh = new THREE.Mesh(hoofGeo, hoofMaterial);
-            hoofMesh.position.y = -0.3; // At bottom of leg
+            hoofMesh.position.y = -0.3;
             legMesh.add(hoofMesh);
 
             legGroup.add(legMesh);
@@ -184,17 +172,15 @@ export class Pig {
         bodyMesh.add(legBR);
 
         // 4. TAIL (Curled)
-        // Using a Torus (Donut) to mimic the curl
         const tailGroup = new THREE.Group();
-        tailGroup.position.set(0, 0.2, -0.85); // Back of body
+        tailGroup.position.set(0, 0.2, -0.85);
         const tailGeo = new THREE.TorusGeometry(0.1, 0.03, 8, 12, Math.PI * 1.5);
         const tailMesh = new THREE.Mesh(tailGeo, material);
-        tailMesh.rotation.y = Math.PI / 2; // Orient curl
-        tailMesh.rotation.z = Math.PI / 4; // Angle it slightly
+        tailMesh.rotation.y = Math.PI / 2;
+        tailMesh.rotation.z = Math.PI / 4;
         tailGroup.add(tailMesh);
         bodyMesh.add(tailGroup);
 
-        // Return structure matching the animation references
         return {
             group: pigGroup,
             parts: {
@@ -250,7 +236,8 @@ export class Pig {
             this.lastStuckPos.copy(this.position);
         }
 
-        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z);
+        // Slightly lift pig so hooves don't clip through ground
+        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.08;
         this.group.position.copy(this.position);
         this.group.rotation.y = this.rotationY;
 
@@ -269,8 +256,7 @@ export class Pig {
         if (!parts) return; // Safety check
 
         if (currentSpeed > 0) {
-            // Walking animation
-            const legSwing = Math.sin(this.walkTime * 8.0) * 0.5; // Increased speed multiplier for snappier trot
+            const legSwing = Math.sin(this.walkTime * 8.0) * 0.5;
 
             if(parts.legFR) parts.legFR.rotation.x = legSwing;
             if(parts.legBL) parts.legBL.rotation.x = legSwing;
@@ -278,22 +264,19 @@ export class Pig {
             if(parts.legBR) parts.legBR.rotation.x = -legSwing;
             
             if(parts.head) parts.head.rotation.x = 0;
-            // Add a slight body wobble (waddle) when walking
             if(parts.body) parts.body.rotation.z = Math.cos(this.walkTime * 8.0) * 0.05; 
 
         } else {
-            // Idle animation
-            // Sniffing behavior: bob head slightly
             if(parts.head) {
                 parts.head.rotation.x = (this.stateTimer > 4.5 && this.stateTimer < 8.5) 
                     ? 0.3 + (Math.sin(this.stateTimer * 10.0) * 0.05) 
                     : 0;
             }
             
-            const breath = Math.sin(this.stateTimer * 3.0) * 0.01; // Reduced scale effect, just slight breathing
+            const breath = Math.sin(this.stateTimer * 3.0) * 0.01;
             if(parts.body) {
                 parts.body.scale.set(1 + breath, 1 + breath, 1 + breath);
-                parts.body.rotation.z = 0; // Reset waddle
+                parts.body.rotation.z = 0;
             }
         }
     }

@@ -1,15 +1,18 @@
-
 import { InventoryItem } from '../../types';
 
 export class PlayerInventory {
-    items: (InventoryItem | null)[] = Array(32).fill(null);
-    capacity: number = 32;
+    items: (InventoryItem | null)[];
+    capacity: number;
     isDirty: boolean = false;
 
-    constructor(initialItems?: (InventoryItem | null)[]) {
+    constructor(initialItems?: (InventoryItem | null)[], capacity: number = 60) {
+        this.capacity = capacity;
         if (initialItems) {
-            this.items = [...initialItems, ...Array(Math.max(0, this.capacity - initialItems.length)).fill(null)];
+            // Ensure array matches capacity
+            this.items = [...initialItems, ...Array(Math.max(0, capacity - initialItems.length)).fill(null)];
             this.isDirty = true;
+        } else {
+            this.items = Array(capacity).fill(null);
         }
     }
 
@@ -27,19 +30,20 @@ export class PlayerInventory {
         }
 
         // 2. Find first empty slot
-        const emptySlot = this.items.findIndex((s, i) => i >= startIndex && s === null);
-        if (emptySlot === -1) return false;
+        for (let i = startIndex; i < this.capacity; i++) {
+            if (this.items[i] === null) {
+                this.items[i] = { name: itemName, count };
+                this.isDirty = true;
+                return true;
+            }
+        }
 
-        this.items[emptySlot] = { name: itemName, count };
-        this.isDirty = true;
-        return true;
+        return false;
     }
 
     setItems(items: (InventoryItem | null)[]) {
-        // Simple comparison to prevent redundant updates
-        const currentHash = JSON.stringify(this.items);
-        const nextHash = JSON.stringify(items);
-        if (currentHash !== nextHash) {
+        // Simple deep comparison optimization
+        if (JSON.stringify(this.items) !== JSON.stringify(items)) {
             this.items = [...items];
             this.isDirty = true;
         }

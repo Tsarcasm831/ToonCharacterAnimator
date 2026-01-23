@@ -7,7 +7,7 @@ export enum YetiState { IDLE, PATROL, DEAD }
 export class Yeti {
     scene: THREE.Scene;
     group: THREE.Group;
-    model: any; // Holds parts: body, head, armL, armR, legL, legR
+    model: any; // Holds parts: body, head, armL, armR, legL, legR, shinL, shinR
     position: THREE.Vector3 = new THREE.Vector3();
     rotationY: number = 0;
     state: YetiState = YetiState.PATROL;
@@ -25,7 +25,7 @@ export class Yeti {
     private moveSpeedVal: number = 2.5;
     
     // Adjusted collision for a large biped
-    private readonly collisionSize = new THREE.Vector3(2.0, 3.5, 2.0); 
+    private collisionSize = new THREE.Vector3(2.0, 3.5, 2.0); 
     private stuckTimer: number = 0;
     private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
 
@@ -44,6 +44,14 @@ export class Yeti {
         this.model = this.buildYetiModel();
         this.group.add(this.model.group);
 
+        // Align model so feet rest on ground and derive collision size from actual geometry
+        const bbox = new THREE.Box3().setFromObject(this.model.group);
+        const size = bbox.getSize(new THREE.Vector3());
+        if (isFinite(bbox.min.y)) {
+            this.model.group.position.y -= bbox.min.y;
+            this.collisionSize.set(Math.max(1.8, size.x), size.y, Math.max(1.8, size.z));
+        }
+
         // 2. Setup Hitbox
         this.hitbox = this.model.group;
         this.hitbox.userData = { type: 'creature', parent: this };
@@ -57,7 +65,8 @@ export class Yeti {
 
         // 3. Health Bar
         this.healthBarGroup = new THREE.Group();
-        this.healthBarGroup.position.set(0, 4.2, 0); // Higher for biped
+        const barHeight = Math.max(4.2, bbox.max.y + 0.8);
+        this.healthBarGroup.position.set(0, barHeight, 0); // Higher for biped
         
         const bg = new THREE.Mesh(
             new THREE.PlaneGeometry(1.5, 0.2), 
@@ -193,29 +202,40 @@ export class Yeti {
         const createLeg = (isLeft: boolean) => {
             const legGroup = new THREE.Group();
             const xOffset = isLeft ? 0.4 : -0.4;
-            legGroup.position.set(xOffset, -0.9, 0); // Hip position
+            legGroup.position.set(xOffset, -0.9, 0); // Hip position relative to torso
             torso.add(legGroup);
 
             // Thigh
             const thighGeo = new THREE.BoxGeometry(0.5, 1.0, 0.5);
             const thigh = new THREE.Mesh(thighGeo, furMat);
-            thigh.position.y = -0.5;
+            // Center of thigh mesh is at 0,0,0. Since height is 1.0, 
+            // the top is at +0.5, bottom at -0.5.
+            thigh.position.y = -0.5; 
             legGroup.add(thigh);
 
-            // Shin
+            // Shin Group (Knee Pivot)
             const shinGroup = new THREE.Group();
-            shinGroup.position.y = -1.0; // Knee
+            // Attach knee exactly at the bottom of the thigh mesh (-0.5)
+            shinGroup.position.y = -0.5; 
             thigh.add(shinGroup);
 
+            // Store reference for animation
+            if (isLeft) parts.shinL = shinGroup;
+            else parts.shinR = shinGroup;
+
+            // Shin Mesh
             const shinGeo = new THREE.BoxGeometry(0.45, 0.9, 0.45);
             const shin = new THREE.Mesh(shinGeo, furMat);
-            shin.position.y = -0.45;
+            // Center of shin mesh is 0,0,0. Height is 0.9.
+            // We want top of shin to be at pivot (0,0,0).
+            shin.position.y = -0.45; 
             shinGroup.add(shin);
 
             // Foot
             const footGeo = new THREE.BoxGeometry(0.5, 0.2, 0.7);
             const foot = new THREE.Mesh(footGeo, skinMat);
-            foot.position.set(0, -1.0, 0.1);
+            // Foot attached to bottom of shin (-0.9 relative to knee)
+            foot.position.set(0, -0.9, 0.1); 
             shinGroup.add(foot);
 
             return legGroup;
@@ -307,16 +327,27 @@ export class Yeti {
 
     private animate(dt: number, moveSpeed: number) {
         const parts = this.model.parts;
-        const time = this.walkTime * 2.0; // Speed up animation slightly
+        const time = this.walkTime * 3.0; // Speed up animation slightly for better feel
 
         if (moveSpeed > 0) {
             // Bipedal Walk Cycle
-            const stride = 0.5; // Leg swing amplitude
-            const armSwing = 0.4; // Arm swing amplitude
+            const stride = 0.6; // Leg swing amplitude
+            const kneeBend = 0.8; // Knee flexibility
+            const armSwing = 0.5; // Arm swing amplitude
 
             // Legs: Inverse of each other
             if (parts.legL) parts.legL.rotation.x = Math.sin(time) * stride;
             if (parts.legR) parts.legR.rotation.x = Math.sin(time + Math.PI) * stride;
+
+            // Knees: Bend when leg lifts (using sine wave offset)
+            if (parts.shinL) {
+                const val = Math.sin(time);
+                parts.shinL.rotation.x = val > 0 ? val * kneeBend : 0;
+            }
+            if (parts.shinR) {
+                const val = Math.sin(time + Math.PI);
+                parts.shinR.rotation.x = val > 0 ? val * kneeBend : 0;
+            }
 
             // Arms: Opposite to legs (Right leg forward = Left arm forward)
             if (parts.armL) parts.armL.rotation.x = Math.sin(time + Math.PI) * armSwing;
@@ -324,31 +355,36 @@ export class Yeti {
             
             // Body Bob
             if (parts.body) {
-                parts.body.position.y = 2.0 + Math.abs(Math.sin(time)) * 0.1;
-                parts.body.rotation.z = Math.sin(time) * 0.05; // Slight sway
+                parts.body.position.y = 2.0 + Math.sin(time * 2) * 0.05; // Bob twice per cycle
+                parts.body.rotation.z = Math.cos(time) * 0.05; // Slight sway
             }
 
         } else {
             // Idle Animation (Breathing/Intimidating)
             const breath = Math.sin(this.stateTimer * 2.0) * 0.05;
+            const resetSpeed = dt * 5;
             
             // Reset Rotations
-            if (parts.legL) parts.legL.rotation.x = THREE.MathUtils.lerp(parts.legL.rotation.x, 0, dt * 5);
-            if (parts.legR) parts.legR.rotation.x = THREE.MathUtils.lerp(parts.legR.rotation.x, 0, dt * 5);
+            if (parts.legL) parts.legL.rotation.x = THREE.MathUtils.lerp(parts.legL.rotation.x, 0, resetSpeed);
+            if (parts.legR) parts.legR.rotation.x = THREE.MathUtils.lerp(parts.legR.rotation.x, 0, resetSpeed);
+
+            if (parts.shinL) parts.shinL.rotation.x = THREE.MathUtils.lerp(parts.shinL.rotation.x, 0, resetSpeed);
+            if (parts.shinR) parts.shinR.rotation.x = THREE.MathUtils.lerp(parts.shinR.rotation.x, 0, resetSpeed);
             
             // Arms hang loose but breath
             if (parts.armL) {
-                parts.armL.rotation.x = THREE.MathUtils.lerp(parts.armL.rotation.x, 0, dt * 5);
+                parts.armL.rotation.x = THREE.MathUtils.lerp(parts.armL.rotation.x, 0, resetSpeed);
                 parts.armL.rotation.z = 0.1 + breath; // Breathe out slightly
             }
             if (parts.armR) {
-                parts.armR.rotation.x = THREE.MathUtils.lerp(parts.armR.rotation.x, 0, dt * 5);
+                parts.armR.rotation.x = THREE.MathUtils.lerp(parts.armR.rotation.x, 0, resetSpeed);
                 parts.armR.rotation.z = -0.1 - breath;
             }
 
             if (parts.body) {
-                parts.body.position.y = 2.0;
+                parts.body.position.y = THREE.MathUtils.lerp(parts.body.position.y, 2.0, resetSpeed);
                 parts.body.scale.set(1 + breath*0.5, 1 + breath*0.5, 1 + breath*0.8); // Chest heaving
+                parts.body.rotation.z = THREE.MathUtils.lerp(parts.body.rotation.z, 0, resetSpeed);
             }
         }
     }
