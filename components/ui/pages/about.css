@@ -164,3 +164,37 @@
     max-height: calc(100vh - 5rem);
   }
 }
+
+@media (max-width: 540px) {
+  .about-panel {
+    max-height: calc(100vh - 4rem);
+  }
+
+  .about-header {
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+  }
+
+  .about-kicker {
+    letter-spacing: 0.2em;
+  }
+
+  .about-title {
+    font-size: 1.65rem;
+    line-height: 1.2;
+  }
+
+  .about-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .about-page .datastream-line {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .about-page .datastream-line:last-child::after {
+    margin-left: 0;
+  }
+}

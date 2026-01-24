@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { MenuBackground } from '../menus/MenuBackground';
 import './about.css';
+import { useIsIphoneLayout } from '../../../hooks/useIsIphoneLayout';
 
 const TypewriterText: React.FC<{ text: string; delay?: number; onComplete?: () => void }> = ({
     text,
@@ -40,6 +41,7 @@ const Badge: React.FC<{ color: 'cyan' | 'emerald' | 'amber' | 'blue'; children: 
 };
 
 export const About: React.FC = () => {
+    const isIphoneLayout = useIsIphoneLayout();
     const datastream = useMemo(
         () => [
             { text: 'Initializing secure uplink...', status: 'OK', delay: 400 },
@@ -153,6 +155,14 @@ export const About: React.FC = () => {
     const [datastreamVisible, setDatastreamVisible] = useState(true);
     const [revealDossier, setRevealDossier] = useState(false);
 
+    const panelClassName = isIphoneLayout
+        ? 'about-panel w-full max-w-[94vw] bg-slate-950/80 border border-cyan-500/30 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden'
+        : 'about-panel w-full max-w-6xl bg-slate-950/80 border border-cyan-500/30 rounded-3xl shadow-2xl backdrop-blur-md overflow-hidden';
+    const headerClassName = isIphoneLayout
+        ? 'px-5 py-6 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10'
+        : 'px-8 md:px-12 py-10 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10';
+    const contentClassName = isIphoneLayout ? 'px-5 py-6 space-y-6' : 'px-6 md:px-12 py-10 space-y-8';
+
     useEffect(() => {
         // Reset sequence on mount so the animation always plays when entering the page
         setStreamStep(0);
@@ -204,32 +214,32 @@ export const About: React.FC = () => {
             <div className="w-full flex-1 bg-slate-950 border-x border-t border-white/10 shadow-2xl overflow-hidden relative">
                 <MenuBackground />
 
-                <div className="absolute inset-0 z-10 flex items-center justify-center p-6 md:p-10">
-                    <div className="about-panel w-full max-w-6xl bg-slate-950/80 border border-cyan-500/30 rounded-3xl shadow-2xl backdrop-blur-md overflow-hidden">
-                        <div className="px-8 md:px-12 py-10 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10">
-                            <div className="flex flex-col gap-2 text-sm md:text-base text-cyan-200/80 font-mono uppercase tracking-[0.35em]">
+                <div className="absolute inset-0 z-10 flex items-center justify-center p-5 md:p-10">
+                    <div className={panelClassName}>
+                        <div className={`about-header ${headerClassName}`}>
+                            <div className={`about-kicker flex flex-col gap-2 text-cyan-200/80 font-mono uppercase ${isIphoneLayout ? 'text-[11px] tracking-[0.3em]' : 'text-sm md:text-base tracking-[0.35em]'}`}>
                                 <span className="text-cyan-200/80">@lordtsarcasm</span>
                                 <span>Transmission Log: Identity</span>
                             </div>
-                            <h1 className="mt-4 text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-[0_0_15px_rgba(34,211,238,0.45)]">
+                            <h1 className={`about-title mt-4 font-black text-white tracking-tight drop-shadow-[0_0_15px_rgba(34,211,238,0.45)] ${isIphoneLayout ? 'text-3xl' : 'text-4xl md:text-5xl'}`}>
                                 Lord Tsarcasm
                             </h1>
-                            <p className="mt-3 text-slate-300 text-sm md:text-base max-w-3xl leading-relaxed">
+                            <p className={`about-subtitle mt-3 text-slate-300 max-w-3xl leading-relaxed ${isIphoneLayout ? 'text-sm' : 'text-sm md:text-base'}`}>
                                 Hi I’m Anton and welcome to LordTsarcasm.com — I build all manner of crazy to realize a dream. I’m a vibe coder
                                 who could use “real” tools but prefers the chaos. Check out the AI music, game, and experiments while the signal holds.
                             </p>
                         </div>
 
-                        <div className="px-6 md:px-12 py-10 space-y-8">
+                        <div className={contentClassName}>
                             <div
-                                className={`border border-cyan-500/20 bg-black/40 rounded-2xl p-6 md:p-8 shadow-inner shadow-cyan-500/10 transition-all duration-500 ${
+                                className={`border border-cyan-500/20 bg-black/40 rounded-2xl p-5 md:p-8 shadow-inner shadow-cyan-500/10 transition-all duration-500 ${
                                     datastreamVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none absolute'
                                 }`}
                             >
-                                <h2 className="text-center text-2xl font-black text-cyan-200 tracking-wide mb-6">
+                                <h2 className={`text-center font-black text-cyan-200 tracking-wide mb-5 ${isIphoneLayout ? 'text-xl' : 'text-2xl'}`}>
                                     Datastream
                                 </h2>
-                                <div className="space-y-2 text-left font-mono text-xs md:text-sm text-slate-300">
+                                <div className={`space-y-2 text-left font-mono text-slate-300 ${isIphoneLayout ? 'text-[11px]' : 'text-xs md:text-sm'}`}>
                                     {datastream.map((line, idx) => (
                                         <div
                                             key={idx}
@@ -250,7 +260,7 @@ export const About: React.FC = () => {
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-3 shrink-0">
-                                                <span className="h-px w-8 md:w-16 bg-cyan-500/20 hidden sm:block"></span>
+                                                <span className={`h-px bg-cyan-500/20 hidden sm:block ${isIphoneLayout ? 'w-8' : 'w-8 md:w-16'}`}></span>
                                                 <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-tighter ${
                                                     line.status === 'OK' || line.status === 'COMPLETE' ? 'bg-emerald-500/20 text-emerald-400' :
                                                     line.status === 'WAIT' || line.status === 'PROCESS' ? 'bg-amber-500/20 text-amber-400 animate-pulse' :
@@ -265,7 +275,7 @@ export const About: React.FC = () => {
                                     ))}
                                 </div>
                                 {showContent && (
-                                    <div className="mt-6 text-left text-slate-200 leading-relaxed text-sm md:text-base space-y-2">
+                                    <div className={`mt-6 text-left text-slate-200 leading-relaxed space-y-2 ${isIphoneLayout ? 'text-sm' : 'text-sm md:text-base'}`}>
                                         <p>
                                             Bio uplink complete. Vibe-coding node online: songs, stories, games, worlds — built fast, loud, and honest.
                                         </p>
@@ -277,13 +287,13 @@ export const About: React.FC = () => {
                             </div>
 
                             {revealDossier && (
-                                <div className="border border-cyan-500/20 bg-black/50 rounded-2xl p-6 md:p-8 shadow-inner shadow-blue-500/10">
+                                <div className="border border-cyan-500/20 bg-black/50 rounded-2xl p-5 md:p-8 shadow-inner shadow-blue-500/10">
                                     <div className="flex items-center gap-3 mb-6">
                                         <span className="text-cyan-400 text-xs font-mono uppercase tracking-[0.3em]"># dossier</span>
                                         <div className="h-px flex-1 bg-cyan-500/30" />
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div className={`grid grid-cols-1 md:grid-cols-2 gap-5 ${isIphoneLayout ? 'gap-4' : ''}`}>
                                         {dossierSections.map((section, sIdx) => (
                                             <div
                                                 key={section.title}
@@ -292,7 +302,7 @@ export const About: React.FC = () => {
                                                 }`}
                                                 style={{ animationDelay: `${sIdx * 120}ms`, transitionDelay: `${sIdx * 120}ms` }}
                                             >
-                                                <h3 className="flex items-center gap-3 text-cyan-200 text-lg font-black uppercase tracking-wide mb-4">
+                                                <h3 className={`flex items-center gap-3 text-cyan-200 font-black uppercase tracking-wide mb-4 ${isIphoneLayout ? 'text-base' : 'text-lg'}`}>
                                                     <span className="text-cyan-400/70 font-mono text-xs">[{sIdx + 1}]</span>
                                                     {section.title}
                                                 </h3>

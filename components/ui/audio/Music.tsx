@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Music as MusicIcon, Play, Pause, Volume2, SkipForward, SkipBack, X, ChevronUp } from 'lucide-react';
 import { useMusic } from '../../../contexts/MusicContext';
+import { useIsIphoneLayout } from '../../../hooks/useIsIphoneLayout';
 
 interface Track {
     id: string;
@@ -329,6 +330,8 @@ export const MusicView: React.FC = () => {
     const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
     const [isMobileTrackListOpen, setIsMobileTrackListOpen] = useState(false);
     const [isMobilePlayerOpen, setIsMobilePlayerOpen] = useState(false);
+    const isIphoneLayout = useIsIphoneLayout();
+    const previewTrackCount = isIphoneLayout ? 2 : 3;
 
     const handlePlayTrack = (track: Track) => {
         playTrack(track);
@@ -414,13 +417,15 @@ export const MusicView: React.FC = () => {
             `}</style>
             
             {/* Header */}
-            <div className="px-4 sm:px-8 py-4 sm:py-8 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className={`border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent ${isIphoneLayout ? 'px-5 py-5' : 'px-4 sm:px-8 py-4 sm:py-8'}`}>
+                <div className={`flex flex-col gap-4 ${isIphoneLayout ? '' : 'sm:flex-row sm:items-center sm:justify-between'}`}>
                     <div>
-                        <h2 className="text-2xl sm:text-5xl font-black text-white uppercase tracking-tighter">Music Library</h2>
-                        <p className="text-slate-400 text-xs sm:text-xs font-bold uppercase tracking-[0.4em] mt-2">Game Soundtracks & Ambient Music</p>
+                        <h2 className={`font-black text-white uppercase tracking-tighter leading-tight ${isIphoneLayout ? 'text-3xl' : 'text-2xl sm:text-5xl'}`}>Music Library</h2>
+                        <p className={`text-slate-400 font-bold uppercase mt-2 leading-snug ${isIphoneLayout ? 'text-[10px] tracking-[0.25em] max-w-[18ch]' : 'text-xs sm:text-xs tracking-[0.4em]'}`}>
+                            Game Soundtracks & Ambient Music
+                        </p>
                     </div>
-                    <div className="flex items-center gap-4 bg-white/5 px-4 py-2 rounded-xl border border-white/10 w-fit sm:w-auto">
+                    <div className={`flex items-center gap-4 bg-white/5 px-4 py-2 rounded-xl border border-white/10 w-fit ${isIphoneLayout ? '' : 'sm:w-auto'}`}>
                         <MusicIcon className="w-4 h-4 text-purple-400" />
                         <span className="text-xs font-black uppercase tracking-widest text-slate-300">{ALBUMS.length} Albums</span>
                     </div>
@@ -430,8 +435,8 @@ export const MusicView: React.FC = () => {
             {/* Main Content */}
             <div className="flex-1 flex overflow-hidden flex-col lg:flex-row">
                 {/* Albums Grid */}
-                <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div className={`flex-1 overflow-y-auto custom-scrollbar ${isIphoneLayout ? 'p-4' : 'p-4 sm:p-8'}`}>
+                    <div className={`grid gap-4 sm:gap-6 ${isIphoneLayout ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
                         {ALBUMS.map((album) => (
                             <div
                                 key={album.id}
@@ -448,7 +453,7 @@ export const MusicView: React.FC = () => {
                             >
                                 {/* Album Cover */}
                                 <div
-                                    className={`h-40 sm:h-48 ${album.coverImage ? '' : album.coverColor} relative overflow-hidden`}
+                                    className={`${album.coverImage ? '' : album.coverColor} relative overflow-hidden ${isIphoneLayout ? 'h-36' : 'h-40 sm:h-48'}`}
                                     style={getAlbumCoverStyle(album)}
                                 >
                                     {album.coverImage ? (
@@ -462,13 +467,13 @@ export const MusicView: React.FC = () => {
                                         </div>
                                     )}
                                     <div className="absolute bottom-4 left-4 right-4">
-                                        <h3 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">{album.title}</h3>
+                                        <h3 className={`font-black text-white uppercase tracking-tight ${isIphoneLayout ? 'text-base' : 'text-lg sm:text-xl'}`}>{album.title}</h3>
                                         <p className="text-xs text-white/70 font-medium">{album.artist}</p>
                                     </div>
                                 </div>
                                 
                                 {/* Album Info */}
-                                <div className="p-3 sm:p-4">
+                                <div className={`p-3 ${isIphoneLayout ? '' : 'sm:p-4'}`}>
                                     <div className="flex items-center justify-between mb-3">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-black uppercase text-slate-500">{album.year}</span>
@@ -479,15 +484,15 @@ export const MusicView: React.FC = () => {
                                     
                                     {/* Track List Preview */}
                                     <div className="space-y-1">
-                                        {album.tracks.slice(0, 3).map((track, index) => (
+                                        {album.tracks.slice(0, previewTrackCount).map((track, index) => (
                                             <div key={track.id} className="flex items-center justify-between text-xs">
                                                 <span className="text-slate-400 truncate">{index + 1}. {track.title}</span>
                                                 <span className="text-slate-500">{track.duration}</span>
                                             </div>
                                         ))}
-                                        {album.tracks.length > 3 && (
+                                        {album.tracks.length > previewTrackCount && (
                                             <div className="text-xs text-slate-500 font-medium">
-                                                +{album.tracks.length - 3} more tracks
+                                                +{album.tracks.length - previewTrackCount} more tracks
                                             </div>
                                         )}
                                     </div>
