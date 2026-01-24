@@ -9,7 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "build:analyze": "vite build --mode analyze",
     "lint": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "jszip": "^3.10.1",
@@ -32,6 +33,7 @@
     "terser": "^5.46.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
-    "vite-plugin-static-copy": "^3.1.6"
+    "vite-plugin-static-copy": "^3.1.6",
+    "vitest": "^3.2.4"
   }
 }
