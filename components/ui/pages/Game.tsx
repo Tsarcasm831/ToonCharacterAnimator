@@ -17,8 +17,10 @@ import { ControlPanel } from '../panels/ControlPanel';
 import * as THREE from 'three';
 import { CITIES } from '../../../data/lands/cities';
 import { getTownWallCenters } from '../../../game/environment/townWalls';
+import { useIsMobileDevice } from '../../../hooks/useIsMobileDevice';
 
 export const Game: React.FC = () => {
+    const isMobileDevice = useIsMobileDevice();
     const {
         gameState: gameStateContext,
         playerState,
@@ -280,7 +282,18 @@ export const Game: React.FC = () => {
             <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
                     {gameState === 'MENU' ? (
-                        <MainMenu onStart={handleEnterWorld} onShowEnemies={onShowEnemies} />
+                        <>
+                            <MainMenu onStart={handleEnterWorld} onShowEnemies={onShowEnemies} isMobile={isMobileDevice} />
+                            {/* Mobile notice hidden as it is obscured by animator 3D logo */}
+                            {/* {isMobileDevice && (
+                                <div className="absolute inset-0 z-[120] flex items-end justify-center p-6 pointer-events-none">
+                                    <div className="bg-black/70 border border-white/10 rounded-2xl px-5 py-4 text-center backdrop-blur">
+                                        <p className="text-xs text-slate-300 uppercase tracking-[0.3em]">Mobile Notice</p>
+                                        <p className="mt-2 text-sm font-bold text-white">this section is better served on desktop</p>
+                                    </div>
+                                </div>
+                            )} */}
+                        </>
                     ) : (
                         <>
                             {shouldMountScene && (activeScene === 'combat' ? (
