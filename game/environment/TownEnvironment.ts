@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
+import { LevelGenerator } from '../builder/LevelGenerator';
+import { ObjectFactory } from './ObjectFactory';
 import { LightingManager } from './LightingManager';
 import { WorldGridManager } from './WorldGridManager';
 
@@ -10,6 +12,7 @@ export class TownEnvironment {
     private ground: THREE.Mesh | null = null;
     private lightingManager: LightingManager;
     private worldGrid: WorldGridManager;
+    private isBuilt = false;
 
     // Square bounds are enforced via PlayerUtils custom polygon (set by SceneManager)
     private readonly SIZE = 100; // 100x100 grid
@@ -26,6 +29,7 @@ export class TownEnvironment {
         });
 
         this.buildGround();
+        this.buildTown();
     }
 
     private buildGround() {
@@ -39,6 +43,38 @@ export class TownEnvironment {
         this.group.add(plane);
         this.obstacles.push(plane);
         this.ground = plane;
+    }
+
+    private buildTown() {
+        if (this.isBuilt) return;
+        this.isBuilt = true;
+
+        LevelGenerator.buildTownLevel(this);
+
+        const forgePos = new THREE.Vector3(14, 0, -6);
+        const { group: forgeGroup, obstacles: forgeObstacles } = ObjectFactory.createForge(forgePos, Math.PI / 2);
+        this.group.add(forgeGroup);
+        forgeObstacles.forEach(obstacle => this.addObstacle(obstacle));
+
+        const barrel = ObjectFactory.createBarrel(new THREE.Vector3(-6, 0, -12));
+        this.group.add(barrel);
+        this.addObstacle(barrel);
+
+        const crate = ObjectFactory.createCrate(new THREE.Vector3(-4, 0, -11));
+        this.group.add(crate);
+        this.addObstacle(crate);
+
+        const lightpole = ObjectFactory.createLightpole(new THREE.Vector3(4, 0, 6));
+        this.group.add(lightpole);
+        this.addObstacle(lightpole);
+
+        const wallA = ObjectFactory.createWall(new THREE.Vector3(-22, 0, 0), Math.PI / 2);
+        this.group.add(wallA.group);
+        this.addObstacle(wallA.obstacle);
+
+        const wallB = ObjectFactory.createWall(new THREE.Vector3(22, 0, 0), Math.PI / 2);
+        this.group.add(wallB.group);
+        this.addObstacle(wallB.obstacle);
     }
 
     setVisible(visible: boolean) {
