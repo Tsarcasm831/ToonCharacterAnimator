@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../../types';
 
 // Visual constants based on the reference image
 const COLOR_MAIN = '#1a1a1a';       // Deep black/charcoal

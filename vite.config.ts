@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
     return {
+      base: './',
       server: {
         port: 3000,
         host: '0.0.0.0',
@@ -25,7 +26,8 @@ export default defineConfig(({ mode }) => {
       build: {
         target: 'es2020',
         outDir: 'dist',
-        assetsDir: 'assets',
+        // Keep /assets for public files; put bundled assets elsewhere to avoid collisions.
+        assetsDir: 'static',
         sourcemap: true,
         minify: 'terser',
         copyPublicDir: true,
@@ -56,9 +58,9 @@ export default defineConfig(({ mode }) => {
                 './components/WorldScene.tsx'
               ]
             },
-            chunkFileNames: 'assets/[name]-[hash].js',
-            entryFileNames: 'assets/[name]-[hash].js',
-            assetFileNames: 'assets/[name]-[hash].[ext]'
+            chunkFileNames: 'static/[name]-[hash].js',
+            entryFileNames: 'static/[name]-[hash].js',
+            assetFileNames: 'static/[name]-[hash].[ext]'
           }
         },
         chunkSizeWarningLimit: 1500,

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../../types';
 
 const GLOBAL_PATTERN_SCALE = 3.5;
 

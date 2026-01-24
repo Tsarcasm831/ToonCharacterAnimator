@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../../types';
 
 const LEATHER_COLOR = '#5d4037';
 const METAL_COLOR = '#b0bec5';

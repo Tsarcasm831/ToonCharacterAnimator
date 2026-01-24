@@ -50,6 +50,7 @@ const CATEGORIES = [
             { keys: ["J"], label: "Skeleton Mode" },
             { keys: ["H"], label: "Hands Debug" },
             { keys: ["K"], label: "Die / Ragdoll" },
+            { keys: ["]"], label: "Teleport to Town" },
         ]
     }
 ];

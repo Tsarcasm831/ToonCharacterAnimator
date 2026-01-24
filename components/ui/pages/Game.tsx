@@ -15,6 +15,8 @@ import { BuilderUI } from '../panels/BuilderUI';
 import { BuilderLog } from '../panels/BuilderLog';
 import { ControlPanel } from '../panels/ControlPanel';
 import * as THREE from 'three';
+import { CITIES } from '../../../data/lands/cities';
+import { getTownWallCenters } from '../../../game/environment/townWalls';
 
 export const Game: React.FC = () => {
     const {
@@ -50,7 +52,7 @@ export const Game: React.FC = () => {
     const {
         currentBiome, playerRotation, setPlayerRotation, isBuilderMode, activeStructure, setPlayerPosForMap, 
         setIsEnvironmentBuilt, setIsVisualLoadingDone, isEnvironmentBuilt, isVisualLoadingDone,
-        setIsBuilderMode, setCurrentBiome, setActiveStructure, showGrid, setShowGrid 
+        setIsBuilderMode, setCurrentBiome, setActiveStructure, showGrid, setShowGrid, selectedLand 
     } = environmentState;
 
     // Effects
@@ -66,9 +68,19 @@ export const Game: React.FC = () => {
     const mountSceneTimeout = React.useRef<number | null>(null);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
+    const selectedLandRef = React.useRef(selectedLand);
+    const activeSceneRef = React.useRef(activeScene);
+
+    React.useEffect(() => {
+        selectedLandRef.current = selectedLand;
+    }, [selectedLand]);
+
+    React.useEffect(() => {
+        activeSceneRef.current = activeScene;
+    }, [activeScene]);
 
     // Handlers
-    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInMP: boolean = false, startInDev: boolean = false) => {
+    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInMP: boolean = false, startInDev: boolean = false, startInTown: boolean = false) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
@@ -77,6 +89,8 @@ export const Game: React.FC = () => {
         if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
         if (startInDev) {
           setActiveScene('dev');
+        } else if (startInTown) {
+          setActiveScene('town');
         } else if (startInLand) {
           setActiveScene('land');
         } else if (startInCombat) {
@@ -188,6 +202,27 @@ export const Game: React.FC = () => {
         game.inputManager.onToggleQuestLog = uiState.toggleQuestLog;
         game.inputManager.onToggleBuilderLog = uiState.toggleBuilderLog;
         game.inputManager.onToggleGrid = () => setShowGrid(prev => !prev);
+        game.inputManager.onTeleportToTown = () => {
+            if (activeSceneRef.current !== 'singleBiome') return;
+            const land = selectedLandRef.current;
+            if (!land?.points?.length) return;
+            const wallCenters = getTownWallCenters(land, CITIES);
+            const target = wallCenters[0];
+            if (!target) return;
+
+            const spawnY = 5;
+            const controls = game.renderManager.controls;
+            const camera = game.renderManager.camera;
+            const cameraOffset = camera.position.clone().sub(controls.target);
+            const targetPos = new THREE.Vector3(target.x, spawnY, target.y);
+
+            game.player.mesh.position.copy(targetPos);
+            game.player.locomotion.position.copy(targetPos);
+            game.player.locomotion.previousPosition.copy(targetPos);
+            game.player.locomotion.velocity.set(0, 0, 0);
+            controls.target.set(target.x, spawnY + 1.7, target.y);
+            camera.position.copy(controls.target).add(cameraOffset);
+        };
         
         game.onBuilderToggle = (active: boolean) => environmentState.setIsBuilderMode(active);
         game.onBuildingTypeChange = (type: any) => environmentState.setActiveStructure(type);

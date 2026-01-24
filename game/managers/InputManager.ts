@@ -40,6 +40,7 @@ export class InputManager {
     onToggleQuestLog?: () => void;
     onToggleBuilderLog?: () => void;
     onConfirmBuild?: () => void;
+    onTeleportToTown?: () => void;
 
     constructor(initialBindings: KeyBindingMap = DEFAULT_KEYBINDINGS) {
         this.bindings = initialBindings;
@@ -122,6 +123,7 @@ export class InputManager {
         if (this.checkTrigger(e.code, InputCommand.ToggleGrid)) this.onToggleGrid?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleBuilderLog)) this.onToggleBuilderLog?.();
         if (this.checkTrigger(e.code, InputCommand.ConfirmBuild)) this.onConfirmBuild?.();
+        if (this.checkTrigger(e.code, InputCommand.TeleportToTown)) this.onTeleportToTown?.();
 
         // Slot Selection
         this.handleSlotSelection(e.code);

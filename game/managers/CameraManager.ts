@@ -140,13 +140,15 @@ export class CameraManager {
     public updatePosition(activeScene: string) {
         if (activeScene !== 'combat') {
             this.tempTargetPos.copy(this.player.mesh.position);
+            const playerScale = this.player.mesh.scale.y;
             let heightOffset = this.cameraFocusMode === 1 ? 1.0 : (this.cameraFocusMode === 2 ? 0.4 : 1.7);
+            heightOffset *= playerScale;
             this.tempTargetPos.y += heightOffset; 
 
             if (this.isFirstPerson) {
                 // FPV Logic
                 this.tempHeadPos.copy(this.player.mesh.position);
-                this.tempHeadPos.y += 1.6; // Eye height
+                this.tempHeadPos.y += 1.6 * playerScale; // Eye height
 
                 this.player.mesh.rotation.y = this.fpvYaw;
                 

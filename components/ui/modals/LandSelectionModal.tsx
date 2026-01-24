@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { ALL_LANDS } from '../../../data/lands/index';
+import { CITIES } from '../../../data/lands/cities';
+import { isPointInPolygon } from '../../../game/environment/landTerrain';
 
 interface LandSelectionModalProps {
   isOpen: boolean;
@@ -13,6 +15,10 @@ export const LandSelectionModal: React.FC<LandSelectionModalProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
+  const landsWithCities = ALL_LANDS.filter((land) =>
+    land.points && CITIES.some((city) => city.type !== 'poi' && isPointInPolygon(city.x, city.y, land.points))
+  );
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
       <div className="bg-slate-900/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[80vh] flex flex-col">
@@ -22,7 +28,7 @@ export const LandSelectionModal: React.FC<LandSelectionModalProps> = ({ isOpen, 
         </div>
         
         <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {ALL_LANDS.map((land) => (
+          {landsWithCities.map((land) => (
             <button
               key={land.id}
               onClick={() => onSelect(land)}
