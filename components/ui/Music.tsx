@@ -504,21 +504,30 @@ export const MusicView: React.FC = () => {
                                                 ? 'bg-purple-600/20 border-purple-500/30'
                                                 : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
                                         }`}
-                                        onClick={() => handlePlayTrack(track)}
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                                    currentTrack?.id === track.id && isPlaying
-                                                        ? 'bg-purple-500'
-                                                        : 'bg-white/10'
-                                                }`}>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (currentTrack?.id === track.id) {
+                                                            handleTogglePlayPause();
+                                                        } else {
+                                                            handlePlayTrack(track);
+                                                        }
+                                                    }}
+                                                    className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                                                        currentTrack?.id === track.id && isPlaying
+                                                            ? 'bg-purple-500'
+                                                            : 'bg-white/10'
+                                                    }`}
+                                                >
                                                     {currentTrack?.id === track.id && isPlaying ? (
                                                         <Pause className="w-4 h-4 text-white" />
                                                     ) : (
                                                         <Play className="w-4 h-4 text-white" />
                                                     )}
-                                                </div>
+                                                </button>
                                                 <div>
                                                     <p className="text-sm font-bold text-white">{track.title}</p>
                                                     <p className="text-xs text-slate-400">{track.artist}</p>
@@ -567,21 +576,30 @@ export const MusicView: React.FC = () => {
                                                     ? 'bg-purple-600/20 border-purple-500/30'
                                                     : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
                                             }`}
-                                            onClick={() => handlePlayTrack(track)}
                                         >
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-3">
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                                        currentTrack?.id === track.id && isPlaying
-                                                            ? 'bg-purple-500'
-                                                            : 'bg-white/10'
-                                                    }`}>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (currentTrack?.id === track.id) {
+                                                                handleTogglePlayPause();
+                                                            } else {
+                                                                handlePlayTrack(track);
+                                                            }
+                                                        }}
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                                                            currentTrack?.id === track.id && isPlaying
+                                                                ? 'bg-purple-500'
+                                                                : 'bg-white/10'
+                                                        }`}
+                                                    >
                                                         {currentTrack?.id === track.id && isPlaying ? (
                                                             <Pause className="w-4 h-4 text-white" />
                                                         ) : (
                                                             <Play className="w-4 h-4 text-white" />
                                                         )}
-                                                    </div>
+                                                    </button>
                                                     <div className="flex-1">
                                                         <p className="text-sm font-bold text-white truncate">{track.title}</p>
                                                         <p className="text-xs text-slate-400">{track.artist}</p>
