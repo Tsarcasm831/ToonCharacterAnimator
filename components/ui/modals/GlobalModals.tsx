@@ -3,6 +3,10 @@ import { PlayerConfig, PlayerInput, InventoryItem, ActiveScene } from '../../../
 import { useGlobalState } from '../../../contexts/GlobalContext';
 import { FastTravelMenu } from '../menus/FastTravelMenu';
 import * as THREE from 'three';
+import { CITIES } from '../../../data/lands/cities';
+import { getTownWallCenters } from '../../../game/environment/townWalls';
+import { calculateBounds, isPointInPolygon, landCoordsToWorld } from '../../../game/environment/landTerrain';
+import { PlayerUtils } from '../../../game/player/PlayerUtils';
 
 // Lazy load heavy modal components
 const InventoryModal = lazy(() => import('./InventoryModal').then(m => ({ default: m.InventoryModal })));
@@ -117,33 +121,119 @@ export const GlobalModals: React.FC = () => {
         }
     };
 
+    const getBiomeType = (texture?: string) => {
+        if (!texture) return 'Grass';
+        if (texture === 'trees') return 'Leaves';
+        if (texture === 'sand') return 'Sand';
+        if (texture === 'snow') return 'Snow';
+        if (texture === 'stone') return 'Stone';
+        return 'Grass';
+    };
+
+    const getLandWorldData = (points: number[][]) => {
+        const bounds = calculateBounds(points);
+        const worldPoints = points.map((p) => {
+            const world = landCoordsToWorld(p[0], p[1], bounds.centerX, bounds.centerZ);
+            return [world.x, world.z];
+        });
+        return { bounds, worldPoints };
+    };
+
+    const findSpawnPointInLand = (
+        worldPoints: number[][],
+        bounds: { worldMinX: number, worldMaxX: number, worldMinZ: number, worldMaxZ: number },
+        preferred?: THREE.Vector3
+    ) => {
+        if (preferred && isPointInPolygon(preferred.x, preferred.z, worldPoints)) {
+            return preferred;
+        }
+
+        const centerX = (bounds.worldMinX + bounds.worldMaxX) * 0.5;
+        const centerZ = (bounds.worldMinZ + bounds.worldMaxZ) * 0.5;
+        const center = new THREE.Vector3(centerX, 0, centerZ);
+        if (isPointInPolygon(center.x, center.z, worldPoints)) {
+            return center;
+        }
+
+        const width = bounds.worldMaxX - bounds.worldMinX;
+        const depth = bounds.worldMaxZ - bounds.worldMinZ;
+        const maxRadius = Math.sqrt((width * width) + (depth * depth)) * 0.5;
+        const step = Math.max(2, Math.min(10, Math.min(width, depth) / 20));
+
+        for (let radius = step; radius <= maxRadius; radius += step) {
+            for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+                const x = centerX + Math.cos(angle) * radius;
+                const z = centerZ + Math.sin(angle) * radius;
+                if (isPointInPolygon(x, z, worldPoints)) {
+                    return new THREE.Vector3(x, 0, z);
+                }
+            }
+        }
+
+        const fallback = worldPoints[0];
+        return new THREE.Vector3(fallback[0], 0, fallback[1]);
+    };
+
+    const teleportPlayerToSpawn = (spawnWorld: THREE.Vector3, obstacles?: THREE.Object3D[]) => {
+        if (!gameInstance.current) return;
+        const player = gameInstance.current.player;
+        const playerScale = player.mesh.scale.x || 1;
+        const targetHeight = 1.7 * playerScale;
+        const cameraHeight = 3.2 * playerScale;
+        const cameraDistance = 5.0 * playerScale;
+        const groundY = PlayerUtils.getGroundHeight(spawnWorld, config, obstacles ?? []);
+        const spawnY = groundY + 0.5;
+
+        player.mesh.position.set(spawnWorld.x, spawnY, spawnWorld.z);
+        gameInstance.current.renderManager.controls.target.set(spawnWorld.x, spawnY + targetHeight, spawnWorld.z);
+        gameInstance.current.renderManager.camera.position.set(spawnWorld.x, spawnY + cameraHeight, spawnWorld.z + cameraDistance);
+        player.locomotion.position.copy(player.mesh.position);
+        player.locomotion.previousPosition.copy(player.mesh.position);
+        player.locomotion.velocity.set(0, 0, 0);
+    };
+
     const handleLandSelect = (land: any) => {
         setIsLandSelectionOpen(false);
         if (gameInstance.current && land.points) {
-            // Map land texture/type to sound manager type if possible
-            // Land data has 'texture' property e.g. 'trees', 'sand', etc.
-            const biomeType = land.texture ? 
-                (land.texture === 'trees' ? 'Leaves' : 
-                 land.texture === 'sand' ? 'Sand' : 
-                 land.texture === 'snow' ? 'Snow' : 
-                 land.texture === 'stone' ? 'Stone' : 
-                 'Grass') 
-                : 'Grass';
+            const biomeType = getBiomeType(land.texture);
 
             gameInstance.current.sceneManager.updateSingleBiomeLand(land.points, {
                 name: land.name,
                 color: land.color,
                 type: biomeType
             });
-            setSelectedLand({ name: land.name, color: land.color, points: land.points });
+            setSelectedLand({
+                id: land.id,
+                name: land.name,
+                color: land.color,
+                points: land.points,
+                texture: land.texture,
+                biomeType
+            });
+
+            const isLand23 = land.id === 'Land23';
+            let didLand23Teleport = false;
+            const singleBiomeEnv = gameInstance.current.sceneManager.singleBiomeEnvironment;
+            if (singleBiomeEnv) {
+                const wallCenters = getTownWallCenters(land, CITIES);
+                singleBiomeEnv.setTownWallCenters(wallCenters);
+                if (isLand23) {
+                    const yureiCity = CITIES.find(city => city.name === 'Yureigakure');
+                    if (yureiCity) {
+                        const { bounds, worldPoints } = getLandWorldData(land.points);
+                        const preferred = landCoordsToWorld(yureiCity.x, yureiCity.y, bounds.centerX, bounds.centerZ);
+                        const spawnWorld = findSpawnPointInLand(worldPoints, bounds, new THREE.Vector3(preferred.x, 0, preferred.z));
+                        teleportPlayerToSpawn(spawnWorld, singleBiomeEnv.obstacles);
+                        didLand23Teleport = true;
+                    }
+                }
+            }
             
             // Reset player position to center/safe spot
-            if (gameInstance.current.player) {
-               // We should probably find a safe spot inside the polygon instead of 0,5,0 if 0,0 is not in polygon
-               // But for now, 0,5,0 is the assumption that land is centered-ish.
-               // However, SingleBiomeEnvironment centers the land on 0,0 world space.
-               gameInstance.current.player.mesh.position.set(0, 5, 0);
-               gameInstance.current.player.locomotion.velocity.set(0, 0, 0);
+            if (gameInstance.current.player && !didLand23Teleport) {
+               const { bounds, worldPoints } = getLandWorldData(land.points);
+               const spawnWorld = findSpawnPointInLand(worldPoints, bounds);
+               teleportPlayerToSpawn(spawnWorld, singleBiomeEnv?.obstacles);
             }
         }
     };

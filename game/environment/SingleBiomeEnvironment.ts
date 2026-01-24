@@ -15,7 +15,7 @@ export class SingleBiomeEnvironment {
     private lightingManager: LightingManager;
     private worldGrid: WorldGridManager;
     private circularWallGroups: THREE.Object3D[] = [];
-    private circularWallCenter: THREE.Vector2 | null = null;
+    private circularWallCenters: THREE.Vector2[] = [];
     private currentBiome: { name: string, color: string, type: string } = { name: 'Grass', color: '#4ade80', type: 'Grass' };
     
     constructor(scene: THREE.Scene) {
@@ -188,8 +188,9 @@ export class SingleBiomeEnvironment {
         this.group.add(this.mesh);
         this.obstacles.push(this.mesh);
 
-        if (this.circularWallCenter) {
-            this.addCircularWall(this.circularWallCenter, 2);
+        if (this.circularWallCenters.length > 0) {
+            this.clearCircularWalls();
+            this.circularWallCenters.forEach(center => this.addCircularWall(center, 2));
         }
     }
 
@@ -230,12 +231,15 @@ export class SingleBiomeEnvironment {
     }
 
     public setCircularWallCenter(center: THREE.Vector2 | null) {
-        this.circularWallCenter = center;
+        this.setTownWallCenters(center ? [center] : []);
+    }
+
+    public setTownWallCenters(centers: THREE.Vector2[]) {
+        this.circularWallCenters = centers;
         if (!this.mesh) return;
-        if (center) {
-            this.addCircularWall(center, 2);
-        } else {
-            this.clearCircularWalls();
+        this.clearCircularWalls();
+        if (centers.length > 0) {
+            centers.forEach(center => this.addCircularWall(center, 2));
         }
     }
 
@@ -248,8 +252,6 @@ export class SingleBiomeEnvironment {
         const segmentLength = WALL_LENGTH * wallScale;
         const minRadius = segmentLength / (2 * Math.sin(Math.PI / segmentCount));
         const radius = Math.max(targetRadius, minRadius);
-
-        this.clearCircularWalls();
 
         for (let i = 0; i < segmentCount; i += 1) {
             const angleA = (i / segmentCount) * Math.PI * 2;

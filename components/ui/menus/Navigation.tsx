@@ -1,8 +1,7 @@
-
 import React from 'react';
-import { LayoutGrid, Home, Users, Music, Gamepad2, Map } from 'lucide-react';
+import { Home, Music, Gamepad2, Info } from 'lucide-react';
 
-export type PageType = 'home' | 'game' | 'units' | 'music' | 'map';
+export type PageType = 'home' | 'game' | 'music' | 'about';
 
 interface NavigationProps {
     activePage: PageType;
@@ -13,9 +12,8 @@ export const Navigation: React.FC<NavigationProps> = ({ activePage, onPageChange
     const navItems = [
         { id: 'home' as PageType, label: 'Home', icon: Home },
         { id: 'game' as PageType, label: 'Game', icon: Gamepad2 },
-        { id: 'units' as PageType, label: 'Units', icon: Users },
         { id: 'music' as PageType, label: 'Music', icon: Music },
-        { id: 'map' as PageType, label: 'Map', icon: Map },
+        { id: 'about' as PageType, label: 'About', icon: Info },
     ];
 
     return (
@@ -43,5 +41,4 @@ export const Navigation: React.FC<NavigationProps> = ({ activePage, onPageChange
             </nav>
         </header>
     );
-}
-;
+};

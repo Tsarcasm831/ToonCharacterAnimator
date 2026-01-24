@@ -140,7 +140,7 @@ export class PlayerLocomotion {
             this.lastStepCount = 0;
         }
         
-        let baseSpeed = input.isRunning ? this.moveSpeed * 1.8 : this.moveSpeed;
+        let baseSpeed = input.isRunning ? this.moveSpeed * 1.8 * 1.7 : this.moveSpeed;
         
         if (this.isCrouching) {
             baseSpeed *= 0.5; // Reduce speed while crouching

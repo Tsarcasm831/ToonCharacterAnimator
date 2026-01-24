@@ -1,10 +1,9 @@
 import React from 'react';
 import { Navigation } from './components/ui/menus/Navigation';
 import { Home } from './components/ui/pages/Home';
-import { Units } from './components/ui/pages/Units';
 import { MusicView as Music } from './components/ui/audio/Music';
 import { Game } from './components/ui/pages/Game';
-import { Map } from './components/ui/pages/Map';
+import { About } from './components/ui/pages/About';
 import { GlobalModals } from './components/ui/modals/GlobalModals';
 import { LandMapModal } from './components/ui/modals/LandMapModal';
 import { MusicProvider } from './contexts/MusicContext';
@@ -31,9 +30,8 @@ const App: React.FC = () => {
         <div className="flex-1 relative overflow-hidden flex flex-col">
           <div className="absolute inset-0 z-0">
             {activePage === 'home' && <Home />}
-            {activePage === 'units' && <Units />}
             {activePage === 'music' && <Music />}
-            {activePage === 'map' && <Map />}
+            {activePage === 'about' && <About />}
             
             {activePage === 'game' && (
               <Game />

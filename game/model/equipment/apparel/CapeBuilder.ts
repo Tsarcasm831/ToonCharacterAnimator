@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../../types';
 
 export class CapeBuilder {
     static build(parts: any, config: PlayerConfig): { meshes: THREE.Object3D[] } | null {

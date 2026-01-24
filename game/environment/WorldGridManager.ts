@@ -2,6 +2,18 @@
 import * as THREE from 'three';
 import { BIOME_DATA, ENV_CONSTANTS } from './EnvironmentTypes';
 
+interface WorldGridBounds {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+}
+
+interface WorldGridOptions {
+    bounds?: WorldGridBounds;
+    worldRadius?: number;
+}
+
 interface LabelPoolMember {
     mesh: THREE.Mesh;
     canvas: HTMLCanvasElement;
@@ -18,52 +30,85 @@ export class WorldGridManager {
     private readonly poolSize = 200; // Drastically reduced from 10000 to avoid freezing startup
     private readonly cellSize = 1.3333; 
     private readonly devWorldRadius = 100; // Radius to cover the entire dev scene area
+    private readonly bounds?: WorldGridBounds;
+    private readonly originOffset = new THREE.Vector2(0, 0);
+    private boundsCellCountX: number | null = null;
+    private boundsCellCountZ: number | null = null;
     private lastUpdatePos = new THREE.Vector3(Infinity, Infinity, Infinity);
 
-    constructor(parent: THREE.Object3D) {
+    constructor(parent: THREE.Object3D, options?: WorldGridOptions) {
         this.parent = parent;
         this.group = new THREE.Group();
         this.group.visible = false;
         this.parent.add(this.group);
+        this.bounds = options?.bounds;
+        if (this.bounds) {
+            this.originOffset.set(this.bounds.minX, this.bounds.minZ);
+        }
         this.buildGridLines();
         this.initLabelPool();
     }
 
     private buildGridLines() {
-        const worldRadius = this.devWorldRadius; 
-        
         const majorLineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.6 });
         const minorLineMat = new THREE.LineBasicMaterial({ color: 0x0088ff, transparent: true, opacity: 0.2 });
         
         const majorPoints: THREE.Vector3[] = [];
         const minorPoints: THREE.Vector3[] = [];
 
-        // Use integer steps to avoid floating point drift
-        // worldRadius is approx 100. cellSize is 1.33. 100/1.33 = 75 cells.
-        const cellRadius = Math.ceil(worldRadius / this.cellSize);
-        
-        for (let i = -cellRadius; i <= cellRadius; i++) {
-            const x = i * this.cellSize;
+        if (this.bounds) {
+            const spanX = this.bounds.maxX - this.bounds.minX;
+            const spanZ = this.bounds.maxZ - this.bounds.minZ;
+            let cellsX = Math.round(spanX / this.cellSize);
+            let cellsZ = Math.round(spanZ / this.cellSize);
+            if (this.bounds.minX + cellsX * this.cellSize > this.bounds.maxX + 1e-4) cellsX -= 1;
+            if (this.bounds.minZ + cellsZ * this.cellSize > this.bounds.maxZ + 1e-4) cellsZ -= 1;
+            this.boundsCellCountX = Math.max(1, cellsX);
+            this.boundsCellCountZ = Math.max(1, cellsZ);
+
+            for (let i = 0; i <= this.boundsCellCountX; i++) {
+                const x = this.bounds.minX + i * this.cellSize;
+                const isMajor = i % 10 === 0;
+                const targetPoints = isMajor ? majorPoints : minorPoints;
+                targetPoints.push(new THREE.Vector3(x, 0.05, this.bounds.minZ));
+                targetPoints.push(new THREE.Vector3(x, 0.05, this.bounds.maxZ));
+            }
+
+            for (let j = 0; j <= this.boundsCellCountZ; j++) {
+                const z = this.bounds.minZ + j * this.cellSize;
+                const isMajor = j % 10 === 0;
+                const targetPoints = isMajor ? majorPoints : minorPoints;
+                targetPoints.push(new THREE.Vector3(this.bounds.minX, 0.05, z));
+                targetPoints.push(new THREE.Vector3(this.bounds.maxX, 0.05, z));
+            }
+        } else {
+            // Use integer steps to avoid floating point drift
+            // worldRadius is approx 100. cellSize is 1.33. 100/1.33 = 75 cells.
+            const cellRadius = Math.ceil(this.devWorldRadius / this.cellSize);
             
-            // We want major lines at patch boundaries.
-            // Patches are 10 cells wide.
-            // Boundaries are at indices -15, -5, 5, 15, etc.
-            // This corresponds to i % 10 === 5 or -5.
-            const isMajor = Math.abs(i % 10) === 5;
+            for (let i = -cellRadius; i <= cellRadius; i++) {
+                const x = i * this.cellSize;
+                
+                // We want major lines at patch boundaries.
+                // Patches are 10 cells wide.
+                // Boundaries are at indices -15, -5, 5, 15, etc.
+                // This corresponds to i % 10 === 5 or -5.
+                const isMajor = Math.abs(i % 10) === 5;
 
-            const targetPoints = isMajor ? majorPoints : minorPoints;
-            targetPoints.push(new THREE.Vector3(x, 0.05, -worldRadius));
-            targetPoints.push(new THREE.Vector3(x, 0.05, worldRadius));
-        }
+                const targetPoints = isMajor ? majorPoints : minorPoints;
+                targetPoints.push(new THREE.Vector3(x, 0.05, -this.devWorldRadius));
+                targetPoints.push(new THREE.Vector3(x, 0.05, this.devWorldRadius));
+            }
 
-        for (let j = -cellRadius; j <= cellRadius; j++) {
-            const z = j * this.cellSize;
-            
-            const isMajor = Math.abs(j % 10) === 5;
+            for (let j = -cellRadius; j <= cellRadius; j++) {
+                const z = j * this.cellSize;
+                
+                const isMajor = Math.abs(j % 10) === 5;
 
-            const targetPoints = isMajor ? majorPoints : minorPoints;
-            targetPoints.push(new THREE.Vector3(-worldRadius, 0.05, z));
-            targetPoints.push(new THREE.Vector3(worldRadius, 0.05, z));
+                const targetPoints = isMajor ? majorPoints : minorPoints;
+                targetPoints.push(new THREE.Vector3(-this.devWorldRadius, 0.05, z));
+                targetPoints.push(new THREE.Vector3(this.devWorldRadius, 0.05, z));
+            }
         }
 
         const majorGeo = new THREE.BufferGeometry().setFromPoints(majorPoints);
@@ -160,16 +205,27 @@ export class WorldGridManager {
         const cellCount = Math.ceil(visibleRadius / this.cellSize);
 
         // Identify center cell
-        const centerIx = Math.round(playerPos.x / this.cellSize);
-        const centerIz = Math.round(playerPos.z / this.cellSize);
+        const originX = this.originOffset.x;
+        const originZ = this.originOffset.y;
+        const centerIx = this.bounds
+            ? Math.floor((playerPos.x - originX) / this.cellSize)
+            : Math.round(playerPos.x / this.cellSize);
+        const centerIz = this.bounds
+            ? Math.floor((playerPos.z - originZ) / this.cellSize)
+            : Math.round(playerPos.z / this.cellSize);
 
         // Collect valid visible cells
         const visibleCells: {ix: number, iz: number, distSq: number}[] = [];
 
         for (let ix = centerIx - cellCount; ix <= centerIx + cellCount; ix++) {
             for (let iz = centerIz - cellCount; iz <= centerIz + cellCount; iz++) {
-                const cx = (ix + 0.5) * this.cellSize;
-                const cz = (iz + 0.5) * this.cellSize;
+                if (this.boundsCellCountX !== null && this.boundsCellCountZ !== null) {
+                    if (ix < 0 || iz < 0) continue;
+                    if (ix >= this.boundsCellCountX || iz >= this.boundsCellCountZ) continue;
+                }
+
+                const cx = originX + (ix + 0.5) * this.cellSize;
+                const cz = originZ + (iz + 0.5) * this.cellSize;
                 
                 const dx = cx - playerPos.x;
                 const dz = cz - playerPos.z;
@@ -192,8 +248,8 @@ export class WorldGridManager {
             const cell = visibleCells[i];
             const member = this.labelPool[poolIdx];
             
-            const cx = (cell.ix + 0.5) * this.cellSize;
-            const cz = (cell.iz + 0.5) * this.cellSize;
+            const cx = originX + (cell.ix + 0.5) * this.cellSize;
+            const cz = originZ + (cell.iz + 0.5) * this.cellSize;
 
             // Determine Biome
             const bx = Math.round(cx / biomeSize);

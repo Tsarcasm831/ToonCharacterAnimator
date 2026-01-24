@@ -21,11 +21,12 @@ export class MovementAction {
         // Inputs
         const forwardInput = -input.y;
         const sideInput = input.x;
-        const inputLen = Math.sqrt(forwardInput * forwardInput + sideInput * sideInput);
+        const inputLen = Math.min(1, Math.sqrt(forwardInput * forwardInput + sideInput * sideInput));
         const isPureStrafe = Math.abs(sideInput) > 0.6 && Math.abs(forwardInput) < 0.3;
 
         // Smoothly blend into strafe speed instead of snapping
-        const strafeBlendRaw = ((Math.abs(sideInput) - 0.4) / 0.4) * (1 - Math.abs(forwardInput) / 0.3);
+        const forwardSuppression = clamp(1 - Math.abs(forwardInput) / 0.3, 0, 1);
+        const strafeBlendRaw = ((Math.abs(sideInput) - 0.4) / 0.4) * forwardSuppression;
         const strafeBlend = clamp(strafeBlendRaw, 0, 1);
         
         // Scale animation speed by input magnitude to prevent sliding at low stick tilt
