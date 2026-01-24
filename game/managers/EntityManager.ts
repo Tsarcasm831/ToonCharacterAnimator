@@ -144,6 +144,51 @@ export class EntityManager {
         const warlock = new Warlock(this.scene, nextPos()); this.warlocks.push(warlock);
     }
 
+    initTownEntities(environment: any | null, _initialConfig: PlayerConfig) {
+        const ensureVisible = (entity: any) => {
+            if (entity?.group) entity.group.visible = true;
+            if (entity?.model?.group) entity.model.group.visible = true;
+        };
+
+        const moveEntity = (entity: any, pos: THREE.Vector3, rotationY?: number) => {
+            if (!entity) return;
+            entity.position?.copy(pos);
+            if (typeof rotationY === 'number') {
+                entity.rotationY = rotationY;
+            }
+            if (entity.group) entity.group.position.copy(pos);
+            if (entity.model?.group) entity.model.group.position.copy(pos);
+            ensureVisible(entity);
+        };
+
+        if (!this.npc) {
+            this.npc = new NPC(this.scene, { bodyType: 'female', outfit: 'peasant' }, new THREE.Vector3(0, 0, 6));
+        }
+        moveEntity(this.npc, new THREE.Vector3(0, 0, 6), Math.PI);
+
+        if (!this.blacksmith) {
+            this.blacksmith = new Blacksmith(this.scene, new THREE.Vector3(14, 0.4, -6));
+        }
+        moveEntity(this.blacksmith, new THREE.Vector3(14, 0.4, -6), -Math.PI / 2);
+
+        if (!this.shopkeeper) {
+            this.shopkeeper = new Shopkeeper(this.scene, new THREE.Vector3(-6, 0.45, -10));
+        }
+        moveEntity(this.shopkeeper, new THREE.Vector3(-6, 0.45, -10), Math.PI / 2);
+
+        if (!this.guard) {
+            this.guard = new LowLevelCityGuard(this.scene, new THREE.Vector3(6, 0, 10));
+        }
+        moveEntity(this.guard, new THREE.Vector3(6, 0, 10), Math.PI);
+
+        if (!this.chickens.length) {
+            this.spawnAnimalGroup('chicken', 2, environment, new THREE.Vector3(-2, 0, -2));
+        }
+        if (!this.pigs.length) {
+            this.spawnAnimalGroup('pig', 1, environment, new THREE.Vector3(4, 0, -4));
+        }
+    }
+
     spawnAllAnimals(environment: Environment | null, origin: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
         let row = 0;
         const nextPos = () => new THREE.Vector3(origin.x + row * 3, origin.y, origin.z - row * 2);
@@ -282,7 +327,7 @@ export class EntityManager {
         }
     }
 
-    spawnAnimalGroup(type: string, count: number, environment: Environment | null, spawnCenter: THREE.Vector3) {
+    spawnAnimalGroup(type: string, count: number, environment: { obstacles?: THREE.Object3D[]; addObstacle?: (obj: THREE.Object3D) => void } | null, spawnCenter: THREE.Vector3) {
         for (let i = 0; i < count; i++) {
             this.tempSpawnOffset.set((Math.random() - 0.5) * 5, 0, (Math.random() - 0.5) * 5);
             this.tempSpawnPos.copy(spawnCenter).add(this.tempSpawnOffset);
@@ -348,7 +393,11 @@ export class EntityManager {
                         if (idx !== -1) obs.splice(idx, 1);
                     }
                 } else {
-                    environment?.addObstacle(animal.hitbox);
+                    if (environment?.addObstacle) {
+                        environment.addObstacle(animal.hitbox);
+                    } else if (environment?.obstacles) {
+                        environment.obstacles.push(animal.hitbox);
+                    }
                 }
             }
         }
@@ -539,6 +588,11 @@ export class EntityManager {
                 ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses,
                 ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
                 ...this.berserkers, ...this.rogues, ...this.warlocks
+            ].filter(e => !!e);
+        } else if (sceneName === 'town') {
+            return [
+                this.npc, this.blacksmith, this.shopkeeper, this.guard,
+                ...this.chickens, ...this.pigs
             ].filter(e => !!e);
         } else if (sceneName === 'land') {
             return [
