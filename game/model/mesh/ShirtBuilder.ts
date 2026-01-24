@@ -5,6 +5,7 @@ import { QuiltedArmorBuilder } from './QuiltedArmorBuilder';
 import { HeavyLeatherArmorBuilder } from './HeavyLeatherArmorBuilder';
 import { RingMailBuilder } from './RingMailBuilder';
 import { PlateMailBuilder } from './PlateMailBuilder';
+import { BlackDoubletBuilder } from '../equipment/Leather_Doublet';
 
 const LEATHER_COLOR = '#5d4037';
 const LEATHER_DARK = '#3d2b1f';
@@ -13,6 +14,10 @@ const GLOBAL_PATTERN_SCALE = 3.5;
 
 export class ShirtBuilder {
     static build(parts: any, config: PlayerConfig) {
+        if (config.equipment.leatherDoublet) {
+            return BlackDoubletBuilder.build(parts, config);
+        }
+
         if (config.equipment.plateMail) {
             return PlateMailBuilder.build(parts, config);
         }

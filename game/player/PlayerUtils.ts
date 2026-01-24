@@ -83,6 +83,9 @@ export class PlayerUtils {
     }
 
     static isWithinBounds(pos: THREE.Vector3, margin: number = 0.5): boolean {
+        if (this.customLandPolygon && this.customLandPolygon.length > 2) {
+            return isPointInPolygon(pos.x, pos.z, this.customLandPolygon);
+        }
         if (this.useLandTerrain) {
             return isWorldPointInLand(pos.x, pos.z);
         }

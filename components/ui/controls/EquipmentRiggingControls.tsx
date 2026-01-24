@@ -14,7 +14,7 @@ export const EquipmentRiggingControls: React.FC<EquipmentRiggingControlsProps> =
         setConfig(prev => ({ ...prev, [key]: value }));
     };
 
-    const hasShirt = config.equipment.shirt || config.equipment.quiltedArmor || config.equipment.leatherArmor;
+    const hasShirt = config.equipment.shirt || config.equipment.quiltedArmor || config.equipment.leatherArmor || config.equipment.leatherDoublet;
     const isMale = config.bodyType === 'male';
 
     return (

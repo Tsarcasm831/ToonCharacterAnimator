@@ -42,7 +42,8 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
   const gameRef = useRef<Game | null>(null);
-  const { uiState } = useGlobalState();
+  const { uiState, environmentState } = useGlobalState();
+  const { setSelectedLand } = environmentState;
 
   useEffect(() => {
     // Open land selection on mount
@@ -62,6 +63,7 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
         [0, 2]
     ];
     game.sceneManager.updateSingleBiomeLand(defaultPoints, { name: 'Default Grid', color: '#4ade80', type: 'Grass' });
+    setSelectedLand({ name: 'Default Grid', color: '#4ade80', points: defaultPoints });
     
     // Disable environment systems if needed, but SingleBiomeEnvironment handles its own build
     const env = game.sceneManager.environment;

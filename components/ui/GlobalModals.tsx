@@ -15,6 +15,7 @@ const EnemiesModal = lazy(() => import('./EnemiesModal').then(m => ({ default: m
 const ShopkeeperChatModal = lazy(() => import('./ShopkeeperChatModal').then(m => ({ default: m.ShopkeeperChatModal })));
 const LandMapModal = lazy(() => import('./LandMapModal').then(m => ({ default: m.LandMapModal })));
 const WorldMapModal = lazy(() => import('./WorldMapModal').then(m => ({ default: m.WorldMapModal })));
+const LandSelectionModal = lazy(() => import('./LandSelectionModal').then(m => ({ default: m.LandSelectionModal })));
 
 export const GlobalModals: React.FC = () => {
     const {
@@ -44,6 +45,7 @@ export const GlobalModals: React.FC = () => {
         statsForModal, statsUnitName,
         isLandMapOpen, setIsLandMapOpen,
         isWorldMapOpen, setIsWorldMapOpen,
+        isAreaMapOpen, setIsAreaMapOpen,
         isLandSelectionOpen, setIsLandSelectionOpen
     } = uiState;
 
@@ -53,7 +55,7 @@ export const GlobalModals: React.FC = () => {
     const { handleBuy, handleSell } = economyLogic;
     const { quests, claimQuestReward } = questState;
     const { activeScene, setActiveScene, setGameState } = gameState;
-    const { setIsEnvironmentBuilt, setIsVisualLoadingDone } = environmentState;
+    const { setIsEnvironmentBuilt, setIsVisualLoadingDone, selectedLand, setSelectedLand } = environmentState;
     const { setIsCombatActive } = combatState;
 
     const isLand = activeScene === 'land';
@@ -61,10 +63,16 @@ export const GlobalModals: React.FC = () => {
         'Shirt': 'torso',
         'Quilted Armor': 'torso',
         'Leather Armor': 'torso',
+        'Leather Doublet': 'torso',
         'Heavy Leather Armor': 'torso',
         'RingMail': 'torso',
         'Plate Mail': 'torso',
         'Pants': 'legs',
+        'Hide Breeches': 'legs',
+        'Leather Pants': 'legs',
+        'Chain Leggings': 'legs',
+        'Plate Leggings': 'legs',
+        'Warlord Leg Plates': 'legs',
         'Shoes': 'boots',
         'Mask': 'mask',
         'Hood': 'hood',
@@ -127,6 +135,7 @@ export const GlobalModals: React.FC = () => {
                 color: land.color,
                 type: biomeType
             });
+            setSelectedLand({ name: land.name, color: land.color, points: land.points });
             
             // Reset player position to center/safe spot
             if (gameInstance.current.player) {
@@ -218,10 +227,25 @@ export const GlobalModals: React.FC = () => {
                     playerPos={gameInstance.current?.player.position || new THREE.Vector3()}
                 />
             )}
+            {isAreaMapOpen && selectedLand?.points && (
+                <LandMapModal
+                    isOpen={isAreaMapOpen}
+                    onClose={() => setIsAreaMapOpen(false)}
+                    playerPos={gameInstance.current?.player.position || new THREE.Vector3()}
+                    points={selectedLand.points}
+                    title={`${selectedLand.name} Map`}
+                />
+            )}
             {isWorldMapOpen && (
                 <WorldMapModal 
                     isOpen={isWorldMapOpen}
                     onClose={() => setIsWorldMapOpen(false)}
+                />
+            )}
+            {isLandSelectionOpen && (
+                <LandSelectionModal
+                    isOpen={isLandSelectionOpen}
+                    onSelect={handleLandSelect}
                 />
             )}
             {/* {isCharacterStatsOpen && (

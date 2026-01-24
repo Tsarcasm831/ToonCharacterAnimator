@@ -47,7 +47,7 @@ export class PlayerClothingManager {
     }
 
     private updateShirt(config: PlayerConfig) {
-        const hash = `${config.outfit}_${config.shirtColor}_${config.shirtColor2}_${config.bodyType}_${config.equipment.shirt}_${config.equipment.quiltedArmor}_${config.equipment.leatherArmor}_${config.equipment.heavyLeatherArmor}_${config.equipment.ringMail}_${config.equipment.plateMail}`;
+        const hash = `${config.outfit}_${config.shirtColor}_${config.shirtColor2}_${config.bodyType}_${config.equipment.shirt}_${config.equipment.quiltedArmor}_${config.equipment.leatherArmor}_${config.equipment.heavyLeatherArmor}_${config.equipment.ringMail}_${config.equipment.plateMail}_${config.equipment.leatherDoublet}`;
         if (hash === this.lastShirtConfigHash) return;
         this.lastShirtConfigHash = hash;
 
@@ -69,7 +69,7 @@ export class PlayerClothingManager {
     }
 
     private updatePants(config: PlayerConfig) {
-        const hash = `${config.outfit}_${config.equipment.pants}_${config.equipment.greaves}_${config.pantsColor}`;
+        const hash = `${config.outfit}_${config.equipment.pants}_${config.equipment.greaves}_${config.equipment.hideBreeches}_${config.equipment.leatherPants}_${config.equipment.chainLeggings}_${config.equipment.plateLeggings}_${config.equipment.warlordLegPlates}_${config.pantsColor}`;
         if (hash === this.lastPantsConfigHash) return;
         this.lastPantsConfigHash = hash;
 
