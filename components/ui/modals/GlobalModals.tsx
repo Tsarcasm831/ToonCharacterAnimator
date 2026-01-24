@@ -17,8 +17,8 @@ const QuestLogModal = lazy(() => import('./QuestLogModal').then(m => ({ default:
 const SpawnAnimalsModal = lazy(() => import('./SpawnAnimalsModal').then(m => ({ default: m.SpawnAnimalsModal })));
 const EnemiesModal = lazy(() => import('./EnemiesModal').then(m => ({ default: m.EnemiesModal })));
 const ShopkeeperChatModal = lazy(() => import('./ShopkeeperChatModal').then(m => ({ default: m.ShopkeeperChatModal })));
-const LandMapModal = lazy(() => import('./LandMapModal').then(m => ({ default: m.LandMapModal })));
-const WorldMapModal = lazy(() => import('./WorldMapModal').then(m => ({ default: m.WorldMapModal })));
+import { LandMapModal } from './LandMapModal';
+import { WorldMapModal } from './WorldMapModal';
 const LandSelectionModal = lazy(() => import('./LandSelectionModal').then(m => ({ default: m.LandSelectionModal })));
 
 export const GlobalModals: React.FC = () => {
