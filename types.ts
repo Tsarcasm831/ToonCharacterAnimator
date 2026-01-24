@@ -1,5 +1,5 @@
 
-export type ActiveScene = 'dev' | 'land' | 'combat' | 'world' | 'mp' | 'singleBiome';
+export type ActiveScene = 'dev' | 'land' | 'combat' | 'world' | 'mp' | 'singleBiome' | 'town';
 
 export type BodyVariant = 'average' | 'muscular' | 'slim' | 'heavy';
 export type OutfitType = 'nude' | 'naked' | 'peasant' | 'warrior' | 'noble';

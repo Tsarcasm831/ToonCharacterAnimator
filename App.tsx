@@ -1,30 +1,25 @@
-import React, { useEffect } from 'react';
-import { Navigation } from './components/ui/Navigation';
-import { Home } from './components/ui/Home';
-import { Units } from './components/ui/Units';
-import { Mission } from './components/ui/Mission';
-import { MusicView as Music } from './components/ui/Music';
-import { Game } from './components/ui/Game';
-import { Map } from './components/ui/Map';
-import { GlobalModals } from './components/ui/GlobalModals';
-import { LandMapModal } from './components/ui/LandMapModal';
+import React from 'react';
+import { Navigation } from './components/ui/menus/Navigation';
+import { Home } from './components/ui/pages/Home';
+import { Units } from './components/ui/pages/Units';
+import { MusicView as Music } from './components/ui/audio/Music';
+import { Game } from './components/ui/pages/Game';
+import { Map } from './components/ui/pages/Map';
+import { GlobalModals } from './components/ui/modals/GlobalModals';
+import { LandMapModal } from './components/ui/modals/LandMapModal';
 import { MusicProvider } from './contexts/MusicContext';
-import { MusicFooter } from './components/ui/MusicFooter';
+import { MusicFooter } from './components/ui/audio/MusicFooter';
 
 import { useGlobalState } from './contexts/GlobalContext';
 
 const App: React.FC = () => {
   const { 
     gameState: gameStateContext,
-    playerState,
     uiState,
-    questState,
     environmentState
   } = useGlobalState();
 
   const { activePage, setActivePage } = gameStateContext;
-  const { config } = playerState;
-  const { quests } = questState;
   const { isLandMapOpen, setIsLandMapOpen } = uiState;
   const { playerPosForMap } = environmentState;
 
@@ -37,7 +32,6 @@ const App: React.FC = () => {
           <div className="absolute inset-0 z-0">
             {activePage === 'home' && <Home />}
             {activePage === 'units' && <Units />}
-            {activePage === 'mission' && <Mission quests={quests} config={config} />}
             {activePage === 'music' && <Music />}
             {activePage === 'map' && <Map />}
             

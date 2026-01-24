@@ -74,17 +74,18 @@ export class WorldGridManager {
     }
 
     private initLabelPool() {
-        const labelGeo = new THREE.PlaneGeometry(0.8, 0.4);
+        const labelGeo = new THREE.PlaneGeometry(1.1, 0.55);
         
         for (let i = 0; i < this.poolSize; i++) {
             const canvas = document.createElement('canvas');
-            canvas.width = 64;
-            canvas.height = 32;
+            canvas.width = 128;
+            canvas.height = 64;
             const ctx = canvas.getContext('2d')!;
             
             const tex = new THREE.CanvasTexture(canvas);
             tex.minFilter = THREE.LinearFilter;
             tex.magFilter = THREE.LinearFilter;
+            tex.anisotropy = 4;
 
             const mat = new THREE.MeshBasicMaterial({ 
                 map: tex, 
@@ -116,22 +117,29 @@ export class WorldGridManager {
         if (member.currentKey === key) return;
 
         const ctx = member.context;
-        ctx.clearRect(0, 0, 64, 32);
+        ctx.clearRect(0, 0, 128, 64);
         
         // Background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-        ctx.fillRect(0, 0, 64, 32);
+        ctx.fillRect(0, 0, 128, 64);
         
         // Left accent
         ctx.fillStyle = color;
-        ctx.fillRect(0, 0, 4, 32);
+        ctx.fillRect(0, 0, 6, 64);
 
         // Text
-        ctx.fillStyle = 'white';
+        const label = `${ix},${iz}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.font = 'bold 16px monospace';
-        ctx.fillText(`${ix},${iz}`, 34, 16);
+        ctx.font = 'bold 24px monospace';
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.strokeText(label, 70, 32);
+        ctx.fillStyle = '#f8fafc';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+        ctx.shadowBlur = 6;
+        ctx.fillText(label, 70, 32);
+        ctx.shadowBlur = 0;
 
         member.texture.needsUpdate = true;
         member.currentKey = key;
@@ -206,9 +214,14 @@ export class WorldGridManager {
     }
 
     toggle() {
-        this.isVisible = !this.isVisible;
-        this.group.visible = this.isVisible;
-        if (!this.isVisible) {
+        this.setVisible(!this.isVisible);
+    }
+
+    setVisible(visible: boolean) {
+        if (this.isVisible === visible) return;
+        this.isVisible = visible;
+        this.group.visible = visible;
+        if (!visible) {
             this.labelPool.forEach(m => m.mesh.visible = false);
             this.lastUpdatePos.set(Infinity, Infinity, Infinity);
         }

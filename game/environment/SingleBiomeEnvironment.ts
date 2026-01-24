@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
 import { calculateBounds, isPointInPolygon, landCoordsToWorld, LAND_SCALE } from './landTerrain';
 import { LightingManager } from './LightingManager';
+import { WorldGridManager } from './WorldGridManager';
+import { ObjectFactory } from './ObjectFactory';
 import { PlayerUtils } from '../player/PlayerUtils';
 
 export class SingleBiomeEnvironment {
@@ -11,6 +13,9 @@ export class SingleBiomeEnvironment {
     public obstacles: THREE.Object3D[] = [];
     private landPoints: number[][] | null = null;
     private lightingManager: LightingManager;
+    private worldGrid: WorldGridManager;
+    private circularWallGroups: THREE.Object3D[] = [];
+    private circularWallCenter: THREE.Vector2 | null = null;
     private currentBiome: { name: string, color: string, type: string } = { name: 'Grass', color: '#4ade80', type: 'Grass' };
     
     constructor(scene: THREE.Scene) {
@@ -18,6 +23,16 @@ export class SingleBiomeEnvironment {
         this.group = new THREE.Group();
         this.scene.add(this.group);
         this.lightingManager = new LightingManager(scene);
+        this.worldGrid = new WorldGridManager(this.group);
+    }
+
+    public syncSkySphereToLand(points?: number[][]) {
+        const landPoints = points ?? this.landPoints;
+        if (!landPoints) return;
+        const bounds = calculateBounds(landPoints);
+        const worldWidth = bounds.worldMaxX - bounds.worldMinX;
+        const worldDepth = bounds.worldMaxZ - bounds.worldMinZ;
+        this.updateSkySphereForBounds(worldWidth, worldDepth);
     }
 
     public setLandData(points: number[][], biome?: { name: string, color: string, type?: string }) {
@@ -61,6 +76,7 @@ export class SingleBiomeEnvironment {
         }
         this.obstacles = [];
         this.lightingManager.dispose();
+        this.worldGrid.dispose();
         PlayerUtils.setCustomLandPolygon(null); // Clear constraint
     }
 
@@ -84,6 +100,7 @@ export class SingleBiomeEnvironment {
         const { worldMinX, worldMaxX, worldMinZ, worldMaxZ, centerX, centerZ } = bounds;
         const worldWidth = worldMaxX - worldMinX;
         const worldDepth = worldMaxZ - worldMinZ;
+        this.updateSkySphereForBounds(worldWidth, worldDepth);
 
         // Convert raw land points to world space for the polygon check
         const worldPoints = this.landPoints.map(p => {
@@ -170,11 +187,24 @@ export class SingleBiomeEnvironment {
         
         this.group.add(this.mesh);
         this.obstacles.push(this.mesh);
+
+        if (this.circularWallCenter) {
+            this.addCircularWall(this.circularWallCenter, 2);
+        }
+    }
+
+    private updateSkySphereForBounds(worldWidth: number, worldDepth: number) {
+        const halfWidth = worldWidth * 0.5;
+        const halfDepth = worldDepth * 0.5;
+        const landRadius = Math.sqrt((halfWidth * halfWidth) + (halfDepth * halfDepth));
+        const skyRadius = landRadius * 1.2;
+        this.lightingManager.setSkySphereRadius(skyRadius);
     }
 
     update(dt: number, config: PlayerConfig, playerPos: THREE.Vector3) {
         if (!this.group.visible) return;
         this.lightingManager.update(dt, config);
+        this.worldGrid.update(playerPos);
     }
 
     // Interface methods for compatibility with Player/Game
@@ -191,7 +221,73 @@ export class SingleBiomeEnvironment {
         this.obstacles.push(obj);
     }
     
-    toggleWorldGrid() {
-        // No grid in world scene yet
+    toggleWorldGrid(visible?: boolean) {
+        if (typeof visible === 'boolean') {
+            this.worldGrid.setVisible(visible);
+            return;
+        }
+        this.worldGrid.toggle();
+    }
+
+    public setCircularWallCenter(center: THREE.Vector2 | null) {
+        this.circularWallCenter = center;
+        if (!this.mesh) return;
+        if (center) {
+            this.addCircularWall(center, 2);
+        } else {
+            this.clearCircularWalls();
+        }
+    }
+
+    private addCircularWall(center: THREE.Vector2, diameterInGrids: number) {
+        const GRID_SIZE = 1.3333;
+        const WALL_LENGTH = GRID_SIZE * 4;
+        const wallScale = 0.5;
+        const segmentCount = 8;
+        const targetRadius = (diameterInGrids * GRID_SIZE) * 0.5;
+        const segmentLength = WALL_LENGTH * wallScale;
+        const minRadius = segmentLength / (2 * Math.sin(Math.PI / segmentCount));
+        const radius = Math.max(targetRadius, minRadius);
+
+        this.clearCircularWalls();
+
+        for (let i = 0; i < segmentCount; i += 1) {
+            const angleA = (i / segmentCount) * Math.PI * 2;
+            const angleB = ((i + 1) / segmentCount) * Math.PI * 2;
+            const v1 = new THREE.Vector2(
+                center.x + Math.cos(angleA) * radius,
+                center.y + Math.sin(angleA) * radius
+            );
+            const v2 = new THREE.Vector2(
+                center.x + Math.cos(angleB) * radius,
+                center.y + Math.sin(angleB) * radius
+            );
+            const mid = v1.clone().add(v2).multiplyScalar(0.5);
+            const dir = v2.clone().sub(v1);
+            const rotation = Math.atan2(dir.y, dir.x) + Math.PI / 2;
+            const y = PlayerUtils.getTerrainHeight(mid.x, mid.y);
+            const { group, obstacle } = ObjectFactory.createWall(new THREE.Vector3(mid.x, y, mid.y), rotation);
+            group.scale.setScalar(wallScale);
+            this.group.add(group);
+            this.obstacles.push(obstacle);
+            this.circularWallGroups.push(group);
+        }
+    }
+
+    private clearCircularWalls() {
+        this.circularWallGroups.forEach(group => {
+            this.group.remove(group);
+            group.traverse(child => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(m => m.dispose());
+                    } else {
+                        child.material.dispose();
+                    }
+                }
+            });
+        });
+        this.circularWallGroups = [];
     }
 }

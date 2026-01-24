@@ -5,14 +5,14 @@ import { ShirtBuilder } from './mesh/ShirtBuilder';
 import { PantsBuilder } from './mesh/PantsBuilder';
 import { ShortsBuilder } from './mesh/ShortsBuilder';
 import { GreavesBuilder } from './mesh/GreavesBuilder';
-import { RobeBuilder } from './equipment/RobeBuilder';
+import { RobeBuilder } from './equipment/apparel/RobeBuilder';
 import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
 import { HairBuilder } from './mesh/HairBuilder';
 import { ApronBuilder } from './mesh/ApronBuilder';
-import { CapeBuilder } from './equipment/CapeBuilder';
-import { BeltBuilder } from './equipment/BeltBuilder';
-import { BracersBuilder } from './equipment/BracersBuilder';
+import { CapeBuilder } from './equipment/apparel/CapeBuilder';
+import { BeltBuilder } from './equipment/apparel/BeltBuilder';
+import { BracersBuilder } from './equipment/apparel/BracersBuilder';
 import { GloveBuilder } from './mesh/GloveBuilder';
 
 export class BodyMorpher {

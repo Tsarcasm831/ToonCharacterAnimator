@@ -2,7 +2,7 @@
 import React from 'react';
 import { PlayerConfig, OutfitType } from '../../../types';
 import { OUTFIT_PRESETS } from '../../../data/constants';
-import { ColorPicker, ToggleButton } from '../CommonControls';
+import { ColorPicker, ToggleButton } from '../panels/CommonControls';
 
 interface OutfitControlsProps {
     config: PlayerConfig;

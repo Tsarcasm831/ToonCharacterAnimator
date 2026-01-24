@@ -74,8 +74,10 @@ export class Game {
     public onBuildLog?: (message: string) => void;
     public onEnvironmentReady?: () => void;
     public onUpdate?: (dt: number) => void;
+    public onEnterTown?: () => void;
 
     private hasSpawnedAllAnimals: boolean = false;
+    private enterTownTriggered: boolean = false;
 
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
@@ -211,7 +213,7 @@ export class Game {
         this.inputManager.onToggleHands = () => this.player.toggleHandsDebug();
         this.inputManager.onToggleSkeletonMode = () => this.player.toggleSkeletonMode();
         this.inputManager.onToggleBuilder = () => this.toggleBuilder();
-        this.inputManager.onToggleGrid = () => this.sceneManager.environment.toggleWorldGrid();
+        this.inputManager.onToggleGrid = () => this.sceneManager.currentEnvironment?.toggleWorldGrid();
         this.inputManager.onConfirmBuild = () => this.handleConfirmBuild();
         this.inputManager.onToggleWorldMap = () => {
             this.onToggleWorldMapCallback?.(this.player.mesh.position.clone());
@@ -260,6 +262,37 @@ export class Game {
         if (this.sceneManager.combatEnvironment) {
             this.sceneManager.combatEnvironment.toggleGridLabels(visible);
         }
+        if (this.sceneManager.currentEnvironment && this.sceneManager.currentEnvironment !== this.sceneManager.combatEnvironment) {
+            this.sceneManager.currentEnvironment.toggleWorldGrid(visible);
+        }
+    }
+
+    private handleTownEntry(input: PlayerInput): boolean {
+        if (this.sceneManager.activeScene !== 'singleBiome' || !this.onEnterTown) {
+            this.enterTownTriggered = false;
+            return false;
+        }
+
+        const GRID_SIZE = 1.3333;
+        const targetX = (186 + 0.5) * GRID_SIZE;
+        const targetZ = (-174 + 0.5) * GRID_SIZE;
+        const dx = this.player.mesh.position.x - targetX;
+        const dz = this.player.mesh.position.z - targetZ;
+        const radius = GRID_SIZE * 1.5;
+        const inRange = (dx * dx + dz * dz) <= (radius * radius);
+
+        if (!inRange) {
+            this.enterTownTriggered = false;
+            return false;
+        }
+
+        this.onInteractionUpdate?.('Press E to Enter Town', null);
+        if (input.interact && !this.enterTownTriggered) {
+            this.enterTownTriggered = true;
+            this.onEnterTown();
+        }
+
+        return true;
     }
 
     private combatInitialized: boolean = false;
@@ -459,7 +492,9 @@ export class Game {
         if (this.player.isTalking) this.onInteractionUpdate?.(null, null);
         else if (this.player.isSkinning) this.onInteractionUpdate?.(null, this.player.skinningProgress);
         else if (this.player.combat.isChargingFishing) this.onInteractionUpdate?.('Power', this.player.combat.fishingCharge);
-        else if (this.player.canTalk) {
+        else if (this.handleTownEntry(input)) {
+            // handled by town-entry prompt
+        } else if (this.player.canTalk) {
             const target = this.player.talkingTarget;
             const targetName = target?.constructor.name;
             

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { CombatLogEntry } from '../components/ui/CombatLog';
+import { CombatLogEntry } from '../components/ui/hud/CombatLog';
 
 export function useCombatState() {
   const [isCombatActive, setIsCombatActive] = useState(false);

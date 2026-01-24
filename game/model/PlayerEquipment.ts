@@ -1,12 +1,12 @@
 
-import { HoodBuilder } from './equipment/HoodBuilder';
-import { HelmBuilder } from './equipment/HelmBuilder';
-import { MaskBuilder } from './equipment/MaskBuilder';
-import { PauldronBuilder } from './equipment/PauldronBuilder';
-import { ShieldBuilder } from './equipment/ShieldBuilder';
-import { MageHatBuilder } from './equipment/MageHatBuilder';
-import { SkirtBuilder } from './equipment/SkirtBuilder';
-import { SkullcapBuilder } from './equipment/SkullcapBuilder';
+import { HoodBuilder } from './equipment/apparel/HoodBuilder';
+import { HelmBuilder } from './equipment/apparel/HelmBuilder';
+import { MaskBuilder } from './equipment/apparel/MaskBuilder';
+import { PauldronBuilder } from './equipment/apparel/PauldronBuilder';
+import { ShieldBuilder } from './equipment/apparel/ShieldBuilder';
+import { MageHatBuilder } from './equipment/apparel/MageHatBuilder';
+import { SkirtBuilder } from './equipment/apparel/SkirtBuilder';
+import { SkullcapBuilder } from './equipment/apparel/SkullcapBuilder';
 import { updateHeldItem as updateHeldItemEquipment } from './equipment/HeldItemEquipment';
 import { PlayerConfig } from '../../types';
 

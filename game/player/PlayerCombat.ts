@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Player } from './Player';
 import { PlayerInput } from '../../types';
 import { ParticleManager } from '../managers/ParticleManager';
-import { ArrowBuilder } from '../model/equipment/ArrowBuilder';
+import { ArrowBuilder } from '../model/equipment/weapons/ArrowBuilder';
 
 export interface Projectile {
     mesh: THREE.Object3D;

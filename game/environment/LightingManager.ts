@@ -7,6 +7,7 @@ export class LightingManager {
     private sunLight: THREE.DirectionalLight;
     private hemiLight: THREE.HemisphereLight;
     private skySphere: THREE.Mesh;
+    private readonly skyBaseRadius = 150;
     
     private cycleTimer: number = 0;
     private readonly CYCLE_DURATION = 600; 
@@ -48,7 +49,7 @@ export class LightingManager {
             sunSize: { value: 0.999 }
         };
         
-        const skyGeo = new THREE.SphereGeometry(150, 32, 16);
+        const skyGeo = new THREE.SphereGeometry(this.skyBaseRadius, 32, 16);
         const skyMat = new THREE.ShaderMaterial({
             vertexShader: SKY_VERTEX_SHADER,
             fragmentShader: SKY_FRAGMENT_SHADER,
@@ -63,6 +64,12 @@ export class LightingManager {
 
     update(dt: number, config: PlayerConfig) {
         this.updateDayNight(dt, config);
+    }
+
+    public setSkySphereRadius(radius: number) {
+        const safeRadius = Math.max(radius, this.skyBaseRadius);
+        const scale = safeRadius / this.skyBaseRadius;
+        this.skySphere.scale.set(scale, scale, scale);
     }
 
     dispose() {

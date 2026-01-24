@@ -2,7 +2,7 @@
 import React from 'react';
 import { PlayerConfig, BodyVariant } from '../../../types';
 import { BODY_PRESETS } from '../../../data/constants';
-import { ColorPicker, ToggleButton } from '../CommonControls';
+import { ColorPicker, ToggleButton } from '../panels/CommonControls';
 
 interface BodyControlsProps {
     config: PlayerConfig;

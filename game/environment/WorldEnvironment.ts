@@ -175,7 +175,7 @@ export class WorldEnvironment {
         this.obstacles.push(obj);
     }
     
-    toggleWorldGrid() {
+    toggleWorldGrid(_visible?: boolean) {
         // No grid in world scene yet
     }
 }
