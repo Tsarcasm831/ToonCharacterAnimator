@@ -92,7 +92,11 @@ export class Environment {
         this.obstacleManager.addObstacle(obj);
     }
 
-    toggleWorldGrid() {
+    toggleWorldGrid(visible?: boolean) {
+        if (typeof visible === 'boolean') {
+            this.worldGrid.setVisible(visible);
+            return;
+        }
         this.worldGrid.toggle();
     }
 

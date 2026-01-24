@@ -5,7 +5,7 @@ import { QuiltedArmorBuilder } from './QuiltedArmorBuilder';
 import { HeavyLeatherArmorBuilder } from './HeavyLeatherArmorBuilder';
 import { RingMailBuilder } from './RingMailBuilder';
 import { PlateMailBuilder } from './PlateMailBuilder';
-import { BlackDoubletBuilder } from '../equipment/Leather_Doublet';
+import { BlackDoubletBuilder } from '../equipment/apparel/Leather_Doublet';
 
 const LEATHER_COLOR = '#5d4037';
 const LEATHER_DARK = '#3d2b1f';

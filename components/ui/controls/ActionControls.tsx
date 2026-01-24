@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { PlayerInput, PlayerConfig } from '../../../types';
-import { Button, ToggleButton } from '../CommonControls';
+import { Button, ToggleButton } from '../panels/CommonControls';
 
 interface ActionControlsProps {
     manualInput: Partial<PlayerInput>;

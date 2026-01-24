@@ -114,7 +114,8 @@ export class Wall {
         const geometries: THREE.BufferGeometry[] = [];
         const numRocks = 160; // Increased for 4x length
         // Use non-indexed geometry so all merged rocks share identical attribute sets
-        const baseGeo = new THREE.DodecahedronGeometry(0.15, 0).toNonIndexed(); // Low poly sphere-ish shape
+        const baseGeometry = new THREE.DodecahedronGeometry(0.15, 0); // Low poly sphere-ish shape
+        const baseGeo = baseGeometry.index ? baseGeometry.toNonIndexed() : baseGeometry;
         baseGeo.deleteAttribute('uv');
 
         for (let i = 0; i < numRocks; i++) {
@@ -140,8 +141,7 @@ export class Wall {
         // Add a central filler block to ensure no gaps look straight through
         // Convert to non-indexed and strip UVs so it matches the rock geometries' attribute set
         const fillerBox = new THREE.BoxGeometry(this.GRID_SIZE * 0.9, this.ROCK_HEIGHT * 0.8, this.WALL_DEPTH * 0.6);
-        let filler = fillerBox.toNonIndexed();
-
+        const filler = fillerBox.index ? fillerBox.toNonIndexed() : fillerBox;
         filler.deleteAttribute('uv');
         filler.translate(0, this.ROCK_HEIGHT / 2, 0);
         geometries.push(filler);

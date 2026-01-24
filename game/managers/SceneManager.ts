@@ -3,13 +3,14 @@ import { Environment } from '../environment/Environment';
 import { WorldEnvironment } from '../environment/WorldEnvironment';
 import { CombatEnvironment } from '../environment/CombatEnvironment';
 import { SingleBiomeEnvironment } from '../environment/SingleBiomeEnvironment';
+import { TownEnvironment } from '../environment/TownEnvironment.ts';
 import { RenderManager } from '../core/RenderManager';
 import { EntityManager } from './EntityManager';
 import { Player } from '../player/Player';
 import { PlayerUtils } from '../player/PlayerUtils';
 import { landCoordsToWorld, getLandHeightAt } from '../environment/landTerrain';
 
-export type SceneType = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome';
+export type SceneType = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town';
 
 export class SceneManager {
     public activeScene: SceneType;
@@ -18,6 +19,7 @@ export class SceneManager {
     public landEnvironment: WorldEnvironment | null = null;
     public combatEnvironment: CombatEnvironment | null = null;
     public singleBiomeEnvironment: SingleBiomeEnvironment | null = null;
+    public townEnvironment: TownEnvironment | null = null;
     
     private renderManager: RenderManager;
     private entityManager: EntityManager;
@@ -51,6 +53,10 @@ export class SceneManager {
             if (!this.singleBiomeEnvironment) {
                 this.singleBiomeEnvironment = new SingleBiomeEnvironment(this.scene);
             }
+        } else if (sceneName === 'town') {
+            if (!this.townEnvironment) {
+                this.townEnvironment = new TownEnvironment(this.scene);
+            }
         } else if (sceneName === 'land') {
             if (!this.landEnvironment) {
                 this.landEnvironment = new WorldEnvironment(this.scene);
@@ -71,6 +77,10 @@ export class SceneManager {
             this.singleBiomeEnvironment.dispose();
             this.singleBiomeEnvironment = null;
         }
+        if (except !== 'town' && this.townEnvironment) {
+            this.townEnvironment.dispose();
+            this.townEnvironment = null;
+        }
         if (except !== 'land' && this.landEnvironment) {
             this.landEnvironment.dispose();
             this.landEnvironment = null;
@@ -88,6 +98,7 @@ export class SceneManager {
     public get currentEnvironment() {
         if (this.activeScene === 'dev') return this.environment;
         if (this.activeScene === 'singleBiome') return this.singleBiomeEnvironment;
+        if (this.activeScene === 'town') return this.townEnvironment;
         if (this.activeScene === 'land') return this.landEnvironment;
         if (this.activeScene === 'combat' || this.activeScene === 'mp') return this.combatEnvironment;
         return null;
@@ -104,6 +115,7 @@ export class SceneManager {
         this.activeScene = sceneName;
         const GRID_CELL_SIZE = 1.3333;
         PlayerUtils.setUseLandTerrain(sceneName === 'land');
+        PlayerUtils.setCustomLandPolygon(null);
 
         // Unload old environments and load the new one
         this.unloadEnvironments(sceneName);
@@ -128,6 +140,22 @@ export class SceneManager {
             this.player.mesh.position.set(startX, 0, startZ);
             this.renderManager.controls.target.set(startX, 1.7, startZ);
             this.renderManager.camera.position.set(startX, 3.2, startZ + 5.0);
+
+            this.renderManager.controls.enableRotate = true;
+            this.renderManager.controls.enableZoom = true;
+            this.renderManager.controls.enablePan = true;
+        } else if (sceneName === 'town') {
+            const halfSize = 50;
+            PlayerUtils.setCustomLandPolygon([
+                [-halfSize, -halfSize],
+                [halfSize, -halfSize],
+                [halfSize, halfSize],
+                [-halfSize, halfSize],
+            ]);
+
+            this.player.mesh.position.set(0, 0, 0);
+            this.renderManager.controls.target.set(0, 1.7, 0);
+            this.renderManager.camera.position.set(0, 5, 10);
 
             this.renderManager.controls.enableRotate = true;
             this.renderManager.controls.enableZoom = true;
@@ -196,6 +224,8 @@ export class SceneManager {
             this.environment.update(delta, config, this.player.mesh.position);
         } else if (this.activeScene === 'singleBiome' && this.singleBiomeEnvironment) {
             this.singleBiomeEnvironment.update(delta, config, this.player.mesh.position);
+        } else if (this.activeScene === 'town' && this.townEnvironment) {
+            this.townEnvironment.update(delta, config, this.player.mesh.position);
         } else if (this.activeScene === 'land' && this.landEnvironment) {
             this.landEnvironment.update(delta, config, this.player.mesh.position);
         } else if (this.activeScene === 'combat' && this.combatEnvironment) {

@@ -347,7 +347,7 @@ export class CombatEnvironment {
         this.obstacles.push(obj);
     }
     
-    toggleWorldGrid() {
+    toggleWorldGrid(_visible?: boolean) {
         // Already a grid
     }
 }

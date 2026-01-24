@@ -1,11 +1,11 @@
 
 import * as THREE from 'three';
 import { PlayerConfig } from '../../../types';
-import { HideBreeches } from '../equipment/HideBreeches';
-import { LeatherPants } from '../equipment/LeatherPants';
-import { ChainLeggings } from '../equipment/ChainLeggings';
-import { PlateLeggings } from '../equipment/PlateLeggings';
-import { WarlordLegPlates } from '../equipment/WarlordLegPlates';
+import { HideBreeches } from '../equipment/apparel/HideBreeches';
+import { LeatherPants } from '../equipment/apparel/LeatherPants';
+import { ChainLeggings } from '../equipment/apparel/ChainLeggings';
+import { PlateLeggings } from '../equipment/apparel/PlateLeggings';
+import { WarlordLegPlates } from '../equipment/apparel/WarlordLegPlates';
 
 const GLOBAL_PATTERN_SCALE = 3.5;
 

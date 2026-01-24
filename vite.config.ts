@@ -51,7 +51,7 @@ export default defineConfig(({ mode }) => {
                 './hooks/useEconomyLogic.ts'
               ],
               'ui-components': [
-                './components/ui/BuilderUI.tsx',
+                './components/ui/panels/BuilderUI.tsx',
                 './components/CombatScene.tsx',
                 './components/WorldScene.tsx'
               ]

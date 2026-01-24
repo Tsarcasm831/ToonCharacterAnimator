@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { SwordBuilder } from './SwordBuilder';
-import { AxeBuilder } from './AxeBuilder';
-import { PickaxeBuilder } from './PickaxeBuilder';
-import { KnifeBuilder } from './KnifeBuilder';
-import { HalberdBuilder } from './HalberdBuilder';
-import { FishingPoleBuilder } from './FishingPoleBuilder';
-import { BowBuilder } from './BowBuilder';
-import { StaffBuilder } from './StaffBuilder';
+import { SwordBuilder } from './weapons/SwordBuilder';
+import { AxeBuilder } from './weapons/AxeBuilder';
+import { PickaxeBuilder } from './weapons/PickaxeBuilder';
+import { KnifeBuilder } from './weapons/KnifeBuilder';
+import { HalberdBuilder } from './weapons/HalberdBuilder';
+import { FishingPoleBuilder } from './weapons/FishingPoleBuilder';
+import { BowBuilder } from './weapons/BowBuilder';
+import { StaffBuilder } from './weapons/StaffBuilder';
 
 export function updateHeldItem(
     itemName: string | null,

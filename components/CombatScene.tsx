@@ -3,9 +3,9 @@ import React, { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { Game } from "../game/core/Game";
 import { PlayerConfig, PlayerInput, InventoryItem, EntityStats } from '../types';
-import { GameHUD } from './ui/GameHUD';
-import { CombatLogEntry } from './ui/CombatLog';
-import { UnitStatsTooltip } from './ui/UnitStatsTooltip';
+import { GameHUD } from './ui/hud/GameHUD';
+import { CombatLogEntry } from './ui/hud/CombatLog';
+import { UnitStatsTooltip } from './ui/hud/UnitStatsTooltip';
 import { useGame } from '../hooks/useGame';
 
 interface CombatSceneProps {

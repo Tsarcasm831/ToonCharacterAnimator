@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { PlayerConfig } from '../../../types';
-import { Slider, ColorPicker } from '../CommonControls';
+import { Slider, ColorPicker } from '../panels/CommonControls';
 
 interface FaceControlsProps {
     config: PlayerConfig;

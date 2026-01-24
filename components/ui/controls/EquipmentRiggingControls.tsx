@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { PlayerConfig } from '../../../types';
-import { Slider } from '../CommonControls';
+import { Slider } from '../panels/CommonControls';
 
 interface EquipmentRiggingControlsProps {
     config: PlayerConfig;
