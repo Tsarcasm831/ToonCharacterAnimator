@@ -4,8 +4,7 @@ import { Game } from '../game/core/Game';
 import { PlayerConfig, PlayerInput, InventoryItem, ActiveScene } from '../types';
 import { WorldMapModal } from './ui/WorldMapModal';
 import { useGame } from '../hooks/useGame';
-import { BIOME_DATA } from '../game/environment/EnvironmentTypes';
-import { ObjectFactory } from '../game/environment/ObjectFactory';
+import { useGlobalState } from '../contexts/GlobalContext';
 
 interface SceneProps {
   activeScene: ActiveScene;
@@ -23,39 +22,6 @@ interface SceneProps {
   showGrid?: boolean;
   isCombatActive?: boolean;
 }
-
-// Temporarily suppress building prefabs (forge, dev block) while keeping pond/trees
-const suppressBuildings = (() => {
-  let patched = false;
-  let originals: Record<string, any> | null = null;
-  return {
-    apply: () => {
-      if (patched) return;
-      originals = {
-        createForge: ObjectFactory.createForge,
-        createBlueBlock: ObjectFactory.createBlueBlock
-      };
-
-      ObjectFactory.createForge = (pos: THREE.Vector3, rot: number) => ({ group: new THREE.Group(), obstacles: [] });
-      ObjectFactory.createBlueBlock = () => {
-        const mesh = new THREE.Mesh(
-          new THREE.BoxGeometry(0.01, 0.01, 0.01),
-          new THREE.MeshBasicMaterial({ visible: false })
-        );
-        mesh.position.set(0, -9999, 0);
-        return mesh;
-      };
-      patched = true;
-    },
-    restore: () => {
-      if (!patched || !originals) return;
-      ObjectFactory.createForge = originals.createForge;
-      ObjectFactory.createBlueBlock = originals.createBlueBlock;
-      originals = null;
-      patched = false;
-    }
-  };
-})();
 
 const SingleBiomeScene: React.FC<SceneProps> = ({
   activeScene,
@@ -75,31 +41,39 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
+  const gameRef = useRef<Game | null>(null);
+  const { uiState } = useGlobalState();
 
-  // Force a single biome and expand to a 16x16 grid (centered around origin)
   useEffect(() => {
-    const originalBiomeData = { ...BIOME_DATA };
-    const single = BIOME_DATA['0,0']; // Verdant Meadows
-    // Populate -8..7 (16 cells) in both axes with the single biome
-    for (let x = -8; x <= 7; x++) {
-      for (let z = -8; z <= 7; z++) {
-        BIOME_DATA[`${x},${z}`] = single;
-      }
-    }
-    // Keep water entry intact
-    BIOME_DATA['water'] = originalBiomeData['water'];
-
-    suppressBuildings.apply();
-
-    return () => {
-      // Restore original biome data to avoid leaking into other scenes
-      Object.keys(BIOME_DATA).forEach(k => delete (BIOME_DATA as any)[k]);
-      Object.entries(originalBiomeData).forEach(([k, v]) => {
-        (BIOME_DATA as any)[k] = v;
-      });
-      suppressBuildings.restore();
-    };
+    // Open land selection on mount
+    uiState.setIsLandSelectionOpen(true);
   }, []);
+
+  const handleGameReady = (game: Game) => {
+    gameRef.current = game;
+    if (onGameReady) onGameReady(game);
+    
+    // Initialize with a default 100x100 grid (2x2 land units)
+    // Points relative to center
+    const defaultPoints = [
+        [0, 0],
+        [2, 0],
+        [2, 2],
+        [0, 2]
+    ];
+    game.sceneManager.updateSingleBiomeLand(defaultPoints, { name: 'Default Grid', color: '#4ade80', type: 'Grass' });
+    
+    // Disable environment systems if needed, but SingleBiomeEnvironment handles its own build
+    const env = game.sceneManager.environment;
+    if (env) {
+      // If we somehow still have the main environment loaded (shouldn't happen with new SceneManager logic)
+      (env as any).grassManager = null;
+      (env as any).snowSystem = null;
+      (env as any).debrisSystem = { update: () => {}, dispose: () => {} };
+    }
+    
+    if (onEnvironmentReady) onEnvironmentReady();
+  };
 
   useGame({
     containerRef,
@@ -107,7 +81,7 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
     manualInput,
     initialInventory,
     activeScene,
-    onGameReady,
+    onGameReady: handleGameReady,
     onEnvironmentReady,
     onInventoryUpdate,
     onInteractionUpdate,

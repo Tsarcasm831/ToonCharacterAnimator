@@ -60,14 +60,6 @@ export const WorldScene: React.FC<WorldSceneProps> = ({
 
   return (
     <div className="w-full h-full bg-[#1a365d] relative overflow-hidden flex items-center justify-center">
-      <div className="absolute top-4 left-4 z-10 bg-slate-900/80 p-4 rounded-lg border border-white/10 backdrop-blur-sm">
-        <h1 className="text-xl font-bold text-white mb-2">World Map</h1>
-        <div className="text-sm text-gray-300">
-          {hoveredLand && <div className="text-emerald-400">{hoveredLand}</div>}
-          {hoveredCity && <div className="text-yellow-400">{hoveredCity}</div>}
-        </div>
-      </div>
-
       <svg 
         viewBox={`${bounds.minX} ${bounds.minY} ${bounds.width} ${bounds.height}`}
         className="w-full h-full max-h-screen"

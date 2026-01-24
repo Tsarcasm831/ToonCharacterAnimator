@@ -10,6 +10,8 @@ export function useUIState() {
   const [isKeybindsOpen, setIsKeybindsOpen] = useState(false);
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
   const [isLandMapOpen, setIsLandMapOpen] = useState(false);
+  const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
+  const [isLandSelectionOpen, setIsLandSelectionOpen] = useState(false);
   const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
   const [isEnemiesModalOpen, setIsEnemiesModalOpen] = useState(false);
   const [isCharacterStatsOpen, setIsCharacterStatsOpen] = useState(false);
@@ -23,6 +25,21 @@ export function useUIState() {
   const [interactionProgress, setInteractionProgress] = useState<number | null>(null);
   const [isTravelOpen, setIsTravelOpen] = useState(false);
   const [isDeadUI, setIsDeadUI] = useState(false);
+  
+  const [builderLogs, setBuilderLogs] = useState<{ id: string, message: string, timestamp: number }[]>([]);
+  const [isBuilderLogOpen, setIsBuilderLogOpen] = useState(false);
+
+  const addBuilderLog = (message: string) => {
+    const newLog = {
+      id: Math.random().toString(36).substr(2, 9),
+      message,
+      timestamp: Date.now()
+    };
+    setBuilderLogs(prev => [newLog, ...prev]);
+  };
+
+  const clearBuilderLogs = () => setBuilderLogs([]);
+  const toggleBuilderLog = () => setIsBuilderLogOpen(prev => !prev);
 
   const toggleInventory = () => {
     if (isTradeOpen) setIsTradeOpen(false);
@@ -42,6 +59,8 @@ export function useUIState() {
     isKeybindsOpen, setIsKeybindsOpen, toggleKeybinds,
     isQuestLogOpen, setIsQuestLogOpen, toggleQuestLog,
     isLandMapOpen, setIsLandMapOpen,
+    isWorldMapOpen, setIsWorldMapOpen,
+    isLandSelectionOpen, setIsLandSelectionOpen,
     isSpawnModalOpen, setIsSpawnModalOpen,
     isEnemiesModalOpen, setIsEnemiesModalOpen,
     isCharacterStatsOpen, setIsCharacterStatsOpen,
@@ -54,6 +73,8 @@ export function useUIState() {
     selectedUnit, setSelectedUnit,
     interactionText, setInteractionText,
     interactionProgress, setInteractionProgress,
-    isDeadUI, setIsDeadUI
+    isDeadUI, setIsDeadUI,
+    builderLogs, addBuilderLog, clearBuilderLogs,
+    isBuilderLogOpen, setIsBuilderLogOpen, toggleBuilderLog
   };
 }

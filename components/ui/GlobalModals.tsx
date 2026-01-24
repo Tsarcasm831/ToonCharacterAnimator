@@ -14,6 +14,7 @@ const SpawnAnimalsModal = lazy(() => import('./SpawnAnimalsModal').then(m => ({ 
 const EnemiesModal = lazy(() => import('./EnemiesModal').then(m => ({ default: m.EnemiesModal })));
 const ShopkeeperChatModal = lazy(() => import('./ShopkeeperChatModal').then(m => ({ default: m.ShopkeeperChatModal })));
 const LandMapModal = lazy(() => import('./LandMapModal').then(m => ({ default: m.LandMapModal })));
+const WorldMapModal = lazy(() => import('./WorldMapModal').then(m => ({ default: m.WorldMapModal })));
 
 export const GlobalModals: React.FC = () => {
     const {
@@ -41,7 +42,9 @@ export const GlobalModals: React.FC = () => {
         isEnemiesModalOpen, setIsEnemiesModalOpen,
         isCharacterStatsOpen, setIsCharacterStatsOpen,
         statsForModal, statsUnitName,
-        isLandMapOpen, setIsLandMapOpen
+        isLandMapOpen, setIsLandMapOpen,
+        isWorldMapOpen, setIsWorldMapOpen,
+        isLandSelectionOpen, setIsLandSelectionOpen
     } = uiState;
 
     const { inventory, setInventory, equipmentSlots } = inventoryState;
@@ -103,6 +106,36 @@ export const GlobalModals: React.FC = () => {
             const playerPos = gameInstance.current.player.position;
             const spawnPos = playerPos.clone().add(new THREE.Vector3(2, 0, 2));
             gameInstance.current.entityManager.spawnAnimalGroup(type, count, gameInstance.current.sceneManager.environment, spawnPos);
+        }
+    };
+
+    const handleLandSelect = (land: any) => {
+        setIsLandSelectionOpen(false);
+        if (gameInstance.current && land.points) {
+            // Map land texture/type to sound manager type if possible
+            // Land data has 'texture' property e.g. 'trees', 'sand', etc.
+            const biomeType = land.texture ? 
+                (land.texture === 'trees' ? 'Leaves' : 
+                 land.texture === 'sand' ? 'Sand' : 
+                 land.texture === 'snow' ? 'Snow' : 
+                 land.texture === 'stone' ? 'Stone' : 
+                 'Grass') 
+                : 'Grass';
+
+            gameInstance.current.sceneManager.updateSingleBiomeLand(land.points, {
+                name: land.name,
+                color: land.color,
+                type: biomeType
+            });
+            
+            // Reset player position to center/safe spot
+            if (gameInstance.current.player) {
+               // We should probably find a safe spot inside the polygon instead of 0,5,0 if 0,0 is not in polygon
+               // But for now, 0,5,0 is the assumption that land is centered-ish.
+               // However, SingleBiomeEnvironment centers the land on 0,0 world space.
+               gameInstance.current.player.mesh.position.set(0, 5, 0);
+               gameInstance.current.player.locomotion.velocity.set(0, 0, 0);
+            }
         }
     };
 
@@ -183,6 +216,12 @@ export const GlobalModals: React.FC = () => {
                     isOpen={isLandMapOpen} 
                     onClose={() => setIsLandMapOpen(false)} 
                     playerPos={gameInstance.current?.player.position || new THREE.Vector3()}
+                />
+            )}
+            {isWorldMapOpen && (
+                <WorldMapModal 
+                    isOpen={isWorldMapOpen}
+                    onClose={() => setIsWorldMapOpen(false)}
                 />
             )}
             {/* {isCharacterStatsOpen && (

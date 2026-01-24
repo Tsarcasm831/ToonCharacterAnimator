@@ -12,6 +12,8 @@ export class BuilderManager {
     private isActive: boolean = false;
     private _rayCoords = new THREE.Vector2();
     
+    public onBuild?: (type: string, pos: THREE.Vector3, rot: number) => void;
+
     constructor(scene: THREE.Scene) {
         this.scene = scene;
     }
@@ -26,7 +28,12 @@ export class BuilderManager {
     }
 
     setType(type: StructureType) {
+        console.log('BuilderManager.setType called with:', type);
         this.currentType = type;
+        // Reset rotation to 0 for palisades to match pre-built ones
+        if (type === 'palisade') {
+            this.ghostRotation = 0;
+        }
         if (this.isActive) this.updateGhost();
     }
 
@@ -46,9 +53,15 @@ export class BuilderManager {
 
     private updateGhost() {
         this.clearGhost();
+        console.log('BuilderManager.updateGhost called for type:', this.currentType);
         this.ghostMesh = BuildingParts.createStructureMesh(this.currentType, true);
+        if (!this.ghostMesh) {
+            console.error('BuilderManager.updateGhost: Failed to create ghost mesh for type:', this.currentType);
+            return;
+        }
         this.ghostMesh.rotation.y = this.ghostRotation;
         this.scene.add(this.ghostMesh);
+        console.log('BuilderManager.updateGhost: Ghost mesh created and added to scene');
     }
 
     update(playerPos: THREE.Vector3, playerRotation: number, environment: Environment, camera: THREE.Camera, mousePos: {x: number, y: number}) {
@@ -72,10 +85,13 @@ export class BuilderManager {
         const gridSize = 1.3333;
         const halfGrid = gridSize / 2;
 
-        if (this.currentType === 'foundation') {
+        const isWallLike = ['wall', 'palisade', 'stone_wall', 'wooden_wall'].includes(this.currentType);
+        const isDoorLike = ['doorway', 'door'].includes(this.currentType);
+
+        if (this.currentType === 'foundation' || this.currentType === 'roof') {
             this.ghostMesh.position.x = Math.floor(targetPos.x / gridSize) * gridSize + halfGrid;
             this.ghostMesh.position.z = Math.floor(targetPos.z / gridSize) * gridSize + halfGrid;
-        } else if (this.currentType === 'wall') {
+        } else if (isWallLike) {
             let normRot = this.ghostRotation % (Math.PI * 2);
             if (normRot < 0) normRot += Math.PI * 2;
             const isFacingZ = Math.abs(Math.cos(normRot)) > 0.5;
@@ -87,10 +103,13 @@ export class BuilderManager {
                 this.ghostMesh.position.z = Math.floor(targetPos.z / gridSize) * gridSize + halfGrid;
                 this.ghostMesh.position.x = Math.round(targetPos.x / gridSize) * gridSize;
             }
-        } else if (this.currentType === 'doorway' || this.currentType === 'door') {
+        } else if (isDoorLike) {
             this.ghostMesh.position.x = Math.round(targetPos.x / gridSize) * gridSize;
             this.ghostMesh.position.z = Math.round(targetPos.z / gridSize) * gridSize;
-        } else if (this.currentType === 'roof') {
+        } else {
+            // Free placement for props, or grid snap?
+            // Let's stick to grid snap for consistency, or maybe half-grid?
+            // For now, center on grid cells like foundations
             this.ghostMesh.position.x = Math.floor(targetPos.x / gridSize) * gridSize + halfGrid;
             this.ghostMesh.position.z = Math.floor(targetPos.z / gridSize) * gridSize + halfGrid;
         }
@@ -104,7 +123,7 @@ export class BuilderManager {
             );
         }
 
-        if (this.currentType === 'wall' || this.currentType === 'doorway' || this.currentType === 'door') {
+        if (isWallLike || isDoorLike) {
             let normRot = this.ghostRotation % (Math.PI * 2);
             if (normRot < 0) normRot += Math.PI * 2;
             const isFacingZ = Math.abs(Math.cos(normRot)) > 0.5;
@@ -164,24 +183,46 @@ export class BuilderManager {
         const baseHeight = groundHeight > 0.1 ? groundHeight : 0;
 
         if (!isSnappedToDoorway) {
-            if (this.currentType === 'foundation') {
-                this.ghostMesh.position.y = baseHeight + 0.2; 
-            } else if (this.currentType === 'wall') {
-                this.ghostMesh.position.y = baseHeight + 1.65; 
-            } else if (this.currentType === 'doorway') {
-                this.ghostMesh.position.y = baseHeight + 1.65;
-            } else if (this.currentType === 'door') {
-                this.ghostMesh.position.y = baseHeight + 1.175; 
-            } else if (this.currentType === 'roof') {
-                this.ghostMesh.position.y = baseHeight + 3.3; 
+            switch (this.currentType) {
+                case 'foundation':
+                    this.ghostMesh.position.y = baseHeight + 0.2;
+                    break;
+                case 'wall':
+                case 'doorway':
+                    this.ghostMesh.position.y = baseHeight + 1.65;
+                    break;
+                case 'palisade': // Custom walls now pivot at bottom
+                case 'stone_wall':
+                case 'wooden_wall':
+                    this.ghostMesh.position.y = baseHeight;
+                    break;
+                case 'door':
+                    this.ghostMesh.position.y = baseHeight + 1.175;
+                    break;
+                case 'roof':
+                    this.ghostMesh.position.y = baseHeight + 3.3;
+                    break;
+                default:
+                    // Bottom-origin objects
+                    this.ghostMesh.position.y = baseHeight;
+                    break;
             }
         }
     }
 
     build(environment: { obstacles: THREE.Object3D[] }) {
-        if (!this.isActive || !this.ghostMesh) return;
+        if (!this.isActive || !this.ghostMesh) {
+            console.log('BuilderManager.build: Cannot build - active:', this.isActive, 'ghostMesh:', !!this.ghostMesh);
+            return;
+        }
 
+        console.log('BuilderManager.build: Building', this.currentType, 'at position:', this.ghostMesh.position);
         const realMesh = BuildingParts.createStructureMesh(this.currentType, false);
+        if (!realMesh) {
+            console.error('BuilderManager.build: Failed to create real mesh for type:', this.currentType);
+            return;
+        }
+        
         realMesh.position.copy(this.ghostMesh.position);
         realMesh.rotation.copy(this.ghostMesh.rotation);
         
@@ -201,11 +242,26 @@ export class BuilderManager {
         }
         
         this.scene.add(realMesh);
+        console.log('BuilderManager.build: Real mesh added to scene');
 
-        if (realMesh instanceof THREE.Group) {
-            realMesh.children.forEach(child => environment.obstacles.push(child));
+        // Special handling for lightpole to add its obstacle
+        if (this.currentType === 'lightpole' && (realMesh as any)._obstacle) {
+            environment.obstacles.push((realMesh as any)._obstacle);
+            console.log('BuilderManager.build: Lightpole obstacle added to environment');
         } else {
-            environment.obstacles.push(realMesh);
+            // Recursive function to add all collidable meshes to obstacles
+            const addObstacles = (obj: THREE.Object3D) => {
+                if (obj instanceof THREE.Mesh) {
+                    environment.obstacles.push(obj);
+                }
+                if (obj.children && obj.children.length > 0) {
+                    obj.children.forEach(child => addObstacles(child));
+                }
+            };
+
+            addObstacles(realMesh);
         }
+
+        this.onBuild?.(this.currentType, this.ghostMesh.position, this.ghostMesh.rotation.y);
     }
 }

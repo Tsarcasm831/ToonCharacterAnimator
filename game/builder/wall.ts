@@ -11,7 +11,8 @@ import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUti
  */
 export class Wall {
     // Dimensions based on BuildingParts.ts grid size and general proportions of the reference image.
-    private static readonly GRID_SIZE = 1.3333;
+    // 4x longer as requested
+    private static readonly GRID_SIZE = 1.3333 * 4;
     private static readonly TOTAL_HEIGHT = 3.3;
     private static readonly ROCK_HEIGHT = 1.0;
     private static readonly WALL_DEPTH = 0.4; // Slightly thicker than standard walls to accommodate rocks
@@ -67,13 +68,10 @@ export class Wall {
 
         // 2. Create Wooden Palisade
         const logMesh = this.createLogs();
-        // Move logs up to sit on/in the rocks slightly
-        logMesh.position.y = this.ROCK_HEIGHT - 0.2; 
         group.add(logMesh);
 
         // 3. Create Rope Bindings
         const ropeMesh = this.createRopes();
-        // Position ropes relative to the logs
         ropeMesh.position.y = this.ROCK_HEIGHT - 0.2;
         group.add(ropeMesh);
 
@@ -106,11 +104,6 @@ export class Wall {
             });
         }
 
-        // Center the group vertically based on standard wall height assumptions in LevelGenerator.ts
-        // Standard walls are centered at z=0, and offset vertically by half their height.
-        // This custom wall has its origin at the bottom center.
-        group.position.y -= this.TOTAL_HEIGHT / 2;
-
         return group;
     }
 
@@ -119,7 +112,7 @@ export class Wall {
      */
     private static createRocks(): THREE.Mesh {
         const geometries: THREE.BufferGeometry[] = [];
-        const numRocks = 40; // Adjust for density
+        const numRocks = 160; // Increased for 4x length
         // Use non-indexed geometry so all merged rocks share identical attribute sets
         const baseGeo = new THREE.DodecahedronGeometry(0.15, 0).toNonIndexed(); // Low poly sphere-ish shape
         baseGeo.deleteAttribute('uv');
@@ -201,7 +194,7 @@ export class Wall {
             logGeo.rotateX((Math.random() - 0.5) * 0.05); // Tilt forward/back slightly
             const zOffset = (Math.random() - 0.5) * 0.05;
 
-            logGeo.translate(xPos, 0, zOffset);
+            logGeo.translate(xPos, this.ROCK_HEIGHT, zOffset);
             geometries.push(logGeo);
         }
 

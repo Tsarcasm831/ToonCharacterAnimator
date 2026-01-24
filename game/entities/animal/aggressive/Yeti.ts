@@ -163,26 +163,61 @@ export class Yeti {
             armGroup.position.set(xOffset, 0.6, 0); // Shoulder position
             torso.add(armGroup);
 
+            // Shoulder Joint (Deltoid)
+            const shoulderRadius = 0.15;
+            const shoulderGeo = new THREE.SphereGeometry(shoulderRadius, 16, 16);
+            const shoulder = new THREE.Mesh(shoulderGeo, furMat);
+            shoulder.position.y = 0;
+            shoulder.castShadow = true;
+            armGroup.add(shoulder);
+
             // Upper Arm
-            const uArmGeo = new THREE.BoxGeometry(0.5, 1.2, 0.5);
+            const uArmTopR = 0.15;
+            const uArmBotR = 0.12;
+            const uArmLen = 1.0;
+            const uArmGeo = new THREE.CylinderGeometry(uArmTopR, uArmBotR, uArmLen, 12);
+            uArmGeo.translate(0, -uArmLen/2, 0);
             const uArm = new THREE.Mesh(uArmGeo, furMat);
-            uArm.position.y = -0.6;
+            uArm.position.y = -shoulderRadius - 0.05;
+            uArm.castShadow = true;
             armGroup.add(uArm);
 
-            // Forearm
-            const fArmGroup = new THREE.Group();
-            fArmGroup.position.y = -1.1; // Elbow
-            uArm.add(fArmGroup);
+            // Elbow Joint
+            const elbowRadius = 0.12;
+            const elbowGeo = new THREE.SphereGeometry(elbowRadius, 16, 16);
+            const elbow = new THREE.Mesh(elbowGeo, furMat);
+            elbow.position.y = -shoulderRadius - 0.05 - uArmLen;
+            elbow.castShadow = true;
+            armGroup.add(elbow);
 
-            const fArmGeo = new THREE.BoxGeometry(0.45, 1.1, 0.45);
+            // Forearm Group (for animation)
+            const fArmGroup = new THREE.Group();
+            fArmGroup.position.y = -shoulderRadius - 0.05 - uArmLen;
+            armGroup.add(fArmGroup);
+
+            // Forearm
+            const fArmTopR = 0.12;
+            const fArmBotR = 0.08;
+            const fArmLen = 0.9;
+            const fArmGeo = new THREE.CylinderGeometry(fArmTopR, fArmBotR, fArmLen, 12);
+            fArmGeo.translate(0, -fArmLen/2, 0);
             const fArm = new THREE.Mesh(fArmGeo, furMat);
-            fArm.position.y = -0.5;
+            fArm.position.y = 0;
+            fArm.castShadow = true;
             fArmGroup.add(fArm);
+
+            // Wrist Joint
+            const wristRadius = 0.08;
+            const wristGeo = new THREE.SphereGeometry(wristRadius, 12, 12);
+            const wrist = new THREE.Mesh(wristGeo, skinMat);
+            wrist.position.y = -fArmLen;
+            wrist.castShadow = true;
+            fArmGroup.add(wrist);
 
             // Hand (Large)
             const handGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
             const hand = new THREE.Mesh(handGeo, skinMat);
-            hand.position.y = -1.2;
+            hand.position.y = -fArmLen - 0.2;
             fArmGroup.add(hand);
 
             // Claws
@@ -191,6 +226,13 @@ export class Yeti {
                 claw.rotation.x = -Math.PI / 4;
                 claw.position.set((i-1)*0.12, -0.2, 0.1);
                 hand.add(claw);
+            }
+
+            // Store references for animation
+            if (isLeft) {
+                parts.forearmL = fArmGroup;
+            } else {
+                parts.forearmR = fArmGroup;
             }
 
             return armGroup;
@@ -318,36 +360,52 @@ export class Yeti {
 
     private animate(dt: number, moveSpeed: number) {
         const parts = this.model.parts;
-        const time = this.walkTime * 3.0; // Speed up animation slightly for better feel
+        const time = this.walkTime * 2.5; // Match player animation speed
 
         if (moveSpeed > 0) {
-            // Bipedal Walk Cycle
-            const stride = 0.6; // Leg swing amplitude
-            const kneeBend = 0.8; // Knee flexibility
-            const armSwing = 0.5; // Arm swing amplitude
+            // Bipedal Walk Cycle (similar to player)
+            const stride = 0.8; // Leg swing amplitude
+            const kneeBend = 1.0; // Knee flexibility
+            const armSwing = 0.7; // Arm swing amplitude
+            
+            const sin = Math.sin;
+            const cos = Math.cos;
+            const t = time;
 
             // Legs: Inverse of each other
-            if (parts.legL) parts.legL.rotation.x = Math.sin(time) * stride;
-            if (parts.legR) parts.legR.rotation.x = Math.sin(time + Math.PI) * stride;
+            if (parts.legL) parts.legL.rotation.x = sin(t) * stride;
+            if (parts.legR) parts.legR.rotation.x = sin(t + Math.PI) * stride;
 
-            // Knees: Bend when leg lifts (using sine wave offset)
+            // Knees: Bend when leg lifts
             if (parts.shinL) {
-                const val = Math.sin(time);
+                const val = sin(t);
                 parts.shinL.rotation.x = val > 0 ? val * kneeBend : 0;
             }
             if (parts.shinR) {
-                const val = Math.sin(time + Math.PI);
+                const val = sin(t + Math.PI);
                 parts.shinR.rotation.x = val > 0 ? val * kneeBend : 0;
             }
 
             // Arms: Opposite to legs (Right leg forward = Left arm forward)
-            if (parts.armL) parts.armL.rotation.x = Math.sin(time + Math.PI) * armSwing;
-            if (parts.armR) parts.armR.rotation.x = Math.sin(time) * armSwing;
+            // Upper arms swing
+            if (parts.armL) parts.armL.rotation.x = sin(t + Math.PI) * armSwing;
+            if (parts.armR) parts.armR.rotation.x = sin(t) * armSwing;
             
-            // Body Bob
+            // Forearms bend during walk cycle (like player)
+            if (parts.forearmL) {
+                // Forearm bends more when arm is swinging back
+                const forearmBend = sin(t + Math.PI) > 0 ? -1.2 : -0.4;
+                parts.forearmL.rotation.x = forearmBend;
+            }
+            if (parts.forearmR) {
+                const forearmBend = sin(t) > 0 ? -1.2 : -0.4;
+                parts.forearmR.rotation.x = forearmBend;
+            }
+            
+            // Body Bob (more pronounced for heavy creature)
             if (parts.body) {
-                parts.body.position.y = 2.0 + Math.sin(time * 2) * 0.05; // Bob twice per cycle
-                parts.body.rotation.z = Math.cos(time) * 0.05; // Slight sway
+                parts.body.position.y = 2.0 + sin(t * 2) * 0.08;
+                parts.body.rotation.z = cos(t) * 0.06;
             }
 
         } else {
@@ -365,16 +423,24 @@ export class Yeti {
             // Arms hang loose but breath
             if (parts.armL) {
                 parts.armL.rotation.x = THREE.MathUtils.lerp(parts.armL.rotation.x, 0, resetSpeed);
-                parts.armL.rotation.z = 0.1 + breath; // Breathe out slightly
+                parts.armL.rotation.z = 0.1 + breath;
             }
             if (parts.armR) {
                 parts.armR.rotation.x = THREE.MathUtils.lerp(parts.armR.rotation.x, 0, resetSpeed);
                 parts.armR.rotation.z = -0.1 - breath;
             }
+            
+            // Forearms relax when idle
+            if (parts.forearmL) {
+                parts.forearmL.rotation.x = THREE.MathUtils.lerp(parts.forearmL.rotation.x, -0.3, resetSpeed);
+            }
+            if (parts.forearmR) {
+                parts.forearmR.rotation.x = THREE.MathUtils.lerp(parts.forearmR.rotation.x, -0.3, resetSpeed);
+            }
 
             if (parts.body) {
                 parts.body.position.y = THREE.MathUtils.lerp(parts.body.position.y, 2.0, resetSpeed);
-                parts.body.scale.set(1 + breath*0.5, 1 + breath*0.5, 1 + breath*0.8); // Chest heaving
+                parts.body.scale.set(1 + breath*0.5, 1 + breath*0.5, 1 + breath*0.8);
                 parts.body.rotation.z = THREE.MathUtils.lerp(parts.body.rotation.z, 0, resetSpeed);
             }
         }

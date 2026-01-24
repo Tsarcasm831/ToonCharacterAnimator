@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Music as MusicIcon, Play, Pause, Volume2, SkipForward, SkipBack, X, ChevronUp } from 'lucide-react';
+import { useMusic } from '../../contexts/MusicContext';
 
 interface Track {
     id: string;
@@ -322,57 +323,24 @@ const ALBUMS: Album[] = [
 ];
 
 export const MusicView: React.FC = () => {
-    const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [volume, setVolume] = useState(0.7);
-    const [currentTime, setCurrentTime] = useState(0);
-    const [duration, setDuration] = useState(0);
+    const { currentTrack, isPlaying, volume, currentTime, duration, playTrack, togglePlayPause, setVolume, seek } = useMusic();
     const [selectedAlbum, setSelectedAlbum] = useState<Album | null>(null);
     const [isMobileTrackListOpen, setIsMobileTrackListOpen] = useState(false);
     const [isMobilePlayerOpen, setIsMobilePlayerOpen] = useState(false);
-    const audioRef = React.useRef<HTMLAudioElement | null>(null);
-
-    React.useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.volume = volume;
-        }
-    }, [volume]);
 
     const handlePlayTrack = (track: Track) => {
-        setCurrentTrack(track);
-        setIsPlaying(true);
-        if (audioRef.current) {
-            audioRef.current.src = track.fileUrl;
-            audioRef.current.play();
-        }
+        playTrack(track);
         // Open mobile player when track starts
         setIsMobilePlayerOpen(true);
     };
 
     const handleTogglePlayPause = () => {
-        if (!currentTrack) return;
-        
-        if (isPlaying) {
-            audioRef.current?.pause();
-        } else {
-            audioRef.current?.play();
-        }
-        setIsPlaying(!isPlaying);
-    };
-
-    const handleTimeUpdate = () => {
-        if (audioRef.current) {
-            setCurrentTime(audioRef.current.currentTime);
-            setDuration(audioRef.current.duration || 0);
-        }
+        togglePlayPause();
     };
 
     const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newTime = parseFloat(e.target.value);
-        setCurrentTime(newTime);
-        if (audioRef.current) {
-            audioRef.current.currentTime = newTime;
-        }
+        seek(newTime);
     };
 
     const formatTime = (time: number) => {
@@ -433,11 +401,6 @@ export const MusicView: React.FC = () => {
                     background: rgba(255, 255, 255, 0.3);
                 }
             `}</style>
-            <audio
-                ref={audioRef}
-                onTimeUpdate={handleTimeUpdate}
-                onEnded={() => setIsPlaying(false)}
-            />
             
             {/* Header */}
             <div className="px-4 sm:px-8 py-4 sm:py-8 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent">
@@ -567,61 +530,6 @@ export const MusicView: React.FC = () => {
                                 ))}
                             </div>
                         </div>
-
-                        {/* Now Playing Bar */}
-                        {currentTrack && (
-                            <div className="p-4 border-t border-white/5 bg-slate-900/80">
-                                <div className="mb-3">
-                                    <p className="text-sm font-bold text-white truncate">{currentTrack.title}</p>
-                                    <p className="text-xs text-slate-400">{currentTrack.artist}</p>
-                                </div>
-                                
-                                {/* Progress Bar */}
-                                <div className="mb-3">
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max={duration || 0}
-                                        value={currentTime}
-                                        onChange={handleSeek}
-                                        className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer slider"
-                                    />
-                                    <div className="flex justify-between text-xs text-slate-500 mt-1">
-                                        <span>{formatTime(currentTime)}</span>
-                                        <span>{formatTime(duration)}</span>
-                                    </div>
-                                </div>
-
-                                {/* Controls */}
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <button
-                                            onClick={handleTogglePlayPause}
-                                            className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center hover:bg-purple-600 transition-colors"
-                                        >
-                                            {isPlaying ? (
-                                                <Pause className="w-4 h-4 text-white" />
-                                            ) : (
-                                                <Play className="w-4 h-4 text-white" />
-                                            )}
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2">
-                                        <Volume2 className="w-4 h-4 text-slate-400" />
-                                        <input
-                                            type="range"
-                                            min="0"
-                                            max="1"
-                                            step="0.01"
-                                            value={volume}
-                                            onChange={(e) => setVolume(parseFloat(e.target.value))}
-                                            className="w-20 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 )}
 

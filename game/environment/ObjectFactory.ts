@@ -120,10 +120,18 @@ export class ObjectFactory {
 
     // Rocks
     static createRock(position: THREE.Vector3, scale: number) {
+        if (!RockFactory) {
+            console.error("ObjectFactory: RockFactory is undefined!");
+            return { group: undefined, rock: undefined };
+        }
         return RockFactory.createRock(position, scale);
     }
 
     static createCopperOreRock(position: THREE.Vector3, scale: number) {
+        if (!RockFactory) {
+            console.error("ObjectFactory: RockFactory is undefined!");
+            return { group: undefined, rock: undefined };
+        }
         return RockFactory.createCopperOreRock(position, scale);
     }
 

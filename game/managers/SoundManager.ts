@@ -39,7 +39,7 @@ export class SoundManager {
         }
     }
 
-    update(player: Player, dt: number) {
+    update(player: Player, dt: number, environment?: any) {
         if (!this.ctx) return;
 
         const isDead = player.status.isDead;
@@ -75,7 +75,7 @@ export class SoundManager {
             const vol = speed > 8 ? 0.35 : 0.15;
             
             // Determine Terrain
-            const terrain = this.getTerrainAt(player.mesh.position);
+            const terrain = this.getTerrainAt(player.mesh.position, environment);
             
             this.playFootstep(vol, terrain);
             player.locomotion.didStep = false;
@@ -88,7 +88,19 @@ export class SoundManager {
         this.prevIsGrounded = isGrounded;
     }
 
-    private getTerrainAt(pos: THREE.Vector3): string {
+    private getTerrainAt(pos: THREE.Vector3, environment?: any): string {
+        // 0. Check Environment specific biome (e.g. SingleBiomeEnvironment)
+        if (environment && environment.getBiomeAt) {
+             const biome = environment.getBiomeAt(pos);
+             // If biome returns a name/color, map it to a sound type if needed
+             // SingleBiomeEnvironment currently returns { name: 'Grass', color: ... }
+             // We can check if biome.name or biome.type maps to a known sound key
+             if (biome.type) return biome.type;
+             if (biome.name === 'Grass') return 'Grass';
+             // Default fallback for single biome if it doesn't specify type
+             return 'Grass';
+        }
+
         // 1. Check Water (Pond)
         const pondDepth = PlayerUtils.getTerrainHeight(pos.x, pos.z);
         if (pondDepth < -0.1) return 'Water';
