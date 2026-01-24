@@ -33,8 +33,8 @@ export const Game: React.FC = () => {
         dialogue, 
         selectedSlot, setSelectedSlot,
         interactionText, interactionProgress, setInteractionText, setInteractionProgress,
-        isInventoryOpen, isTradeOpen, isShopkeeperChatOpen, isForgeOpen, isKeybindsOpen, isQuestLogOpen, isSpawnModalOpen, isEnemiesModalOpen, isCharacterStatsOpen, isLandMapOpen, isTravelOpen,
-        setIsTravelOpen, setIsLandMapOpen,
+        isInventoryOpen, isTradeOpen, isShopkeeperChatOpen, isForgeOpen, isKeybindsOpen, isQuestLogOpen, isSpawnModalOpen, isEnemiesModalOpen, isCharacterStatsOpen, isLandMapOpen, isTravelOpen, isAreaMapOpen,
+        setIsTravelOpen, setIsLandMapOpen, setIsAreaMapOpen,
         setDialogue,
         setIsDeadUI, isDeadUI,
         setIsSpawnModalOpen, setIsEnemiesModalOpen,
@@ -64,7 +64,7 @@ export const Game: React.FC = () => {
     const [shouldMountScene, setShouldMountScene] = React.useState(false);
     const mountSceneTimeout = React.useRef<number | null>(null);
 
-    const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || gameState !== 'PLAYING' || isTravelOpen;
+    const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
 
     // Handlers
     const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInMP: boolean = false, startInDev: boolean = false) => {
@@ -151,6 +151,8 @@ export const Game: React.FC = () => {
         setPlayerPosForMap(pos);
         if (activeScene === 'land') {
             setIsLandMapOpen(true);
+        } else if (activeScene === 'singleBiome') {
+            setIsAreaMapOpen(true);
         } else {
             setIsTravelOpen(true);
         }
@@ -376,7 +378,7 @@ export const Game: React.FC = () => {
                 </div>
             </div>
             
-            {notification && (
+            {gameState === 'PLAYING' && notification && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4">
                     <div className="bg-blue-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl border border-blue-400/50">
                         {notification}

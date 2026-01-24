@@ -84,10 +84,10 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                         {[
                             {id: 'helm', label: 'Helm'}, {id: 'skullcap', label: 'Skullcap'}, {id: 'hood', label: 'Hood'}, {id: 'mageHat', label: 'Mage Hat'},
                             {id: 'mask', label: 'Mask'}, {id: 'shoulders', label: 'Pads'}, {id: 'shield', label: 'Shield'},
-                            {id: 'robe', label: 'Robe'}, {id: 'skirt', label: 'Skirt'}, {id: 'quiltedArmor', label: 'Quilted'}, {id: 'leatherArmor', label: 'Leather'},
+                            {id: 'robe', label: 'Robe'}, {id: 'skirt', label: 'Skirt'}, {id: 'quiltedArmor', label: 'Quilted'}, {id: 'leatherArmor', label: 'Leather'}, {id: 'leatherDoublet', label: 'Doublet'},
                             {id: 'heavyLeatherArmor', label: 'H.Leather'}, {id: 'ringMail', label: 'RingMail'}, {id: 'plateMail', label: 'PlateMail'},
-                            {id: 'shirt', label: 'Shirt'}, {id: 'pants', label: 'Pants'}, {id: 'greaves', label: 'Greaves'}, {id: 'shorts', label: 'Shorts'}, {id: 'shoes', label: 'Shoes'},
-                            {id: 'bracers', label: 'Bracers'}, {id: 'cape', label: 'Cape'}, {id: 'belt', label: 'Belt'}
+                            {id: 'shirt', label: 'Shirt'}, {id: 'pants', label: 'Pants'}, {id: 'hideBreeches', label: 'Hide'}, {id: 'leatherPants', label: 'L.Pants'}, {id: 'chainLeggings', label: 'Chain'}, {id: 'plateLeggings', label: 'Plate'}, {id: 'warlordLegPlates', label: 'Warlord'}, {id: 'greaves', label: 'Greaves'}, {id: 'shorts', label: 'Shorts'}, {id: 'shoes', label: 'Shoes'},
+                            {id: 'bracers', label: 'Bracers'}, {id: 'gloves', label: 'Gloves'}, {id: 'cape', label: 'Cape'}, {id: 'belt', label: 'Belt'}
                         ].map((eq) => (
                             <ToggleButton 
                                 key={eq.id}

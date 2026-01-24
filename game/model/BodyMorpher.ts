@@ -4,6 +4,7 @@ import { PlayerMaterials } from './PlayerMaterials';
 import { ShirtBuilder } from './mesh/ShirtBuilder';
 import { PantsBuilder } from './mesh/PantsBuilder';
 import { ShortsBuilder } from './mesh/ShortsBuilder';
+import { GreavesBuilder } from './mesh/GreavesBuilder';
 import { RobeBuilder } from './equipment/RobeBuilder';
 import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
@@ -12,6 +13,7 @@ import { ApronBuilder } from './mesh/ApronBuilder';
 import { CapeBuilder } from './equipment/CapeBuilder';
 import { BeltBuilder } from './equipment/BeltBuilder';
 import { BracersBuilder } from './equipment/BracersBuilder';
+import { GloveBuilder } from './mesh/GloveBuilder';
 
 export class BodyMorpher {
     private parts: any;
@@ -34,20 +36,28 @@ export class BodyMorpher {
     // Track dynamic meshes
     private shirtMeshes: THREE.Object3D[] = [];
     private pantsMeshes: THREE.Object3D[] = [];
+    private greavesMeshes: THREE.Object3D[] = [];
     private shortsMeshes: THREE.Object3D[] = []; // Add shortsMeshes array
     private robeMeshes: THREE.Object3D[] = [];
     private apronMeshes: THREE.Object3D[] = [];
     private capeMeshes: THREE.Object3D[] = [];
     private beltMeshes: THREE.Object3D[] = [];
     private bracerMeshes: THREE.Object3D[] = [];
+    private gloveMeshes: THREE.Object3D[] = [];
+    private gloveRightFingers: THREE.Group[] = [];
+    private gloveRightThumb: THREE.Group | null = null;
+    private gloveLeftFingers: THREE.Group[] = [];
+    private gloveLeftThumb: THREE.Group | null = null;
     private lastShirtConfigHash: string = '';
     private lastPantsConfigHash: string = '';
+    private lastGreavesConfigHash: string = '';
     private lastShortsConfigHash: string = ''; // Add lastShortsConfigHash
     private lastRobeConfigHash: string = '';
     private lastApronConfigHash: string = '';
     private lastCapeConfigHash: string = '';
     private lastBeltConfigHash: string = '';
     private lastBracersConfigHash: string = '';
+    private lastGloveConfigHash: string = '';
     private lastShoeState: boolean | null = null;
     private lastHairHash: string = '';
 
@@ -259,6 +269,8 @@ export class BodyMorpher {
         this.irises.forEach(i => i.scale.setScalar(config.irisScale));
         this.pupils.forEach(p => p.scale.setScalar(config.pupilScale));
 
+        this.updateGloves(config);
+
         const updateHand = (fingers: THREE.Group[], thumb: THREE.Group | null, isLeft: boolean) => {
             const held = config.selectedItem;
             // Bow (Left Hand Hold) vs Other (Right Hand Hold)
@@ -297,6 +309,8 @@ export class BodyMorpher {
         };
         updateHand(this.rightFingers, this.rightThumb, false);
         updateHand(this.leftFingers, this.leftThumb, true);
+        updateHand(this.gloveRightFingers, this.gloveRightThumb, false);
+        updateHand(this.gloveLeftFingers, this.gloveLeftThumb, true);
 
         // --- SHIRT RIGGING ---
         if (this.parts.shirt && this.parts.shirt.torso) {
@@ -312,6 +326,7 @@ export class BodyMorpher {
         }
 
         this.updatePants(config);
+        this.updateGreaves(config);
         this.updateShorts(config); // Call updateShorts
         this.updateShirt(config);
         
@@ -354,7 +369,7 @@ export class BodyMorpher {
     }
 
     private updateShirt(config: PlayerConfig) {
-        const hash = `${config.outfit}_${config.shirtColor}_${config.bodyType}_${config.equipment.shirt}_${config.equipment.quiltedArmor}_${config.equipment.leatherArmor}_${config.equipment.heavyLeatherArmor}_${config.equipment.ringMail}_${config.equipment.plateMail}`;
+        const hash = `${config.outfit}_${config.shirtColor}_${config.bodyType}_${config.equipment.shirt}_${config.equipment.quiltedArmor}_${config.equipment.leatherArmor}_${config.equipment.heavyLeatherArmor}_${config.equipment.ringMail}_${config.equipment.plateMail}_${config.equipment.leatherDoublet}`;
         if (hash === this.lastShirtConfigHash) return;
         this.lastShirtConfigHash = hash;
         if (this.parts.shirt) this.parts.shirt = null;
@@ -396,7 +411,7 @@ export class BodyMorpher {
     }
 
     private updatePants(config: PlayerConfig) {
-        const hash = `${config.outfit}_${config.equipment.pants}_${config.pantsColor}`;
+        const hash = `${config.outfit}_${config.equipment.pants}_${config.equipment.hideBreeches}_${config.equipment.leatherPants}_${config.equipment.chainLeggings}_${config.equipment.plateLeggings}_${config.equipment.warlordLegPlates}_${config.pantsColor}`;
         if (hash === this.lastPantsConfigHash) return;
         this.lastPantsConfigHash = hash;
         this.pantsMeshes.forEach(m => {
@@ -406,6 +421,21 @@ export class BodyMorpher {
         this.pantsMeshes = [];
         const meshes = PantsBuilder.build(this.parts, config);
         if (meshes) this.pantsMeshes = meshes;
+    }
+
+    private updateGreaves(config: PlayerConfig) {
+        const hash = `${config.outfit}_${config.equipment.greaves}_${config.pantsColor}`;
+        if (hash === this.lastGreavesConfigHash) return;
+        this.lastGreavesConfigHash = hash;
+
+        this.greavesMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            if ((m as THREE.Mesh).geometry) (m as THREE.Mesh).geometry.dispose();
+        });
+        this.greavesMeshes = [];
+
+        const meshes = GreavesBuilder.build(this.parts, config);
+        if (meshes) this.greavesMeshes = meshes;
     }
 
     private updateShorts(config: PlayerConfig) {
@@ -571,5 +601,57 @@ export class BodyMorpher {
             this.parts.leftForeArm.add(leftBracer);
             this.bracerMeshes.push(leftBracer);
         }
+    }
+
+    private updateGloves(config: PlayerConfig) {
+        const hash = `${config.equipment.gloves}`;
+        if (hash === this.lastGloveConfigHash) return;
+        this.lastGloveConfigHash = hash;
+
+        this.gloveMeshes.forEach(m => {
+            if (m.parent) m.parent.remove(m);
+            m.traverse(child => {
+                if (child instanceof THREE.Mesh) {
+                    if (child.geometry) child.geometry.dispose();
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(mat => mat.dispose());
+                    } else if (child.material) {
+                        child.material.dispose();
+                    }
+                }
+            });
+        });
+        this.gloveMeshes = [];
+        this.gloveRightFingers = [];
+        this.gloveRightThumb = null;
+        this.gloveLeftFingers = [];
+        this.gloveLeftThumb = null;
+
+        if (!config.equipment.gloves) return;
+
+        const gloveArrays = {
+            rightFingers: [] as THREE.Group[],
+            rightThumb: null as THREE.Group | null,
+            leftFingers: [] as THREE.Group[],
+            leftThumb: null as THREE.Group | null,
+            thenars: [] as THREE.Mesh[]
+        };
+
+        if (this.parts.rightHand) {
+            const rightGlove = GloveBuilder.create(false, gloveArrays);
+            this.parts.rightHand.add(rightGlove);
+            this.gloveMeshes.push(rightGlove);
+        }
+
+        if (this.parts.leftHand) {
+            const leftGlove = GloveBuilder.create(true, gloveArrays);
+            this.parts.leftHand.add(leftGlove);
+            this.gloveMeshes.push(leftGlove);
+        }
+
+        this.gloveRightFingers = gloveArrays.rightFingers;
+        this.gloveRightThumb = gloveArrays.rightThumb;
+        this.gloveLeftFingers = gloveArrays.leftFingers;
+        this.gloveLeftThumb = gloveArrays.leftThumb;
     }
 }

@@ -11,6 +11,7 @@ export function useUIState() {
   const [isQuestLogOpen, setIsQuestLogOpen] = useState(false);
   const [isLandMapOpen, setIsLandMapOpen] = useState(false);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
+  const [isAreaMapOpen, setIsAreaMapOpen] = useState(false);
   const [isLandSelectionOpen, setIsLandSelectionOpen] = useState(false);
   const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
   const [isEnemiesModalOpen, setIsEnemiesModalOpen] = useState(false);
@@ -60,6 +61,7 @@ export function useUIState() {
     isQuestLogOpen, setIsQuestLogOpen, toggleQuestLog,
     isLandMapOpen, setIsLandMapOpen,
     isWorldMapOpen, setIsWorldMapOpen,
+    isAreaMapOpen, setIsAreaMapOpen,
     isLandSelectionOpen, setIsLandSelectionOpen,
     isSpawnModalOpen, setIsSpawnModalOpen,
     isEnemiesModalOpen, setIsEnemiesModalOpen,

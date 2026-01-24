@@ -1,36 +1,25 @@
 import React from 'react';
 import * as THREE from 'three';
 import { LAND_SHAPE_POINTS } from '../../data/landShape';
+import { calculateBounds, landCoordsToWorld } from '../../game/environment/landTerrain';
 
 interface LandMapModalProps {
   isOpen: boolean;
   onClose: () => void;
   playerPos: THREE.Vector3;
+  points?: number[][];
+  title?: string;
 }
 
-export const LandMapModal: React.FC<LandMapModalProps> = ({ isOpen, onClose, playerPos }) => {
+export const LandMapModal: React.FC<LandMapModalProps> = ({ isOpen, onClose, playerPos, points, title }) => {
   if (!isOpen) return null;
 
-  // Match WorldEnvironment scaling
-  const worldScale = 50.0;
-  let minX = Infinity, maxX = -Infinity;
-  let minZ = Infinity, maxZ = -Infinity;
-
-  LAND_SHAPE_POINTS.forEach(p => {
-    if (p[0] < minX) minX = p[0];
-    if (p[0] > maxX) maxX = p[0];
-    if (p[1] < minZ) minZ = p[1];
-    if (p[1] > maxZ) maxZ = p[1];
-  });
-
-  const centerX = (minX + maxX) / 2;
-  const centerZ = (minZ + maxZ) / 2;
+  const mapPoints = points && points.length ? points : LAND_SHAPE_POINTS;
+  const bounds = calculateBounds(mapPoints);
+  const mapTitle = title || 'Land Map';
 
   // World transformed points
-  const worldPoints = LAND_SHAPE_POINTS.map(p => ({
-    x: (p[0] - centerX) * worldScale,
-    z: (p[1] - centerZ) * worldScale
-  }));
+  const worldPoints = mapPoints.map(p => landCoordsToWorld(p[0], p[1], bounds.centerX, bounds.centerZ));
 
   const worldXs = worldPoints.map(p => p.x);
   const worldZs = worldPoints.map(p => p.z);
@@ -63,7 +52,7 @@ export const LandMapModal: React.FC<LandMapModalProps> = ({ isOpen, onClose, pla
       <div className="bg-slate-900/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-blue-400 font-black uppercase tracking-[0.2em] text-sm">Land Map</h2>
+            <h2 className="text-blue-400 font-black uppercase tracking-[0.2em] text-sm">{mapTitle}</h2>
             <button 
               onClick={onClose}
               className="text-white/60 hover:text-white transition-colors"

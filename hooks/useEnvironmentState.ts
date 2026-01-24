@@ -3,6 +3,7 @@ import { StructureType } from '../game/builder/BuildingParts';
 import * as THREE from 'three';
 
 export function useEnvironmentState() {
+  const [selectedLand, setSelectedLand] = useState<{ name: string; points: number[][]; color?: string } | null>(null);
   const [isEnvironmentBuilt, setIsEnvironmentBuilt] = useState(false);
   const [isVisualLoadingDone, setIsVisualLoadingDone] = useState(false);
   const [isBuilderMode, setIsBuilderMode] = useState(false);
@@ -14,6 +15,7 @@ export function useEnvironmentState() {
 
   return {
     isEnvironmentBuilt, setIsEnvironmentBuilt,
+    selectedLand, setSelectedLand,
     isVisualLoadingDone, setIsVisualLoadingDone,
     isBuilderMode, setIsBuilderMode,
     activeStructure, setActiveStructure,

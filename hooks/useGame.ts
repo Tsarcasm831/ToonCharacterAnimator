@@ -68,7 +68,9 @@ export const useGame = ({
 
         if (onSlotSelect) {
             game.setSlotSelectCallback(onSlotSelect);
-            if (onToggleWorldMap) game.onToggleWorldMapCallback = onToggleWorldMap;
+        }
+        if (onToggleWorldMap) {
+            game.onToggleWorldMapCallback = onToggleWorldMap;
         }
 
         if (onToggleInventory) {
@@ -140,6 +142,7 @@ export const useGame = ({
         game.onInteractionUpdate = onInteractionUpdate;
         
         if (onSlotSelect) game.setSlotSelectCallback(onSlotSelect);
+        if (onToggleWorldMap) game.onToggleWorldMapCallback = onToggleWorldMap;
         
         game.setControlsActive(!controlsDisabled);
         game.toggleGrid(showGrid);

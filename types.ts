@@ -53,7 +53,13 @@ export interface EquipmentState {
   shoulders: boolean;
   shield: boolean;
   shirt: boolean;
+  leatherDoublet: boolean;
   pants: boolean;
+  hideBreeches: boolean;
+  leatherPants: boolean;
+  chainLeggings: boolean;
+  plateLeggings: boolean;
+  warlordLegPlates: boolean;
   greaves: boolean;
   blacksmithApron: boolean;
   shoes: boolean;
@@ -67,6 +73,7 @@ export interface EquipmentState {
   robe: boolean;
   mageHat: boolean;
   bracers: boolean;
+  gloves: boolean;
   cape: boolean;
   belt: boolean;
   skirt: boolean;
@@ -357,7 +364,13 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     shoulders: false,
     shield: false,
     shirt: false,
+    leatherDoublet: false,
     pants: false,
+    hideBreeches: false,
+    leatherPants: false,
+    chainLeggings: false,
+    plateLeggings: false,
+    warlordLegPlates: false,
     greaves: false,
     shoes: false,
     mask: false,
@@ -371,6 +384,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     blacksmithApron: false,
     mageHat: false,
     bracers: false,
+    gloves: false,
     cape: false,
     belt: false,
     skirt: false,

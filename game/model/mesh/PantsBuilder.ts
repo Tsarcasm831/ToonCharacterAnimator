@@ -1,12 +1,43 @@
 
 import * as THREE from 'three';
 import { PlayerConfig } from '../../../types';
+import { HideBreeches } from '../equipment/HideBreeches';
+import { LeatherPants } from '../equipment/LeatherPants';
+import { ChainLeggings } from '../equipment/ChainLeggings';
+import { PlateLeggings } from '../equipment/PlateLeggings';
+import { WarlordLegPlates } from '../equipment/WarlordLegPlates';
 
 const GLOBAL_PATTERN_SCALE = 3.5;
 
 export class PantsBuilder {
     static build(parts: any, config: PlayerConfig) {
-        if (!config.equipment.pants) return null;
+        const hasVariant = config.equipment.hideBreeches
+            || config.equipment.leatherPants
+            || config.equipment.chainLeggings
+            || config.equipment.plateLeggings
+            || config.equipment.warlordLegPlates;
+
+        if (!config.equipment.pants && !hasVariant) return null;
+
+        if (config.equipment.hideBreeches) {
+            return HideBreeches.build(parts, config);
+        }
+
+        if (config.equipment.leatherPants) {
+            return LeatherPants.build(parts, config);
+        }
+
+        if (config.equipment.chainLeggings) {
+            return ChainLeggings.build(parts, config);
+        }
+
+        if (config.equipment.plateLeggings) {
+            return PlateLeggings.build(parts, config);
+        }
+
+        if (config.equipment.warlordLegPlates) {
+            return WarlordLegPlates.build(parts, config);
+        }
 
         const canvas = document.createElement('canvas');
         canvas.width = 512;

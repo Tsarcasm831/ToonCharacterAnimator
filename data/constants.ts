@@ -54,31 +54,31 @@ export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
 export const OUTFIT_PRESETS: Record<OutfitType, Partial<PlayerConfig>> = {
   nude: {
     outfit: 'nude',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, greaves: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: false, cape: false, belt: false, skirt: false, skullcap: false, shorts: false },
-    shirtColor: '#ffdbac',
-    pantsColor: '#ffdbac'
+    equipment: { helm: false, shoulders: false, shield: false, shirt: false, leatherDoublet: false, pants: false, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: false, gloves: false, cape: false, belt: false, skirt: false, skullcap: false, shorts: false },
+    shirtColor: '#d6b198',
+    pantsColor: '#9c6644'
   },
   naked: {
     outfit: 'naked',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: false, pants: false, greaves: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: false, cape: false, belt: false, skirt: false, skullcap: false, shorts: false },
-    shirtColor: '#ffdbac',
-    pantsColor: '#3182ce' 
+    equipment: { helm: false, shoulders: false, shield: false, shirt: false, leatherDoublet: false, pants: false, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: false, shoes: false, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: false, gloves: false, cape: false, belt: false, skirt: false, skullcap: false, shorts: false },
+    shirtColor: '#d6b198',
+    pantsColor: '#9c6644'
   },
   peasant: {
     outfit: 'peasant',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, greaves: false, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: false, cape: false, belt: true, skirt: false, skullcap: false, shorts: false },
+    equipment: { helm: false, shoulders: false, shield: false, shirt: true, leatherDoublet: false, pants: true, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: false, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: false, gloves: false, cape: false, belt: false, skirt: false, skullcap: false, shorts: false },
     shirtColor: '#8d6e63',
     pantsColor: '#5d4037'
   },
   warrior: {
     outfit: 'warrior',
-    equipment: { helm: true, shoulders: true, shield: true, shirt: true, pants: true, greaves: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, cape: false, belt: true, skirt: false, skullcap: false, shorts: false },
+    equipment: { helm: true, shoulders: true, shield: true, shirt: true, leatherDoublet: false, pants: true, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, gloves: false, cape: false, belt: true, skirt: false, skullcap: false, shorts: false },
     shirtColor: '#607d8b',
     pantsColor: '#37474f'
   },
   noble: {
     outfit: 'noble',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: true, pants: true, greaves: false, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false, mageHat: false, bracers: false, cape: true, belt: true, skirt: false, skullcap: false, shorts: false },
+    equipment: { helm: false, shoulders: false, shield: false, shirt: true, leatherDoublet: false, pants: true, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: false, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false, mageHat: false, bracers: false, gloves: false, cape: true, belt: true, skirt: false, skullcap: false, shorts: false },
     shirtColor: '#3f51b5',
     pantsColor: '#1a237e'
   }
@@ -96,6 +96,12 @@ export const ITEM_ICONS: Record<string, string> = {
   'Shirt': '👕',
   'Quilted Armor': '🧥',
   'Leather Armor': '🥋',
+  'Hide Breeches': '🩳',
+  'Leather Pants': '👖',
+  'Chain Leggings': '⛓️',
+  'Plate Leggings': '🛡️',
+  'Warlord Leg Plates': '🛡️',
+  'Leather Doublet': '🦺',
   'Heavy Leather Armor': '🛡️',
   'RingMail': '⛓️',
   'Plate Mail': '🎖️',
