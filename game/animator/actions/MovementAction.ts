@@ -30,7 +30,7 @@ export class MovementAction {
         const strafeBlend = clamp(strafeBlendRaw, 0, 1);
         
         // Scale animation speed by input magnitude to prevent sliding at low stick tilt
-        let speedMult = lerp(isRunning ? 18 : 9, 10, strafeBlend);
+        let speedMult = lerp(isRunning ? 16.2 : 9, 10, strafeBlend);
         if (inputLen < 1.0) speedMult *= inputLen;
         
         if (isCrouching) {

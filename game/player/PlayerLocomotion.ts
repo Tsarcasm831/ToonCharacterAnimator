@@ -140,7 +140,7 @@ export class PlayerLocomotion {
             this.lastStepCount = 0;
         }
         
-        let baseSpeed = input.isRunning ? this.moveSpeed * 1.8 * 1.7 : this.moveSpeed;
+        let baseSpeed = input.isRunning ? this.moveSpeed * 1.6 * 1.7 : this.moveSpeed;
         
         if (this.isCrouching) {
             baseSpeed *= 0.5; // Reduce speed while crouching
@@ -182,8 +182,10 @@ export class PlayerLocomotion {
                 const fX = Math.sin(targetRotation); const fZ = Math.cos(targetRotation);
                 const rX = Math.sin(targetRotation - Math.PI / 2); const rZ = Math.cos(targetRotation - Math.PI / 2);
 
-                const dx = (fX * normY + rX * normX) * finalSpeed * dt;
-                const dz = (fZ * normY + rZ * normX) * finalSpeed * dt;
+                // Apply strafe speed reduction (75% of current)
+                const strafeMult = Math.abs(normX) > Math.abs(normY) ? 0.75 : 1.0;
+                const dx = (fX * normY + rX * normX) * finalSpeed * strafeMult * dt;
+                const dz = (fZ * normY + rZ * normX) * finalSpeed * strafeMult * dt;
 
                 const nextPos = this.position.clone();
                 nextPos.x += dx;
