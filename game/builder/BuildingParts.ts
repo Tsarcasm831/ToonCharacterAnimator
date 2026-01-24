@@ -1,7 +1,21 @@
 
 import * as THREE from 'three';
+import { Wall } from './wall';
+import { EventTent } from '../environment/objects/event_tent';
+import { Firepit } from '../environment/objects/firepit';
+import { PotionTent } from '../environment/objects/potion_tent';
+import { SupplyCart } from '../environment/objects/supply_cart';
+import { StoneHWall } from '../environment/objects/stone_h_wall';
+import { Torch } from '../environment/objects/torch_stand';
+import { WoodenWall } from '../environment/objects/wooden_wall';
+import { Flag } from '../environment/objects/flag';
+import { ObjectFactory } from '../environment/ObjectFactory';
+import { HouseBlueprints } from './HouseBlueprints';
 
-export type StructureType = 'foundation' | 'wall' | 'doorway' | 'door' | 'roof' | 'pillar' | 'round_foundation' | 'round_wall';
+export type StructureType = 'foundation' | 'wall' | 'doorway' | 'door' | 'roof' | 'pillar' | 'round_foundation' | 'round_wall' | 
+                            'palisade' | 'event_tent' | 'firepit' | 'potion_tent' | 'supply_cart' | 'stone_wall' | 'torch' | 'wooden_wall' | 'flag' | 'lightpole' |
+                            'barrel' | 'crate' | 'tire' | 'pallet' | 'road_sign' |
+                            'blueprint_forge' | 'blueprint_cottage' | 'blueprint_longhouse' | 'blueprint_l_shape' | 'blueprint_roundhouse' | 'blueprint_gatehouse';
 
 export class BuildingParts {
     static getGeometry(type: StructureType): THREE.BufferGeometry {
@@ -97,6 +111,130 @@ export class BuildingParts {
     }
 
     static createStructureMesh(type: StructureType, isGhost: boolean = false, customColor?: number): THREE.Object3D {
+        // Handle complex custom structures
+        if (type === 'palisade') return Wall.create(isGhost);
+        if (type === 'event_tent') return EventTent.create(isGhost);
+        if (type === 'firepit') return Firepit.create(isGhost);
+        if (type === 'potion_tent') return PotionTent.create(isGhost);
+        if (type === 'supply_cart') return SupplyCart.create(isGhost);
+        if (type === 'stone_wall') return StoneHWall.create(isGhost);
+        if (type === 'torch') return Torch.create(isGhost);
+        if (type === 'wooden_wall') return WoodenWall.create(isGhost);
+        if (type === 'flag') return Flag.create(isGhost);
+        if (type === 'barrel') {
+            const result = ObjectFactory.createBarrel(new THREE.Vector3());
+            if (isGhost) this.applyGhostMaterial(result.group);
+            (result.group as any)._obstacle = result.obstacle;
+            return result.group;
+        }
+        if (type === 'crate') {
+            const result = ObjectFactory.createCrate(new THREE.Vector3());
+            if (isGhost) this.applyGhostMaterial(result.group);
+            (result.group as any)._obstacle = result.obstacle;
+            return result.group;
+        }
+        if (type === 'tire') {
+            const result = ObjectFactory.createTire(new THREE.Vector3());
+            if (isGhost) this.applyGhostMaterial(result.group);
+            (result.group as any)._obstacle = result.obstacle;
+            return result.group;
+        }
+        if (type === 'pallet') {
+            const result = ObjectFactory.createPallet(new THREE.Vector3());
+            const group = result instanceof THREE.Group ? result : (result as any).group;
+            if (isGhost) this.applyGhostMaterial(group);
+            return group;
+        }
+        if (type === 'road_sign') {
+            const result = ObjectFactory.createRoadSign(new THREE.Vector3());
+            const group = result instanceof THREE.Group ? result : (result as any).group;
+            if (isGhost) this.applyGhostMaterial(group);
+            return group;
+        }
+        if (type === 'lightpole') {
+            try {
+                const result = ObjectFactory.createLightpole(new THREE.Vector3(0, 0, 0));
+                if (!result || !result.group) {
+                    console.error('BuildingParts: ObjectFactory.createLightpole returned invalid result:', result);
+                    return new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+                }
+                if (isGhost) {
+                    result.group.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                color: 0x44ff44,
+                                transparent: true,
+                                opacity: 0.4,
+                                wireframe: true
+                            });
+                        }
+                        child.castShadow = false;
+                        child.receiveShadow = false;
+                    });
+                }
+                // Store obstacle reference for later use
+                (result.group as any)._obstacle = result.obstacle;
+                return result.group;
+            } catch (error) {
+                console.error('BuildingParts: Error creating lightpole:', error);
+                return new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+            }
+        }
+
+        // Blueprint handling
+        if (type.startsWith('blueprint_')) {
+            const group = new THREE.Group();
+            let blueprintParts: any[] = [];
+            
+            switch (type) {
+                case 'blueprint_forge': blueprintParts = HouseBlueprints.getTheForge(); break;
+                case 'blueprint_cottage': blueprintParts = HouseBlueprints.getCottage(); break;
+                case 'blueprint_longhouse': blueprintParts = HouseBlueprints.getLonghouse(); break;
+                case 'blueprint_l_shape': blueprintParts = HouseBlueprints.getLShape(); break;
+                case 'blueprint_roundhouse': blueprintParts = HouseBlueprints.getRoundhouse(); break;
+                case 'blueprint_gatehouse': blueprintParts = HouseBlueprints.getGatehouse(); break;
+            }
+
+            const GRID_SIZE = 1.3333;
+            
+            blueprintParts.forEach(part => {
+                const mesh = this.createStructureMesh(part.type, isGhost);
+                
+                // Position based on grid
+                mesh.position.x = part.x * GRID_SIZE;
+                mesh.position.z = part.z * GRID_SIZE;
+                
+                // Adjust height
+                if (part.yOffset) mesh.position.y += part.yOffset;
+                
+                // Apply rotation if needed
+                if (part.rotation) {
+                    mesh.rotation.y = part.rotation;
+                }
+
+                // Standard vertical offsets based on type (matching BuilderManager logic roughly, 
+                // but usually handled by the mesh creation or part definition. 
+                // However, createStructureMesh returns centered meshes or specific groups.
+                // Standard parts need placement adjustment.
+                
+                if (part.type === 'wall' || part.type === 'doorway' || part.type === 'pillar') {
+                    mesh.position.y += 1.65;
+                } else if (part.type === 'foundation') {
+                    mesh.position.y += 0.2;
+                } else if (part.type === 'roof') {
+                    mesh.position.y += 3.3;
+                } else if (part.type === 'round_wall') {
+                    mesh.position.y += 1.65;
+                } else if (part.type === 'round_foundation') {
+                    mesh.position.y += 0.2;
+                }
+                
+                group.add(mesh);
+            });
+            
+            return group;
+        }
+
         const getMat = (t: StructureType) => {
             if (isGhost) {
                 return new THREE.MeshStandardMaterial({
@@ -166,5 +304,20 @@ export class BuildingParts {
         mesh.receiveShadow = !isGhost;
         
         return mesh;
+    }
+
+    private static applyGhostMaterial(obj: THREE.Object3D) {
+        obj.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+                child.material = new THREE.MeshStandardMaterial({
+                    color: 0x44ff44,
+                    transparent: true,
+                    opacity: 0.4,
+                    wireframe: true
+                });
+            }
+            child.castShadow = false;
+            child.receiveShadow = false;
+        });
     }
 }

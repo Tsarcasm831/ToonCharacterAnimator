@@ -28,9 +28,9 @@ export class PropFactory {
         const postGeo = this.getGeometry('prop_lightpole_post', () => new THREE.BoxGeometry(0.25, 3.5, 0.25));
         
         const post = new THREE.Mesh(postGeo, mat);
-        post.position.y = 1.75;
+        post.position.y = 1.75; // Center of 3.5m tall post
         post.castShadow = true;
-        post.userData = { type: 'hard', material: 'wood' };
+        post.userData = { type: 'hard', material: 'wood', structureType: 'lightpole' };
         group.add(post);
         
         const armGeo = this.getGeometry('prop_lightpole_arm', () => new THREE.BoxGeometry(0.8, 0.15, 0.15));

@@ -1,6 +1,5 @@
 import React from 'react';
 import Scene from '../Scene';
-import LandScene from '../LandScene';
 import CombatScene from '../CombatScene';
 import MPTestScene from '../MPTestScene';
 import SingleBiomeScene from '../SingleBiomeScene';
@@ -12,6 +11,7 @@ import { MobileControls } from './MobileControls';
 import { DialogueOverlay } from './DialogueOverlay';
 import { GameHUD } from './GameHUD';
 import { BuilderUI } from './BuilderUI';
+import { BuilderLog } from './BuilderLog';
 import { ControlPanel } from './ControlPanel';
 import * as THREE from 'three';
 
@@ -41,7 +41,9 @@ export const Game: React.FC = () => {
         toggleInventory, toggleKeybinds, toggleQuestLog,
         setStatsForModal, setStatsUnitName, setIsCharacterStatsOpen,
         setSelectedUnitStats, setSelectedUnit,
-        setIsTradeOpen, setIsShopkeeperChatOpen, setIsForgeOpen
+        setIsTradeOpen, setIsShopkeeperChatOpen, setIsForgeOpen,
+        notification, setNotification,
+        setIsLandSelectionOpen
     } = uiState;
     const { isCombatActive, setIsCombatActive, combatLog, addCombatLog } = combatState;
     const {
@@ -50,6 +52,14 @@ export const Game: React.FC = () => {
         setIsBuilderMode, setCurrentBiome, setActiveStructure, showGrid, setShowGrid 
     } = environmentState;
 
+    // Effects
+    React.useEffect(() => {
+        if (notification) {
+            const t = setTimeout(() => setNotification(null), 4000);
+            return () => clearTimeout(t);
+        }
+    }, [notification, setNotification]);
+
     // Gate scene mounting so the loading screen can paint before heavy initialization begins
     const [shouldMountScene, setShouldMountScene] = React.useState(false);
     const mountSceneTimeout = React.useRef<number | null>(null);
@@ -57,14 +67,16 @@ export const Game: React.FC = () => {
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || gameState !== 'PLAYING' || isTravelOpen;
 
     // Handlers
-    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInMP: boolean = false) => {
+    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInMP: boolean = false, startInDev: boolean = false) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
         setGameState('LOADING');
         setShouldMountScene(false);
         if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
-        if (startInLand) {
+        if (startInDev) {
+          setActiveScene('dev');
+        } else if (startInLand) {
           setActiveScene('land');
         } else if (startInCombat) {
           setActiveScene('combat');
@@ -77,22 +89,6 @@ export const Game: React.FC = () => {
         mountSceneTimeout.current = window.setTimeout(() => {
           setShouldMountScene(true);
         }, 0);
-        // Spawn a spider for testing
-        setTimeout(() => {
-          if (gameInstance.current) {
-            const player = gameInstance.current.player;
-            if (!player) return;
-            
-            const playerPos = player.position;
-            if (!playerPos) return;
-            
-            const spawnPos = playerPos.clone().add(new THREE.Vector3(5, 0, 5));
-            
-            if (!gameInstance.current.entityManager) return;
-            
-            gameInstance.current.entityManager.spawnAnimalGroup('spider', 1, gameInstance.current.sceneManager.environment, spawnPos);
-          }
-        }, 2000);
     };
 
     const handleEnvironmentReady = () => {
@@ -187,9 +183,13 @@ export const Game: React.FC = () => {
         game.inputManager.onToggleInventory = uiState.toggleInventory;
         game.inputManager.onToggleKeybinds = uiState.toggleKeybinds;
         game.inputManager.onToggleQuestLog = uiState.toggleQuestLog;
+        game.inputManager.onToggleBuilderLog = uiState.toggleBuilderLog;
+        
         game.onBuilderToggle = (active: boolean) => environmentState.setIsBuilderMode(active);
         game.onBuildingTypeChange = (type: any) => environmentState.setActiveStructure(type);
         game.onBiomeUpdate = (b: any) => environmentState.setCurrentBiome(b);
+        game.onBuildLog = (message: string) => uiState.addBuilderLog(message);
+        
         game.onDialogueTrigger = (content: string) => setDialogue(content);
         game.onTradeTrigger = () => uiState.setIsTradeOpen(true);
         game.onShopkeeperTrigger = () => uiState.setIsShopkeeperChatOpen(true);
@@ -272,24 +272,6 @@ export const Game: React.FC = () => {
                                     showGrid={showGrid}
                                     isCombatActive={isCombatActive}
                                 />
-                            ) : activeScene === 'land' ? (
-                                <LandScene 
-                                    config={config} 
-                                    manualInput={manualInput}
-                                    initialInventory={inventory}
-                                    onInventoryUpdate={setInventory}
-                                    onSlotSelect={setSelectedSlot}
-                                    onInteractionUpdate={handleInteractionUpdate}
-                                    onGameReady={onGameReady}
-                                    onEnvironmentReady={() => {
-                                        handleEnvironmentReady();
-                                        handleVisualLoadingFinished();
-                                    }}
-                                    onToggleWorldMap={handleMapToggle}
-                                    onToggleQuestLog={uiState.toggleQuestLog}
-                                    showGrid={showGrid}
-                                    isCombatActive={isCombatActive}
-                                />
                             ) : activeScene === 'singleBiome' ? (
                                 <SingleBiomeScene
                                     activeScene={activeScene}
@@ -351,6 +333,10 @@ export const Game: React.FC = () => {
                                         combatLog={combatLog}
                                         onOpenTravel={() => handleMapToggle(environmentState.playerPosForMap || new THREE.Vector3())}
                                         onToggleBestiary={onShowEnemies}
+                                        onChangeLand={() => {
+                                            console.log("Game: Change Land Clicked");
+                                            setIsLandSelectionOpen(true);
+                                        }}
                                         isBuilderMode={isBuilderMode}
                                     />
                                     
@@ -361,6 +347,8 @@ export const Game: React.FC = () => {
                                         />
                                     )}
                                     
+                                    <BuilderLog />
+
                                     <ControlPanel 
                                         config={config}
                                         manualInput={manualInput}
@@ -387,6 +375,14 @@ export const Game: React.FC = () => {
                     )}
                 </div>
             </div>
+            
+            {notification && (
+                <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4">
+                    <div className="bg-blue-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl border border-blue-400/50">
+                        {notification}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

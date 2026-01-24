@@ -4,10 +4,12 @@ import { Home } from './components/ui/Home';
 import { Units } from './components/ui/Units';
 import { Mission } from './components/ui/Mission';
 import { MusicView as Music } from './components/ui/Music';
-
 import { Game } from './components/ui/Game';
+import { Map } from './components/ui/Map';
 import { GlobalModals } from './components/ui/GlobalModals';
 import { LandMapModal } from './components/ui/LandMapModal';
+import { MusicProvider } from './contexts/MusicContext';
+import { MusicFooter } from './components/ui/MusicFooter';
 
 import { useGlobalState } from './contexts/GlobalContext';
 
@@ -23,48 +25,37 @@ const App: React.FC = () => {
   const { activePage, setActivePage } = gameStateContext;
   const { config } = playerState;
   const { quests } = questState;
-  const { notification, setNotification, isLandMapOpen, setIsLandMapOpen } = uiState;
+  const { isLandMapOpen, setIsLandMapOpen } = uiState;
   const { playerPosForMap } = environmentState;
 
-  // Effects
-  useEffect(() => {
-    if (notification) {
-      const t = setTimeout(() => setNotification(null), 4000);
-      return () => clearTimeout(t);
-    }
-  }, [notification, setNotification]);
-
   return (
-    <div className="w-screen h-screen relative bg-slate-950 overflow-hidden font-sans text-slate-50 flex flex-col">
-      <Navigation activePage={activePage} onPageChange={setActivePage} />
-      
-      <div className="flex-1 relative overflow-hidden flex flex-col">
-        <div className="absolute inset-0 z-0">
-          {activePage === 'home' && <Home />}
-          {activePage === 'units' && <Units />}
-          {activePage === 'mission' && <Mission quests={quests} config={config} />}
-          {activePage === 'music' && <Music />}
-          
-          {activePage === 'game' && (
-            <Game />
-          )}
-        </div>
-        <GlobalModals />
-        <LandMapModal 
-          isOpen={isLandMapOpen}
-          onClose={() => setIsLandMapOpen(false)}
-          playerPos={playerPosForMap}
-        />
-      </div>
-
-      {notification && (
-          <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4">
-              <div className="bg-blue-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl border border-blue-400/50">
-                  {notification}
-              </div>
+    <MusicProvider>
+      <div className="w-screen h-screen relative bg-slate-950 overflow-hidden font-sans text-slate-50 flex flex-col">
+        <Navigation activePage={activePage} onPageChange={setActivePage} />
+        
+        <div className="flex-1 relative overflow-hidden flex flex-col">
+          <div className="absolute inset-0 z-0">
+            {activePage === 'home' && <Home />}
+            {activePage === 'units' && <Units />}
+            {activePage === 'mission' && <Mission quests={quests} config={config} />}
+            {activePage === 'music' && <Music />}
+            {activePage === 'map' && <Map />}
+            
+            {activePage === 'game' && (
+              <Game />
+            )}
           </div>
-      )}
-    </div>
+          <GlobalModals />
+          <LandMapModal 
+            isOpen={isLandMapOpen}
+            onClose={() => setIsLandMapOpen(false)}
+            playerPos={playerPosForMap}
+          />
+        </div>
+
+        <MusicFooter activePage={activePage} />
+      </div>
+    </MusicProvider>
   );
 };
 

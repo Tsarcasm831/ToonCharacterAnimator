@@ -170,25 +170,33 @@ export class TerrainTextureFactory {
         switch (type) {
             case 'Grass':
                 fill('#2d3a1e'); 
-                noise(25000, 2);
-                for(let i=0; i<12; i++) {
+                // Base Noise
+                noise(40000, 2);
+                
+                // Varied Color Patches
+                for(let i=0; i<20; i++) {
                     const cx = Math.random() * size;
                     const cy = Math.random() * size;
-                    const r = 80 + Math.random() * 150;
-                    const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, r);
-                    const cVal = Math.random() > 0.5 ? '60, 90, 40' : '45, 75, 30'; 
-                    grad.addColorStop(0, `rgba(${cVal}, 0.5)`);
-                    grad.addColorStop(1, `rgba(${cVal}, 0.0)`);
+                    const r = 50 + Math.random() * 100;
+                    const grad = ctx.createRadialGradient(cx, cy, 5, cx, cy, r);
+                    // Mix lighter and darker patches
+                    const isLight = Math.random() > 0.5;
+                    const color = isLight ? '80, 120, 50' : '30, 50, 20';
+                    grad.addColorStop(0, `rgba(${color}, 0.4)`);
+                    grad.addColorStop(1, `rgba(${color}, 0.0)`);
                     ctx.fillStyle = grad;
                     ctx.fillRect(0, 0, size, size);
                 }
-                const bladeColors = ['#416128', '#537d32', '#6a9c42', '#345221', '#7ca856'];
-                for(let i=0; i<4000; i++) {
+
+                // Dense Blades
+                const bladeColors = ['#416128', '#537d32', '#6a9c42', '#345221', '#7ca856', '#2e4a1a'];
+                for(let i=0; i<12000; i++) {
                     const x = Math.random() * size;
                     const y = Math.random() * size;
-                    const w = 1.5 + Math.random() * 2.5;
-                    const h = 4 + Math.random() * 6;
+                    const w = 1 + Math.random() * 2;
+                    const h = 2 + Math.random() * 5;
                     const rotation = Math.random() * Math.PI * 2;
+                    
                     ctx.save();
                     ctx.translate(x, y);
                     ctx.rotate(rotation);
@@ -199,6 +207,16 @@ export class TerrainTextureFactory {
                     ctx.lineTo(0, -h); 
                     ctx.fill();
                     ctx.restore();
+                }
+                
+                // Add some small flowers/weeds
+                for(let i=0; i<300; i++) {
+                    const x = Math.random() * size;
+                    const y = Math.random() * size;
+                    ctx.fillStyle = Math.random() > 0.7 ? '#ffffaa' : '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 1 + Math.random(), 0, Math.PI*2);
+                    ctx.fill();
                 }
                 break;
             case 'Sand':

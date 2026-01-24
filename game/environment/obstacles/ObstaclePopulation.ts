@@ -42,19 +42,20 @@ export async function initBiomes(ctx: ObstacleInitContext, options?: PopulateOpt
     };
 
     // Simple palisade wall line bordering the cabin approach on the single-biome scene
-    const wallStartX = -24 * GRID_SIZE;
-    const wallStartZ = 32 * GRID_SIZE;
-    const wallCount = 5;
-    for (let i = 0; i < wallCount; i++) {
-        const x = wallStartX + i * GRID_SIZE;
-        const z = wallStartZ;
-        if (isInsideHouse(x, z)) continue;
-        const y = PlayerUtils.getTerrainHeight(x, z);
-        const { group, obstacle } = ObjectFactory.createWall(new THREE.Vector3(x, y, z));
-        ctx.scene.add(group);
-        ctx.obstacles.push(obstacle);
-        await maybeYield(i + 1, options);
-    }
+    // REMOVED: Allow users to build their own palisades instead
+    // const wallStartX = -24 * GRID_SIZE;
+    // const wallStartZ = 32 * GRID_SIZE;
+    // const wallCount = 5;
+    // for (let i = 0; i < wallCount; i++) {
+    //     const x = wallStartX + i * GRID_SIZE;
+    //     const z = wallStartZ;
+    //     if (isInsideHouse(x, z)) continue;
+    //     const y = PlayerUtils.getTerrainHeight(x, z);
+    //     const { group, obstacle } = ObjectFactory.createWall(new THREE.Vector3(x, y, z));
+    //     ctx.scene.add(group);
+    //     ctx.obstacles.push(obstacle);
+    //     await maybeYield(i + 1, options);
+    // }
 
     // Golden Dunes
     const duneX = 40, duneZ = 0;
@@ -135,10 +136,12 @@ export async function initBiomes(ctx: ObstacleInitContext, options?: PopulateOpt
         const z = foundryZ + (Math.random() - 0.5) * 35;
         if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
-        const { group, obstacle } = ObjectFactory.createTire(pos);
-        group.rotation.y = Math.random() * Math.PI * 2;
-        ctx.scene.add(group);
-        ctx.obstacles.push(obstacle);
+        const result = ObjectFactory.createTire(pos);
+        if (result && result.group && result.obstacle) {
+            result.group.rotation.y = Math.random() * Math.PI * 2;
+            ctx.scene.add(result.group);
+            ctx.obstacles.push(result.obstacle);
+        }
         await maybeYield(i + 1, options);
     }
     for (let i = 0; i < 8; i++) {
@@ -146,10 +149,12 @@ export async function initBiomes(ctx: ObstacleInitContext, options?: PopulateOpt
         const z = foundryZ + (Math.random() - 0.5) * 35;
         if (isInsideHouse(x, z)) continue;
         const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
-        const { group, obstacle } = ObjectFactory.createCrate(pos);
-        group.rotation.y = Math.floor(Math.random() * 4) * (Math.PI / 2);
-        ctx.scene.add(group);
-        ctx.obstacles.push(obstacle);
+        const result = ObjectFactory.createCrate(pos);
+        if (result && result.group && result.obstacle) {
+            result.group.rotation.y = Math.floor(Math.random() * 4) * (Math.PI / 2);
+            ctx.scene.add(result.group);
+            ctx.obstacles.push(result.obstacle);
+        }
         await maybeYield(i + 1, options);
     }
 
@@ -559,8 +564,10 @@ export async function initPondDecorations(ctx: ObstacleInitContext, options?: Po
             if (isInsideHouse(x, z)) continue;
             const y = PlayerUtils.getTerrainHeight(x, z);
             const cattail = ObjectFactory.createCattail(new THREE.Vector3(x, y, z));
-            ctx.scene.add(cattail);
-            ctx.decorativeItems.push(cattail);
+            if (cattail) {
+                ctx.scene.add(cattail);
+                ctx.decorativeItems.push(cattail);
+            }
             decorIndex += 1;
             await maybeYield(decorIndex, options);
         }
@@ -572,9 +579,11 @@ export async function initPondDecorations(ctx: ObstacleInitContext, options?: Po
             const z = pond.z + Math.sin(angle) * r;
             if (isInsideHouse(x, z)) continue;
             const pad = ObjectFactory.createLilyPad(new THREE.Vector3(x, 0, z));
-            pad.rotation.z = Math.PI / 2;
-            ctx.scene.add(pad);
-            ctx.decorativeItems.push(pad);
+            if (pad) {
+                pad.rotation.z = Math.PI / 2;
+                ctx.scene.add(pad);
+                ctx.decorativeItems.push(pad);
+            }
             decorIndex += 1;
             await maybeYield(decorIndex, options);
         }

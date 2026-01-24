@@ -12,6 +12,7 @@ export class InputManager {
         fireball: false, crouch: false
     };
     isBlocked: boolean = false;
+    isBuilding: boolean = false;
     
     // Config
     bindings: KeyBindingMap;
@@ -37,6 +38,8 @@ export class InputManager {
     onToggleWorldMap?: () => void;
     onToggleGrid?: () => void;
     onToggleQuestLog?: () => void;
+    onToggleBuilderLog?: () => void;
+    onConfirmBuild?: () => void;
 
     constructor(initialBindings: KeyBindingMap = DEFAULT_KEYBINDINGS) {
         this.bindings = initialBindings;
@@ -85,6 +88,10 @@ export class InputManager {
         }
     }
 
+    setBuilding(building: boolean) {
+        this.isBuilding = building;
+    }
+
     private isCommandActive(command: InputCommand): boolean {
         const boundKeys = this.bindings[command];
         if (!boundKeys) return false;
@@ -113,6 +120,8 @@ export class InputManager {
         if (this.checkTrigger(e.code, InputCommand.ToggleFirstPerson)) this.onToggleFirstPerson?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleBuilder)) this.onToggleBuilder?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleGrid)) this.onToggleGrid?.();
+        if (this.checkTrigger(e.code, InputCommand.ToggleBuilderLog)) this.onToggleBuilderLog?.();
+        if (this.checkTrigger(e.code, InputCommand.ConfirmBuild)) this.onConfirmBuild?.();
 
         // Slot Selection
         this.handleSlotSelection(e.code);
@@ -145,7 +154,7 @@ export class InputManager {
     
     private handleMouseDown(e: MouseEvent) {
         if (this.isBlocked) return;
-        if ((e.target as HTMLElement).closest('button, input, select, .no-capture')) return;
+        if ((e.target as HTMLElement).closest('button, input, select, .no-capture, .builder-log-container')) return;
         this.isMouseDown = true;
         this.mouseButton = e.button;
     }
@@ -202,7 +211,7 @@ export class InputManager {
             summon: !!(this.isCommandActive(InputCommand.Summon) || this.manualInput.summon),
             toggleBuilder: !!(this.isCommandActive(InputCommand.ToggleBuilder)),
             rotateGhost: !!(this.isCommandActive(InputCommand.RotateGhost)), 
-            fireball: !!(this.isCommandActive(InputCommand.Fireball))
+            fireball: !!(this.isCommandActive(InputCommand.Fireball) && !this.isBuilding)
         };
     }
 

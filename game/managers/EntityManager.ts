@@ -90,21 +90,23 @@ export class EntityManager {
 
     constructor(scene: THREE.Scene, environment: any | null, initialConfig: PlayerConfig) {
         this.scene = scene;
-        
+    }
+
+    initDevEntities(environment: any | null, initialConfig: PlayerConfig) {
         // Initialize Dev Scene NPCs
-        this.npc = new NPC(scene, { bodyType: 'female', outfit: 'peasant' }, new THREE.Vector3(-3, 0, 2));
-        this.blacksmith = new Blacksmith(scene, new THREE.Vector3(-35, 0.4, 53));
+        this.npc = new NPC(this.scene, { bodyType: 'female', outfit: 'peasant' }, new THREE.Vector3(-3, 0, 2));
+        this.blacksmith = new Blacksmith(this.scene, new THREE.Vector3(-35, 0.4, 53));
         const GRID = 1.3333;
         const shopkeeperPos = new THREE.Vector3(-49.5 * GRID, 0.45, 45.5 * GRID);
-        this.shopkeeper = new Shopkeeper(scene, shopkeeperPos);
-        this.guard = new LowLevelCityGuard(scene, new THREE.Vector3(-8, 0, -2));
+        this.shopkeeper = new Shopkeeper(this.scene, shopkeeperPos);
+        this.guard = new LowLevelCityGuard(this.scene, new THREE.Vector3(-8, 0, -2));
         
         // Enemies
-        this.assassin = new Assassin(scene, new THREE.Vector3(30, 0, 0));
-        this.archer = new Archer(scene, new THREE.Vector3(-5, 0, 4));
-        this.mage = new Mage(scene, new THREE.Vector3(0, 0, 15), '#6366f1');
-        this.bandit = new Bandit(scene, new THREE.Vector3(10, 0, 5));
-        this.wolf = new Wolf(scene, new THREE.Vector3(40, 0, -40));
+        this.assassin = new Assassin(this.scene, new THREE.Vector3(30, 0, 0));
+        this.archer = new Archer(this.scene, new THREE.Vector3(-5, 0, 4));
+        this.mage = new Mage(this.scene, new THREE.Vector3(0, 0, 15), '#6366f1');
+        this.bandit = new Bandit(this.scene, new THREE.Vector3(10, 0, 5));
+        this.wolf = new Wolf(this.scene, new THREE.Vector3(40, 0, -40));
         environment?.addObstacle(this.wolf.hitbox);
 
         // Spawn one of each animal and NPC type for testing
@@ -129,17 +131,17 @@ export class EntityManager {
         this.spawnAnimalGroup('horse', 1, environment, nextPos());
 
         // NPCs
-        const cleric = new Cleric(scene, nextPos()); this.clerics.push(cleric);
-        const knight = new Knight(scene, nextPos()); this.knights.push(knight);
-        const paladin = new Paladin(scene, nextPos()); this.paladins.push(paladin);
-        const monk = new Monk(scene, nextPos()); this.monks.push(monk);
-        const ranger = new Ranger(scene, nextPos(), '#228b22'); this.rangers.push(ranger);
-        const sentinel = new Sentinel(scene, nextPos()); this.sentinels.push(sentinel);
+        const cleric = new Cleric(this.scene, nextPos()); this.clerics.push(cleric);
+        const knight = new Knight(this.scene, nextPos()); this.knights.push(knight);
+        const paladin = new Paladin(this.scene, nextPos()); this.paladins.push(paladin);
+        const monk = new Monk(this.scene, nextPos()); this.monks.push(monk);
+        const ranger = new Ranger(this.scene, nextPos(), '#228b22'); this.rangers.push(ranger);
+        const sentinel = new Sentinel(this.scene, nextPos()); this.sentinels.push(sentinel);
         
         // Enemies (Dynamic)
-        const berserker = new Berserker(scene, nextPos()); this.berserkers.push(berserker);
-        const rogue = new Rogue(scene, nextPos()); this.rogues.push(rogue);
-        const warlock = new Warlock(scene, nextPos()); this.warlocks.push(warlock);
+        const berserker = new Berserker(this.scene, nextPos()); this.berserkers.push(berserker);
+        const rogue = new Rogue(this.scene, nextPos()); this.rogues.push(rogue);
+        const warlock = new Warlock(this.scene, nextPos()); this.warlocks.push(warlock);
     }
 
     spawnAllAnimals(environment: Environment | null, origin: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
@@ -456,6 +458,8 @@ export class EntityManager {
             entity.update(delta, environment as any, enemyTargets, skipAnimation, isCombatActive);
         } else if (entity instanceof Wolf || entity instanceof Bear) {
             entity.update(delta, environment as any, playerTargets, skipAnimation);
+        } else if (entity instanceof Yeti) {
+            entity.update(delta, environment as any, skipAnimation);
         } else if (entity.update) {
             entity.update(delta, environment as any, playerTargets, skipAnimation);
         }
@@ -527,7 +531,7 @@ export class EntityManager {
                 ...this.rogues,
                 ...this.warlocks,
                 ...this.combatArchers
-            ].filter(e => e !== null);
+            ].filter(e => !!e);
         } else if (sceneName === 'dev') {
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit,
@@ -535,19 +539,19 @@ export class EntityManager {
                 ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses,
                 ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
                 ...this.berserkers, ...this.rogues, ...this.warlocks
-            ].filter(e => e !== null);
+            ].filter(e => !!e);
         } else if (sceneName === 'land') {
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard,
                 this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs,
                 ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses
-            ].filter(e => e !== null);
+            ].filter(e => !!e);
         } else if (sceneName === 'singleBiome') {
             return [
                 ...this.bears, ...this.wolves, ...this.owls, ...this.yetis, ...this.deers,
                 ...this.chickens, ...this.pigs, ...this.sheeps, ...this.spiders, ...this.imps,
                 ...this.lizards, ...this.horses
-            ].filter(e => e !== null);
+            ].filter(e => !!e);
         }
         return [];
     }
@@ -559,7 +563,7 @@ export class EntityManager {
             ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses, 
             ...this.bandits, ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
             ...this.berserkers, ...this.rogues, ...this.warlocks, ...this.combatArchers
-        ].filter(e => e !== null);
+        ].filter(e => !!e);
     }
 
     private refreshRangeCache(activeScene: string, sceneEntities?: any[]) {
@@ -569,5 +573,13 @@ export class EntityManager {
             this.nearCache.set(entity, distSq <= this.animationRangeSq);
             this.visibilityCache.set(entity, distSq <= this.visibilityRangeSq);
         });
+    }
+
+    // Debug function for manual yeti spawning
+    debugSpawnYeti() {
+        console.log('[EntityManager] Debug: Spawning test yeti');
+        const playerPos = new THREE.Vector3(0, 0, 0); // Spawn at origin for testing
+        this.spawnAnimalGroup('yeti', 1, null, playerPos);
+        console.log('[EntityManager] Debug: Total yetis:', this.yetis.length);
     }
 }

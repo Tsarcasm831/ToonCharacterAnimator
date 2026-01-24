@@ -53,8 +53,7 @@ export default defineConfig(({ mode }) => {
               'ui-components': [
                 './components/ui/BuilderUI.tsx',
                 './components/CombatScene.tsx',
-                './components/WorldScene.tsx',
-                './components/LandScene.tsx'
+                './components/WorldScene.tsx'
               ]
             },
             chunkFileNames: 'assets/[name]-[hash].js',

@@ -109,11 +109,19 @@ export class ObstacleManager {
         const y = PlayerUtils.getTerrainHeight(xz.x, xz.y);
         const adjustedY = y + 0.05;
         const berryBush = ObjectFactory.createBerryBush(new THREE.Vector3(xz.x, adjustedY, xz.y), scale);
-        this.parent.add(berryBush);
-        this.decorativeItems.push(berryBush);
+        if (berryBush) {
+            this.parent.add(berryBush);
+            this.decorativeItems.push(berryBush);
+        } else {
+            console.error("ObstacleManager: Failed to create berry bush at", xz);
+        }
     }
 
     addObstacle(obj: THREE.Object3D) {
+        if (!obj) {
+            console.error("ObstacleManager: Attempted to add undefined obstacle");
+            return;
+        }
         if (!obj.parent) {
             this.parent.add(obj);
         }
@@ -144,7 +152,12 @@ export class ObstacleManager {
     }
 
     private createRock(position: THREE.Vector3, scale: number = 1.0) {
-        const { group, rock } = ObjectFactory.createRock(position, scale);
+        const result = ObjectFactory.createRock(position, scale);
+        if (!result || !result.group || !result.rock) {
+            console.error("ObstacleManager: Failed to create rock at", position, result);
+            return;
+        }
+        const { group, rock } = result;
         this.parent.add(group);
         this.obstacles.push(rock);
         this.rocks.set(rock.uuid, {
@@ -153,7 +166,12 @@ export class ObstacleManager {
     }
 
     private createCopperOreRock(position: THREE.Vector3, scale: number = 1.0) {
-        const { group, rock } = ObjectFactory.createCopperOreRock(position, scale);
+        const result = ObjectFactory.createCopperOreRock(position, scale);
+        if (!result || !result.group || !result.rock) {
+            console.error("ObstacleManager: Failed to create copper ore at", position, result);
+            return;
+        }
+        const { group, rock } = result;
         this.parent.add(group);
         this.obstacles.push(rock);
         this.rocks.set(rock.uuid, {
@@ -162,7 +180,12 @@ export class ObstacleManager {
     }
 
     private createTree(position: THREE.Vector3) {
-        const { group, trunk, leaves } = ObjectFactory.createTree(position);
+        const result = ObjectFactory.createTree(position);
+        if (!result || !result.group || !result.trunk) {
+            console.error("ObstacleManager: Failed to create tree at", position, result);
+            return;
+        }
+        const { group, trunk, leaves } = result;
         this.parent.add(group);
         this.obstacles.push(trunk);
         this.trees.set(trunk.uuid, {
@@ -171,7 +194,12 @@ export class ObstacleManager {
     }
 
     private createAutumnTree(position: THREE.Vector3) {
-        const { group, trunk, leaves } = ObjectFactory.createAutumnTree(position);
+        const result = ObjectFactory.createAutumnTree(position);
+        if (!result || !result.group || !result.trunk) {
+            console.error("ObstacleManager: Failed to create autumn tree at", position, result);
+            return;
+        }
+        const { group, trunk, leaves } = result;
         this.parent.add(group);
         this.obstacles.push(trunk);
         this.trees.set(trunk.uuid, {
@@ -180,7 +208,12 @@ export class ObstacleManager {
     }
 
     private createDeadTree(position: THREE.Vector3) {
-        const { group, obstacle } = ObjectFactory.createDeadTree(position);
+        const result = ObjectFactory.createDeadTree(position);
+        if (!result || !result.group || !result.obstacle) {
+            console.error("ObstacleManager: Failed to create dead tree at", position, result);
+            return;
+        }
+        const { group, obstacle } = result;
         this.parent.add(group);
         this.obstacles.push(obstacle);
         this.trees.set(obstacle.uuid, {

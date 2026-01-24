@@ -5,10 +5,12 @@ interface HeaderProps {
     activeScene?: string;
     onOpenTravel?: () => void;
     onToggleBestiary?: () => void;
+    onChangeLand?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onOpenTravel, onToggleBestiary }) => {
+export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onOpenTravel, onToggleBestiary, onChangeLand }) => {
     const isLand = activeScene === 'land';
+    const isSingleBiome = activeScene === 'singleBiome';
 
     return (
         <div className="absolute top-6 md:top-8 left-0 w-full p-6 z-10 pointer-events-none flex flex-col md:flex-row items-start justify-between">
@@ -25,6 +27,14 @@ export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onOpenTravel
                 >
                     <span className="text-xs font-black uppercase tracking-widest text-white">Bestiary</span>
                 </button>
+                {isSingleBiome && (
+                    <button 
+                        onClick={onChangeLand}
+                        className="px-4 py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 hover:bg-green-600/80 transition-all shadow-xl"
+                    >
+                        <span className="text-xs font-black uppercase tracking-widest text-white">Change Land</span>
+                    </button>
+                )}
             </div>
 
             {biome && (

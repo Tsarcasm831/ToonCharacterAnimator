@@ -41,7 +41,10 @@ export class Game {
     private isBuilding: boolean = false;
     private wasBuilderKeyPressed: boolean = false;
     private wasRotateKeyPressed: boolean = false;
-    private wasAttack1Pressed: boolean = false;
+    private lastBuildTime: number = 0;
+    private buildCooldown: number = 200; // ms cooldown between builds
+    private lastSlotSelectTime: number = 0;
+    private slotSelectProtection: number = 300; // ms protection after slot select
     private showObstacleHitboxes: boolean = false;
     private wasFirstPersonKeyPressed: boolean = false;
     
@@ -67,6 +70,8 @@ export class Game {
     public onAttackHit?: (type: string, count: number) => void;
     public onInventoryUpdate?: (items: (InventoryItem | null)[]) => void;
     public onToggleInventoryCallback?: () => void;
+    public onToggleBuilderLogCallback?: () => void;
+    public onBuildLog?: (message: string) => void;
     public onEnvironmentReady?: () => void;
     public onUpdate?: (dt: number) => void;
 
@@ -90,6 +95,10 @@ export class Game {
 
         this.particleManager = new ParticleManager(this.renderManager.scene);
         this.builderManager = new BuilderManager(this.renderManager.scene);
+        this.builderManager.onBuild = (type, pos, rot) => {
+            const msg = `Built ${type} at (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}) Rot: ${rot.toFixed(2)}`;
+            this.onBuildLog?.(msg);
+        };
 
         this.player = new Player(this.renderManager.scene);
         Object.assign(this.player.config, initialConfig);
@@ -133,19 +142,18 @@ export class Game {
             this.sceneManager.environment.obstacleManager.onLogPickedUp = () => {
                 this.player.addItem('Wood', 8, true);
             };
+            this.entityManager.initDevEntities(this.sceneManager.environment, this.config);
         }
         
-        this.spawnLowLevelGuard(-32, 0, 13, Math.PI);
-        
         requestAnimationFrame(() => {
-            this.sceneManager.environment.buildAsync().then(() => {
-                if (this.sceneManager.activeScene === 'dev') this.onEnvironmentReady?.();
-                if (this.sceneManager.activeScene === 'singleBiome' && !this.hasSpawnedAllAnimals) {
-                    this.entityManager.spawnAllAnimals(this.sceneManager.environment, new THREE.Vector3(5, 0, 5));
-                    this.hasSpawnedAllAnimals = true;
-                }
-            });
-            if (this.sceneManager.activeScene !== 'dev') this.onEnvironmentReady?.();
+            if (this.sceneManager.activeScene === 'dev' && this.sceneManager.environment) {
+                this.sceneManager.environment.buildAsync().then(() => {
+                    this.onEnvironmentReady?.();
+                });
+            } else {
+                // For other scenes, environment is likely already ready or synchronous
+                this.onEnvironmentReady?.();
+            }
         });
 
         this.clock = new THREE.Clock();
@@ -164,6 +172,16 @@ export class Game {
         window.addEventListener('contextmenu', (e) => this.onContextMenu(e));
         
         this.animate = this.animate.bind(this);
+        
+        // Expose debug function globally
+        (window as any).debugSpawnYeti = () => {
+            console.log('[Game] Debug: Spawning yeti at player position');
+            if (this.entityManager && this.player) {
+                const playerPos = this.player.position.clone();
+                this.entityManager.spawnAnimalGroup('yeti', 1, this.sceneManager.environment, playerPos);
+                console.log('[Game] Debug: Total yetis:', this.entityManager.yetis.length);
+            }
+        };
     }
 
     private setupInputHandlers() {
@@ -194,6 +212,7 @@ export class Game {
         this.inputManager.onToggleSkeletonMode = () => this.player.toggleSkeletonMode();
         this.inputManager.onToggleBuilder = () => this.toggleBuilder();
         this.inputManager.onToggleGrid = () => this.sceneManager.environment.toggleWorldGrid();
+        this.inputManager.onConfirmBuild = () => this.handleConfirmBuild();
         this.inputManager.onToggleWorldMap = () => {
             this.onToggleWorldMapCallback?.(this.player.mesh.position.clone());
         };
@@ -283,11 +302,37 @@ export class Game {
     private toggleBuilder() {
         this.isBuilding = !this.isBuilding;
         this.builderManager.setActive(this.isBuilding);
+        this.inputManager.setBuilding(this.isBuilding);
         this.onBuilderToggle?.(this.isBuilding);
         if (this.isBuilding && this.cameraManager.isFirstPerson) this.cameraManager.toggleFirstPerson(false);
     }
 
     setBuildingType(type: any) { this.builderManager.setType(type); }
+    
+    private handleConfirmBuild() {
+        if (!this.isBuilding) return;
+        
+        const currentTime = Date.now();
+        const timeSinceSlotSelect = currentTime - this.lastSlotSelectTime;
+        
+        // Only allow confirmation if enough time has passed since slot selection
+        if (timeSinceSlotSelect >= this.slotSelectProtection && currentTime - this.lastBuildTime >= this.buildCooldown) {
+            const currentEnv = this.sceneManager.currentEnvironment;
+            if (currentEnv) {
+                this.builderManager.build(currentEnv);
+                this.lastBuildTime = currentTime;
+                if (this.showObstacleHitboxes) {
+                    const debugObjects: THREE.Object3D[] = [...currentEnv.obstacles];
+                    const entities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
+                    entities.forEach(entity => {
+                        if (entity.group) debugObjects.push(entity.group);
+                    });
+                    PlayerDebug.updateObstacleHitboxVisuals(debugObjects, true);
+                }
+            }
+        }
+    }
+    
     private onPointerLockChange() { 
         if (document.pointerLockElement !== this.renderManager.renderer.domElement && this.cameraManager.isFirstPerson) 
             this.cameraManager.toggleFirstPerson(false); 
@@ -304,6 +349,7 @@ export class Game {
                 if (index >= 0 && index < presets.length) {
                     const type = presets[index];
                     this.setBuildingType(type);
+                    this.lastSlotSelectTime = Date.now(); // Track when slot was selected
                     this.onBuildingTypeChange?.(type);
                 }
             } else {
@@ -346,22 +392,6 @@ export class Game {
         
         if (input.rotateGhost && !this.wasRotateKeyPressed) this.builderManager.rotate();
         this.wasRotateKeyPressed = !!input.rotateGhost;
-        
-        if (this.isBuilding && input.attack1 && !this.wasAttack1Pressed) {
-            const currentEnv = this.sceneManager.currentEnvironment;
-            if (currentEnv) {
-                this.builderManager.build(currentEnv);
-                if (this.showObstacleHitboxes) {
-                    const debugObjects: THREE.Object3D[] = [...currentEnv.obstacles];
-                    const entities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
-                    entities.forEach(entity => {
-                        if (entity.group) debugObjects.push(entity.group);
-                    });
-                    PlayerDebug.updateObstacleHitboxVisuals(debugObjects, true);
-                }
-            }
-        }
-        this.wasAttack1Pressed = !!input.attack1;
 
         // 1. Get Camera Rotation (for input relative movement)
         const cameraRotation = this.cameraManager.getCameraRotation();
@@ -419,7 +449,7 @@ export class Game {
         // 2. Update Camera Position (AFTER player has moved to prevent jitter)
         this.cameraManager.updatePosition(this.sceneManager.activeScene);
 
-        this.soundManager.update(this.player, delta);
+        this.soundManager.update(this.player, delta, currentEnv);
         
         if (time - this.lastRotationUpdate >= this.rotationUpdateIntervalMs || Math.abs(cameraRotation - this.lastRotationValue) >= this.rotationUpdateEpsilon) {
             this.lastRotationUpdate = time; this.lastRotationValue = cameraRotation;

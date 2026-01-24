@@ -28,20 +28,21 @@ interface GameHUDProps {
     combatLog: CombatLogEntry[];
     onOpenTravel: () => void;
     onToggleBestiary: () => void;
+    onChangeLand?: () => void;
     isBuilderMode?: boolean;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
     activeScene, currentBiome, playerRotation, inventory, bench, selectedSlot, onSelectSlot,
     selectedUnit, interactionText, interactionProgress, showGrid, setShowGrid, isCombatActive, setIsCombatActive,
-    stats, isFemale, combatLog, onOpenTravel, onToggleBestiary, isBuilderMode
+    stats, isFemale, combatLog, onOpenTravel, onToggleBestiary, onChangeLand, isBuilderMode
 }) => {
     const isCombat = activeScene === 'combat';
 
     return (
         <>
             {/* Standard Exploration Header */}
-            {!isCombat && <Header biome={currentBiome} onOpenTravel={onOpenTravel} onToggleBestiary={onToggleBestiary} />}
+            {!isCombat && <Header biome={currentBiome} activeScene={activeScene} onOpenTravel={onOpenTravel} onToggleBestiary={onToggleBestiary} onChangeLand={onChangeLand} />}
             {!isCombat && <Compass rotation={playerRotation} />}
             
             {/* Combat HUD Elements */}

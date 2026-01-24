@@ -91,7 +91,8 @@ export class TerrainManager {
                 mesh.rotation.x = -Math.PI / 2;
                 mesh.position.set(centerX, 0, centerZ);
                 mesh.receiveShadow = true;
-                mesh.userData = { type: 'terrain', terrainType: type };
+                // Mark terrain as ground so collision ignores it but raycasts can use it.
+                mesh.userData = { type: 'ground', terrainType: type };
                 this.group.add(mesh);
                 this.meshes.push(mesh);
 

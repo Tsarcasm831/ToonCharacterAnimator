@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { PlayerConfig } from '../../types';
-import { getLandHeightAt, isWorldPointInLand } from '../environment/landTerrain';
+import { getLandHeightAt, isWorldPointInLand, isPointInPolygon } from '../environment/landTerrain';
 import { ENV_CONSTANTS } from '../environment/EnvironmentTypes';
 
 export class PlayerUtils {
@@ -21,9 +21,14 @@ export class PlayerUtils {
     // World size
     static WORLD_LIMIT = 1000;
     static useLandTerrain = false;
+    private static customLandPolygon: number[][] | null = null;
 
     static setUseLandTerrain(useLand: boolean) {
         this.useLandTerrain = useLand;
+    }
+
+    static setCustomLandPolygon(points: number[][] | null) {
+        this.customLandPolygon = points;
     }
 
     static getHitboxBounds(position: THREE.Vector3, config: PlayerConfig): THREE.Box3 {
@@ -49,6 +54,7 @@ export class PlayerUtils {
     static checkCollision(pos: THREE.Vector3, config: PlayerConfig, obstacles: THREE.Object3D[]): boolean {
         const playerBox = this.getHitboxBounds(pos, config);
         for (const obs of obstacles) {
+            if (!obs || !obs.userData) continue;
             if (obs.userData.type === 'soft' || obs.userData.type === 'ground') continue;
             this._tempBox2.setFromObject(obs);
             if (this._tempBox2.intersectsBox(playerBox)) return true;
@@ -66,6 +72,7 @@ export class PlayerUtils {
         this._tempBox.max.set(pos.x + halfX, pos.y + size.y, pos.z + halfZ);
 
         for (const obs of obstacles) {
+            if (!obs || !obs.userData) continue;
             if (obs.userData.type === 'soft' || obs.userData.type === 'creature' || obs.userData.type === 'ground') continue;
             // obsBox was reusing _tempVec1 which is fine, but we need a box
             // Using _tempBox2 for obstacle
