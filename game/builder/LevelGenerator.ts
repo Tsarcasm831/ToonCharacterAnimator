@@ -2,10 +2,14 @@
 import * as THREE from 'three';
 import { BuildingParts } from './BuildingParts';
 import { HouseBlueprints, Blueprint } from './HouseBlueprints';
-import { Environment } from '../environment/Environment';
+type BuildEnvironment = {
+    group: THREE.Group;
+    obstacles: THREE.Object3D[];
+    addObstacle?: (obj: THREE.Object3D) => void;
+};
 
 export class LevelGenerator {
-    static buildDevLevel(environment: Environment) {
+    static buildDevLevel(environment: BuildEnvironment) {
         if (!environment) return;
         
         const GRID = 1.3333;
@@ -18,7 +22,19 @@ export class LevelGenerator {
         this.buildStructure(environment, HouseBlueprints.getGatehouse(), -15 * GRID, 20 * GRID, 0, 0xffb74d);
     }
 
-    private static buildStructure(environment: Environment, blueprint: Blueprint, originX: number, originZ: number, blueprintRotation: number = 0, color?: number) {
+    static buildTownLevel(environment: BuildEnvironment) {
+        if (!environment) return;
+
+        const GRID = 1.3333;
+
+        this.buildStructure(environment, HouseBlueprints.getGatehouse(), -14 * GRID, 12 * GRID, 0, 0xffd54f);
+        this.buildStructure(environment, HouseBlueprints.getLonghouse(), 10 * GRID, 12 * GRID, Math.PI, 0x90caf9);
+        this.buildStructure(environment, HouseBlueprints.getCottage(), -6 * GRID, -10 * GRID, Math.PI / 2, 0xa5d6a7);
+        this.buildStructure(environment, HouseBlueprints.getTheForge(), 12 * GRID, -8 * GRID, Math.PI / 2, 0xef9a9a);
+        this.buildStructure(environment, HouseBlueprints.getRoundhouse(), -18 * GRID, -4 * GRID, 0, 0xb39ddb);
+    }
+
+    private static buildStructure(environment: BuildEnvironment, blueprint: Blueprint, originX: number, originZ: number, blueprintRotation: number = 0, color?: number) {
         const GRID = 1.3333;
         blueprint.forEach(part => {
             let localX = part.x;
@@ -50,7 +66,7 @@ export class LevelGenerator {
         });
     }
 
-    private static placeStructure(environment: Environment, type: any, x: number, y: number, z: number, rotation: number, color?: number) {
+    private static placeStructure(environment: BuildEnvironment, type: any, x: number, y: number, z: number, rotation: number, color?: number) {
         const mesh = BuildingParts.createStructureMesh(type, false, color);
         mesh.position.set(x, y, z);
         mesh.rotation.y = rotation;
@@ -58,15 +74,23 @@ export class LevelGenerator {
         const applyUserData = (obj: THREE.Object3D) => { 
             obj.userData = { ...obj.userData, type: 'hard', material: 'wood', structureType: type }; 
         };
+
+        const registerObstacle = (obj: THREE.Object3D) => {
+            if (environment.addObstacle) {
+                environment.addObstacle(obj);
+            } else {
+                environment.obstacles.push(obj);
+            }
+        };
         
         if (mesh instanceof THREE.Group) {
             mesh.traverse(applyUserData);
             mesh.traverse(child => {
-                if (child instanceof THREE.Mesh && child.userData.type === 'hard') environment.obstacles.push(child);
+                if (child instanceof THREE.Mesh && child.userData.type === 'hard') registerObstacle(child);
             });
         } else {
             applyUserData(mesh);
-            environment.obstacles.push(mesh);
+            registerObstacle(mesh);
         }
         environment.group.add(mesh);
     }

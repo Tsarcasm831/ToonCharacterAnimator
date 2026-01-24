@@ -145,6 +145,8 @@ export class Game {
                 this.player.addItem('Wood', 8, true);
             };
             this.entityManager.initDevEntities(this.sceneManager.environment, this.config);
+        } else if (activeScene === 'town') {
+            this.setupTownScene();
         }
         
         requestAnimationFrame(() => {
@@ -317,6 +319,15 @@ export class Game {
         this.sceneManager.switchScene(sceneName, isInit);
         this.combatManager.clearSelection();
         this.combatManager.setCombatActive(sceneName === 'combat');
+        if (sceneName === 'town') {
+            this.setupTownScene();
+        }
+    }
+
+    private setupTownScene() {
+        const townEnv = this.sceneManager.townEnvironment;
+        if (!townEnv) return;
+        this.entityManager.initTownEntities(townEnv, this.config);
     }
 
     spawnAnimal(type: string, count: number) {
