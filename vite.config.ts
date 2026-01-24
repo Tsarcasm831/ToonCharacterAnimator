@@ -69,6 +69,9 @@ export default defineConfig(({ mode }) => {
       optimizeDeps: {
         include: ['three', 'react', 'react-dom', 'lucide-react']
       },
+      test: {
+        environment: 'jsdom'
+      },
       assetsInclude: ['**/*.glb', '**/*.gltf', '**/*.png', '**/*.jpg', '**/*.svg', '**/*.opus']
     };
 });
