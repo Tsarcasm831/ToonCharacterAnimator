@@ -246,77 +246,77 @@ const ALBUMS: Album[] = [
                 title: 'Success the Obsession',
                 artist: 'Various Artists',
                 duration: '3:45',
-                fileUrl: '/assets/music/Grey Matter Tavern/1 - Success the Obsession.mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/1 - Success the Obsession.wav'
             },
             {
                 id: 'team-of-one',
                 title: 'Team of One',
                 artist: 'Various Artists',
                 duration: '4:12',
-                fileUrl: '/assets/music/Grey Matter Tavern/2 - Team of One.mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/2 - Team of One.wav'
             },
             {
                 id: 'grey-matter-tavern',
                 title: 'Grey Matter Tavern',
                 artist: 'Various Artists',
                 duration: '3:28',
-                fileUrl: '/assets/music/Grey Matter Tavern/3 - Grey Matter Tavern.mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/3 - Grey Matter Tavern.wav'
             },
             {
                 id: 'bonnie-clyde',
                 title: 'Bonnie & Clyde',
                 artist: 'Various Artists',
                 duration: '3:56',
-                fileUrl: '/assets/music/Grey Matter Tavern/4 - Bonnie & Clyde.mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/4 - Bonnie & Clyde.wav'
             },
             {
                 id: 'little-airplane',
                 title: 'Little Airplane',
                 artist: 'Various Artists',
                 duration: '4:03',
-                fileUrl: '/assets/music/Grey Matter Tavern/5 - Little Airplane.mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/5 - Little Airplane.wav'
             },
             {
                 id: 'out-of-control',
                 title: 'Out Of Control',
                 artist: 'Various Artists',
                 duration: '3:32',
-                fileUrl: '/assets/music/Grey Matter Tavern/6 - Out Of Control.mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/6 - Out Of Control.wav'
             },
             {
                 id: 'all-my-best-days',
                 title: 'All My Best Days',
                 artist: 'Various Artists',
                 duration: '4:18',
-                fileUrl: '/assets/music/Grey Matter Tavern/7 - All My Best Days.mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/7 - All My Best Days.wav'
             },
             {
                 id: 'glorious',
                 title: 'Glorious',
                 artist: 'Various Artists',
                 duration: '3:44',
-                fileUrl: '/assets/music/Grey Matter Tavern/8 - Glorious.mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/8 - Glorious.wav'
             },
             {
                 id: 'riddle-me',
                 title: 'Riddle Me',
                 artist: 'Various Artists',
                 duration: '3:15',
-                fileUrl: '/assets/music/Grey Matter Tavern/9 - Riddle Me.mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/9 - Riddle Me.wav'
             },
             {
                 id: 'below-zero',
                 title: 'Below Zero (feat. Meathook)',
                 artist: 'Various Artists',
                 duration: '4:27',
-                fileUrl: '/assets/music/Grey Matter Tavern/10 - Below Zero (feat. Meathook).mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/10 - Below Zero (feat. Meathook).wav'
             },
             {
                 id: 'success-the-obsession-cover',
                 title: 'Success the Obsession (Selfless Cut Cover)',
                 artist: 'Various Artists',
                 duration: '3:52',
-                fileUrl: '/assets/music/Grey Matter Tavern/11 - Success the Obsession (Selfless Cut Cover).mp3'
+                fileUrl: '/assets/music/Grey Matter Tavern/11 - Success the Obsession (Selfless Cut Cover).wav'
             }
         ]
     }
