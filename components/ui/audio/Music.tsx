@@ -17,6 +17,7 @@ interface Album {
     year: string;
     genre: string;
     coverColor: string;
+    coverImage?: string;
     tracks: Track[];
 }
 
@@ -24,299 +25,300 @@ const ALBUMS: Album[] = [
     {
         id: 'journeys',
         title: 'Journeys',
-        artist: 'Traveler',
-        year: '2024',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
         genre: 'Ambient',
         coverColor: 'bg-gradient-to-br from-blue-500 to-purple-600',
         tracks: [
             {
                 id: 'beyond-the-pale',
                 title: 'Beyond the Pale',
-                artist: 'Traveler',
+                artist: 'Lord Tsarcasm',
                 duration: '4:12',
-                fileUrl: '/assets/music/Journeys/Beyond the Pale.mp3'
+                fileUrl: '/assets/musicshrunk/Journeys/Beyond the Pale.opus'
             },
             {
                 id: 'discovery',
                 title: 'Discovery',
-                artist: 'Traveler',
+                artist: 'Lord Tsarcasm',
                 duration: '4:03',
-                fileUrl: '/assets/music/Journeys/Discovery.mp3'
+                fileUrl: '/assets/musicshrunk/Journeys/Discovery.opus'
             },
             {
                 id: 'travel-1',
                 title: 'Travel 1',
-                artist: 'Traveler',
+                artist: 'Lord Tsarcasm',
                 duration: '2:58',
-                fileUrl: '/assets/music/Journeys/Travel 1.mp3'
+                fileUrl: '/assets/musicshrunk/Journeys/Travel 1.opus'
             }
         ]
     },
     {
         id: 'echoes',
         title: 'Echoes of Tomorrow',
-        artist: 'Future Sound',
-        year: '2024',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
         genre: 'Electronic',
         coverColor: 'bg-gradient-to-br from-cyan-500 to-teal-600',
         tracks: [
             {
                 id: 'digital-dawn',
                 title: 'Digital Dawn',
-                artist: 'Future Sound',
+                artist: 'Lord Tsarcasm',
                 duration: '3:56',
-                fileUrl: '/assets/music/Echoes of Tomorrow/Digital Dawn.mp3'
+                fileUrl: '/assets/musicshrunk/Echoes of Tomorrow/Digital Dawn.opus'
             },
             {
                 id: 'eerie-chant',
                 title: 'Eerie Chant',
-                artist: 'Future Sound',
+                artist: 'Lord Tsarcasm',
                 duration: '2:40',
-                fileUrl: '/assets/music/Echoes of Tomorrow/Eerie Chant.mp3'
+                fileUrl: '/assets/musicshrunk/Echoes of Tomorrow/Eerie Chant.opus'
             }
         ]
     },
     {
         id: 'legends',
         title: 'Legends of the Realm',
-        artist: 'Mythic Orchestra',
-        year: '2024',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
         genre: 'Orchestral',
         coverColor: 'bg-gradient-to-br from-orange-500 to-red-600',
         tracks: [
             {
                 id: 'combat-battle',
                 title: 'Combat Battle Music',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '4:15',
-                fileUrl: '/assets/music/Legends of the Realm/Combat Battle Music.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Combat Battle Music.opus'
             },
             {
                 id: 'hidden-wings',
                 title: 'Hidden Wings _ 隠した翼 _ Kakushita Tsubasa',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '2:58',
-                fileUrl: '/assets/music/Legends of the Realm/Hidden Wings _ 隠した翼 _ Kakushita Tsubasa.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Hidden Wings _ 隠した翼 _ Kakushita Tsubasa.opus'
             },
             {
                 id: 'service-tunnels',
                 title: 'In the Service Tunnels',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '2:04',
-                fileUrl: '/assets/music/Legends of the Realm/In the Service Tunnels.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/In the Service Tunnels.opus'
             },
             {
                 id: 'kurogane',
                 title: 'Kurogane',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '3:16',
-                fileUrl: '/assets/music/Legends of the Realm/Kurogane.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Kurogane.opus'
             },
             {
                 id: 'nikolai-theme',
                 title: 'Nikolai Theme',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '6:12',
-                fileUrl: '/assets/music/Legends of the Realm/Nikolai Theme.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Nikolai Theme.opus'
             },
             {
                 id: 'overworld-bg-2',
                 title: 'Overworld BG 2',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '3:04',
-                fileUrl: '/assets/music/Legends of the Realm/Overworld BG 2.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Overworld BG 2.opus'
             },
             {
                 id: 'sairon-curious',
                 title: 'Sairon - Curious',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '2:40',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Curious.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Curious.opus'
             },
             {
                 id: 'sairon-emotional-2',
                 title: 'Sairon - Emotional 2',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '3:18',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Emotional 2.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Emotional 2.opus'
             },
             {
                 id: 'sairon-emotional',
                 title: 'Sairon - Emotional',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '3:00',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Emotional.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Emotional.opus'
             },
             {
                 id: 'sairon-end-game',
                 title: 'Sairon - End Game',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '3:56',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - End Game.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - End Game.opus'
             },
             {
                 id: 'sairon-enemy-incoming',
                 title: 'Sairon - Enemy Incoming',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '2:12',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Enemy Incoming.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Enemy Incoming.opus'
             },
             {
                 id: 'sairon-homura-theme',
-                title: 'Sairon - Homura\'s Theme',
-                artist: 'Mythic Orchestra',
+                title: "Sairon - Homura's Theme",
+                artist: 'Lord Tsarcasm',
                 duration: '3:16',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Homura\'s Theme.mp3'
+                fileUrl: "/assets/musicshrunk/Legends of the Realm/Sairon - Homura's Theme.opus"
             },
             {
                 id: 'sairon-incoming-threat',
                 title: 'Sairon - Incoming Threat',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '2:18',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Incoming Threat.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Incoming Threat.opus'
             },
             {
                 id: 'sairon-intro-original',
                 title: 'Sairon - Intro Original',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '4:12',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Intro Original.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Intro Original.opus'
             },
             {
                 id: 'sairon-intro-remaster',
                 title: 'Sairon - Intro Remaster',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '2:52',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Intro Remaster.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Intro Remaster.opus'
             },
             {
                 id: 'sairon-intro-v2',
                 title: 'Sairon - Intro v2',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '3:30',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Intro v2.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Intro v2.opus'
             },
             {
                 id: 'sairon-seena-theme',
                 title: 'Sairon - Seena Theme',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '1:22',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Seena Theme.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Seena Theme.opus'
             },
             {
                 id: 'sairon-to-the-rescue',
                 title: 'Sairon - To the Rescue',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '1:28',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - To the Rescue.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - To the Rescue.opus'
             },
             {
                 id: 'sairon-yureigakure-theme',
                 title: 'Sairon - Yureigakure Theme',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '1:22',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon - Yureigakure Theme.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon - Yureigakure Theme.opus'
             },
             {
                 id: 'sairon-overworld',
                 title: 'Sairon Overworld',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '6:52',
-                fileUrl: '/assets/music/Legends of the Realm/Sairon Overworld.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Sairon Overworld.opus'
             },
             {
                 id: 'combat',
                 title: 'Combat',
-                artist: 'Mythic Orchestra',
+                artist: 'Lord Tsarcasm',
                 duration: '4:02',
-                fileUrl: '/assets/music/Legends of the Realm/Combat.mp3'
+                fileUrl: '/assets/musicshrunk/Legends of the Realm/Combat.opus'
             }
         ]
     },
     {
         id: 'grey-matter-tavern',
         title: 'Grey Matter Tavern',
-        artist: 'Various Artists',
-        year: '2024',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
         genre: 'Tavern Music',
         coverColor: 'bg-gradient-to-br from-amber-600 to-orange-700',
+        coverImage: '/assets/images/albums/GreyMatterTavern.jpg',
         tracks: [
             {
                 id: 'success-the-obsession',
                 title: 'Success the Obsession',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '3:45',
-                fileUrl: '/assets/music/Grey Matter Tavern/1 - Success the Obsession.wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/1 - Success the Obsession.opus'
             },
             {
                 id: 'team-of-one',
                 title: 'Team of One',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '4:12',
-                fileUrl: '/assets/music/Grey Matter Tavern/2 - Team of One.wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/2 - Team of One.opus'
             },
             {
                 id: 'grey-matter-tavern',
                 title: 'Grey Matter Tavern',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '3:28',
-                fileUrl: '/assets/music/Grey Matter Tavern/3 - Grey Matter Tavern.wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/3 - Grey Matter Tavern.opus'
             },
             {
                 id: 'bonnie-clyde',
                 title: 'Bonnie & Clyde',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '3:56',
-                fileUrl: '/assets/music/Grey Matter Tavern/4 - Bonnie & Clyde.wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/4 - Bonnie & Clyde.opus'
             },
             {
                 id: 'little-airplane',
                 title: 'Little Airplane',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '4:03',
-                fileUrl: '/assets/music/Grey Matter Tavern/5 - Little Airplane.wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/5 - Little Airplane.opus'
             },
             {
                 id: 'out-of-control',
                 title: 'Out Of Control',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '3:32',
-                fileUrl: '/assets/music/Grey Matter Tavern/6 - Out Of Control.wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/6 - Out Of Control.opus'
             },
             {
                 id: 'all-my-best-days',
                 title: 'All My Best Days',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '4:18',
-                fileUrl: '/assets/music/Grey Matter Tavern/7 - All My Best Days.wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/7 - All My Best Days.opus'
             },
             {
                 id: 'glorious',
                 title: 'Glorious',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '3:44',
-                fileUrl: '/assets/music/Grey Matter Tavern/8 - Glorious.wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/8 - Glorious.opus'
             },
             {
                 id: 'riddle-me',
                 title: 'Riddle Me',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '3:15',
-                fileUrl: '/assets/music/Grey Matter Tavern/9 - Riddle Me.wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/9 - Riddle Me.opus'
             },
             {
                 id: 'below-zero',
                 title: 'Below Zero (feat. Meathook)',
-                artist: 'Various Artists',
+                artist: 'MeatHook',
                 duration: '4:27',
-                fileUrl: '/assets/music/Grey Matter Tavern/10 - Below Zero (feat. Meathook).wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/10 - Below Zero (feat. Meathook).opus'
             },
             {
                 id: 'success-the-obsession-cover',
                 title: 'Success the Obsession (Selfless Cut Cover)',
-                artist: 'Various Artists',
+                artist: 'Lord Tsarcasm',
                 duration: '3:52',
-                fileUrl: '/assets/music/Grey Matter Tavern/11 - Success the Obsession (Selfless Cut Cover).wav'
+                fileUrl: '/assets/musicshrunk/Grey Matter Tavern/11 - Success the Obsession (Selfless Cut Cover).opus'
             }
         ]
     }
@@ -349,6 +351,15 @@ export const MusicView: React.FC = () => {
         const seconds = Math.floor(time % 60);
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     };
+
+    const getAlbumCoverStyle = (album: Album) =>
+        album.coverImage
+            ? {
+                  backgroundImage: `url(${album.coverImage})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center'
+              }
+            : undefined;
 
     return (
         <div className="w-full h-full flex flex-col bg-slate-950 text-white overflow-hidden">
@@ -436,11 +447,20 @@ export const MusicView: React.FC = () => {
                                 }}
                             >
                                 {/* Album Cover */}
-                                <div className={`h-40 sm:h-48 ${album.coverColor} relative overflow-hidden`}>
-                                    <div className="absolute inset-0 bg-black/20" />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <MusicIcon className="w-12 sm:w-16 h-12 sm:h-16 text-white/50" />
-                                    </div>
+                                <div
+                                    className={`h-40 sm:h-48 ${album.coverImage ? '' : album.coverColor} relative overflow-hidden`}
+                                    style={getAlbumCoverStyle(album)}
+                                >
+                                    {album.coverImage ? (
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+                                    ) : (
+                                        <div className="absolute inset-0 bg-black/20" />
+                                    )}
+                                    {!album.coverImage && (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <MusicIcon className="w-12 sm:w-16 h-12 sm:h-16 text-white/50" />
+                                        </div>
+                                    )}
                                     <div className="absolute bottom-4 left-4 right-4">
                                         <h3 className="text-lg sm:text-xl font-black text-white uppercase tracking-tight">{album.title}</h3>
                                         <p className="text-xs text-white/70 font-medium">{album.artist}</p>
@@ -482,11 +502,20 @@ export const MusicView: React.FC = () => {
                     <div className="hidden lg:block w-96 bg-slate-900/50 border-l border-white/5 flex flex-col overflow-y-auto custom-scrollbar">
                         {/* Album Header */}
                         <div className="p-6 border-b border-white/5">
-                            <div className={`h-32 ${selectedAlbum.coverColor} rounded-2xl mb-4 relative overflow-hidden`}>
-                                <div className="absolute inset-0 bg-black/20" />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <MusicIcon className="w-12 h-12 text-white/50" />
-                                </div>
+                            <div
+                                className={`h-32 ${selectedAlbum.coverImage ? '' : selectedAlbum.coverColor} rounded-2xl mb-4 relative overflow-hidden`}
+                                style={getAlbumCoverStyle(selectedAlbum)}
+                            >
+                                {selectedAlbum.coverImage ? (
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
+                                ) : (
+                                    <div className="absolute inset-0 bg-black/20" />
+                                )}
+                                {!selectedAlbum.coverImage && (
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <MusicIcon className="w-12 h-12 text-white/50" />
+                                    </div>
+                                )}
                             </div>
                             <h3 className="text-2xl font-black text-white uppercase tracking-tight">{selectedAlbum.title}</h3>
                             <p className="text-sm text-slate-400 font-medium">{selectedAlbum.artist} • {selectedAlbum.year}</p>
@@ -549,8 +578,11 @@ export const MusicView: React.FC = () => {
                             {/* Modal Header */}
                             <div className="p-4 border-b border-white/5 flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-12 h-12 ${selectedAlbum.coverColor} rounded-xl flex items-center justify-center`}>
-                                        <MusicIcon className="w-6 h-6 text-white/50" />
+                                    <div
+                                        className={`w-12 h-12 ${selectedAlbum.coverImage ? '' : selectedAlbum.coverColor} rounded-xl flex items-center justify-center`}
+                                        style={getAlbumCoverStyle(selectedAlbum)}
+                                    >
+                                        {!selectedAlbum.coverImage && <MusicIcon className="w-6 h-6 text-white/50" />}
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-black text-white uppercase tracking-tight">{selectedAlbum.title}</h3>
@@ -632,8 +664,14 @@ export const MusicView: React.FC = () => {
 
                             {/* Track Info */}
                             <div className="p-6 text-center">
-                                <div className="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center">
-                                    <MusicIcon className="w-16 h-16 text-white/50" />
+                                <div
+                                    className="relative w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center overflow-hidden"
+                                    style={selectedAlbum?.coverImage ? getAlbumCoverStyle(selectedAlbum) : undefined}
+                                >
+                                    {!selectedAlbum?.coverImage && <MusicIcon className="w-16 h-16 text-white/50" />}
+                                    {selectedAlbum?.coverImage && (
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent rounded-2xl" />
+                                    )}
                                 </div>
                                 <h4 className="text-xl font-black text-white mb-2">{currentTrack.title}</h4>
                                 <p className="text-sm text-slate-400 mb-1">{currentTrack.artist}</p>
@@ -713,8 +751,14 @@ export const MusicView: React.FC = () => {
                         <div className="p-4">
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-3 flex-1">
-                                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
-                                        <MusicIcon className="w-5 h-5 text-white/50" />
+                                    <div
+                                        className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center overflow-hidden relative"
+                                        style={selectedAlbum?.coverImage ? getAlbumCoverStyle(selectedAlbum) : undefined}
+                                    >
+                                        {!selectedAlbum?.coverImage && <MusicIcon className="w-5 h-5 text-white/50" />}
+                                        {selectedAlbum?.coverImage && (
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent rounded-lg" />
+                                        )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-bold text-white truncate">{currentTrack.title}</p>

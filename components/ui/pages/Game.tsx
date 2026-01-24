@@ -173,6 +173,10 @@ export const Game: React.FC = () => {
         }
     };
 
+    const handleTravelOpen = () => {
+        setIsTravelOpen(true);
+    };
+
     const onCloseDialogue = () => {
         setDialogue(null);
         if (gameInstance.current) gameInstance.current.player.isTalking = false;
@@ -396,7 +400,7 @@ export const Game: React.FC = () => {
                                         stats={config.stats}
                                         isFemale={config.bodyType === 'female'}
                                         combatLog={combatLog}
-                                        onOpenTravel={() => handleMapToggle(environmentState.playerPosForMap || new THREE.Vector3())}
+                                        onOpenTravel={handleTravelOpen}
                                         onToggleBestiary={onShowEnemies}
                                         onChangeLand={() => {
                                             console.log("Game: Change Land Clicked");
