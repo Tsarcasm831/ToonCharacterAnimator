@@ -7,7 +7,7 @@ import { Environment } from '../../../environment/Environment';
 import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
-import { PlayerCombat } from '../../../player/PlayerCombat';
+import { ProjectileManager } from '../../../managers/ProjectileManager';
 
 enum MageState { IDLE, PATROL, CHASE, ATTACK, RETREAT }
 
@@ -188,7 +188,7 @@ export class Mage extends HumanoidEntity {
                 // Spawn Projectile
                 if (this.castTimer > 0.6 && !this.hasCastSpell && this.currentTarget) {
                     const dir = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize();
-                    PlayerCombat.spawnProjectile(this.scene, this.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, 'fireball', this);
+                    ProjectileManager.spawnProjectile(this.scene, this.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, 'fireball', this);
                     this.hasCastSpell = true;
                 }
 

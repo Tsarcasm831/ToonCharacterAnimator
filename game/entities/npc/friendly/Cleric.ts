@@ -5,7 +5,7 @@ import { CombatEnvironment } from '../../../environment/CombatEnvironment';
 import { Environment } from '../../../environment/Environment';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
-import { PlayerCombat } from '../../../player/PlayerCombat';
+import { ProjectileManager } from '../../../managers/ProjectileManager';
 
 enum ClericState { IDLE, PATROL, SUPPORT, CAST, RETREAT }
 
@@ -203,7 +203,7 @@ export class Cleric extends HumanoidEntity {
                 // Spawn Projectile
                 if (this.castTimer > 0.5 && !this.hasCastSpell && this.currentTarget) {
                     const dir = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize();
-                    PlayerCombat.spawnProjectile(
+                    ProjectileManager.spawnProjectile(
                         this.scene, 
                         this.position.clone().add(new THREE.Vector3(0, 1.3, 0)), 
                         dir, 

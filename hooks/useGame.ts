@@ -23,6 +23,11 @@ interface UseGameProps {
     controlsDisabled?: boolean;
     showGrid?: boolean;
     isCombatActive?: boolean;
+    
+    // Turn-Based Events
+    onTurnQueueUpdate?: (queue: any[]) => void;
+    onTurnPhaseChange?: (phase: string) => void;
+    onTurnChanged?: (unit: any) => void;
 }
 
 export const useGame = ({
@@ -43,7 +48,10 @@ export const useGame = ({
     onAttackHit,
     controlsDisabled = false,
     showGrid = false,
-    isCombatActive = false
+    isCombatActive = false,
+    onTurnQueueUpdate,
+    onTurnPhaseChange,
+    onTurnChanged
 }: UseGameProps) => {
     const gameRef = useRef<Game | null>(null);
 
@@ -57,14 +65,17 @@ export const useGame = ({
         const game = new Game(containerRef.current, config, manualInput, initialInventory, activeScene as any);
         gameRef.current = game;
 
-        if (onGameReady) onGameReady(game);
+        // Set up callbacks
         if (onEnvironmentReady) game.onEnvironmentReady = onEnvironmentReady;
-
-        // Callbacks
         game.onInventoryUpdate = onInventoryUpdate;
         game.onInteractionUpdate = onInteractionUpdate;
         if (onRotationUpdate) game.onRotationUpdate = onRotationUpdate;
         if (onAttackHit) game.onAttackHit = onAttackHit;
+        
+        // Turn-Based Callbacks
+        if (onTurnQueueUpdate) game.onTurnQueueUpdate = onTurnQueueUpdate;
+        if (onTurnPhaseChange) game.onTurnPhaseChange = onTurnPhaseChange;
+        if (onTurnChanged) game.onTurnChanged = onTurnChanged;
 
         if (onSlotSelect) {
             game.setSlotSelectCallback(onSlotSelect);
@@ -160,5 +171,32 @@ export const useGame = ({
 
     }, [config, manualInput, activeScene, controlsDisabled, showGrid, isCombatActive, onInventoryUpdate, onInteractionUpdate, onSlotSelect, onToggleQuestLog, initialInventory]);
 
-    return gameRef;
+    // End combat turn when ESC is pressed
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && isCombatActive) {
+                gameRef.current?.endCombatTurn();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isCombatActive]);
+
+    // Methods
+    const endTurn = () => {
+        gameRef.current?.endCombatTurn();
+    };
+
+    const waitTurn = () => {
+        gameRef.current?.combatSystem?.waitTurn();
+    };
+
+    const defend = () => {
+        const activeUnit = gameRef.current?.combatSystem?.getActiveUnit();
+        if (activeUnit) {
+            gameRef.current?.combatSystem?.defend(activeUnit);
+        }
+    };
+
+    return { gameRef, endTurn, waitTurn, defend };
 };

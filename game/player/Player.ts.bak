@@ -18,7 +18,6 @@ export class Player {
     model: PlayerModel;
     animator: PlayerAnimator;
     config: PlayerConfig;
-    soundManager: any; // SoundManager instance
 
     // Sub-Systems
     inventory: PlayerInventory;
@@ -68,9 +67,8 @@ export class Player {
     private lastOutfit: OutfitType | null = null;
     private wasDeadKeyPressed: boolean = false;
 
-    constructor(scene: THREE.Scene, soundManager?: any) {
+    constructor(scene: THREE.Scene) {
         this.scene = scene;
-        this.soundManager = soundManager;
         this.config = { ...DEFAULT_CONFIG };
         this.model = new PlayerModel(this.config);
         this.model.group.userData.entityType = 'Player';
@@ -84,7 +82,7 @@ export class Player {
         this.status = new PlayerStatusHandler();
         this.cameraHandler = new PlayerCameraHandler();
         this.locomotion = new PlayerLocomotion(this);
-        this.combat = new PlayerCombat(this, soundManager);
+        this.combat = new PlayerCombat(this);
         this.chakra = new ChakraNetwork(scene);
     }
 

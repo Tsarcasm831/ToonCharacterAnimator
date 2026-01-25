@@ -107,7 +107,7 @@ export class Game {
             this.onBuildLog?.(msg);
         };
 
-        this.player = new Player(this.renderManager.scene, this.soundManager);
+        this.player = new Player(this.renderManager.scene);
         Object.assign(this.player.config, initialConfig);
         this.player.inventory.setItems(initialInventory);
         
@@ -129,16 +129,17 @@ export class Game {
         this.combatManager.onShowCharacterStats = (stats, name) => this.onShowCharacterStats?.(stats, name);
 
         this.combatSystem = new CombatSystem();
+        this.combatManager.setCombatSystem(this.combatSystem);
+        
         this.combatSystem.onCombatLog = (msg, type) => {
             // Forward to UI if needed, or handle logs
             console.log(`[Combat] ${msg}`);
         };
 
-        // Connect turn-based events
         this.combatSystem.onTurnChanged = (unit) => {
-            this.onTurnChanged?.(unit);
-            // Also update queue whenever turn changes
-            this.onTurnQueueUpdate?.(this.combatSystem.turnManager.getCurrentQueue());
+             this.onTurnChanged?.(unit);
+             // Also update queue whenever turn changes
+             this.onTurnQueueUpdate?.(this.combatSystem.turnManager.getCurrentQueue());
         };
         
         this.combatSystem.turnManager.onPhaseChange = (phase) => {
@@ -171,12 +172,9 @@ export class Game {
         
         requestAnimationFrame(() => {
             if (this.sceneManager.activeScene === 'dev' && this.sceneManager.environment) {
-                // Defer environment build to avoid blocking loading screen
-                setTimeout(() => {
-                    this.sceneManager.environment.buildAsync().then(() => {
-                        this.onEnvironmentReady?.();
-                    });
-                }, 2000); // Wait 2 seconds after scene loads
+                this.sceneManager.environment.buildAsync().then(() => {
+                    this.onEnvironmentReady?.();
+                });
             } else {
                 // For other scenes, environment is likely already ready or synchronous
                 this.onEnvironmentReady?.();
@@ -324,6 +322,8 @@ export class Game {
     
     public setCombatActive(active: boolean) {
         this.combatManager.setCombatActive(active);
+        this.inputManager.setCombatState(active);
+        
         if (active && this.sceneManager.activeScene === 'combat' && !this.combatInitialized) {
             this.config.isAssassinHostile = true;
             if (this.sceneManager.combatEnvironment) {
@@ -334,12 +334,14 @@ export class Game {
             this.combatSystem.initializeCombat(this.player, [], enemies);
             this.combatInitialized = true;
         } else if (!active) {
+            // Reset combat state when deactivating
             this.combatInitialized = false;
+            this.combatSystem.reset();
         }
     }
 
     public endCombatTurn() {
-        if (this.combatSystem && this.combatInitialized) {
+        if (this.combatSystem) {
             this.combatSystem.endTurn();
         }
     }
@@ -347,7 +349,10 @@ export class Game {
     public switchScene(sceneName: SceneType, isInit: boolean = false) {
         this.sceneManager.switchScene(sceneName, isInit);
         this.combatManager.clearSelection();
-        this.combatManager.setCombatActive(sceneName === 'combat');
+        const isCombatScene = sceneName === 'combat';
+        this.combatManager.setCombatActive(isCombatScene);
+        this.inputManager.setCombatState(isCombatScene);
+        
         if (sceneName === 'town') {
             this.setupTownScene();
         }
@@ -450,7 +455,8 @@ export class Game {
         }
 
         if (this.sceneManager.activeScene === 'combat') {
-             this.cameraManager.handleCombatCamera(input, delta);
+             const cameraInput = this.inputManager.getCameraMovementInput();
+             this.cameraManager.handleCombatCamera(cameraInput, delta);
              // handleCombatCamera consumes input for movement, so we don't need to manually reset it here if the manager does it.
              // However, checking the manager code, it resets input.x/y/isRunning.
              input.attack1 = false;
@@ -509,7 +515,7 @@ export class Game {
             
             PlayerCombat.updateProjectiles(delta, currentEnv, this.particleManager, currentEntities);
             
-            this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities);
+            this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities, this.combatManager.isActive);
             
             // Check if player is in arena and adjust ground height if needed
             if (this.sceneManager.activeScene === 'town' && this.sceneManager.townEnvironment) {

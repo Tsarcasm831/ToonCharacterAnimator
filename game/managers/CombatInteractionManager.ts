@@ -3,13 +3,15 @@ import { EntityManager } from './EntityManager';
 import { RenderManager } from '../core/RenderManager';
 import { CombatEnvironment } from '../environment/CombatEnvironment';
 import { Player } from '../player/Player';
-import { EntityStats } from '../../types';
+import { EntityStats, TurnPhase } from '../../types';
 import { PlayerDebug } from '../player/PlayerDebug';
+import { CombatSystem } from './CombatSystem';
 
 export class CombatInteractionManager {
     private entityManager: EntityManager;
     private renderManager: RenderManager;
     private player: Player;
+    private combatSystem: CombatSystem | null = null;
     
     private raycaster = new THREE.Raycaster();
     private dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -29,6 +31,7 @@ export class CombatInteractionManager {
     public onHideTooltip?: () => void;
 
     private rangeHighlight: THREE.Group | null = null;
+    private pathHighlight: THREE.Group | null = null;
 
     constructor(entityManager: EntityManager, renderManager: RenderManager, player: Player) {
         this.entityManager = entityManager;
@@ -36,8 +39,26 @@ export class CombatInteractionManager {
         this.player = player;
     }
 
+    public setCombatSystem(system: CombatSystem) {
+        this.combatSystem = system;
+    }
+
     public setCombatActive(active: boolean) {
         this.isActive = active;
+        if (!active) {
+            this.clearSelection();
+            this.clearRangeHighlight();
+            this.clearPathHighlight();
+        } else {
+            // When combat becomes active, auto-select the player's turn unit
+            if (this.combatSystem) {
+                const activeUnit = this.combatSystem.getActiveUnit();
+                if (activeUnit && activeUnit.isFriendly) {
+                    this.selectedUnit = activeUnit.entity;
+                    this.setUnitHighlight(activeUnit.entity, true);
+                }
+            }
+        }
     }
 
     private clearRangeHighlight() {
@@ -54,42 +75,128 @@ export class CombatInteractionManager {
         }
     }
 
+    private clearPathHighlight() {
+        if (this.pathHighlight) {
+            this.renderManager.scene.remove(this.pathHighlight);
+            this.pathHighlight.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.geometry.dispose();
+                    if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                    else child.material.dispose();
+                }
+            });
+            this.pathHighlight = null;
+        }
+    }
+
     private showRangeHighlight(unit: any, combatEnvironment: CombatEnvironment) {
         this.clearRangeHighlight();
         const unitPos = this.getUnitPosition(unit);
         if (!unitPos || !combatEnvironment) return;
+
+        // If in combat, show both movement and attack range for active unit
+        let movementRange = 0;
+        let attackRange = 1;
+        let isActiveUnit = false;
+        
+        if (this.combatSystem && combatEnvironment.isCombatStarted) {
+            const combatUnit = this.combatSystem.getUnitByEntity(unit);
+            if (combatUnit && combatUnit === this.combatSystem.getActiveUnit()) {
+                movementRange = combatUnit.stats.currentMovement || 0;
+                attackRange = combatUnit.stats.range || 1.5;
+                isActiveUnit = true;
+            } else {
+                // For non-active units, show only attack range
+                const unitType = unit?.constructor?.name || '';
+                attackRange = (unitType === 'Archer' || unitType === 'combatArchers' || (unit.config && unit.config.selectedItem === 'Bow')) ? 4 : 1;
+            }
+        } else {
+            const unitType = unit?.constructor?.name || '';
+            attackRange = (unitType === 'Archer' || unitType === 'combatArchers' || (unit.config && unit.config.selectedItem === 'Bow')) ? 4 : 1;
+        }
 
         const gridPos = combatEnvironment.getGridPosition(unitPos);
         if (!gridPos) return;
 
         this.rangeHighlight = new THREE.Group();
         this.renderManager.scene.add(this.rangeHighlight);
-
-        // Define ranges based on unit type
-        const unitType = unit?.constructor?.name || '';
-        const range = (unitType === 'Archer' || unitType === 'combatArchers' || (unit.config && unit.config.selectedItem === 'Bow')) ? 4 : 1;
         
-        console.log(`[CombatInteractionManager] Showing range for ${unitType}: ${range} cells`);
+        // Show movement range (green) if active unit and has movement
+        if (isActiveUnit && movementRange > 0) {
+            const combatUnit = this.combatSystem?.getUnitByEntity(unit);
+            if (combatUnit && !combatUnit.stats.hasMovedThisTurn) {
+                const reachable = new Set<string>();
+                const queue: {r: number, c: number, dist: number}[] = [{r: gridPos.r, c: gridPos.c, dist: 0}];
+                const visited = new Set<string>();
+                visited.add(`${gridPos.r},${gridPos.c}`);
+                
+                while(queue.length > 0) {
+                    const current = queue.shift()!;
+                    if (current.dist <= movementRange) {
+                        reachable.add(`${current.r},${current.c}`);
+                        
+                        if (current.dist < movementRange) {
+                            const directions = [
+                                [0, 1], [0, -1], [1, 0], [-1, 0],
+                                current.r % 2 === 0 ? [1, -1] : [1, 1],
+                                current.r % 2 === 0 ? [-1, -1] : [-1, 1]
+                            ];
+                            
+                            for (const [dr, dc] of directions) {
+                                const nr = current.r + dr;
+                                const nc = current.c + dc;
+                                const key = `${nr},${nc}`;
+                                if (nr >= 0 && nr < combatEnvironment.GRID_ROWS && nc >= 0 && nc < combatEnvironment.GRID_COLS) {
+                                    if (!visited.has(key) && !combatEnvironment.isCellOccupied(nr, nc)) {
+                                        visited.add(key);
+                                        queue.push({r: nr, c: nc, dist: current.dist + 1});
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
-        for (let r = 0; r < combatEnvironment.GRID_ROWS; r++) {
-            for (let c = 0; c < combatEnvironment.GRID_COLS; c++) {
-                const cellWorldPos = combatEnvironment.getWorldPosition(r, c);
-                const dist = unitPos.distanceTo(cellWorldPos);
-                const maxWorldDist = range * 1.6; 
-
-                if (dist <= maxWorldDist && dist > 0.1) {
+                // Draw movement range (green)
+                reachable.forEach(key => {
+                    const [r, c] = key.split(',').map(Number);
+                    const cellWorldPos = combatEnvironment.getWorldPosition(r, c);
+                    
                     const ringGeo = new THREE.RingGeometry(0.4, 0.5, 6);
                     const ringMat = new THREE.MeshBasicMaterial({ 
-                        color: 0x00aaff, 
+                        color: 0x00ff00, 
                         side: THREE.DoubleSide,
                         transparent: true,
-                        opacity: 0.6
+                        opacity: 0.4
                     });
                     const ring = new THREE.Mesh(ringGeo, ringMat);
                     ring.position.copy(cellWorldPos);
                     ring.position.y = 0.05;
                     ring.rotation.x = -Math.PI / 2;
-                    this.rangeHighlight.add(ring);
+                    this.rangeHighlight!.add(ring);
+                });
+            }
+        }
+        
+        // Show attack range (red outline) for all units
+        for (let r = 0; r < combatEnvironment.GRID_ROWS; r++) {
+            for (let c = 0; c < combatEnvironment.GRID_COLS; c++) {
+                const cellWorldPos = combatEnvironment.getWorldPosition(r, c);
+                const dist = unitPos.distanceTo(cellWorldPos);
+                
+                if (dist <= attackRange * 1.6 && dist > 0.1) {
+                    const ringGeo = new THREE.RingGeometry(0.6, 0.65, 6);
+                    const ringMat = new THREE.MeshBasicMaterial({ 
+                        color: 0xff0000, 
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.3
+                    });
+                    const ring = new THREE.Mesh(ringGeo, ringMat);
+                    ring.position.copy(cellWorldPos);
+                    ring.position.y = 0.04;
+                    ring.rotation.x = -Math.PI / 2;
+                    this.rangeHighlight!.add(ring);
                 }
             }
         }
@@ -111,44 +218,115 @@ export class CombatInteractionManager {
         const units = [this.player, ...combatEntities];
         const intersects = this.raycaster.intersectObjects(this.renderManager.scene.children, true);
         
+        let clickedUnit: any = null;
+        let clickedGround: THREE.Vector3 | null = null;
+
         if (intersects.length > 0) {
-            let foundUnit = null;
+            // Check what we hit first: unit or ground?
+            // Actually, we should prioritize units over ground if close.
+            
             for (const intersect of intersects) {
                 let obj: THREE.Object3D | null = intersect.object;
+                
+                // Check if ground
+                if (intersect.object.userData.type === 'ground' || intersect.object.userData.isHex) {
+                    if (!clickedGround && !clickedUnit) {
+                        clickedGround = intersect.point;
+                    }
+                }
+
+                // Check if unit
                 while (obj) {
                     const unit = units.find(u => (u.mesh || u.model?.group || u.group) === obj);
                     if (unit) {
-                        foundUnit = unit;
+                        clickedUnit = unit;
                         break;
                     }
                     obj = obj.parent;
                 }
-                if (foundUnit) break;
+                if (clickedUnit) break;
             }
+        }
 
-            if (foundUnit) {
-                const isCombatStarted = combatEnvironment.isCombatStarted;
-                console.log(`[CombatInteractionManager] Clicked unit: ${foundUnit.constructor.name}, CombatStarted: ${isCombatStarted}`);
+        const isCombatStarted = combatEnvironment.isCombatStarted;
+
+        if (clickedUnit) {
+            console.log(`[CombatInteractionManager] Clicked unit: ${clickedUnit.constructor.name}`);
+            
+            // If combat started, check if this is an attack
+            if (isCombatStarted && this.combatSystem) {
+                const activeUnit = this.combatSystem.getActiveUnit();
+                const targetUnit = this.combatSystem.getUnitByEntity(clickedUnit);
                 
-                this.selectedUnit = foundUnit;
-                this.setUnitHighlight(foundUnit, true);
-                this.showRangeHighlight(foundUnit, combatEnvironment);
-                const stats = foundUnit === this.player ? this.player.status.getStats() : foundUnit.stats;
-                this.onUnitSelect?.(stats, foundUnit);
-
-                if (!isCombatStarted) {
-                    this.draggingUnit = foundUnit;
-                    this.isWaitingForClick = true;
-                    this.mouseDownScreenPos.set(e.clientX, e.clientY);
-                    
-                    const unitPos = this.getUnitPosition(foundUnit);
-                    this.draggingUnitStartPos = unitPos ? unitPos.clone() : null;
-                    
-                    if (this.isFriendlyUnit(foundUnit) && unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
-                        this.dragOffset.sub(unitPos);
+                // If we have an active unit and it's friendly (Player Turn)
+                if (activeUnit && activeUnit.isFriendly && this.combatSystem.turnManager.getPhase() === TurnPhase.PLAYER_TURN) {
+                    // If clicking enemy -> Attack
+                    if (targetUnit && !targetUnit.isFriendly) {
+                        const dist = this.getUnitPosition(activeUnit.entity)?.distanceTo(this.getUnitPosition(clickedUnit)!) || Infinity;
+                        if (dist <= activeUnit.stats.range) {
+                            // Check if unit can attack (hasn't acted yet)
+                            if (!activeUnit.stats.hasActedThisTurn) {
+                                // In HOMM4, units can attack after moving but it ends their turn
+                                this.combatSystem.executeAttack(activeUnit, targetUnit);
+                            } else {
+                                console.log("Unit has already attacked this turn");
+                            }
+                            return; // Action taken
+                        } else {
+                            console.log("Target out of range");
+                        }
                     }
                 }
             }
+
+            // Select unit (default behavior)
+            this.selectedUnit = clickedUnit;
+            this.setUnitHighlight(clickedUnit, true);
+            this.showRangeHighlight(clickedUnit, combatEnvironment);
+            const stats = clickedUnit === this.player ? this.player.status.getStats() : clickedUnit.stats;
+            this.onUnitSelect?.(stats, clickedUnit);
+
+            // Dragging logic (Pre-Combat)
+            if (!isCombatStarted) {
+                this.draggingUnit = clickedUnit;
+                this.isWaitingForClick = true;
+                this.mouseDownScreenPos.set(e.clientX, e.clientY);
+                
+                const unitPos = this.getUnitPosition(clickedUnit);
+                this.draggingUnitStartPos = unitPos ? unitPos.clone() : null;
+                
+                if (this.isFriendlyUnit(clickedUnit) && unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
+                    this.dragOffset.sub(unitPos);
+                }
+            }
+        } else if (clickedGround) {
+             // Clicked Ground
+             if (isCombatStarted && this.combatSystem) {
+                const activeUnit = this.combatSystem.getActiveUnit();
+                
+                // Move Action
+                if (activeUnit && activeUnit.isFriendly && this.combatSystem.turnManager.getPhase() === TurnPhase.PLAYER_TURN) {
+                    const activeUnitPos = this.getUnitPosition(activeUnit.entity);
+                    if (activeUnitPos) {
+                        // Check if unit can still move
+                        if (!activeUnit.stats.hasMovedThisTurn || (activeUnit.stats.currentMovement || 0) > 0) {
+                            const path = combatEnvironment.getPath(activeUnitPos, clickedGround);
+                            if (path.length > 0) {
+                                // Validate movement cost
+                                if (this.combatSystem.canMove(activeUnit, path.length)) {
+                                    this.combatSystem.executeMove(activeUnit, path);
+                                } else {
+                                    console.log("Not enough movement points");
+                                }
+                            }
+                        } else {
+                            console.log("Unit has already moved this turn");
+                        }
+                    }
+                }
+             }
+             
+             this.clearSelection();
         } else {
             this.clearSelection();
         }
@@ -311,6 +489,10 @@ export class CombatInteractionManager {
     private setUnitHighlight(unit: any, active: boolean) {
         if (!unit) return;
         unit.isDebugHitbox = active;
+        
+        // Check if this is the current active unit in combat
+        const isActiveUnit = this.combatSystem && this.combatSystem.getActiveUnit()?.entity === unit;
+        
         if (unit === this.player) {
             PlayerDebug.updateHitboxVisuals(unit);
         } else if (unit.model?.group) {
@@ -318,7 +500,17 @@ export class CombatInteractionManager {
                 if (child instanceof THREE.Mesh && child.material) {
                     const materials = Array.isArray(child.material) ? child.material : [child.material];
                     materials.forEach(mat => {
-                        if ('emissive' in mat) (mat as any).emissive.setHex(active ? 0x444400 : 0x000000);
+                        if ('emissive' in mat) {
+                            if (isActiveUnit) {
+                                // Active unit gets a golden glow
+                                (mat as any).emissive.setHex(0x444400);
+                            } else if (active) {
+                                // Selected unit gets a subtle highlight
+                                (mat as any).emissive.setHex(0x222200);
+                            } else {
+                                (mat as any).emissive.setHex(0x000000);
+                            }
+                        }
                     });
                 }
             });

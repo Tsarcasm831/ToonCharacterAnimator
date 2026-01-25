@@ -50,6 +50,9 @@ const TownScene: React.FC<SceneProps> = ({
       const arena = arenaBuilder.build();
       // Position arena in the center of the second grid (to the right of main town grid)
       arena.position.set(100, 0, 0); // Center of arena grid at X=100 (main grid ends at X=50)
+      
+      // TODO: Add interaction to trigger combat scene when player enters the arena
+      // Use TownEnvironment.isPositionInArena() to detect player entry
     }
     onGameReady?.(game);
   };

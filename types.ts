@@ -8,7 +8,7 @@ export type HairStyle = 'bald' | 'crew';
 
 export type QuestStatus = 'active' | 'completed' | 'failed';
 
-export type UnitState = 'IDLE' | 'MOVING' | 'ATTACKING' | 'CASTING' | 'STUNNED' | 'DEAD';
+export type UnitState = 'IDLE' | 'MOVING' | 'ATTACKING' | 'CASTING' | 'STUNNED' | 'DEAD' | 'DEFENDING';
 
 export interface InventoryItem {
   name: string;
@@ -32,6 +32,23 @@ export interface EntityStats {
   soak: number;
   attackSpeed: number;
   range: number;
+  
+  // Turn-Based Combat Stats
+  movementPoints?: number;
+  currentMovement?: number;
+  initiative?: number;
+  hasActedThisTurn?: boolean;
+  hasMovedThisTurn?: boolean;
+  canAttackAfterMove?: boolean;
+}
+
+export enum TurnPhase {
+  INITIATIVE_ROLL = 'initiative',
+  PLAYER_TURN = 'player',
+  AI_TURN = 'ai',
+  TURN_END = 'end',
+  VICTORY = 'victory',
+  DEFEAT = 'defeat'
 }
 
 export interface Quest {

@@ -67,6 +67,9 @@ export const Game: React.FC = () => {
 
     // Gate scene mounting so the loading screen can paint before heavy initialization begins
     const [shouldMountScene, setShouldMountScene] = React.useState(false);
+    const [isVideoStable, setIsVideoStable] = React.useState(false);
+    const [isVideoFinished, setIsVideoFinished] = React.useState(false);
+    const [isSceneInitializing, setIsSceneInitializing] = React.useState(false);
     const mountSceneTimeout = React.useRef<number | null>(null);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
@@ -81,6 +84,25 @@ export const Game: React.FC = () => {
         activeSceneRef.current = activeScene;
     }, [activeScene]);
 
+    // Mount scene only after video is completely finished to avoid blocking
+    React.useEffect(() => {
+        if (gameState === 'LOADING' && isVideoFinished && !shouldMountScene) {
+            setIsSceneInitializing(true);
+            mountSceneTimeout.current = window.setTimeout(() => {
+                setShouldMountScene(true);
+                setIsSceneInitializing(false);
+            }, 100); // Small delay to ensure smooth transition
+        }
+    }, [gameState, isVideoFinished, shouldMountScene]);
+
+    // Reset video states when leaving loading
+    React.useEffect(() => {
+        if (gameState !== 'LOADING') {
+            setIsVideoStable(false);
+            setIsVideoFinished(false);
+            setIsSceneInitializing(false);
+        }
+    }, [gameState]);
     // Handlers
     const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInDev: boolean = false, startInTown: boolean = false) => {
         setIsEnvironmentBuilt(false);
@@ -88,6 +110,9 @@ export const Game: React.FC = () => {
         setIsCombatActive(false);
         setGameState('LOADING');
         setShouldMountScene(false);
+        setIsVideoStable(false);
+        setIsVideoFinished(false);
+        setIsSceneInitializing(false);
         if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
         if (startInDev) {
           setActiveScene('dev');
@@ -463,6 +488,9 @@ export const Game: React.FC = () => {
                                 isVisible={gameState === 'LOADING'}
                                 isSystemReady={isSystemReady}
                                 onFinished={handleStartPlaying}
+                                onVideoStable={() => setIsVideoStable(true)}
+                                onVideoFinished={() => setIsVideoFinished(true)}
+                                isLoadingScene={isSceneInitializing}
                             />
                             
                             <DialogueOverlay dialogue={dialogue} onClose={onCloseDialogue} />

@@ -270,10 +270,12 @@ export class CombatEnvironment {
                 // Slight inset for border visual
                 mesh.scale.set(0.95, 1, 0.95);
                 
-                // Border/Base
+                // Border/Base - also collidable to prevent falling through gaps
                 const border = new THREE.Mesh(hexGeo, matBorder);
                 border.position.y = -this.HEX_HEIGHT / 2 - 0.05;
                 border.scale.set(1.0, 1.0, 1.0);
+                border.userData.type = 'ground'; // Mark as ground for collision
+                border.receiveShadow = true;
 
                 hexGroup.add(border);
                 hexGroup.add(mesh);
@@ -285,8 +287,9 @@ export class CombatEnvironment {
                     isHex: true 
                 };
                 
-                // We add the actual mesh to obstacles so collision works on the surface
+                // We add both meshes to obstacles so collision works on the surface
                 this.obstacles.push(mesh);
+                this.obstacles.push(border);
                 this.group.add(hexGroup);
             }
         }

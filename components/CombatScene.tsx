@@ -2,10 +2,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { Game } from "../game/core/Game";
-import { PlayerConfig, PlayerInput, InventoryItem, EntityStats } from '../types';
+import { PlayerConfig, PlayerInput, InventoryItem, EntityStats, TurnPhase } from '../types';
 import { GameHUD } from './ui/hud/GameHUD';
 import { CombatLogEntry } from './ui/hud/CombatLog';
 import { UnitStatsTooltip } from './ui/hud/UnitStatsTooltip';
+import { TurnIndicatorUI } from './ui/hud/TurnIndicatorUI';
 import { useGame } from '../hooks/useGame';
 
 interface CombatSceneProps {
@@ -54,11 +55,16 @@ const CombatScene: React.FC<CombatSceneProps> = ({
         y: number;
     }>({ visible: false, x: 0, y: 0 });
 
-    const gameRef = useGame({
+    // Turn System State
+    const [turnQueue, setTurnQueue] = useState<any[]>([]);
+    const [currentUnitId, setCurrentUnitId] = useState<string | null>(null);
+    const [turnPhase, setTurnPhase] = useState<string>('prep');
+
+    const { gameRef, endTurn, waitTurn, defend } = useGame({
         containerRef,
         config,
         manualInput,
-        initialInventory: [], // Combat scene doesn't really use main inventory for items like Land does, but we pass empty for now or bench?
+        initialInventory: [], 
         activeScene: 'combat',
         onGameReady: (game) => {
             if (onGameReady) onGameReady(game);
@@ -80,7 +86,39 @@ const CombatScene: React.FC<CombatSceneProps> = ({
         onAttackHit,
         controlsDisabled,
         showGrid,
-        isCombatActive
+        isCombatActive,
+        // Turn Events
+        onTurnQueueUpdate: (queue) => {
+            // Transform queue to UI friendly format if needed, or just pass it
+            // The queue from TurnManager is CombatUnit[]
+            // We need to map it to what TurnIndicatorUI expects
+            const uiQueue = queue.map(u => ({
+                id: u.id,
+                isFriendly: u.isFriendly,
+                name: u.entity.constructor.name === 'Player' ? 'Hero' : u.entity.constructor.name,
+                currentInitiative: u.currentInitiative,
+                stats: u.stats
+            }));
+            setTurnQueue(uiQueue);
+        },
+        onTurnChanged: (unit) => {
+            setCurrentUnitId(unit.id);
+        },
+        onTurnPhaseChange: (phase) => {
+            switch (phase) {
+                case TurnPhase.PLAYER_TURN:
+                    setTurnPhase('player');
+                    break;
+                case TurnPhase.AI_TURN:
+                    setTurnPhase('ai');
+                    break;
+                case TurnPhase.TURN_END:
+                    setTurnPhase('end');
+                    break;
+                default:
+                    setTurnPhase('prep');
+            }
+        }
     });
 
     // Hide tooltip when clicking anywhere
@@ -114,7 +152,20 @@ const CombatScene: React.FC<CombatSceneProps> = ({
                 combatLog={combatLog}
                 onOpenTravel={() => {}}
                 onToggleBestiary={() => {}}
+                onEndTurn={endTurn}
+                onWaitTurn={waitTurn}
+                onDefend={defend}
+                isPlayerTurn={turnPhase === 'player'}
             />
+
+            {/* Turn Indicator (Only show if combat active) */}
+            {isCombatActive && (
+                <TurnIndicatorUI 
+                    queue={turnQueue}
+                    currentUnitId={currentUnitId}
+                    phase={turnPhase}
+                />
+            )}
             
             {/* Unit Stats Tooltip (shown on right-click) */}
             <UnitStatsTooltip 

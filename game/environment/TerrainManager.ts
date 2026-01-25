@@ -12,7 +12,7 @@ export class TerrainManager {
         this.group = group;
     }
 
-    public async buildAsync(batchSize: number = 10) {
+    public async buildAsync(batchSize: number = 3) { // Reduced from 10 to 3
         const start = performance.now();
         const yieldFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
@@ -103,9 +103,11 @@ export class TerrainManager {
                     z = -gridRadius;
                     x++;
                 }
-            }
-            if (created < totalPatches) {
-                await yieldFrame();
+                
+                // Yield after each patch to prevent blocking
+                if (created < totalPatches) {
+                    await yieldFrame();
+                }
             }
         }
         

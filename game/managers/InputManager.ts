@@ -11,8 +11,10 @@ export class InputManager {
         toggleFirstPerson: false, wave: false, leftHandWave: false, summon: false, toggleBuilder: false, rotateGhost: false,
         fireball: false, crouch: false
     };
+    cameraMovementInput: { x: number, y: number } = { x: 0, y: 0 };
     isBlocked: boolean = false;
     isBuilding: boolean = false;
+    isInCombat: boolean = false;
     
     // Config
     bindings: KeyBindingMap;
@@ -91,6 +93,14 @@ export class InputManager {
 
     setBuilding(building: boolean) {
         this.isBuilding = building;
+    }
+
+    setCombatState(isInCombat: boolean) {
+        this.isInCombat = isInCombat;
+    }
+
+    getCameraMovementInput(): { x: number, y: number } {
+        return this.cameraMovementInput;
     }
 
     private isCommandActive(command: InputCommand): boolean {
@@ -186,6 +196,16 @@ export class InputManager {
 
         let xInput = (this.isCommandActive(InputCommand.MoveRight) ? 1 : 0) - (this.isCommandActive(InputCommand.MoveLeft) ? 1 : 0);
         let yInput = (this.isCommandActive(InputCommand.MoveBackward) ? 1 : 0) - (this.isCommandActive(InputCommand.MoveForward) ? 1 : 0);
+        
+        // Store raw WASD input for camera movement when in combat
+        this.cameraMovementInput.x = xInput;
+        this.cameraMovementInput.y = yInput;
+        
+        // Disable player movement when in combat - WASD will be used for camera control
+        if (this.isInCombat) {
+            xInput = 0;
+            yInput = 0;
+        }
         
         if (xInput === 0 && yInput === 0) {
             xInput = this.joystickMove.x;

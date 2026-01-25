@@ -159,10 +159,11 @@ export class EnemyCache {
     /**
      * Preloads and caches all enemy textures.
      * Renders previews in batches to prevent blocking the main thread.
+     * @param gentle - If true, uses smaller batches and longer delays for less resource contention
      */
-    static async preloadAllEnemies(): Promise<void> {
-        const batchSize = 4; // Render 4 at a time
-        const delayBetweenBatches = 16; // ms between batches
+    static async preloadAllEnemies(gentle: boolean = false): Promise<void> {
+        const batchSize = gentle ? 1 : 2; // Even smaller batches for gentle mode
+        const delayBetweenBatches = gentle ? 100 : 16; // Longer delays for gentle mode
         
         for (let i = 0; i < this.entityTypes.length; i += batchSize) {
             const batch = this.entityTypes.slice(i, i + batchSize);
