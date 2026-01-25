@@ -29,145 +29,212 @@ interface EnemyPreviewProps {
     type: string;
 }
 
+// Queue for staggered rendering
+let renderQueue: Array<() => void> = [];
+let isProcessingQueue = false;
+
+const processRenderQueue = () => {
+    if (isProcessingQueue || renderQueue.length === 0) return;
+    
+    isProcessingQueue = true;
+    
+    const processNext = () => {
+        if (renderQueue.length === 0) {
+            isProcessingQueue = false;
+            return;
+        }
+        
+        const renderFn = renderQueue.shift()!;
+        
+        // Use requestIdleCallback if available, otherwise use setTimeout with a small delay
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => {
+                renderFn();
+                // Process next after a short delay to prevent blocking
+                setTimeout(processNext, 16);
+            }, { timeout: 100 });
+        } else {
+            setTimeout(() => {
+                renderFn();
+                setTimeout(processNext, 32);
+            }, 16);
+        }
+    };
+    
+    processNext();
+};
+
 export const EnemyPreview: React.FC<EnemyPreviewProps> = ({ type }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(EnemyCache.getPreview(type));
+    const [isVisible, setIsVisible] = useState(false);
+    const [isQueued, setIsQueued] = useState(false);
     const modelRef = useRef<THREE.Group | null>(null);
 
-    // Immediate check for cached preview
+    // Set up IntersectionObserver for progressive loading
     useEffect(() => {
-        const cached = EnemyCache.getPreview(type);
-        if (cached) {
-            setPreviewUrl(cached);
-        }
-    }, [type]);
+        if (!containerRef.current) return;
+        
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        setIsVisible(true);
+                        observer.disconnect();
+                    }
+                });
+            },
+            { 
+                rootMargin: '50px', // Start loading 50px before element comes into view
+                threshold: 0.01 
+            }
+        );
+        
+        observer.observe(containerRef.current);
+        
+        return () => observer.disconnect();
+    }, []);
 
+    // Queued rendering effect
     useEffect(() => {
-        // If we already have a cached version in state, don't run the heavy logic
+        // If we already have a cached version, don't render
         if (previewUrl && EnemyCache.has(type)) {
             return;
         }
 
-        if (!containerRef.current) return;
-
-        const width = 200;
-        const height = 200;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-
-        const scene = new THREE.Scene();
-        // Adjust camera to be closer and more centered on the character
-        const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 20);
-        camera.position.set(0, 1.0, 3.5); // Lowered camera position
-        camera.lookAt(0, 1.1, 0); // Look higher to shift model up in frame
-
-        const renderer = new THREE.WebGLRenderer({ 
-            canvas,
-            alpha: true, 
-            antialias: false,
-            preserveDrawingBuffer: true,
-            powerPreference: "low-power"
-        });
-        renderer.setSize(width, height);
-        renderer.setPixelRatio(1);
-
-        const light = new THREE.DirectionalLight(0xffffff, 2.5);
-        light.position.set(5, 10, 7);
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-
-        let model: THREE.Group | null = null;
-        
-        try {
-            // Instantiate the enemy class and get its mesh/group
-            const dummyScene = new THREE.Scene();
-            let enemyInstance: any = null;
-            const dummyPos = new THREE.Vector3();
-
-            switch (type) {
-                case 'archer': enemyInstance = new Archer(dummyScene, dummyPos); break;
-                case 'assassin': enemyInstance = new Assassin(dummyScene, dummyPos); break;
-                case 'bandit': enemyInstance = new Bandit(dummyScene, dummyPos); break;
-                case 'berserker': enemyInstance = new Berserker(dummyScene, dummyPos); break;
-                case 'knight': enemyInstance = new Knight(dummyScene, dummyPos); break;
-                case 'mage': enemyInstance = new Mage(dummyScene, dummyPos); break;
-                case 'rogue': enemyInstance = new Rogue(dummyScene, dummyPos); break;
-                case 'warlock': enemyInstance = new Warlock(dummyScene, dummyPos); break;
-                case 'paladin': enemyInstance = new Paladin(dummyScene, dummyPos); break;
-                case 'ranger': enemyInstance = new Ranger(dummyScene, dummyPos); break;
-                case 'monk': enemyInstance = new Monk(dummyScene, dummyPos); break;
-                case 'cleric': enemyInstance = new Cleric(dummyScene, dummyPos); break;
-                case 'sentinel': enemyInstance = new Sentinel(dummyScene, dummyPos); break;
-                // Animals
-                case 'wolf': enemyInstance = new Wolf(dummyScene, dummyPos); break;
-                case 'bear': enemyInstance = new Bear(dummyScene, dummyPos); break;
-                case 'spider': enemyInstance = new Spider(dummyScene, dummyPos); break;
-                case 'deer': enemyInstance = new Deer(dummyScene, dummyPos); break;
-                case 'chicken': enemyInstance = new Chicken(dummyScene, dummyPos); break;
-                case 'lizard': enemyInstance = new Lizard(dummyScene, dummyPos); break;
-                case 'owl': enemyInstance = new Owl(dummyScene, dummyPos); break;
-                case 'pig': enemyInstance = new Pig(dummyScene, dummyPos); break;
-                case 'sheep': enemyInstance = new Sheep(dummyScene, dummyPos); break;
-                case 'yeti': enemyInstance = new Yeti(dummyScene, dummyPos); break;
-            }
-
-            if (enemyInstance && enemyInstance.model && enemyInstance.model.group) {
-                model = enemyInstance.model.group;
-                
-                // Ensure the model is centered and facing the camera
-                model.position.set(0, 0, 0);
-                model.rotation.set(0, 0, 0); // Face forward for a clean profile
-                
-                // Force an update to the model to ensure all parts are positioned correctly
-                if (enemyInstance.model.sync && enemyInstance.config) {
-                    enemyInstance.model.sync(enemyInstance.config, true);
-                }
-                
-                modelRef.current = model;
-                scene.add(model);
-            }
-
-            renderer.render(scene, camera);
-            const dataUrl = canvas.toDataURL('image/png');
-            setPreviewUrl(dataUrl);
-            EnemyCache.setPreview(type, dataUrl);
-
-            // Cleanup the enemy instance specifically if it has a dispose method
-            if (enemyInstance && typeof enemyInstance.dispose === 'function') {
-                enemyInstance.dispose();
-            }
-
-        } catch (err) {
-            console.error("Failed to render enemy preview:", err);
-        } finally {
-            // Remove the model from the scene before traversal to avoid disposing shared resources if any
-            if (modelRef.current) {
-                scene.remove(modelRef.current);
-            }
-
-            scene.traverse((object) => {
-                if (object instanceof THREE.Mesh) {
-                    if (object.geometry) object.geometry.dispose();
-                    if (object.material) {
-                        const materials = Array.isArray(object.material) ? object.material : [object.material];
-                        materials.forEach(m => {
-                            // Dispose of textures
-                            for (const key in m) {
-                                if (m[key] && m[key].isTexture) {
-                                    m[key].dispose();
-                                }
-                            }
-                            m.dispose();
-                        });
-                    }
-                }
-            });
-            renderer.dispose();
-            renderer.forceContextLoss();
+        // Don't render until visible and not already queued
+        if (!isVisible || isQueued) {
+            return;
         }
-    }, [type]);
+
+        setIsQueued(true);
+        
+        // Add to render queue
+        renderQueue.push(() => {
+            if (!containerRef.current) return;
+
+            const width = 200;
+            const height = 200;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const scene = new THREE.Scene();
+            // Adjust camera to be closer and more centered on the character
+            const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 20);
+            camera.position.set(0, 1.0, 3.5); // Lowered camera position
+            camera.lookAt(0, 1.1, 0); // Look higher to shift model up in frame
+
+            const renderer = new THREE.WebGLRenderer({ 
+                canvas,
+                alpha: true, 
+                antialias: false,
+                preserveDrawingBuffer: true,
+                powerPreference: "low-power"
+            });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(1);
+
+            const light = new THREE.DirectionalLight(0xffffff, 2.5);
+            light.position.set(5, 10, 7);
+            scene.add(light);
+            scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+
+            let model: THREE.Group | null = null;
+            
+            try {
+                // Instantiate the enemy class and get its mesh/group
+                const dummyScene = new THREE.Scene();
+                let enemyInstance: any = null;
+                const dummyPos = new THREE.Vector3();
+
+                switch (type) {
+                    case 'archer': enemyInstance = new Archer(dummyScene, dummyPos); break;
+                    case 'assassin': enemyInstance = new Assassin(dummyScene, dummyPos); break;
+                    case 'bandit': enemyInstance = new Bandit(dummyScene, dummyPos); break;
+                    case 'berserker': enemyInstance = new Berserker(dummyScene, dummyPos); break;
+                    case 'knight': enemyInstance = new Knight(dummyScene, dummyPos); break;
+                    case 'mage': enemyInstance = new Mage(dummyScene, dummyPos); break;
+                    case 'rogue': enemyInstance = new Rogue(dummyScene, dummyPos); break;
+                    case 'warlock': enemyInstance = new Warlock(dummyScene, dummyPos); break;
+                    case 'paladin': enemyInstance = new Paladin(dummyScene, dummyPos); break;
+                    case 'ranger': enemyInstance = new Ranger(dummyScene, dummyPos); break;
+                    case 'monk': enemyInstance = new Monk(dummyScene, dummyPos); break;
+                    case 'cleric': enemyInstance = new Cleric(dummyScene, dummyPos); break;
+                    case 'sentinel': enemyInstance = new Sentinel(dummyScene, dummyPos); break;
+                    // Animals
+                    case 'wolf': enemyInstance = new Wolf(dummyScene, dummyPos); break;
+                    case 'bear': enemyInstance = new Bear(dummyScene, dummyPos); break;
+                    case 'spider': enemyInstance = new Spider(dummyScene, dummyPos); break;
+                    case 'deer': enemyInstance = new Deer(dummyScene, dummyPos); break;
+                    case 'chicken': enemyInstance = new Chicken(dummyScene, dummyPos); break;
+                    case 'lizard': enemyInstance = new Lizard(dummyScene, dummyPos); break;
+                    case 'owl': enemyInstance = new Owl(dummyScene, dummyPos); break;
+                    case 'pig': enemyInstance = new Pig(dummyScene, dummyPos); break;
+                    case 'sheep': enemyInstance = new Sheep(dummyScene, dummyPos); break;
+                    case 'yeti': enemyInstance = new Yeti(dummyScene, dummyPos); break;
+                }
+
+                if (enemyInstance && enemyInstance.model && enemyInstance.model.group) {
+                    model = enemyInstance.model.group;
+                    
+                    // Ensure the model is centered and facing the camera
+                    model.position.set(0, 0, 0);
+                    model.rotation.set(0, 0, 0); // Face forward for a clean profile
+                    
+                    // Force an update to the model to ensure all parts are positioned correctly
+                    if (enemyInstance.model.sync && enemyInstance.config) {
+                        enemyInstance.model.sync(enemyInstance.config, true);
+                    }
+                    
+                    modelRef.current = model;
+                    scene.add(model);
+                }
+
+                renderer.render(scene, camera);
+                const dataUrl = canvas.toDataURL('image/png');
+                setPreviewUrl(dataUrl);
+                EnemyCache.setPreview(type, dataUrl);
+
+                // Cleanup the enemy instance specifically if it has a dispose method
+                if (enemyInstance && typeof enemyInstance.dispose === 'function') {
+                    enemyInstance.dispose();
+                }
+
+            } catch (err) {
+                console.error("Failed to render enemy preview:", err);
+            } finally {
+                // Remove the model from the scene before traversal to avoid disposing shared resources if any
+                if (modelRef.current) {
+                    scene.remove(modelRef.current);
+                }
+
+                scene.traverse((object) => {
+                    if (object instanceof THREE.Mesh) {
+                        if (object.geometry) object.geometry.dispose();
+                        if (object.material) {
+                            const materials = Array.isArray(object.material) ? object.material : [object.material];
+                            materials.forEach(m => {
+                                // Dispose of textures
+                                for (const key in m) {
+                                    if (m[key] && m[key].isTexture) {
+                                        m[key].dispose();
+                                    }
+                                }
+                                m.dispose();
+                            });
+                        }
+                    }
+                });
+                renderer.dispose();
+                renderer.forceContextLoss();
+            }
+        });
+        
+        // Start processing the queue
+        processRenderQueue();
+    }, [type, isVisible, isQueued, previewUrl]);
 
     return (
         <div ref={containerRef} className="w-full h-full flex items-center justify-center bg-black/10">
@@ -178,7 +245,9 @@ export const EnemyPreview: React.FC<EnemyPreviewProps> = ({ type }) => {
                     className="w-full h-full object-contain animate-fade-in"
                 />
             ) : (
-                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin opacity-40" />
+                <div className="w-full h-full flex items-center justify-center">
+                    <div className="w-2/3 h-2/3 bg-slate-800 rounded-lg animate-pulse" />
+                </div>
             )}
         </div>
     );

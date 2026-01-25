@@ -59,15 +59,47 @@ const FAUNA = [
     { id: 'yeti', name: 'Yeti', description: 'Mythical mountain creature with white fur and great strength.', class: Yeti },
 ];
 
-const StatBadge = ({ icon: Icon, label, value, color }: { icon: any, label: string, value: number, color: string }) => (
-    <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
-        <Icon className={`w-3.5 h-3.5 ${color}`} />
-        <div className="flex flex-col">
-            <span className="text-[8px] font-black text-slate-500 uppercase leading-none">{label}</span>
-            <span className="text-xs font-bold text-white leading-tight">{value}</span>
+// Helper to get stat max value for progress calculation
+const getStatMax = (statName: string): number => {
+    const maxValues: Record<string, number> = {
+        health: 150,
+        chakra: 100,
+        damage: 50,
+        defense: 50,
+        evasion: 50,
+        dexterity: 50
+    };
+    return maxValues[statName] || 100;
+};
+
+const CompactStatBar = ({ 
+    icon: Icon, 
+    label, 
+    value, 
+    color
+}: { 
+    icon: any; 
+    label: string; 
+    value: number; 
+    color: string; 
+}) => {
+    const percentage = Math.min((value / getStatMax(label.toLowerCase())) * 100, 100);
+    
+    return (
+        <div className="flex items-center gap-2 group">
+            <Icon className={`w-3.5 h-3.5 ${color} opacity-80 shrink-0`} />
+            <div className="flex-1 min-w-0">
+                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div 
+                        className={`h-full rounded-full transition-all duration-500 ease-out ${color} opacity-90`}
+                        style={{ width: `${percentage}%` }}
+                    />
+                </div>
+            </div>
+            <span className="text-xs font-bold text-white shrink-0">{value}</span>
         </div>
-    </div>
-);
+    );
+};
 
 export const Units: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'enemies' | 'allies' | 'fauna'>('enemies');
@@ -120,24 +152,24 @@ export const Units: React.FC = () => {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                <div className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-6">
+            <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {currentList.map((entity) => {
                         const stats = CLASS_STATS[entity.id];
                         return (
                             <div 
                                 key={entity.id}
-                                className={`group bg-white/[0.02] border border-white/5 rounded-3xl p-6 flex gap-8 hover:bg-white/[0.05] transition-all duration-500 hover:scale-[1.02] hover:border-white/20`}
+                                className={`group bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col hover:bg-white/[0.05] transition-all duration-300 hover:border-white/20`}
                             >
-                                <div className={`w-40 h-40 bg-slate-900 rounded-2xl overflow-hidden border border-white/10 shadow-2xl transition-all duration-500 group-hover:border-white/30 shrink-0`}>
+                                <div className={`w-24 h-24 bg-slate-900 rounded-xl overflow-hidden border border-white/10 shadow-xl transition-all duration-300 group-hover:border-white/30 mx-auto`}>
                                     <EnemyPreview type={entity.id} />
                                 </div>
-                                <div className="flex flex-col flex-1 min-w-0">
-                                    <div className="flex justify-between items-start">
-                                        <h3 className={`text-2xl font-black uppercase tracking-tight transition-colors group-hover:text-blue-400`}>
+                                <div className="flex flex-col flex-1 min-w-0 mt-4">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h3 className={`text-lg font-black uppercase tracking-tight transition-colors group-hover:text-blue-400`}>
                                             {entity.name}
                                         </h3>
-                                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
                                             activeTab === 'enemies'
                                                 ? 'bg-red-900/20 text-red-400 border-red-500/20'
                                                 : activeTab === 'allies'
@@ -147,18 +179,29 @@ export const Units: React.FC = () => {
                                             {activeTab === 'enemies' ? 'Threat' : activeTab === 'allies' ? 'Ally' : 'Neutral'}
                                         </span>
                                     </div>
-                                    <p className="text-slate-400 text-xs mt-2 leading-relaxed font-medium line-clamp-2">
+                                    <p className="text-slate-400 text-xs leading-relaxed font-medium line-clamp-2 mb-3">
                                         {entity.description}
                                     </p>
                                     
                                     {isLand && stats && (
-                                        <div className="mt-auto pt-4 grid grid-cols-3 gap-2">
-                                            <StatBadge icon={Heart} label="HP" value={stats.health} color="text-red-500" />
-                                            <StatBadge icon={Zap} label="MP" value={stats.chakra} color="text-blue-500" />
-                                            <StatBadge icon={Sword} label="ATK" value={stats.damage} color="text-orange-500" />
-                                            <StatBadge icon={Shield} label="DEF" value={stats.defense} color="text-emerald-500" />
-                                            <StatBadge icon={Wind} label="EVA" value={stats.evasion} color="text-cyan-500" />
-                                            <StatBadge icon={Target} label="DEX" value={stats.dexterity} color="text-purple-500" />
+                                        <div className="mt-auto pt-3 space-y-2">
+                                            <CompactStatBar icon={Heart} label="HP" value={stats.health} color="text-red-500" />
+                                            <CompactStatBar icon={Sword} label="ATK" value={stats.damage} color="text-orange-500" />
+                                            <CompactStatBar icon={Shield} label="DEF" value={stats.defense} color="text-emerald-500" />
+                                            <div className="flex gap-3 pt-1">
+                                                <div className="flex items-center gap-1">
+                                                    <Zap className="w-3 h-3 text-blue-500 opacity-80" />
+                                                    <span className="text-xs font-bold text-blue-400">{stats.chakra}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <Wind className="w-3 h-3 text-cyan-500 opacity-80" />
+                                                    <span className="text-xs font-bold text-cyan-400">{stats.evasion}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <Target className="w-3 h-3 text-purple-500 opacity-80" />
+                                                    <span className="text-xs font-bold text-purple-400">{stats.dexterity}</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
