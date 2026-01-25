@@ -97,10 +97,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
                             >
                                 Enter World
                             </button>
-                            
-                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mt-4 opacity-70">
-                                Press Start to Begin
-                            </p>
 
                             <div
                                 className="flex items-center gap-3 bg-black/40 px-6 py-3 rounded-2xl border border-white/5 hover:border-white/20 transition-all group cursor-pointer"
