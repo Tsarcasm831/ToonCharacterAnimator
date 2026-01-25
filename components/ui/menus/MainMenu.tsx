@@ -4,6 +4,10 @@ import { MenuBackground } from './MenuBackground';
 import { Units } from '../pages/Units';
 import { Map } from '../pages/Map';
 
+const DEFAULT_COMMITS = [
+    { hash: 'pending', date: '—', message: 'No commits found. Run build to populate.' }
+];
+
 interface MainMenuProps {
     onStart: (startInCombat: boolean, startInLand: boolean, startInDev: boolean, startInTown: boolean) => void;
     onShowEnemies: () => void;
@@ -18,12 +22,48 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
     const [showOptions, setShowOptions] = React.useState(false);
     const [showUnits, setShowUnits] = React.useState(false);
     const [showMap, setShowMap] = React.useState(false);
+    const [showChangelog, setShowChangelog] = React.useState(false);
     const hideControls = isMobile;
+
+    const buildCommits = React.useMemo(() => {
+        const raw = import.meta.env.VITE_RECENT_COMMITS as unknown;
+        if (!raw) return [] as Array<{ hash: string; date: string; message: string }>;
+        if (Array.isArray(raw)) return raw as Array<{ hash: string; date: string; message: string }>;
+        if (typeof raw === 'string') {
+            try {
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (err) {
+                console.warn('Failed to parse VITE_RECENT_COMMITS', err);
+            }
+        }
+        return [] as Array<{ hash: string; date: string; message: string }>;
+    }, []);
+    const commitList = (buildCommits.length ? buildCommits : DEFAULT_COMMITS).slice(0, 3);
 
     return (
         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center">
             <MenuBackground />
             <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
+                {!hideControls && (
+                    <div className="flex items-center justify-center gap-4 mb-8 animate-fade-in">
+                        <button
+                            type="button"
+                            onClick={() => setShowUnits(true)}
+                            className="px-8 py-2 bg-white/5 text-white font-black text-xs uppercase tracking-widest rounded-full border border-white/10 hover:bg-white/15 hover:border-white/30 transition-all shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+                        >
+                            Open Units Roster
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => setShowMap(true)}
+                            className="px-8 py-2 bg-white/5 text-white font-black text-xs uppercase tracking-widest rounded-full border border-white/10 hover:bg-white/15 hover:border-white/30 transition-all shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+                        >
+                            Open World Map
+                        </button>
+                    </div>
+                )}
                 <div className="text-center space-y-8 p-12 rounded-3xl bg-slate-900/40 border border-white/10 shadow-2xl backdrop-blur-sm animate-fade-in">
                     {isMobile && (
                         <div className="bg-blue-600/20 border border-blue-500/30 rounded-2xl px-6 py-4 backdrop-blur-md animate-pulse">
@@ -144,18 +184,10 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
 
                             <button
                                 type="button"
-                                onClick={() => setShowUnits(true)}
+                                onClick={() => setShowChangelog(true)}
                                 className="px-10 py-3 bg-white/10 text-white font-black text-sm uppercase tracking-widest rounded-full border border-white/10 hover:bg-white/20 hover:border-white/30 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
                             >
-                                Open Units Roster
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => setShowMap(true)}
-                                className="px-10 py-3 bg-white/10 text-white font-black text-sm uppercase tracking-widest rounded-full border border-white/10 hover:bg-white/20 hover:border-white/30 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-                            >
-                                Open World Map
+                                Changelog
                             </button>
 
                             <button 
@@ -213,6 +245,46 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
                             Close
                         </button>
                         <Map />
+                    </div>
+                </div>
+            )}
+            {showChangelog && !hideControls && (
+                <div
+                    className="absolute inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                    onClick={() => setShowChangelog(false)}
+                >
+                    <div
+                        className="relative w-[min(700px,92vw)] max-h-[70vh] rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950/90"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setShowChangelog(false)}
+                            className="absolute right-4 top-4 z-10 px-3 py-1.5 text-xs font-black uppercase tracking-widest bg-black/60 text-white border border-white/10 rounded-full hover:bg-black/80"
+                        >
+                            Close
+                        </button>
+
+                        <div className="p-8 space-y-4 text-left text-white">
+                            <div>
+                                <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400 font-bold">Latest Updates</p>
+                                <h2 className="text-4xl font-black text-white mt-2">Changelog</h2>
+                            </div>
+
+                            <div className="space-y-3">
+                                {commitList.map((entry) => (
+                                    <div key={entry.hash} className="flex items-start gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
+                                        <div className="px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-blue-500/20 text-blue-200 rounded-full border border-blue-500/40">
+                                            {entry.date}
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-sm font-black tracking-wide">{entry.message}</span>
+                                            <span className="text-[11px] text-slate-400 font-mono">{entry.hash}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
