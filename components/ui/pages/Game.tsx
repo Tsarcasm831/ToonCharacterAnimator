@@ -159,6 +159,16 @@ export const Game: React.FC = () => {
     React.useEffect(() => {
         return () => {
             if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
+            // Cleanup game instance and 3D resources on unmount
+            if (gameInstance.current) {
+                // Dispose of Three.js resources if the game instance has a dispose method
+                // Using type assertion to bypass TypeScript check since dispose may be added dynamically
+                const game = gameInstance.current as any;
+                if (game.dispose && typeof game.dispose === 'function') {
+                    game.dispose();
+                }
+                gameInstance.current = null;
+            }
         };
     }, []);
 

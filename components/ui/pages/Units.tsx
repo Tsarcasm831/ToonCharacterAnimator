@@ -114,6 +114,7 @@ export const Units: React.FC = () => {
                 <div>
                     <h2 className="text-5xl font-black text-white uppercase tracking-tighter">Units Roster</h2>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.4em] mt-2">Database of all discovered lifeforms</p>
+                    <p className="text-slate-500 text-[9px] font-normal uppercase tracking-[0.2em] mt-1">*Stat values are placeholders and subject to change</p>
                 </div>
                 
                 {/* Tabs */}

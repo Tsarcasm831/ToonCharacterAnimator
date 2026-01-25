@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigation } from './components/ui/menus/Navigation';
 import { Home } from './components/ui/pages/Home';
 import { MusicView as Music } from './components/ui/audio/Music';
@@ -18,9 +18,21 @@ const App: React.FC = () => {
     environmentState
   } = useGlobalState();
 
-  const { activePage, setActivePage } = gameStateContext;
+  const { activePage, setActivePage, setGameState } = gameStateContext;
   const { isLandMapOpen, setIsLandMapOpen } = uiState;
   const { playerPosForMap } = environmentState;
+
+  // Force Game component to remount when navigating away and back
+  // This ensures cleanup of 3D scenes and fresh state on return
+  const gameKey = activePage === 'game' ? 'game-active' : 'game-unmounted';
+
+  // Reset game state when navigating away from game page
+  useEffect(() => {
+    if (activePage !== 'game') {
+      // Reset game state to MENU when not on game page
+      setGameState('MENU');
+    }
+  }, [activePage, setGameState]);
 
   return (
     <MusicProvider>
@@ -34,7 +46,7 @@ const App: React.FC = () => {
             {activePage === 'about' && <About />}
             
             {activePage === 'game' && (
-              <Game />
+              <Game key={gameKey} />
             )}
           </div>
           <GlobalModals />
