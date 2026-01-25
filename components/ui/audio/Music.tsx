@@ -85,7 +85,7 @@ const ALBUMS: Album[] = [
         title: 'Legends of the Realm',
         artist: 'Lord Tsarcasm',
         year: '2026',
-        genre: 'Orchestral',
+        genre: 'various',
         coverColor: 'bg-gradient-to-br from-orange-500 to-red-600',
         coverImage: '/assets/images/albums/Legends.jpg',
         tracks: [
@@ -521,8 +521,12 @@ export const MusicView: React.FC = () => {
                                         </div>
                                     )}
                                     <div className="absolute bottom-4 left-4 right-4">
-                                        <h3 className={`font-black text-white uppercase tracking-tight ${isIphoneLayout ? 'text-base' : 'text-lg sm:text-xl'}`}>{album.title}</h3>
-                                        <p className="text-xs text-white/70 font-medium">{album.artist}</p>
+                                        {(album.id === 'old-tracks' || !album.coverImage) && (
+                                            <h3 className={`font-black text-white uppercase tracking-tight ${isIphoneLayout ? 'text-base' : 'text-lg sm:text-xl'}`}>{album.title}</h3>
+                                        )}
+                                        {(album.id === 'old-tracks' || !album.coverImage) && (
+                                            <p className="text-xs text-white/70 font-medium">{album.artist}</p>
+                                        )}
                                     </div>
                                 </div>
                                 
@@ -576,8 +580,12 @@ export const MusicView: React.FC = () => {
                                     </div>
                                 )}
                             </div>
-                            <h3 className="text-2xl font-black text-white uppercase tracking-tight">{selectedAlbum.title}</h3>
-                            <p className="text-sm text-slate-400 font-medium">{selectedAlbum.artist} • {selectedAlbum.year}</p>
+                            {(selectedAlbum.id === 'old-tracks' || !selectedAlbum.coverImage) && (
+                                <h3 className="text-2xl font-black text-white uppercase tracking-tight">{selectedAlbum.title}</h3>
+                            )}
+                            {(selectedAlbum.id === 'old-tracks' || !selectedAlbum.coverImage) && (
+                                <p className="text-sm text-slate-400 font-medium">{selectedAlbum.artist} • {selectedAlbum.year}</p>
+                            )}
                             <p className="text-xs text-purple-400 font-black uppercase tracking-widest mt-1">{selectedAlbum.genre}</p>
                         </div>
 
@@ -644,8 +652,12 @@ export const MusicView: React.FC = () => {
                                         {!selectedAlbum.coverImage && <MusicIcon className="w-6 h-6 text-white/50" />}
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-black text-white uppercase tracking-tight">{selectedAlbum.title}</h3>
-                                        <p className="text-xs text-slate-400">{selectedAlbum.artist} • {selectedAlbum.tracks.length} tracks</p>
+                                        {(selectedAlbum.id === 'old-tracks' || !selectedAlbum.coverImage) && (
+                                            <h3 className="text-lg font-black text-white uppercase tracking-tight">{selectedAlbum.title}</h3>
+                                        )}
+                                        {(selectedAlbum.id === 'old-tracks' || !selectedAlbum.coverImage) && (
+                                            <p className="text-xs text-slate-400">{selectedAlbum.artist} • {selectedAlbum.tracks.length} tracks</p>
+                                        )}
                                     </div>
                                 </div>
                                 <button
