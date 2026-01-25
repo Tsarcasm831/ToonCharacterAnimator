@@ -82,7 +82,7 @@ export const Game: React.FC = () => {
     }, [activeScene]);
 
     // Handlers
-    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInMP: boolean = false, startInDev: boolean = false, startInTown: boolean = false) => {
+    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInDev: boolean = false, startInTown: boolean = false) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
@@ -97,10 +97,8 @@ export const Game: React.FC = () => {
           setActiveScene('land');
         } else if (startInCombat) {
           setActiveScene('combat');
-        } else if (startInMP) {
-          setActiveScene('mp');
         } else {
-          setActiveScene('singleBiome');
+          setActiveScene('dev');
         }
         // Defer mounting the scene to next tick to allow loading UI to paint
         mountSceneTimeout.current = window.setTimeout(() => {

@@ -4,6 +4,7 @@ import { Game } from '../game/core/Game';
 import { ActiveScene, InventoryItem, PlayerConfig, PlayerInput } from '../types';
 import { useGame } from '../hooks/useGame';
 import { WorldMapModal } from './ui/modals/WorldMapModal';
+import { ArenaBuilder } from '../data/buildings/Arena';
 
 interface SceneProps {
   activeScene: ActiveScene;
@@ -41,13 +42,25 @@ const TownScene: React.FC<SceneProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
 
+  const handleGameReady = (game: Game) => {
+    // Add Arena to the scene when the game is ready
+    const scene = game.renderManager.scene;
+    if (scene) {
+      const arenaBuilder = new ArenaBuilder(scene);
+      const arena = arenaBuilder.build();
+      // Position arena in the center of the second grid (to the right of main town grid)
+      arena.position.set(100, 0, 0); // Center of arena grid at X=100 (main grid ends at X=50)
+    }
+    onGameReady?.(game);
+  };
+
   useGame({
     containerRef,
     config,
     manualInput,
     initialInventory,
     activeScene,
-    onGameReady,
+    onGameReady: handleGameReady,
     onEnvironmentReady,
     onInventoryUpdate,
     onInteractionUpdate,

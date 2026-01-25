@@ -11,13 +11,13 @@ describe('useCombatState', () => {
 
     act(() => {
       result.current.setIsCombatActive(true);
-      result.current.addCombatLog('Enemy spotted', 'warning');
+      result.current.addCombatLog('Enemy spotted', 'info');
     });
 
     expect(result.current.isCombatActive).toBe(true);
     expect(result.current.combatLog).toHaveLength(1);
     expect(result.current.combatLog[0].text).toBe('Enemy spotted');
-    expect(result.current.combatLog[0].type).toBe('warning');
+    expect(result.current.combatLog[0].type).toBe('info');
   });
 
   it('keeps the most recent combat log entries when over capacity (regression)', () => {

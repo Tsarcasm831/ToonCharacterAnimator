@@ -3,6 +3,26 @@ import { ALL_LANDS } from '../../../data/lands/index';
 import { CITIES } from '../../../data/lands/cities';
 import { isPointInPolygon } from '../../../game/environment/landTerrain';
 
+const LAND_IMAGES: Record<string, string> = {
+  Land01: '/assets/images/lands/Fire.jpg',
+  Land02: '/assets/images/lands/Hotsprings.jpg',
+  Land03: '/assets/images/lands/Frost.jpg',
+  Land05: '/assets/images/lands/Woods.jpg',
+  Land06: '/assets/images/lands/Tea.jpg',
+  Land07: '/assets/images/lands/Rivers.jpg',
+  Land08: '/assets/images/lands/RicePaddies.jpg',
+  Land09: '/assets/images/lands/Waterfalls.jpg',
+  Land11: '/assets/images/lands/Birds.jpg',
+  Land12: '/assets/images/lands/Earth.jpg',
+  Land13: '/assets/images/lands/Cloud.jpg',
+  Land15: '/assets/images/lands/Wind.jpg',
+  Land16: '/assets/images/lands/Rain.jpg',
+  Land17: '/assets/images/lands/Grass.jpg',
+  Land22: '/assets/images/lands/Water.jpg',
+  Land23: '/assets/images/lands/Ghosts.jpg',
+  Land25: '/assets/images/lands/NagaIsland.jpg'
+};
+
 interface LandSelectionModalProps {
   isOpen: boolean;
   onSelect: (land: any) => void;
@@ -35,12 +55,20 @@ export const LandSelectionModal: React.FC<LandSelectionModalProps> = ({ isOpen, 
               className="group relative flex flex-col items-start p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-blue-500/20 hover:border-blue-500/50 transition-all duration-200 text-left"
             >
               <div className="w-full aspect-video mb-3 rounded-lg bg-black/40 overflow-hidden relative">
-                {/* Mini map preview could go here using the points */}
-                <div className="absolute inset-0 flex items-center justify-center text-white/20 group-hover:text-blue-400/40 transition-colors">
-                  <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
+                {LAND_IMAGES[land.id] ? (
+                  <img
+                    src={LAND_IMAGES[land.id]}
+                    alt={`${land.name} preview`}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-white/20 group-hover:text-blue-400/40 transition-colors">
+                    <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
               </div>
               
               <h3 className="text-white font-bold text-lg group-hover:text-blue-400 transition-colors">{land.name}</h3>

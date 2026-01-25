@@ -30,6 +30,7 @@ const ALBUMS: Album[] = [
         year: '2026',
         genre: 'Ambient',
         coverColor: 'bg-gradient-to-br from-blue-500 to-purple-600',
+        coverImage: '/assets/images/albums/Journeys.jpg',
         tracks: [
             {
                 id: 'beyond-the-pale',
@@ -61,6 +62,7 @@ const ALBUMS: Album[] = [
         year: '2026',
         genre: 'Electronic',
         coverColor: 'bg-gradient-to-br from-cyan-500 to-teal-600',
+        coverImage: '/assets/images/albums/Echoes.jpg',
         tracks: [
             {
                 id: 'digital-dawn',
@@ -85,6 +87,7 @@ const ALBUMS: Album[] = [
         year: '2026',
         genre: 'Orchestral',
         coverColor: 'bg-gradient-to-br from-orange-500 to-red-600',
+        coverImage: '/assets/images/albums/Legends.jpg',
         tracks: [
             {
                 id: 'combat-battle',
@@ -322,6 +325,51 @@ const ALBUMS: Album[] = [
                 fileUrl: '/assets/musicshrunk/Grey Matter Tavern/11 - Success the Obsession (Selfless Cut Cover).opus'
             }
         ]
+    },
+    {
+        id: 'old-tracks',
+        title: 'Old Tracks',
+        artist: 'Lord Tsarcasm',
+        year: '2025',
+        genre: 'Rock / Alt',
+        coverColor: 'bg-gradient-to-br from-slate-700 via-slate-800 to-black',
+        tracks: [
+            {
+                id: 'bad-day',
+                title: 'Bad Day',
+                artist: 'Lord Tsarcasm',
+                duration: '3:02',
+                fileUrl: '/assets/musicshrunk/OldTracks/Bad Day.opus'
+            },
+            {
+                id: 'glorious-rock-version',
+                title: 'Glorious (Rock Version)',
+                artist: 'Lord Tsarcasm',
+                duration: '4:30',
+                fileUrl: '/assets/musicshrunk/OldTracks/Glorious (Rock Version).opus'
+            },
+            {
+                id: 'last-to-fall-speech',
+                title: 'Last to Fall (Speech)',
+                artist: 'Lord Tsarcasm',
+                duration: '4:06',
+                fileUrl: '/assets/musicshrunk/OldTracks/Last to Fall (Speech).opus'
+            },
+            {
+                id: 'paper-walls',
+                title: 'Paper Walls',
+                artist: 'Lord Tsarcasm',
+                duration: '4:49',
+                fileUrl: '/assets/musicshrunk/OldTracks/Paper Walls.opus'
+            },
+            {
+                id: 'puppet-on-a-wire-cover',
+                title: 'Puppet on a Wire (Cover)',
+                artist: 'Lord Tsarcasm',
+                duration: '2:51',
+                fileUrl: '/assets/musicshrunk/OldTracks/Puppet on a Wire (Cover).opus'
+            }
+        ]
     }
 ];
 
@@ -359,8 +407,9 @@ export const MusicView: React.FC = () => {
         album.coverImage
             ? {
                   backgroundImage: `url(${album.coverImage})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center'
+                  backgroundSize: 'contain',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
               }
             : undefined;
 

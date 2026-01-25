@@ -481,6 +481,19 @@ export class Game {
             PlayerCombat.updateProjectiles(delta, currentEnv, this.particleManager, currentEntities);
             
             this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities);
+            
+            // Check if player is in arena and adjust ground height if needed
+            if (this.sceneManager.activeScene === 'town' && this.sceneManager.townEnvironment) {
+                const townEnv = this.sceneManager.townEnvironment;
+                if (townEnv.isPositionInArena(this.player.mesh.position)) {
+                    const arenaGroundHeight = townEnv.getGroundHeightAt(this.player.mesh.position);
+                    // Only adjust if player is at or below arena floor level
+                    if (this.player.mesh.position.y <= arenaGroundHeight + 0.5) {
+                        this.player.mesh.position.y = arenaGroundHeight;
+                    }
+                }
+            }
+            
             if (this.player.mesh && this.player.model?.group) {
                 this.player.model.group.position.copy(this.player.mesh.position);
                 this.player.model.group.rotation.copy(this.player.mesh.rotation);

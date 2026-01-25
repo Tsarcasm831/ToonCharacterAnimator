@@ -122,7 +122,7 @@ export class PlayerUtils {
 
         // 1. Raycast against Ground Meshes for exact visual height matching
         // This handles slopes and the transition from land to sea floor correctly
-        const groundMeshes = obstacles.filter(o => o.userData.type === 'ground');
+        const groundMeshes = obstacles.filter(o => o && o.userData && o.userData.type === 'ground');
         if (groundMeshes.length > 0) {
             // Cast from high up downwards
             this._tempRayOrigin.set(pos.x, 200, pos.z);
@@ -144,6 +144,7 @@ export class PlayerUtils {
         this._tempBox.setFromCenterAndSize(this._tempVec2, this._tempVec1);
 
         for (const obs of obstacles) {
+            if (!obs || !obs.userData) continue;
             if (obs.userData.type === 'soft' || obs.userData.type === 'creature' || obs.userData.type === 'ground') continue; 
             
             // Special handling for round foundations which use CylinderGeometry
@@ -176,7 +177,7 @@ export class PlayerUtils {
         // 1. Raycast against Ground Meshes (Terrain) to handle slopes/edges correctly
         // We do this unconditionally for 'ground' type because it defines the base world
         if (obstacles && Array.isArray(obstacles)) {
-            const groundMeshes = obstacles.filter(o => o.userData.type === 'ground');
+            const groundMeshes = obstacles.filter((o) => o && o.userData && o.userData.type === 'ground');
             if (groundMeshes.length > 0) {
                 const rayOrigin = new THREE.Vector3(pos.x, 200, pos.z);
                 const rayDir = new THREE.Vector3(0, -1, 0);
@@ -201,6 +202,7 @@ export class PlayerUtils {
         );
 
         for (const obs of obstacles) {
+            if (!obs || !obs.userData) continue;
             if (obs.userData.type === 'soft' || obs.userData.type === 'creature' || obs.userData.type === 'ground') continue; 
             const obsBox = new THREE.Box3().setFromObject(obs);
             if (pBox.intersectsBox(obsBox)) {
