@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MenuBackground } from '../menus/MenuBackground';
 import { LoginModal } from '../modals/LoginModal';
 import { useIsIphoneLayout } from '../../../hooks/useIsIphoneLayout';
@@ -7,6 +7,34 @@ import { useIsIphoneLayout } from '../../../hooks/useIsIphoneLayout';
 export const Home: React.FC = () => {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
     const isIphoneLayout = useIsIphoneLayout();
+    const keySequenceRef = useRef('');
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            console.log('Key down:', event.key, 'NODE_ENV:', import.meta.env.MODE);
+            
+            // Check for development mode or allow for testing
+            const isDev = import.meta.env.MODE === 'development' || import.meta.env.DEV;
+            if (!isDev) {
+                console.log('Not in development mode, current mode:', import.meta.env.MODE);
+                return;
+            }
+            
+            console.log('Key pressed:', event.key);
+            const newSequence = (keySequenceRef.current + event.key).slice(-3);
+            keySequenceRef.current = newSequence;
+            console.log('Current sequence:', newSequence);
+            
+            if (newSequence === '777') {
+                console.log('Shop unlocked!');
+                window.dispatchEvent(new CustomEvent('shopUnlocked'));
+                keySequenceRef.current = '';
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-start relative">

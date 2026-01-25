@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface HeaderProps {
     biome?: { name: string, color: string };
@@ -9,8 +9,20 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onOpenTravel, onToggleBestiary, onChangeLand }) => {
+    const [showShop, setShowShop] = useState(false);
     const isLand = activeScene === 'land';
     const isSingleBiome = activeScene === 'singleBiome';
+
+    // Global event listener for shop unlock
+    React.useEffect(() => {
+        const handleShopUnlock = () => {
+            console.log('Header received shopUnlocked event!');
+            setShowShop(true);
+        };
+        
+        window.addEventListener('shopUnlocked', handleShopUnlock);
+        return () => window.removeEventListener('shopUnlocked', handleShopUnlock);
+    }, []);
 
     return (
         <div className="absolute top-4 md:top-8 left-0 w-full px-4 md:px-6 z-10 pointer-events-none flex flex-row items-start justify-between">
@@ -33,6 +45,13 @@ export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onOpenTravel
                         className="px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 hover:bg-green-600/80 transition-all shadow-xl"
                     >
                         <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Change Land</span>
+                    </button>
+                )}
+                {showShop && (
+                    <button 
+                        className="px-3 md:px-4 py-1.5 md:py-2 bg-purple-600/60 backdrop-blur-md rounded-full border border-purple-400/30 hover:bg-purple-600/80 transition-all shadow-xl animate-[fadeIn_0.5s_ease-out]"
+                    >
+                        <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Shop</span>
                     </button>
                 )}
             </div>

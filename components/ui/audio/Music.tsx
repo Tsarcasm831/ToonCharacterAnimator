@@ -470,9 +470,14 @@ export const MusicView: React.FC = () => {
                 <div className={`flex flex-col gap-4 ${isIphoneLayout ? '' : 'sm:flex-row sm:items-center sm:justify-between'}`}>
                     <div>
                         <h2 className={`font-black text-white uppercase tracking-tighter leading-tight ${isIphoneLayout ? 'text-3xl' : 'text-2xl sm:text-5xl'}`}>Music Library</h2>
-                        <p className={`text-slate-400 font-bold uppercase mt-2 leading-snug ${isIphoneLayout ? 'text-[10px] tracking-[0.25em] max-w-[18ch]' : 'text-xs sm:text-xs tracking-[0.4em]'}`}>
-                            Game Soundtracks & Ambient Music
-                        </p>
+                        <div className={`flex flex-col gap-1 ${isIphoneLayout ? '' : ''}`}>
+                            <p className={`text-slate-400 font-bold uppercase leading-snug ${isIphoneLayout ? 'text-[10px] tracking-[0.25em]' : 'text-xs sm:text-xs tracking-[0.4em]'}`}>
+                                Game Soundtracks & Ambient Music
+                            </p>
+                            <p className={`text-red-500 font-medium text-xs ${isIphoneLayout ? 'text-[9px] max-w-[20ch]' : 'text-xs'} leading-tight`}>
+                                FYI: all tracks are encoded in .opus format and are less than 2Mb per file. Intentionally testing small file sizes for 'how is this still listenable' shock factor
+                            </p>
+                        </div>
                     </div>
                     <div className={`flex items-center gap-4 bg-white/5 px-4 py-2 rounded-xl border border-white/10 w-fit ${isIphoneLayout ? '' : 'sm:w-auto'}`}>
                         <MusicIcon className="w-4 h-4 text-purple-400" />

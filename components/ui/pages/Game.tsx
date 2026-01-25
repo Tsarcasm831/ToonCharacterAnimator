@@ -103,7 +103,7 @@ export const Game: React.FC = () => {
         // Defer mounting the scene to next tick to allow loading UI to paint
         mountSceneTimeout.current = window.setTimeout(() => {
           setShouldMountScene(true);
-        }, 0);
+        }, 150);
     };
 
     const handleEnvironmentReady = () => {
