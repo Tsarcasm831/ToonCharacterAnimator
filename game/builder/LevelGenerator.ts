@@ -1,7 +1,13 @@
 
 import * as THREE from 'three';
 import { BuildingParts } from './BuildingParts';
-import { HouseBlueprints, Blueprint } from './HouseBlueprints';
+import { getCottage } from '../building/Cottage';
+import { getGatehouse } from '../building/Gatehouse';
+import { getLShape } from '../building/LShape';
+import { getLonghouse } from '../building/Longhouse';
+import { getRoundhouse } from '../building/Roundhouse';
+import { getTheForge } from '../building/TheForge';
+import type { Blueprint } from '../building/BlueprintTypes';
 type BuildEnvironment = {
     group: THREE.Group;
     obstacles: THREE.Object3D[];
@@ -14,12 +20,12 @@ export class LevelGenerator {
         
         const GRID = 1.3333;
         
-        this.buildStructure(environment, HouseBlueprints.getTheForge(), -27 * GRID, 36 * GRID);
-        this.buildStructure(environment, HouseBlueprints.getCottage(), -20 * GRID, 45 * GRID, Math.PI / 2, 0x64b5f6);
-        this.buildStructure(environment, HouseBlueprints.getLonghouse(), -10 * GRID, 35 * GRID, 0, 0x81c784);
-        this.buildStructure(environment, HouseBlueprints.getLShape(), -38 * GRID, 30 * GRID, 0, 0xe57373);
-        this.buildStructure(environment, HouseBlueprints.getRoundhouse(), -50 * GRID, 45 * GRID, 0, 0x9575cd);
-        this.buildStructure(environment, HouseBlueprints.getGatehouse(), -15 * GRID, 20 * GRID, 0, 0xffb74d);
+        this.buildStructure(environment, getTheForge(), -27 * GRID, 36 * GRID);
+        this.buildStructure(environment, getCottage(), -20 * GRID, 45 * GRID, Math.PI / 2, 0x64b5f6);
+        this.buildStructure(environment, getLonghouse(), -10 * GRID, 35 * GRID, 0, 0x81c784);
+        this.buildStructure(environment, getLShape(), -38 * GRID, 30 * GRID, 0, 0xe57373);
+        this.buildStructure(environment, getRoundhouse(), -50 * GRID, 45 * GRID, 0, 0x9575cd);
+        this.buildStructure(environment, getGatehouse(), -15 * GRID, 20 * GRID, 0, 0xffb74d);
     }
 
     static buildTownLevel(environment: BuildEnvironment) {
@@ -27,11 +33,11 @@ export class LevelGenerator {
 
         const GRID = 1.3333;
 
-        this.buildStructure(environment, HouseBlueprints.getGatehouse(), -14 * GRID, 12 * GRID, 0, 0xffd54f);
-        this.buildStructure(environment, HouseBlueprints.getLonghouse(), 10 * GRID, 12 * GRID, Math.PI, 0x90caf9);
-        this.buildStructure(environment, HouseBlueprints.getCottage(), -6 * GRID, -10 * GRID, Math.PI / 2, 0xa5d6a7);
-        this.buildStructure(environment, HouseBlueprints.getTheForge(), 12 * GRID, -8 * GRID, Math.PI / 2, 0xef9a9a);
-        this.buildStructure(environment, HouseBlueprints.getRoundhouse(), -18 * GRID, -4 * GRID, 0, 0xb39ddb);
+        this.buildStructure(environment, getGatehouse(), -14 * GRID, 12 * GRID, 0, 0xffd54f);
+        this.buildStructure(environment, getLonghouse(), 10 * GRID, 12 * GRID, Math.PI, 0x90caf9);
+        this.buildStructure(environment, getCottage(), -6 * GRID, -10 * GRID, Math.PI / 2, 0xa5d6a7);
+        this.buildStructure(environment, getTheForge(), 12 * GRID, -8 * GRID, Math.PI / 2, 0xef9a9a);
+        this.buildStructure(environment, getRoundhouse(), -18 * GRID, -4 * GRID, 0, 0xb39ddb);
     }
 
     private static buildStructure(environment: BuildEnvironment, blueprint: Blueprint, originX: number, originZ: number, blueprintRotation: number = 0, color?: number) {

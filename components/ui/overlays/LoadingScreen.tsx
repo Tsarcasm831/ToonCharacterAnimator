@@ -162,6 +162,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
     const [shouldRender, setShouldRender] = useState(isVisible);
     const [isEnemiesPreloaded, setIsEnemiesPreloaded] = useState(false);
     const [showClickToStart, setShowClickToStart] = useState(false);
+    const [isVideoReady, setIsVideoReady] = useState(false);
     const hasCalledFinished = useRef(false);
 
     // Preload video on component mount
@@ -179,6 +180,8 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
             setMessageIndex(0);
             hasCalledFinished.current = false;
             setIsEnemiesPreloaded(false);
+            setShowClickToStart(false);
+            setIsVideoReady(false);
 
             // Preload enemies
             EnemyCache.preloadAllEnemies().then(() => {
@@ -188,21 +191,12 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                 setIsEnemiesPreloaded(true);
             });
 
-            // Runner progress simulation
-            const interval = setInterval(() => {
-                setRunnerProgress(prev => {
-                    if (prev >= 100) return 100;
-                    return prev + 0.8; // Approx 6 seconds to fill
-                });
-            }, 50);
-
             // Message cycling
             const msgInterval = setInterval(() => {
                 setMessageIndex(prev => Math.min(prev + 1, MESSAGES.length - 1));
             }, 800);
 
             return () => {
-                clearInterval(interval);
                 clearInterval(msgInterval);
             };
         } else {
@@ -255,12 +249,20 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
         return () => cancelAnimationFrame(frameId);
     }, [isReversing]);
 
+    const totalSteps = 3;
+    const completedSteps = Number(isVideoReady) + Number(isSystemReady) + Number(isEnemiesPreloaded);
+    const targetProgress = Math.round((completedSteps / totalSteps) * 100);
+
+    useEffect(() => {
+        setRunnerProgress(targetProgress);
+    }, [targetProgress]);
+
     // Check completion gate
     useEffect(() => {
-        if (runnerProgress >= 100 && isSystemReady && isEnemiesPreloaded && !showClickToStart) {
+        if (targetProgress >= 100 && !showClickToStart) {
             setShowClickToStart(true);
         }
-    }, [runnerProgress, isSystemReady, isEnemiesPreloaded, showClickToStart]);
+    }, [targetProgress, showClickToStart]);
 
     if (!shouldRender) return null;
 
@@ -273,6 +275,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                 muted
                 playsInline
                 preload="auto"
+                onLoadedData={() => setIsVideoReady(true)}
             >
                 <source src="/assets/videos/loading.mp4" type="video/mp4" />
             </video>
@@ -280,62 +283,70 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
             <div className="relative w-full max-w-2xl px-12 flex flex-col items-center">
                 <div className="h-[20vh]" />
                 
-                {/* Secondary Loading Track with Runner */}
-                <div className="relative w-full h-1.5 bg-white/5 rounded-full mb-12">
-                    <div 
-                        className="absolute inset-y-0 left-0 bg-blue-500/20 blur-sm transition-[width] duration-[120ms] ease-linear"
-                        style={{ width: `${runnerProgress}%` }}
-                    />
-                    <div 
-                        className="absolute inset-y-0 left-0 bg-blue-600 transition-[width] duration-[120ms] ease-linear shadow-[0_0_10px_#2563eb]"
-                        style={{ width: `${runnerProgress}%` }}
-                    />
-                    
-                    {runnerProgress < 100 && (
-                        <LoadingRunner 
-                            progress={runnerProgress} 
-                            className="w-24 h-24" 
-                        />
-                    )}
-                </div>
+                {isVideoReady ? (
+                    <>
+                        {/* Secondary Loading Track with Runner */}
+                        <div className="relative w-full h-1.5 bg-white/5 rounded-full mb-12">
+                            <div 
+                                className="absolute inset-y-0 left-0 bg-blue-500/20 blur-sm transition-[width] duration-[120ms] ease-linear"
+                                style={{ width: `${runnerProgress}%` }}
+                            />
+                            <div 
+                                className="absolute inset-y-0 left-0 bg-blue-600 transition-[width] duration-[120ms] ease-linear shadow-[0_0_10px_#2563eb]"
+                                style={{ width: `${runnerProgress}%` }}
+                            />
+                            
+                            {runnerProgress < 100 && (
+                                <LoadingRunner 
+                                    progress={runnerProgress} 
+                                    className="w-24 h-24" 
+                                />
+                            )}
+                        </div>
 
-                {/* Primary System Status Bar */}
-                <div className="relative w-72 h-1 bg-white/10 rounded-full mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/5">
-                    <div 
-                        className={`absolute inset-y-0 left-0 transition-all duration-1000 ease-out ${isSystemReady ? 'bg-green-500 shadow-[0_0_15px_#22c55e] w-full' : 'bg-blue-400 w-4/5 animate-pulse'}`}
-                    />
-                </div>
+                        {/* Primary System Status Bar */}
+                        <div className="relative w-72 h-1 bg-white/10 rounded-full mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/5">
+                            <div 
+                                className={`absolute inset-y-0 left-0 transition-all duration-1000 ease-out ${isSystemReady ? 'bg-green-500 shadow-[0_0_15px_#22c55e] w-full' : 'bg-blue-400 w-4/5 animate-pulse'}`}
+                            />
+                        </div>
 
-                <div className="flex flex-col items-center gap-4">
-                    {showClickToStart ? (
-                        <button
-                            className="px-12 py-4 bg-white text-black font-black text-xl uppercase tracking-widest rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(59,130,246,0.6)] active:scale-95 transform hover:-translate-y-1 animate-pulse"
-                            onClick={() => {
-                                hasCalledFinished.current = true;
-                                onFinished?.();
-                            }}
-                        >
-                            Click to Start
-                        </button>
-                    ) : (
-                        <div className="text-white font-black uppercase tracking-[0.6em] text-[11px] animate-pulse drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
-                            {isSystemReady && runnerProgress >= 100 ? "Finalizing..." : MESSAGES[messageIndex]}
+                        <div className="flex flex-col items-center gap-4">
+                            {showClickToStart ? (
+                                <button
+                                    className="px-12 py-4 bg-white text-black font-black text-xl uppercase tracking-widest rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(59,130,246,0.6)] active:scale-95 transform hover:-translate-y-1 animate-pulse"
+                                    onClick={() => {
+                                        hasCalledFinished.current = true;
+                                        onFinished?.();
+                                    }}
+                                >
+                                    Click to Start
+                                </button>
+                            ) : (
+                                <div className="text-white font-black uppercase tracking-[0.6em] text-[11px] animate-pulse drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+                                    {isSystemReady && runnerProgress >= 100 ? "Finalizing..." : MESSAGES[messageIndex]}
+                                </div>
+                            )}
+                            <div className="flex items-center gap-4">
+                                <div className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${isSystemReady ? 'text-green-500' : 'text-slate-600'}`}>
+                                    Assets: {isSystemReady ? 'Loaded' : 'Mounting...'}
+                                </div>
+                                <div className="w-[1px] h-3 bg-white/10" />
+                                <div className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${isEnemiesPreloaded ? 'text-green-500' : 'text-slate-600'}`}>
+                                    Bestiary: {isEnemiesPreloaded ? 'Preloaded' : 'Indexing...'}
+                                </div>
+                                <div className="w-[1px] h-3 bg-white/10" />
+                                <div className="text-blue-500 font-mono text-[9px] font-bold uppercase tracking-widest">
+                                    Runner: {Math.floor(runnerProgress)}%
+                                </div>
+                            </div>
                         </div>
-                    )}
-                    <div className="flex items-center gap-4">
-                        <div className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${isSystemReady ? 'text-green-500' : 'text-slate-600'}`}>
-                            Assets: {isSystemReady ? 'Loaded' : 'Mounting...'}
-                        </div>
-                        <div className="w-[1px] h-3 bg-white/10" />
-                        <div className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${isEnemiesPreloaded ? 'text-green-500' : 'text-slate-600'}`}>
-                            Bestiary: {isEnemiesPreloaded ? 'Preloaded' : 'Indexing...'}
-                        </div>
-                        <div className="w-[1px] h-3 bg-white/10" />
-                        <div className="text-blue-500 font-mono text-[9px] font-bold uppercase tracking-widest">
-                            Runner: {Math.floor(runnerProgress)}%
-                        </div>
+                    </>
+                ) : (
+                    <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse">
+                        Loading Cinematic...
                     </div>
-                </div>
+                )}
 
             </div>
 

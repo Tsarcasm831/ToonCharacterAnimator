@@ -285,6 +285,8 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
+    const showGlobalHUD = !isHUDDisabled && activeScene !== 'combat';
+
     return (
         <div className="w-full h-full flex flex-col items-center justify-start">
             <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
@@ -304,105 +306,109 @@ export const Game: React.FC = () => {
                         </>
                     ) : (
                         <>
-                            {shouldMountScene && (activeScene === 'combat' ? (
-                                <CombatScene 
-                                    config={config}
-                                    manualInput={manualInput}
-                                    bench={bench}
-                                    onGameReady={onGameReady}
-                                    onEnvironmentReady={() => {
-                                        handleEnvironmentReady();
-                                        handleVisualLoadingFinished();
-                                    }}
-                                    onInteractionUpdate={handleInteractionUpdate}
-                                    onToggleQuestLog={uiState.toggleQuestLog}
-                                    onRotationUpdate={setPlayerRotation}
-                                    onAttackHit={(type, count) => {
-                                        addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
-                                    }}
-                                    isCombatActive={isCombatActive}
-                                    setIsCombatActive={setIsCombatActive}
-                                    combatLog={combatLog}
-                                    showGrid={showGrid}
-                                    setShowGrid={setShowGrid}
-                                />
-                            ) : activeScene === 'mp' ? (
-                                <MPTestScene 
-                                    config={config} 
-                                    manualInput={manualInput}
-                                    initialInventory={inventory}
-                                    onInventoryUpdate={setInventory}
-                                    onSlotSelect={setSelectedSlot}
-                                    onInteractionUpdate={handleInteractionUpdate}
-                                    onGameReady={onGameReady}
-                                    onEnvironmentReady={() => {
-                                        handleEnvironmentReady();
-                                        handleVisualLoadingFinished();
-                                    }}
-                                    onToggleQuestLog={uiState.toggleQuestLog}
-                                    showGrid={showGrid}
-                                    isCombatActive={isCombatActive}
-                                />
-                            ) : activeScene === 'singleBiome' ? (
-                                <SingleBiomeScene
-                                    activeScene={activeScene}
-                                    config={config}
-                                    manualInput={manualInput}
-                                    initialInventory={inventory}
-                                    onInventoryUpdate={setInventory}
-                                    onSlotSelect={setSelectedSlot}
-                                    onInteractionUpdate={handleInteractionUpdate}
-                                    onGameReady={onGameReady}
-                                    onEnvironmentReady={() => {
-                                        handleEnvironmentReady();
-                                        handleVisualLoadingFinished();
-                                    }}
-                                    onToggleWorldMap={handleMapToggle}
-                                    onToggleQuestLog={uiState.toggleQuestLog}
-                                    showGrid={showGrid}
-                                    isCombatActive={isCombatActive}
-                                />
-                            ) : activeScene === 'town' ? (
-                                <TownScene
-                                    activeScene={activeScene}
-                                    config={config}
-                                    manualInput={manualInput}
-                                    initialInventory={inventory}
-                                    onInventoryUpdate={setInventory}
-                                    onSlotSelect={setSelectedSlot}
-                                    onInteractionUpdate={handleInteractionUpdate}
-                                    onGameReady={onGameReady}
-                                    onEnvironmentReady={() => {
-                                        handleEnvironmentReady();
-                                        handleVisualLoadingFinished();
-                                    }}
-                                    onToggleWorldMap={handleMapToggle}
-                                    onToggleQuestLog={uiState.toggleQuestLog}
-                                    showGrid={showGrid}
-                                    isCombatActive={isCombatActive}
-                                />
-                            ) : (
-                                <Scene 
-                                    activeScene={activeScene}
-                                    config={config} 
-                                    manualInput={manualInput}
-                                    initialInventory={inventory}
-                                    onInventoryUpdate={setInventory}
-                                    onSlotSelect={setSelectedSlot}
-                                    onInteractionUpdate={handleInteractionUpdate}
-                                    onGameReady={onGameReady}
-                                    onEnvironmentReady={() => {
-                                        handleEnvironmentReady();
-                                        handleVisualLoadingFinished();
-                                    }}
-                                    onToggleWorldMap={handleMapToggle}
-                                    onToggleQuestLog={uiState.toggleQuestLog}
-                                    showGrid={showGrid}
-                                    isCombatActive={isCombatActive}
-                                />
-                            ))}
+                            {shouldMountScene && (
+                                <div className={`absolute inset-0 transition-opacity duration-500 ${gameState === 'PLAYING' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                                    {activeScene === 'combat' ? (
+                                        <CombatScene 
+                                            config={config}
+                                            manualInput={manualInput}
+                                            bench={bench}
+                                            onGameReady={onGameReady}
+                                            onEnvironmentReady={() => {
+                                                handleEnvironmentReady();
+                                                handleVisualLoadingFinished();
+                                            }}
+                                            onInteractionUpdate={handleInteractionUpdate}
+                                            onToggleQuestLog={uiState.toggleQuestLog}
+                                            onRotationUpdate={setPlayerRotation}
+                                            onAttackHit={(type, count) => {
+                                                addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
+                                            }}
+                                            isCombatActive={isCombatActive}
+                                            setIsCombatActive={setIsCombatActive}
+                                            combatLog={combatLog}
+                                            showGrid={showGrid}
+                                            setShowGrid={setShowGrid}
+                                        />
+                                    ) : activeScene === 'mp' ? (
+                                        <MPTestScene 
+                                            config={config} 
+                                            manualInput={manualInput}
+                                            initialInventory={inventory}
+                                            onInventoryUpdate={setInventory}
+                                            onSlotSelect={setSelectedSlot}
+                                            onInteractionUpdate={handleInteractionUpdate}
+                                            onGameReady={onGameReady}
+                                            onEnvironmentReady={() => {
+                                                handleEnvironmentReady();
+                                                handleVisualLoadingFinished();
+                                            }}
+                                            onToggleQuestLog={uiState.toggleQuestLog}
+                                            showGrid={showGrid}
+                                            isCombatActive={isCombatActive}
+                                        />
+                                    ) : activeScene === 'singleBiome' ? (
+                                        <SingleBiomeScene
+                                            activeScene={activeScene}
+                                            config={config}
+                                            manualInput={manualInput}
+                                            initialInventory={inventory}
+                                            onInventoryUpdate={setInventory}
+                                            onSlotSelect={setSelectedSlot}
+                                            onInteractionUpdate={handleInteractionUpdate}
+                                            onGameReady={onGameReady}
+                                            onEnvironmentReady={() => {
+                                                handleEnvironmentReady();
+                                                handleVisualLoadingFinished();
+                                            }}
+                                            onToggleWorldMap={handleMapToggle}
+                                            onToggleQuestLog={uiState.toggleQuestLog}
+                                            showGrid={showGrid}
+                                            isCombatActive={isCombatActive}
+                                        />
+                                    ) : activeScene === 'town' ? (
+                                        <TownScene
+                                            activeScene={activeScene}
+                                            config={config}
+                                            manualInput={manualInput}
+                                            initialInventory={inventory}
+                                            onInventoryUpdate={setInventory}
+                                            onSlotSelect={setSelectedSlot}
+                                            onInteractionUpdate={handleInteractionUpdate}
+                                            onGameReady={onGameReady}
+                                            onEnvironmentReady={() => {
+                                                handleEnvironmentReady();
+                                                handleVisualLoadingFinished();
+                                            }}
+                                            onToggleWorldMap={handleMapToggle}
+                                            onToggleQuestLog={uiState.toggleQuestLog}
+                                            showGrid={showGrid}
+                                            isCombatActive={isCombatActive}
+                                        />
+                                    ) : (
+                                        <Scene 
+                                            activeScene={activeScene}
+                                            config={config} 
+                                            manualInput={manualInput}
+                                            initialInventory={inventory}
+                                            onInventoryUpdate={setInventory}
+                                            onSlotSelect={setSelectedSlot}
+                                            onInteractionUpdate={handleInteractionUpdate}
+                                            onGameReady={onGameReady}
+                                            onEnvironmentReady={() => {
+                                                handleEnvironmentReady();
+                                                handleVisualLoadingFinished();
+                                            }}
+                                            onToggleWorldMap={handleMapToggle}
+                                            onToggleQuestLog={uiState.toggleQuestLog}
+                                            showGrid={showGrid}
+                                            isCombatActive={isCombatActive}
+                                        />
+                                    )}
+                                </div>
+                            )}
                             
-                            {!isHUDDisabled && (
+                            {showGlobalHUD && (
                                 <>
                                     <GameHUD 
                                         activeScene={activeScene}

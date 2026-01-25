@@ -50,6 +50,9 @@ export const Shop: React.FC = () => {
                             <h1 className="text-4xl font-black tracking-tight">SHOP</h1>
                             <p className="text-xs text-slate-400 uppercase tracking-[0.3em]">Exclusive personalized items</p>
                         </div>
+                        <div className="w-full bg-red-600 border border-red-700 rounded-lg p-3">
+                            <p className="text-xs font-bold text-white uppercase tracking-widest text-center">TESTING ONLY - PRICES AND ITEMS ARE MOCKUPS</p>
+                        </div>
                         <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4">
                             <p className="text-xs text-slate-300 uppercase tracking-[0.3em]">Store Status</p>
                             <p className="mt-2 text-sm font-bold text-white">Open • Ready to order</p>
@@ -58,7 +61,11 @@ export const Shop: React.FC = () => {
                 ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-start text-white p-8 z-10 pt-16">
                         <h1 className="text-6xl font-black mb-4">SHOP</h1>
-                        <p className="text-slate-400 uppercase tracking-[0.3em] mb-8">Personalized Merchandise</p>
+                        <p className="text-slate-400 uppercase tracking-[0.3em] mb-4">Personalized Merchandise</p>
+                        
+                        <div className="w-full max-w-4xl bg-red-600 border border-red-700 rounded-lg p-3 mb-8">
+                            <p className="text-xs font-bold text-white uppercase tracking-widest text-center">TESTING ONLY - PRICES AND ITEMS ARE MOCKUPS</p>
+                        </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl w-full">
                             {merchItems.map((item) => (

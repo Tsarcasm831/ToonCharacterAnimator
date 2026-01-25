@@ -10,7 +10,13 @@ import { Torch } from '../environment/objects/torch_stand';
 import { WoodenWall } from '../environment/objects/wooden_wall';
 import { Flag } from '../environment/objects/flag';
 import { ObjectFactory } from '../environment/ObjectFactory';
-import { HouseBlueprints } from './HouseBlueprints';
+import { getCottage } from '../building/Cottage';
+import { getGatehouse } from '../building/Gatehouse';
+import { getLShape } from '../building/LShape';
+import { getLonghouse } from '../building/Longhouse';
+import { getRoundhouse } from '../building/Roundhouse';
+import { getTheForge } from '../building/TheForge';
+import type { BlueprintPart } from '../building/BlueprintTypes';
 
 export type StructureType = 'foundation' | 'wall' | 'doorway' | 'door' | 'roof' | 'pillar' | 'round_foundation' | 'round_wall' | 
                             'palisade' | 'event_tent' | 'firepit' | 'potion_tent' | 'supply_cart' | 'stone_wall' | 'torch' | 'wooden_wall' | 'flag' | 'lightpole' |
@@ -184,15 +190,15 @@ export class BuildingParts {
         // Blueprint handling
         if (type.startsWith('blueprint_')) {
             const group = new THREE.Group();
-            let blueprintParts: any[] = [];
+            let blueprintParts: BlueprintPart[] = [];
             
             switch (type) {
-                case 'blueprint_forge': blueprintParts = HouseBlueprints.getTheForge(); break;
-                case 'blueprint_cottage': blueprintParts = HouseBlueprints.getCottage(); break;
-                case 'blueprint_longhouse': blueprintParts = HouseBlueprints.getLonghouse(); break;
-                case 'blueprint_l_shape': blueprintParts = HouseBlueprints.getLShape(); break;
-                case 'blueprint_roundhouse': blueprintParts = HouseBlueprints.getRoundhouse(); break;
-                case 'blueprint_gatehouse': blueprintParts = HouseBlueprints.getGatehouse(); break;
+                case 'blueprint_forge': blueprintParts = getTheForge(); break;
+                case 'blueprint_cottage': blueprintParts = getCottage(); break;
+                case 'blueprint_longhouse': blueprintParts = getLonghouse(); break;
+                case 'blueprint_l_shape': blueprintParts = getLShape(); break;
+                case 'blueprint_roundhouse': blueprintParts = getRoundhouse(); break;
+                case 'blueprint_gatehouse': blueprintParts = getGatehouse(); break;
             }
 
             const GRID_SIZE = 1.3333;

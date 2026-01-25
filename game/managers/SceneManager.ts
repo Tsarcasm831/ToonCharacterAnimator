@@ -120,6 +120,9 @@ export class SceneManager {
         // Unload old environments and load the new one
         this.unloadEnvironments(sceneName);
         this.initEnvironment(sceneName);
+        if (this.combatEnvironment) {
+            this.combatEnvironment.setVisible(sceneName === 'combat' || sceneName === 'mp');
+        }
 
         if (sceneName === 'mp' && this.combatEnvironment) {
              this.combatEnvironment.isCombatStarted = false;

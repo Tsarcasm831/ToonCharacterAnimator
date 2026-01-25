@@ -40,7 +40,6 @@ export class PlayerLocomotion {
     }
 
     update(dt: number, input: PlayerInput, cameraAngle: number, obstacles: THREE.Object3D[]) {
-        const fixedDt = 1 / 60; // Use fixed timestep for physics to prevent stuttering
         // 1. Handle Ground & Gravity
         const pos = this.position;
         // Use getLandingHeight to avoid snapping to overhead obstacles (lintels)
@@ -150,10 +149,11 @@ export class PlayerLocomotion {
         
         // Environment Resistance (Bushes/Soft obstacles)
         const playerBox = PlayerUtils.getHitboxBounds(this.position, this.player.config);
+        const softObsBox = new THREE.Box3();
         for (const obs of obstacles) {
             if (obs.userData.type === 'soft') {
-                const obsBox = new THREE.Box3().setFromObject(obs);
-                if (obsBox.intersectsBox(playerBox)) {
+                softObsBox.setFromObject(obs);
+                if (softObsBox.intersectsBox(playerBox)) {
                     speedModifier = 0.4;
                     break;
                 }
