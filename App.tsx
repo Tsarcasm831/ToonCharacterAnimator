@@ -4,6 +4,7 @@ import { Home } from './components/ui/pages/Home';
 import { MusicView as Music } from './components/ui/audio/Music';
 import { Game } from './components/ui/pages/Game';
 import { About } from './components/ui/pages/About';
+import { Shop } from './components/ui/pages/Shop';
 import { GlobalModals } from './components/ui/modals/GlobalModals';
 import { LandMapModal } from './components/ui/modals/LandMapModal';
 import { MusicProvider } from './contexts/MusicContext';
@@ -44,6 +45,7 @@ const App: React.FC = () => {
             {activePage === 'home' && <Home />}
             {activePage === 'music' && <Music />}
             {activePage === 'about' && <About />}
+            {activePage === 'shop' && <Shop />}
             
             {activePage === 'game' && (
               <Game key={gameKey} />
