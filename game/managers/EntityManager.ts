@@ -447,6 +447,21 @@ export class EntityManager {
             // to allow them to transition to idle or finish their current state.
             this.updateEntity(entity, delta, config, animate, environment, enemyTargets, playerTargets, isCombatActive, onAttackHit);
             
+            // Check if entity is in arena and adjust ground height if needed (for town scene)
+            if (activeScene === 'town' && environment && (environment as any).isPositionInArena) {
+                const entityPos = (entity as any).position || (entity as any).mesh?.position;
+                if (entityPos && (environment as any).isPositionInArena(entityPos)) {
+                    const arenaGroundHeight = (environment as any).getGroundHeightAt(entityPos);
+                    // Only adjust if entity is at or below arena floor level
+                    if (entityPos.y <= arenaGroundHeight + 0.5) {
+                        entityPos.y = arenaGroundHeight;
+                        // Update group positions if they exist
+                        if ((entity as any).group) (entity as any).group.position.copy(entityPos);
+                        if ((entity as any).model?.group) (entity as any).model.group.position.copy(entityPos);
+                    }
+                }
+            }
+            
             if (visible && entity instanceof HumanoidEntity) {
                 entity.updateStatBars(cameraPosition, isCombatActive);
             }

@@ -145,12 +145,15 @@ export class SceneManager {
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'town') {
-            const halfSize = 50;
+            // Expanded bounds for both main town grid (left) and arena grid (right)
+            // Total width: 200 (100 + 100), height: 100
+            const halfWidth = 100; // Half of total width (200)
+            const halfHeight = 50;  // Half of height (100)
             PlayerUtils.setCustomLandPolygon([
-                [-halfSize, -halfSize],
-                [halfSize, -halfSize],
-                [halfSize, halfSize],
-                [-halfSize, halfSize],
+                [-halfWidth, -halfHeight],
+                [halfWidth, -halfHeight],
+                [halfWidth, halfHeight],
+                [-halfWidth, halfHeight],
             ]);
 
             this.player.mesh.position.set(0, 0, 0);
