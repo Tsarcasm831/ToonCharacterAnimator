@@ -1,33 +1,36 @@
 import * as THREE from 'three';
-import { EntityStats, UnitState } from '../../types';
+import { EntityStats, UnitState, TurnPhase } from '../../types';
 import { CombatEnvironment } from '../environment/CombatEnvironment';
-
-export interface CombatUnit {
-    id: string;
-    entity: any;
-    stats: EntityStats;
-    isFriendly: boolean;
-    gridPos: { r: number; c: number } | null;
-    isAlive: boolean;
-    
-    // Auto-Battler State
-    state: UnitState;
-    attackTimer: number;
-    target: CombatUnit | null;
-    path: { r: number; c: number }[];
-    nextMovePos: THREE.Vector3 | null;
-}
+import { CombatUnit } from './CombatTypes';
+import { TurnManager } from './TurnManager';
+import { AIController } from './AIController';
 
 export class CombatSystem {
     private units: CombatUnit[] = [];
     private combatEnded: boolean = false;
+    public turnManager: TurnManager;
+    private aiController: AIController;
+    private currentEnvironment: CombatEnvironment | null = null;
     
     public onCombatLog?: (message: string, type: 'info' | 'damage' | 'heal' | 'death') => void;
     public onCombatEnd?: (playerWon: boolean) => void;
     public onUnitAttack?: (attacker: any, defender: any) => void;
     public onUnitDeath?: (unit: any) => void;
+    public onTurnChanged?: (unit: CombatUnit) => void;
 
-    constructor() {}
+    constructor() {
+        this.aiController = new AIController(this);
+        this.turnManager = new TurnManager();
+        this.turnManager.onTurnStart = (unit) => {
+            this.onCombatLog?.(`${this.getUnitName(unit)}'s Turn`, 'info');
+            this.onTurnChanged?.(unit);
+
+            // Trigger AI if needed
+            if (!unit.isFriendly && this.currentEnvironment) {
+                this.aiController.onTurnStart(unit, this.currentEnvironment);
+            }
+        };
+    }
 
     public initializeCombat(player: any, friendlyEntities: any[], enemyEntities: any[]) {
         this.units = [];
@@ -45,6 +48,9 @@ export class CombatSystem {
         enemyEntities.forEach(entity => this.addUnit(entity, false));
 
         this.onCombatLog?.(`Combat started! ${this.getAliveFriendlyCount()} allies vs ${this.getAliveEnemyCount()} enemies`, 'info');
+        
+        // Start Turn-Based System
+        this.turnManager.startCombat(this.units);
     }
 
     private addUnit(entity: any, isFriendly: boolean) {
@@ -58,6 +64,13 @@ export class CombatSystem {
         const stats = entity.stats || (entity.status?.getStats ? entity.status.getStats() : this.getDefaultStats());
         // Ensure stats has defaults if missing
         const fullStats = { ...this.getDefaultStats(), ...stats };
+        
+        // Initialize Turn Stats
+        fullStats.movementPoints = fullStats.movementPoints || 5;
+        fullStats.currentMovement = fullStats.movementPoints;
+        fullStats.hasActedThisTurn = false;
+        fullStats.hasMovedThisTurn = false;
+        fullStats.initiative = fullStats.dexterity || 10;
 
         this.units.push({
             id: THREE.MathUtils.generateUUID(),
@@ -66,6 +79,8 @@ export class CombatSystem {
             isFriendly,
             gridPos: null, 
             isAlive: true,
+            currentInitiative: 0,
+            baseDefense: fullStats.defense || 10, // Store original defense
             state: 'IDLE',
             attackTimer: 0,
             target: null,
@@ -85,8 +100,10 @@ export class CombatSystem {
 
     public update(dt: number, environment: CombatEnvironment) {
         if (this.combatEnded) return;
+        
+        this.currentEnvironment = environment;
 
-        // Sync grid positions first
+        // Sync grid positions first (always important)
         for (const unit of this.units) {
             if (unit.isAlive) {
                 // Update Entity Combat State
@@ -97,6 +114,8 @@ export class CombatSystem {
                 const pos = this.getUnitPosition(unit);
                 if (pos) {
                     unit.gridPos = environment.getGridPosition(pos);
+                    // Occupancy is handled by environment.setCellOccupied usually
+                    // But we should strictly enforce it based on gridPos
                     if (unit.gridPos) {
                         environment.setCellOccupied(unit.gridPos.r, unit.gridPos.c, true);
                     }
@@ -104,108 +123,66 @@ export class CombatSystem {
             }
         }
 
-        let activeFriendly = 0;
-        let activeEnemy = 0;
-
+        // Handle Visuals / Animations for the active unit or moving units
         for (const unit of this.units) {
-            if (!unit.isAlive) {
-                // Clear occupation if dead
-                if (unit.gridPos) environment.setCellOccupied(unit.gridPos.r, unit.gridPos.c, false);
-                continue;
-            }
-
-            if (unit.isFriendly) activeFriendly++;
-            else activeEnemy++;
-
-            this.updateUnit(unit, dt, environment);
+            if (!unit.isAlive) continue;
+            this.updateUnitVisuals(unit, dt, environment);
         }
+
+        // Check Victory Conditions
+        const activeFriendly = this.getAliveFriendlyCount();
+        const activeEnemy = this.getAliveEnemyCount();
 
         if (activeFriendly === 0 || activeEnemy === 0) {
             this.endCombat(activeFriendly > 0);
         }
     }
 
-    private updateUnit(unit: CombatUnit, dt: number, environment: CombatEnvironment) {
-        if (unit.state === 'DEAD' || unit.state === 'STUNNED') return;
-
-        // 1. Target Acquisition
-        if (!unit.target || !unit.target.isAlive) {
-            unit.target = this.findClosestTarget(unit);
-            if (!unit.target) {
-                unit.state = 'IDLE';
-                return;
-            }
-        }
-
-        const dist = this.getDistance(unit, unit.target);
-        
-        // 2. State Logic
-        if (dist <= unit.stats.range) {
-            unit.state = 'ATTACKING';
-            unit.path = [];
-            unit.nextMovePos = null;
-        } else {
-            unit.state = 'MOVING';
-        }
-
-        // 3. Action Execution
-        if (unit.state === 'ATTACKING') {
-            // Face target
-            const unitPos = this.getUnitPosition(unit);
-            const targetPos = this.getUnitPosition(unit.target);
-            if (unitPos && targetPos) {
-                const angle = Math.atan2(targetPos.x - unitPos.x, targetPos.z - unitPos.z);
-                if (unit.entity.model?.group) unit.entity.model.group.rotation.y = angle;
-                if (unit.entity.rotationY !== undefined) unit.entity.rotationY = angle;
-            }
-
-            unit.attackTimer += dt;
-            const attackInterval = 1.0 / (unit.stats.attackSpeed || 1.0);
-            
-            if (unit.attackTimer >= attackInterval) {
-                this.performAttack(unit, unit.target);
-                unit.attackTimer = 0;
-            }
-        } else if (unit.state === 'MOVING') {
-            this.handleMovement(unit, dt, environment);
+    private updateUnitVisuals(unit: CombatUnit, dt: number, environment: CombatEnvironment) {
+        // If unit is moving, handle interpolation
+        if (unit.state === 'MOVING') {
+             this.handleVisualMovement(unit, dt, environment);
         }
     }
 
-    private handleMovement(unit: CombatUnit, dt: number, environment: CombatEnvironment) {
-        if (!unit.target) return;
-
+    private handleVisualMovement(unit: CombatUnit, dt: number, environment: CombatEnvironment) {
         const unitPos = this.getUnitPosition(unit);
-        const targetPos = this.getUnitPosition(unit.target);
         
-        if (!unitPos || !targetPos) return;
+        if (!unitPos) return;
 
-        // Calculate path if needed
-        if (!unit.nextMovePos || unit.path.length === 0) {
-            // Pathfind to target
-            // Use environment to get path from unit.gridPos to target.gridPos
-            // Note: getPath should handle occupied cells
-            unit.path = environment.getPath(unitPos, targetPos);
-            
-            // Remove first step if it is current pos
-            if (unit.path.length > 0 && unit.gridPos && unit.path[0].r === unit.gridPos.r && unit.path[0].c === unit.gridPos.c) {
-                unit.path.shift();
-            }
-
-            if (unit.path.length > 0) {
+        // If no target pos, get next from path
+        if (!unit.nextMovePos) {
+             if (unit.path.length > 0) {
                 const nextCell = unit.path[0];
                 unit.nextMovePos = environment.getWorldPosition(nextCell.r, nextCell.c);
-            }
+             } else {
+                 // Path finished
+                 unit.state = 'IDLE';
+                 unit.nextMovePos = null;
+                 return;
+             }
         }
 
-        // Move towards nextMovePos
+        // Move towards nextMovePos with smooth interpolation
         if (unit.nextMovePos) {
             const dir = new THREE.Vector3().subVectors(unit.nextMovePos, unitPos).normalize();
-            const moveSpeed = 4.0; // Standardize move speed or get from stats
+            const moveSpeed = 6.0; // Increased speed for smoother feel
             const moveDist = moveSpeed * dt;
             
             // Look at direction
             const angle = Math.atan2(dir.x, dir.z);
-            if (unit.entity.rotationY !== undefined) unit.entity.rotationY = angle;
+            if (unit.entity.rotationY !== undefined) {
+                // Smooth rotation
+                const currentRotation = unit.entity.rotationY;
+                let rotationDiff = angle - currentRotation;
+                
+                // Normalize rotation difference to [-PI, PI]
+                while (rotationDiff > Math.PI) rotationDiff -= 2 * Math.PI;
+                while (rotationDiff < -Math.PI) rotationDiff += 2 * Math.PI;
+                
+                const rotationSpeed = 8.0 * dt;
+                unit.entity.rotationY += rotationDiff * Math.min(1, rotationSpeed);
+            }
             if (unit.entity.model?.group) unit.entity.model.group.rotation.y = angle;
 
             // Apply movement
@@ -215,31 +192,106 @@ export class CombatSystem {
                 unit.entity.mesh.position.addScaledVector(dir, moveDist);
             }
 
-            // Check if reached
-            if (unitPos.distanceTo(unit.nextMovePos) < 0.1) {
+            // Check if reached (small threshold)
+            if (unitPos.distanceTo(unit.nextMovePos) < 0.05) {
+                // Snap to exact pos
+                if (unit.entity.position) unit.entity.position.copy(unit.nextMovePos);
+                
                 unit.path.shift();
-                if (unit.path.length > 0) {
-                    const nextCell = unit.path[0];
-                    unit.nextMovePos = environment.getWorldPosition(nextCell.r, nextCell.c);
-                } else {
-                    unit.nextMovePos = null;
+                unit.nextMovePos = null;
+                
+                if (unit.path.length === 0) {
+                    unit.state = 'IDLE';
                 }
             }
         }
     }
 
-    private performAttack(attacker: CombatUnit, defender: CombatUnit) {
-        // Damage calculation
+    // --- Actions ---
+
+    public canMove(unit: CombatUnit, pathLength: number): boolean {
+        // pathLength includes start? usually path finding returns list of cells.
+        // If path is [start, step1, step2], steps = length - 1. 
+        // If path is just [step1, step2], steps = length.
+        // Assuming path excludes start cell for movement cost.
+        return (unit.stats.currentMovement || 0) >= pathLength;
+    }
+
+    public executeMove(unit: CombatUnit, path: { r: number, c: number }[]) {
+        if (!unit.isAlive) return;
+        if (unit.state !== 'IDLE') return; // Already doing something
+        if (unit.stats.hasMovedThisTurn) {
+            this.onCombatLog?.(`${this.getUnitName(unit)} has already moved this turn!`, 'info');
+            return;
+        }
+        
+        // Setup movement
+        unit.path = [...path]; // Copy path
+        
+        // Remove start node if it matches current position (common in pathfinding results)
+        if (unit.gridPos && unit.path.length > 0) {
+            if (unit.path[0].r === unit.gridPos.r && unit.path[0].c === unit.gridPos.c) {
+                unit.path.shift();
+            }
+        }
+
+        const cost = unit.path.length;
+        if (cost > (unit.stats.currentMovement || 0)) {
+            console.warn("Attempted move with insufficient MP");
+        }
+
+        unit.stats.currentMovement = Math.max(0, (unit.stats.currentMovement || 0) - cost);
+        unit.stats.hasMovedThisTurn = true;
+        unit.state = 'MOVING';
+    }
+
+    public executeAttack(attacker: CombatUnit, defender: CombatUnit) {
+        if (!attacker.isAlive || !defender.isAlive) return;
+        if (attacker.state !== 'IDLE') {
+            this.onCombatLog?.(`${this.getUnitName(attacker)} cannot attack while moving!`, 'info');
+            return;
+        }
+        if (attacker.stats.hasActedThisTurn) {
+            this.onCombatLog?.(`${this.getUnitName(attacker)} has already acted this turn!`, 'info');
+            return;
+        }
+
+        attacker.state = 'ATTACKING';
+        
+        // Face target
+        const unitPos = this.getUnitPosition(attacker);
+        const targetPos = this.getUnitPosition(defender);
+        if (unitPos && targetPos) {
+            const angle = Math.atan2(targetPos.x - unitPos.x, targetPos.z - unitPos.z);
+            if (attacker.entity.model?.group) attacker.entity.model.group.rotation.y = angle;
+            if (attacker.entity.rotationY !== undefined) attacker.entity.rotationY = angle;
+        }
+
+        // Trigger animation
+        if (attacker.entity.setAnimation) {
+             attacker.entity.setAnimation('attack', false); // Trigger one-shot attack
+        }
+
+        // Apply Damage (immediate for now, could be delayed by animation event)
+        this.performDamageCalc(attacker, defender);
+
+        attacker.stats.hasActedThisTurn = true;
+        
+        // After attack, brief delay then return to IDLE?
+        // For turn based, we stay in 'ATTACKING' visually until anim is done? 
+        // Simulating simple timer for now.
+        setTimeout(() => {
+            if (attacker.isAlive) attacker.state = 'IDLE';
+        }, 1000);
+    }
+
+    private performDamageCalc(attacker: CombatUnit, defender: CombatUnit) {
         const rawDamage = attacker.stats.damage; 
         const mitigation = defender.stats.defense * 0.5; 
         const damage = Math.max(1, rawDamage - mitigation);
 
         defender.stats.health -= damage;
         
-        // Mana Generation
-        attacker.stats.mana = Math.min(attacker.stats.maxMana, (attacker.stats.mana || 0) + 10);
-        defender.stats.mana = Math.min(defender.stats.maxMana, (defender.stats.mana || 0) + 5);
-
         this.onCombatLog?.(`${this.getUnitName(attacker)} hits ${this.getUnitName(defender)} for ${Math.floor(damage)}`, 'damage');
         this.onUnitAttack?.(attacker.entity, defender.entity);
 
@@ -251,44 +303,45 @@ export class CombatSystem {
         }
 
         if (defender.stats.health <= 0) {
-            defender.isAlive = false;
-            defender.state = 'DEAD';
-            this.onCombatLog?.(`${this.getUnitName(defender)} died!`, 'death');
-            this.onUnitDeath?.(defender.entity);
-            
-            // Visual cleanup
-            if (defender.entity.model?.group) defender.entity.model.group.visible = false;
-            else if (defender.entity.mesh) defender.entity.mesh.visible = false;
-            
-            // Clear occupancy
-            if (defender.gridPos) {
-                // We need access to environment to clear, but update loop handles it next frame
-            }
+            this.killUnit(defender);
         }
     }
 
-    private findClosestTarget(unit: CombatUnit): CombatUnit | null {
-        let closest: CombatUnit | null = null;
-        let minDist = Infinity;
-
-        for (const other of this.units) {
-            if (other.isFriendly === unit.isFriendly || !other.isAlive) continue;
-
-            const d = this.getDistance(unit, other);
-            if (d < minDist) {
-                minDist = d;
-                closest = other;
-            }
-        }
-        return closest;
+    private killUnit(unit: CombatUnit) {
+        unit.isAlive = false;
+        unit.state = 'DEAD';
+        this.onCombatLog?.(`${this.getUnitName(unit)} died!`, 'death');
+        this.onUnitDeath?.(unit.entity);
+        
+        // Visual cleanup
+        if (unit.entity.model?.group) unit.entity.model.group.visible = false;
+        else if (unit.entity.mesh) unit.entity.mesh.visible = false;
     }
 
-    private getDistance(u1: CombatUnit, u2: CombatUnit): number {
-        const p1 = this.getUnitPosition(u1);
-        const p2 = this.getUnitPosition(u2);
-        if (!p1 || !p2) return Infinity;
-        return p1.distanceTo(p2);
+    public endTurn() {
+        this.turnManager.nextTurn();
     }
+
+    public waitTurn() {
+        this.turnManager.waitCurrentTurn();
+    }
+
+    public defend(unit: CombatUnit) {
+        if (!unit.isAlive) return;
+        if (unit.state !== 'IDLE') return;
+        
+        // Defend action: grants temporary defense bonus but ends turn
+        unit.stats.defense = Math.floor(unit.baseDefense * 1.5);
+        unit.state = 'DEFENDING';
+        unit.stats.hasActedThisTurn = true; // Prevent further actions this turn
+        
+        this.onCombatLog?.(`${this.getUnitName(unit)} is defending! Defense increased!`, 'info');
+        
+        // End turn after defending
+        setTimeout(() => this.endTurn(), 1000);
+    }
+
+    // --- Helpers ---
 
     private getUnitPosition(unit: CombatUnit): THREE.Vector3 | null {
         return unit.entity?.position || unit.entity?.mesh?.position || unit.entity?.model?.group?.position || null;
@@ -316,8 +369,22 @@ export class CombatSystem {
     public getAliveEnemyCount() { return this.units.filter(u => !u.isFriendly && u.isAlive).length; }
     public isCombatOver() { return this.combatEnded; }
     
-    // Helper to get CombatUnit from Entity
     public getUnitByEntity(entity: any): CombatUnit | undefined {
         return this.units.find(u => u.entity === entity);
+    }
+
+    public getAllUnits(): CombatUnit[] {
+        return this.units;
+    }
+
+    public getActiveUnit(): CombatUnit | null {
+        return this.turnManager.getCurrentUnit();
+    }
+
+    public reset() {
+        this.units = [];
+        this.combatEnded = false;
+        this.currentEnvironment = null;
+        this.turnManager.reset();
     }
 }

@@ -148,6 +148,7 @@ export class SceneManager {
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'town') {
+            this.player.show(); // Ensure player is visible
             // Expanded bounds for both main town grid (left) and arena grid (right)
             // Total width: 200 (100 + 100), height: 100
             const halfWidth = 100; // Half of total width (200)
@@ -167,6 +168,7 @@ export class SceneManager {
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'singleBiome') {
+            this.player.show(); // Ensure player is visible
             this.player.mesh.position.set(0, 5, 0);
             this.renderManager.controls.target.set(0, 1.7, 0);
             this.renderManager.camera.position.set(0, 8, 10);
@@ -175,6 +177,7 @@ export class SceneManager {
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'land') {
+            this.player.show(); // Ensure player is visible
             const spawnLandX = 48.64361716159903;
             const spawnLandZ = 7.903447931463069;
             const { x: startX, z: startZ } = landCoordsToWorld(spawnLandX, spawnLandZ);
@@ -187,6 +190,7 @@ export class SceneManager {
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'combat') {
+            this.player.hide(); // Hide the player model in combat
             this.player.mesh.position.set(0, 0, 0);
 
             const reservedCells: any[] = [];
@@ -203,6 +207,7 @@ export class SceneManager {
             this.renderManager.camera.lookAt(0,0,0);
             this.renderManager.controls.enablePan = false; 
         } else if (sceneName === 'mp') {
+            this.player.show(); // Ensure player is visible
             this.player.mesh.position.set(0, 0, 0);
             this.renderManager.controls.target.set(0, 0, 0);
             this.renderManager.camera.position.set(0, 5, 10);

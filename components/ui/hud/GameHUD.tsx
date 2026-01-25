@@ -30,12 +30,17 @@ interface GameHUDProps {
     onToggleBestiary: () => void;
     onChangeLand?: () => void;
     isBuilderMode?: boolean;
+    onEndTurn?: () => void;
+    onWaitTurn?: () => void;
+    onDefend?: () => void;
+    isPlayerTurn?: boolean;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
     activeScene, currentBiome, playerRotation, inventory, bench, selectedSlot, onSelectSlot,
     selectedUnit, interactionText, interactionProgress, showGrid, setShowGrid, isCombatActive, setIsCombatActive,
-    stats, isFemale, combatLog, onOpenTravel, onToggleBestiary, onChangeLand, isBuilderMode
+    stats, isFemale, combatLog, onOpenTravel, onToggleBestiary, onChangeLand, isBuilderMode,
+    onEndTurn, onWaitTurn, onDefend, isPlayerTurn
 }) => {
     const isCombat = activeScene === 'combat';
 
@@ -99,6 +104,35 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                                 className="px-10 py-3 rounded-full bg-blue-600 text-white font-black uppercase tracking-[0.2em] text-xs shadow-[0_0_30px_rgba(37,99,235,0.4)] border-2 border-blue-400 hover:bg-blue-500 hover:scale-105 transition-all active:scale-95 animate-pulse"
                             >
                                 Start Combat
+                            </button>
+                        )}
+                        {isCombatActive && onEndTurn && (
+                            <button 
+                                onClick={onEndTurn}
+                                disabled={!isPlayerTurn}
+                                className={`px-8 py-3 rounded-full font-black uppercase tracking-[0.2em] text-xs border-2 transition-all ${
+                                    isPlayerTurn 
+                                        ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_0_30px_rgba(251,191,36,0.35)] hover:bg-amber-300 hover:scale-105 active:scale-95' 
+                                        : 'bg-slate-800/70 text-slate-400 border-white/10 cursor-not-allowed'
+                                }`}
+                            >
+                                {isPlayerTurn ? 'End Turn' : 'Enemy Turn'}
+                            </button>
+                        )}
+                        {isCombatActive && onWaitTurn && isPlayerTurn && (
+                            <button 
+                                onClick={onWaitTurn}
+                                className="px-6 py-3 rounded-full bg-purple-600/80 text-white font-black uppercase tracking-[0.15em] text-xs border-2 border-purple-400/50 shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:bg-purple-500 hover:scale-105 transition-all active:scale-95"
+                            >
+                                Wait
+                            </button>
+                        )}
+                        {isCombatActive && onDefend && isPlayerTurn && (
+                            <button 
+                                onClick={onDefend}
+                                className="px-6 py-3 rounded-full bg-green-600/80 text-white font-black uppercase tracking-[0.15em] text-xs border-2 border-green-400/50 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:bg-green-500 hover:scale-105 transition-all active:scale-95"
+                            >
+                                Defend
                             </button>
                         )}
                         <button 

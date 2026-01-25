@@ -6,7 +6,7 @@ import { Environment } from '../../../environment/Environment';
 import { AIUtils } from '../../../core/AIUtils';
 import { PlayerUtils } from '../../../player/PlayerUtils';
 import { CLASS_STATS } from '../../../../data/stats';
-import { PlayerCombat } from '../../../player/PlayerCombat';
+import { ProjectileManager } from '../../../managers/ProjectileManager';
 
 enum ArcherState { IDLE, PATROL, CHASE, DUEL, ATTACK, RETREAT }
 
@@ -120,7 +120,7 @@ export class Archer extends HumanoidEntity {
                     // BaseEntity doesn't store current target reference from CombatSystem (yet).
                     // For visuals, we can just fire forward or look at rotation.
                     const dir = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.rotationY);
-                    PlayerCombat.spawnProjectile(this.scene, this.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, 'arrow', this);
+                    ProjectileManager.spawnProjectile(this.scene, this.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, 'arrow', this);
                     this.hasFired = true;
                 }
             } else {
@@ -258,7 +258,7 @@ export class Archer extends HumanoidEntity {
             this.fireTimer += dt;
             if (this.fireTimer > 0.6 && !this.hasFired && this.currentTarget) {
                 const dir = new THREE.Vector3().subVectors(this.currentTarget.position, this.position).normalize();
-                PlayerCombat.spawnProjectile(this.scene, this.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, 'arrow', this);
+                ProjectileManager.spawnProjectile(this.scene, this.position.clone().add(new THREE.Vector3(0, 1.4, 0)), dir, 'arrow', this);
                 this.hasFired = true;
             }
             if (this.fireTimer > 1.2) {

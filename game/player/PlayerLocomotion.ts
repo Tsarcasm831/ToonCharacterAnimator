@@ -39,7 +39,7 @@ export class PlayerLocomotion {
         this.rotationY = player.mesh.rotation.y;
     }
 
-    update(dt: number, input: PlayerInput, cameraAngle: number, obstacles: THREE.Object3D[]) {
+    update(dt: number, input: PlayerInput, cameraAngle: number, obstacles: THREE.Object3D[], isInCombat: boolean = false) {
         // 1. Handle Ground & Gravity
         const pos = this.position;
         // Use getLandingHeight to avoid snapping to overhead obstacles (lintels)
@@ -112,8 +112,8 @@ export class PlayerLocomotion {
             return;
         }
 
-        // 2. Handle Movement (if not dead/climbing)
-        if (this.player.status.isDead || this.isLedgeGrabbing) {
+        // 2. Handle Movement (if not dead/climbing/in combat)
+        if (this.player.status.isDead || this.isLedgeGrabbing || isInCombat) {
             this.velocity.set(0, 0, 0);
             return;
         }
@@ -313,5 +313,15 @@ export class PlayerLocomotion {
         if (!PlayerUtils.checkCollision(nextPos, this.player.config, obstacles) && PlayerUtils.isWithinBounds(nextPos)) {
             this.position.copy(nextPos);
         }
+    }
+
+    snapToCombatGrid(combatEnvironment: any) {
+        if (!combatEnvironment || typeof combatEnvironment.snapToGrid !== 'function') {
+            return;
+        }
+        
+        const snappedPos = combatEnvironment.snapToGrid(this.position);
+        this.position.copy(snappedPos);
+        this.previousPosition.copy(snappedPos);
     }
 }

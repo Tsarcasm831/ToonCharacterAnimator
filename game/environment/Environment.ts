@@ -153,7 +153,7 @@ export class Environment {
             // So we might not need to explicitly wait unless we want to ensure readiness before showing something specific.
             // Original code waited for obstacles.
             
-            const obstaclesPromise = this.obstacleManager.initAsync(20);
+            const obstaclesPromise = this.obstacleManager.initAsync(5); // Reduced from 20
             await obstaclesPromise;
 
             if (!this.grassManager) this.grassManager = new GrassManager(this.group);

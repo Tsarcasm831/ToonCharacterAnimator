@@ -343,4 +343,49 @@ export class SoundManager {
         osc.start();
         osc.stop(t + 0.8);
     }
+
+    playWoodChop() {
+        if (!this.ctx || !this.masterGain) return;
+        this.ensureContext();
+        const t = this.ctx.currentTime;
+        
+        // Sharp impact noise
+        const bufferSize = this.ctx.sampleRate * 0.05; // 50ms
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() - 0.5) * 2;
+        }
+        
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const noiseFilter = this.ctx.createBiquadFilter();
+        const noiseGain = this.ctx.createGain();
+        
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+        
+        // Sharp impact filter
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.setValueAtTime(800, t);
+        noiseGain.gain.setValueAtTime(0.4, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.06);
+        
+        // Wood resonance (low thud)
+        const thud = this.ctx.createOscillator();
+        thud.type = 'square';
+        thud.frequency.setValueAtTime(120, t);
+        thud.frequency.exponentialRampToValueAtTime(60, t + 0.15);
+        const thudGain = this.ctx.createGain();
+        thudGain.gain.setValueAtTime(0.3, t);
+        thudGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+        thud.connect(thudGain).connect(this.masterGain);
+        
+        // Start all sounds
+        noise.start(t);
+        noise.stop(t + 0.1);
+        thud.start(t);
+        thud.stop(t + 0.2);
+    }
 }

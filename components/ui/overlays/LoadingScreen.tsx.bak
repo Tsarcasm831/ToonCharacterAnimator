@@ -10,9 +10,6 @@ interface LoadingScreenProps {
     isVisible: boolean;
     isSystemReady: boolean; // Passed from App to indicate environment build is done
     onFinished?: () => void;
-    onVideoStable?: () => void; // Callback when video is playing and stable
-    onVideoFinished?: () => void; // Callback when video is completely finished
-    isLoadingScene?: boolean; // Scene initialization in progress
 }
 
 const MESSAGES = [
@@ -159,16 +156,22 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
     );
 };
 
-const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady, onFinished, onVideoStable, onVideoFinished, isLoadingScene = false }) => {
+const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady, onFinished }) => {
     const [runnerProgress, setRunnerProgress] = useState(0);
     const [messageIndex, setMessageIndex] = useState(0);
     const [shouldRender, setShouldRender] = useState(isVisible);
     const [isEnemiesPreloaded, setIsEnemiesPreloaded] = useState(false);
     const [showClickToStart, setShowClickToStart] = useState(false);
     const [isVideoReady, setIsVideoReady] = useState(false);
-    const [isVideoPlaying, setIsVideoPlaying] = useState(false);
     const hasCalledFinished = useRef(false);
-    const hasNotifiedFinished = useRef(false);
+
+    // Preload video on component mount
+    useEffect(() => {
+        const video = document.createElement('video');
+        video.preload = 'auto';
+        video.src = '/assets/videos/loading.mp4';
+        video.load();
+    }, []);
 
     useEffect(() => {
         if (isVisible) {
@@ -179,7 +182,14 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
             setIsEnemiesPreloaded(false);
             setShowClickToStart(false);
             setIsVideoReady(false);
-            setIsVideoPlaying(false);
+
+            // Preload enemies
+            EnemyCache.preloadAllEnemies().then(() => {
+                setIsEnemiesPreloaded(true);
+            }).catch(() => {
+                // Fail gracefully so we don't block the screen
+                setIsEnemiesPreloaded(true);
+            });
 
             // Message cycling
             const msgInterval = setInterval(() => {
@@ -196,87 +206,48 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
     }, [isVisible]);
 
     const videoRef = useRef<HTMLVideoElement>(null);
-    const reverseVideoRef = useRef<HTMLVideoElement>(null);
     const [isReversing, setIsReversing] = useState(false);
 
-    // Handle video start and preload enemies after video starts playing
+    // Video ping-pong effect
     useEffect(() => {
         const video = videoRef.current;
-        const reverseVideo = reverseVideoRef.current;
-        
-        if (!video || !reverseVideo) return;
+        if (!video) return;
 
-        const handlePlay = () => {
-            setIsVideoPlaying(true);
-            
-            // Notify parent that video is stable after a short delay
-            const stableTimeout = setTimeout(() => {
-                onVideoStable?.();
-            }, 500);
-            
-            // Start loading enemies in chunks to reduce resource contention
-            const loadEnemiesInChunks = async () => {
-                // Skip enemy preloading during loading to avoid blocking
-                // Enemies will be lazy-loaded when first encountered
-                console.log('Skipping enemy preloading - will lazy load on demand');
-                setIsEnemiesPreloaded(true);
-            };
-            
-            loadEnemiesInChunks();
-        };
-
-        const handleCanPlayThrough = () => {
-            setIsVideoReady(true);
-        };
-
-        video.addEventListener('play', handlePlay);
-        video.addEventListener('canplaythrough', handleCanPlayThrough);
-        reverseVideo.addEventListener('canplaythrough', handleCanPlayThrough);
-
-        return () => {
-            video.removeEventListener('play', handlePlay);
-            video.removeEventListener('canplaythrough', handleCanPlayThrough);
-            reverseVideo.removeEventListener('canplaythrough', handleCanPlayThrough);
-        };
-    }, []);
-
-    // Video ping-pong effect using dual videos for seamless reverse
-    useEffect(() => {
-        const video = videoRef.current;
-        const reverseVideo = reverseVideoRef.current;
-        
-        if (!video || !reverseVideo) return;
-
-        const handleForwardEnded = () => {
-            // Notify parent that video has finished its first cycle
-            if (!hasNotifiedFinished.current) {
-                hasNotifiedFinished.current = true;
-                onVideoFinished?.();
-            }
-            
-            // Switch to reverse video
+        const handleEnded = () => {
             setIsReversing(true);
-            video.pause();
-            reverseVideo.currentTime = 0;
-            reverseVideo.play().catch(() => {});
+            if (videoRef.current) {
+                videoRef.current.pause();
+                videoRef.current.currentTime = videoRef.current.duration - 0.1;
+            }
         };
 
-        const handleReverseEnded = () => {
-            // Switch back to forward video
-            setIsReversing(false);
-            reverseVideo.pause();
-            video.currentTime = 0;
-            video.play().catch(() => {});
-        };
-
-        video.addEventListener('ended', handleForwardEnded);
-        reverseVideo.addEventListener('ended', handleReverseEnded);
-        
-        return () => {
-            video.removeEventListener('ended', handleForwardEnded);
-            reverseVideo.removeEventListener('ended', handleReverseEnded);
-        };
+        video.addEventListener('ended', handleEnded);
+        return () => video.removeEventListener('ended', handleEnded);
     }, []);
+
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        let frameId: number;
+        const step = () => {
+            if (isReversing) {
+                if (video.currentTime <= 0.1) {
+                    setIsReversing(false);
+                    video.currentTime = 0;
+                    video.play().catch(() => {});
+                } else {
+                    // Manual reverse - video elements don't support playbackRate = -1 well
+                    // Using a slightly larger step for smoother reverse and checking more frequently
+                    video.currentTime = Math.max(0, video.currentTime - 0.04); 
+                }
+            }
+            frameId = requestAnimationFrame(step);
+        };
+
+        frameId = requestAnimationFrame(step);
+        return () => cancelAnimationFrame(frameId);
+    }, [isReversing]);
 
     const totalSteps = 3;
     const completedSteps = Number(isVideoReady) + Number(isSystemReady) + Number(isEnemiesPreloaded);
@@ -297,44 +268,22 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
 
     return (
         <div className={`absolute inset-0 z-[150] flex flex-col items-center justify-center transition-opacity duration-700 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="absolute inset-0">
-                <video
-                    ref={videoRef}
-                    className={`absolute inset-0 w-full h-full object-cover ${isReversing ? 'opacity-0' : 'opacity-100'} transition-opacity duration-100`}
-                    autoPlay
-                    muted
-                    playsInline
-                    preload="auto"
-                >
-                    <source src="/assets/videos/loading_compressed.mp4" type="video/mp4" />
-                </video>
-                <video
-                    ref={reverseVideoRef}
-                    className={`absolute inset-0 w-full h-full object-cover ${isReversing ? 'opacity-100' : 'opacity-0'} transition-opacity duration-100`}
-                    muted
-                    playsInline
-                    preload="auto"
-                >
-                    <source src="/assets/videos/loading_compressed_reverse.mp4" type="video/mp4" />
-                </video>
-            </div>
+            <video
+                ref={videoRef}
+                className="absolute inset-0 w-full h-full object-cover"
+                autoPlay
+                muted
+                playsInline
+                preload="auto"
+                onLoadedData={() => setIsVideoReady(true)}
+            >
+                <source src="/assets/videos/loading.mp4" type="video/mp4" />
+            </video>
             <div className="absolute inset-0 bg-black/40" />
             <div className="relative w-full max-w-2xl px-12 flex flex-col items-center">
                 <div className="h-[20vh]" />
                 
-                {!isVideoReady ? (
-                    <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse">
-                        Loading Cinematic...
-                    </div>
-                ) : !isVideoPlaying ? (
-                    <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse">
-                        Preparing Assets...
-                    </div>
-                ) : isLoadingScene ? (
-                    <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse">
-                        Initializing Scene...
-                    </div>
-                ) : (
+                {isVideoReady ? (
                     <>
                         {/* Secondary Loading Track with Runner */}
                         <div className="relative w-full h-1.5 bg-white/5 rounded-full mb-12">
@@ -393,7 +342,12 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                             </div>
                         </div>
                     </>
+                ) : (
+                    <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse">
+                        Loading Cinematic...
+                    </div>
                 )}
+
             </div>
 
             <div className="absolute bottom-12 flex flex-col items-center gap-4 opacity-30">
