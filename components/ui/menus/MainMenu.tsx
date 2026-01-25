@@ -214,7 +214,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
                     onClick={() => setShowUnits(false)}
                 >
                     <div
-                        className="relative w-[min(1200px,92vw)] h-[82vh] rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
+                        className="relative w-[min(1200px,92vw)] h-[90vh] rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <button
