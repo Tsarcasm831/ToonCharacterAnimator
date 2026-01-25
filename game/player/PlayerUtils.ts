@@ -162,10 +162,10 @@ export class PlayerUtils {
                 continue;
             }
 
-            const obsBox = new THREE.Box3().setFromObject(obs);
-            if (this._tempBox.min.x < obsBox.max.x && this._tempBox.max.x > obsBox.min.x &&
-                this._tempBox.min.z < obsBox.max.z && this._tempBox.max.z > obsBox.min.z) {
-                highest = Math.max(highest, obsBox.max.y);
+            this._tempBox2.setFromObject(obs);
+            if (this._tempBox.min.x < this._tempBox2.max.x && this._tempBox.max.x > this._tempBox2.min.x &&
+                this._tempBox.min.z < this._tempBox2.max.z && this._tempBox.max.z > this._tempBox2.min.z) {
+                highest = Math.max(highest, this._tempBox2.max.y);
             }
         }
         return highest;
@@ -179,11 +179,11 @@ export class PlayerUtils {
         if (obstacles && Array.isArray(obstacles)) {
             const groundMeshes = obstacles.filter((o) => o && o.userData && o.userData.type === 'ground');
             if (groundMeshes.length > 0) {
-                const rayOrigin = new THREE.Vector3(pos.x, 200, pos.z);
-                const rayDir = new THREE.Vector3(0, -1, 0);
-                const raycaster = new THREE.Raycaster(rayOrigin, rayDir, 0, 300);
+                this._tempRayOrigin.set(pos.x, 200, pos.z);
+                this._raycaster.set(this._tempRayOrigin, this._tempRayDir);
+                this._raycaster.far = 300;
                 
-                const intersects = raycaster.intersectObjects(groundMeshes);
+                const intersects = this._raycaster.intersectObjects(groundMeshes);
                 if (intersects.length > 0) {
                     // Use the highest hit point directly, overriding the mathematical fallback
                     highest = intersects[0].point.y;
@@ -196,18 +196,17 @@ export class PlayerUtils {
         const stepLimit = 2.0; 
         const searchCeiling = pos.y + stepLimit;
 
-        const pBox = new THREE.Box3().setFromCenterAndSize(
-            new THREE.Vector3(pos.x, pos.y + stepLimit/2, pos.z), 
-            new THREE.Vector3(width, stepLimit, depth)
-        );
+        this._tempVec2.set(pos.x, pos.y + stepLimit / 2, pos.z);
+        this._tempVec1.set(width, stepLimit, depth);
+        const pBox = this._tempBox.setFromCenterAndSize(this._tempVec2, this._tempVec1);
 
         for (const obs of obstacles) {
             if (!obs || !obs.userData) continue;
             if (obs.userData.type === 'soft' || obs.userData.type === 'creature' || obs.userData.type === 'ground') continue; 
-            const obsBox = new THREE.Box3().setFromObject(obs);
-            if (pBox.intersectsBox(obsBox)) {
-                if (obsBox.max.y <= searchCeiling) {
-                    highest = Math.max(highest, obsBox.max.y);
+            this._tempBox2.setFromObject(obs);
+            if (pBox.intersectsBox(this._tempBox2)) {
+                if (this._tempBox2.max.y <= searchCeiling) {
+                    highest = Math.max(highest, this._tempBox2.max.y);
                 }
             }
         }
