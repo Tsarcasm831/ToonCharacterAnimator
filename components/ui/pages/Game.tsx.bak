@@ -68,6 +68,7 @@ export const Game: React.FC = () => {
     // Gate scene mounting so the loading screen can paint before heavy initialization begins
     const [shouldMountScene, setShouldMountScene] = React.useState(false);
     const [isVideoStable, setIsVideoStable] = React.useState(false);
+    const [isVideoFinished, setIsVideoFinished] = React.useState(false);
     const [isSceneInitializing, setIsSceneInitializing] = React.useState(false);
     const mountSceneTimeout = React.useRef<number | null>(null);
 
@@ -83,21 +84,22 @@ export const Game: React.FC = () => {
         activeSceneRef.current = activeScene;
     }, [activeScene]);
 
-    // Mount scene only after the loading video is stable to avoid blocking
+    // Mount scene only after video is completely finished to avoid blocking
     React.useEffect(() => {
-        if (gameState === 'LOADING' && isVideoStable && !shouldMountScene) {
+        if (gameState === 'LOADING' && isVideoFinished && !shouldMountScene) {
             setIsSceneInitializing(true);
             mountSceneTimeout.current = window.setTimeout(() => {
                 setShouldMountScene(true);
                 setIsSceneInitializing(false);
             }, 100); // Small delay to ensure smooth transition
         }
-    }, [gameState, isVideoStable, shouldMountScene]);
+    }, [gameState, isVideoFinished, shouldMountScene]);
 
     // Reset video states when leaving menu
     React.useEffect(() => {
         if (gameState !== 'MENU') {
             setIsVideoStable(false);
+            setIsVideoFinished(false);
             setIsSceneInitializing(false);
         }
     }, [gameState]);
@@ -110,6 +112,7 @@ export const Game: React.FC = () => {
         setGameState('LOADING');
         setShouldMountScene(false);
         setIsVideoStable(false);
+        setIsVideoFinished(false);
         setIsSceneInitializing(false);
         if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
         if (startInDev) {
@@ -123,6 +126,10 @@ export const Game: React.FC = () => {
         } else {
           setActiveScene('dev');
         }
+        // Defer mounting the scene to next tick to allow loading UI to paint
+        mountSceneTimeout.current = window.setTimeout(() => {
+          setShouldMountScene(true);
+        }, 150);
     };
 
     const handleEnvironmentReady = () => {
@@ -483,6 +490,7 @@ export const Game: React.FC = () => {
                                 isSystemReady={isSystemReady}
                                 onFinished={handleStartPlaying}
                                 onVideoStable={() => setIsVideoStable(true)}
+                                onVideoFinished={() => setIsVideoFinished(true)}
                                 isLoadingScene={isSceneInitializing}
                             />
                             

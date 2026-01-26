@@ -4,12 +4,14 @@ import * as THREE from 'three';
 import { PlayerModel } from '../../../game/model/PlayerModel';
 import { MovementAction } from '../../../game/animator/actions/MovementAction';
 import { DEFAULT_CONFIG } from '../../../types';
+import { EnemyCache } from '../../../game/core/EnemyCache';
 
 interface LoadingScreenProps {
     isVisible: boolean;
     isSystemReady: boolean; // Passed from App to indicate environment build is done
     onFinished?: () => void;
     onVideoStable?: () => void; // Callback when video is playing and stable
+    onVideoFinished?: () => void; // Callback when video is completely finished
     isLoadingScene?: boolean; // Scene initialization in progress
 }
 
@@ -157,7 +159,7 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
     );
 };
 
-const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady, onFinished, onVideoStable, isLoadingScene = false }) => {
+const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady, onFinished, onVideoStable, onVideoFinished, isLoadingScene = false }) => {
     const [runnerProgress, setRunnerProgress] = useState(0);
     const [messageIndex, setMessageIndex] = useState(0);
     const [shouldRender, setShouldRender] = useState(isVisible);
@@ -165,11 +167,8 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
     const [showClickToStart, setShowClickToStart] = useState(false);
     const [isVideoReady, setIsVideoReady] = useState(false);
     const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-    const [showRunnerTrack, setShowRunnerTrack] = useState(false);
-    const [showLoadingTrack, setShowLoadingTrack] = useState(false);
-    const [loadingProgress, setLoadingProgress] = useState(0);
     const hasCalledFinished = useRef(false);
-    const sequenceTimers = useRef<number[]>([]);
+    const hasNotifiedFinished = useRef(false);
 
     useEffect(() => {
         if (isVisible) {
@@ -181,13 +180,14 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
             setShowClickToStart(false);
             setIsVideoReady(false);
             setIsVideoPlaying(false);
-            setShowRunnerTrack(false);
-            setShowLoadingTrack(false);
-            setLoadingProgress(0);
+
+            // Message cycling
+            const msgInterval = setInterval(() => {
+                setMessageIndex(prev => Math.min(prev + 1, MESSAGES.length - 1));
+            }, 800);
 
             return () => {
-                sequenceTimers.current.forEach((timer) => window.clearTimeout(timer));
-                sequenceTimers.current = [];
+                clearInterval(msgInterval);
             };
         } else {
             const timer = setTimeout(() => setShouldRender(false), 500);
@@ -196,28 +196,23 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
     }, [isVisible]);
 
     const videoRef = useRef<HTMLVideoElement>(null);
+    const reverseVideoRef = useRef<HTMLVideoElement>(null);
+    const [isReversing, setIsReversing] = useState(false);
 
     // Handle video start and preload enemies after video starts playing
     useEffect(() => {
         const video = videoRef.current;
-        if (!video) return;
+        const reverseVideo = reverseVideoRef.current;
+        
+        if (!video || !reverseVideo) return;
 
         const handlePlay = () => {
             setIsVideoPlaying(true);
             
             // Notify parent that video is stable after a short delay
-            const stableTimeout = window.setTimeout(() => {
+            const stableTimeout = setTimeout(() => {
                 onVideoStable?.();
             }, 500);
-            sequenceTimers.current.push(stableTimeout);
-
-            sequenceTimers.current.push(window.setTimeout(() => {
-                setShowRunnerTrack(true);
-            }, 150));
-
-            sequenceTimers.current.push(window.setTimeout(() => {
-                setShowLoadingTrack(true);
-            }, 650));
             
             // Start loading enemies in chunks to reduce resource contention
             const loadEnemiesInChunks = async () => {
@@ -236,64 +231,67 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
 
         video.addEventListener('play', handlePlay);
         video.addEventListener('canplaythrough', handleCanPlayThrough);
+        reverseVideo.addEventListener('canplaythrough', handleCanPlayThrough);
 
         return () => {
             video.removeEventListener('play', handlePlay);
             video.removeEventListener('canplaythrough', handleCanPlayThrough);
+            reverseVideo.removeEventListener('canplaythrough', handleCanPlayThrough);
         };
     }, []);
 
+    // Video ping-pong effect using dual videos for seamless reverse
     useEffect(() => {
-        if (!showLoadingTrack || !isVisible) return;
+        const video = videoRef.current;
+        const reverseVideo = reverseVideoRef.current;
+        
+        if (!video || !reverseVideo) return;
 
-        const interval = window.setInterval(() => {
-            setLoadingProgress((prev) => {
-                if (isSystemReady) return 100;
-                const next = prev + 1.2;
-                return Math.min(92, next);
-            });
-        }, 120);
+        const handleForwardEnded = () => {
+            // Notify parent that video has finished its first cycle
+            if (!hasNotifiedFinished.current) {
+                hasNotifiedFinished.current = true;
+                onVideoFinished?.();
+            }
+            
+            // Switch to reverse video
+            setIsReversing(true);
+            video.pause();
+            reverseVideo.currentTime = 0;
+            reverseVideo.play().catch(() => {});
+        };
 
-        return () => window.clearInterval(interval);
-    }, [showLoadingTrack, isVisible, isSystemReady]);
+        const handleReverseEnded = () => {
+            // Switch back to forward video
+            setIsReversing(false);
+            reverseVideo.pause();
+            video.currentTime = 0;
+            video.play().catch(() => {});
+        };
+
+        video.addEventListener('ended', handleForwardEnded);
+        reverseVideo.addEventListener('ended', handleReverseEnded);
+        
+        return () => {
+            video.removeEventListener('ended', handleForwardEnded);
+            reverseVideo.removeEventListener('ended', handleReverseEnded);
+        };
+    }, []);
+
+    const totalSteps = 3;
+    const completedSteps = Number(isVideoReady) + Number(isSystemReady) + Number(isEnemiesPreloaded);
+    const targetProgress = Math.round((completedSteps / totalSteps) * 100);
 
     useEffect(() => {
-        if (isSystemReady) {
-            setLoadingProgress(100);
-            setMessageIndex(MESSAGES.length - 1);
-        }
-    }, [isSystemReady]);
-
-    useEffect(() => {
-        if (!showLoadingTrack || !isVisible) return;
-        const msgInterval = setInterval(() => {
-            setMessageIndex(prev => Math.min(prev + 1, MESSAGES.length - 1));
-        }, 800);
-
-        return () => clearInterval(msgInterval);
-    }, [showLoadingTrack, isVisible]);
-
-    useEffect(() => {
-        if (!showRunnerTrack || !isVisible) return;
-
-        const interval = window.setInterval(() => {
-            setRunnerProgress((prev) => {
-                const baseTarget = showLoadingTrack ? Math.max(10, loadingProgress * 0.9) : 15;
-                const target = isSystemReady ? 100 : Math.min(95, baseTarget);
-                const step = isSystemReady ? 2 : 0.6;
-                return Math.min(target, prev + step);
-            });
-        }, 60);
-
-        return () => window.clearInterval(interval);
-    }, [showRunnerTrack, showLoadingTrack, isVisible, loadingProgress, isSystemReady]);
+        setRunnerProgress(targetProgress);
+    }, [targetProgress]);
 
     // Check completion gate
     useEffect(() => {
-        if (isSystemReady && loadingProgress >= 100 && runnerProgress >= 100 && !showClickToStart) {
+        if (targetProgress >= 100 && !showClickToStart) {
             setShowClickToStart(true);
         }
-    }, [isSystemReady, loadingProgress, runnerProgress, showClickToStart]);
+    }, [targetProgress, showClickToStart]);
 
     if (!shouldRender) return null;
 
@@ -302,14 +300,22 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
             <div className="absolute inset-0">
                 <video
                     ref={videoRef}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className={`absolute inset-0 w-full h-full object-cover ${isReversing ? 'opacity-0' : 'opacity-100'} transition-opacity duration-100`}
                     autoPlay
                     muted
                     playsInline
-                    loop
                     preload="auto"
                 >
                     <source src="/assets/videos/loading_compressed.mp4" type="video/mp4" />
+                </video>
+                <video
+                    ref={reverseVideoRef}
+                    className={`absolute inset-0 w-full h-full object-cover ${isReversing ? 'opacity-100' : 'opacity-0'} transition-opacity duration-100`}
+                    muted
+                    playsInline
+                    preload="auto"
+                >
+                    <source src="/assets/videos/loading_compressed_reverse.mp4" type="video/mp4" />
                 </video>
             </div>
             <div className="absolute inset-0 bg-black/40" />
@@ -324,44 +330,37 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                     <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse">
                         Preparing Assets...
                     </div>
+                ) : isLoadingScene ? (
+                    <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse">
+                        Initializing Scene...
+                    </div>
                 ) : (
                     <>
-                        {isLoadingScene && (
-                            <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse mb-6">
-                                Initializing Scene...
-                            </div>
-                        )}
-
                         {/* Secondary Loading Track with Runner */}
-                        {showRunnerTrack && (
-                            <div className="relative w-full h-1.5 bg-white/5 rounded-full mb-8">
-                                <div 
-                                    className="absolute inset-y-0 left-0 bg-blue-500/20 blur-sm transition-[width] duration-[120ms] ease-linear"
-                                    style={{ width: `${runnerProgress}%` }}
+                        <div className="relative w-full h-1.5 bg-white/5 rounded-full mb-12">
+                            <div 
+                                className="absolute inset-y-0 left-0 bg-blue-500/20 blur-sm transition-[width] duration-[120ms] ease-linear"
+                                style={{ width: `${runnerProgress}%` }}
+                            />
+                            <div 
+                                className="absolute inset-y-0 left-0 bg-blue-600 transition-[width] duration-[120ms] ease-linear shadow-[0_0_10px_#2563eb]"
+                                style={{ width: `${runnerProgress}%` }}
+                            />
+                            
+                            {runnerProgress < 100 && (
+                                <LoadingRunner 
+                                    progress={runnerProgress} 
+                                    className="w-24 h-24" 
                                 />
-                                <div 
-                                    className="absolute inset-y-0 left-0 bg-blue-600 transition-[width] duration-[120ms] ease-linear shadow-[0_0_10px_#2563eb]"
-                                    style={{ width: `${runnerProgress}%` }}
-                                />
-                                
-                                {runnerProgress < 100 && (
-                                    <LoadingRunner 
-                                        progress={runnerProgress} 
-                                        className="w-24 h-24" 
-                                    />
-                                )}
-                            </div>
-                        )}
+                            )}
+                        </div>
 
                         {/* Primary System Status Bar */}
-                        {showLoadingTrack && (
-                            <div className="relative w-80 h-1.5 bg-white/10 rounded-full mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/5">
-                                <div 
-                                    className="absolute inset-y-0 left-0 bg-green-500/80 shadow-[0_0_15px_#22c55e] transition-[width] duration-[200ms] ease-linear"
-                                    style={{ width: `${loadingProgress}%` }}
-                                />
-                            </div>
-                        )}
+                        <div className="relative w-72 h-1 bg-white/10 rounded-full mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/5">
+                            <div 
+                                className={`absolute inset-y-0 left-0 transition-all duration-1000 ease-out ${isSystemReady ? 'bg-green-500 shadow-[0_0_15px_#22c55e] w-full' : 'bg-blue-400 w-4/5 animate-pulse'}`}
+                            />
+                        </div>
 
                         <div className="flex flex-col items-center gap-4">
                             {showClickToStart ? (
@@ -376,7 +375,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                                 </button>
                             ) : (
                                 <div className="text-white font-black uppercase tracking-[0.6em] text-[11px] animate-pulse drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
-                                    {showLoadingTrack ? (isSystemReady && runnerProgress >= 100 ? "Finalizing..." : MESSAGES[messageIndex]) : "Booting World Systems..."}
+                                    {isSystemReady && runnerProgress >= 100 ? "Finalizing..." : MESSAGES[messageIndex]}
                                 </div>
                             )}
                             <div className="flex items-center gap-4">
