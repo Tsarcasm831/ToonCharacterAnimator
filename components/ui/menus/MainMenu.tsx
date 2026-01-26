@@ -12,9 +12,10 @@ interface MainMenuProps {
     onStart: (startInCombat: boolean, startInLand: boolean, startInDev: boolean, startInTown: boolean) => void;
     onShowEnemies: () => void;
     isMobile?: boolean;
+    showVideoBackground?: boolean;
 }
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMobile = false }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMobile = false, showVideoBackground = false }) => {
     const [startInCombat, setStartInCombat] = React.useState(false);
     const [startInLand, setStartInLand] = React.useState(false);
     const [startInDev, setStartInDev] = React.useState(false);
@@ -43,7 +44,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
 
     return (
         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center">
-            <MenuBackground />
+            <MenuBackground showVideo={showVideoBackground} />
             <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
                 {!hideControls && (
                     <div className="flex items-center justify-center gap-4 mb-8 animate-fade-in">

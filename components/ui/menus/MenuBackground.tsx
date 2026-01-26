@@ -52,7 +52,11 @@ interface Constellation {
   pulseSpeed: number;
 }
 
-export const MenuBackground: React.FC = () => {
+interface MenuBackgroundProps {
+    showVideo?: boolean;
+}
+
+export const MenuBackground: React.FC<MenuBackgroundProps> = ({ showVideo = false }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
   const particlesRef = useRef<Particle[]>([]);
@@ -62,6 +66,16 @@ export const MenuBackground: React.FC = () => {
   const constellationsRef = useRef<Constellation[]>([]);
   const timeRef = useRef(0);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const nextVideoRef = useRef<HTMLVideoElement>(null);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [isFirstVideoActive, setIsFirstVideoActive] = useState(true);
+  
+  const gameVideos = [
+    '/assets/videos/game/compressed_game_loading_1.mp4',
+    '/assets/videos/game/compressed_game_loading_2.mp4',
+    '/assets/videos/game/compressed_game_loading_3.mp4'
+  ] as const;
 
   useEffect(() => {
     const updateDimensions = () => {
@@ -80,6 +94,53 @@ export const MenuBackground: React.FC = () => {
 
     return () => resizeObserver.disconnect();
   }, []);
+
+  // Handle seamless video crossfade
+  useEffect(() => {
+    const video = videoRef.current;
+    const nextVideo = nextVideoRef.current;
+    if (!video || !nextVideo || !showVideo) return;
+
+    // Set initial sources
+    video.src = gameVideos[currentVideoIndex];
+    video.play().catch(() => {});
+    
+    // Preload and start next video (hidden)
+    const nextIndex = (currentVideoIndex + 1) % gameVideos.length;
+    nextVideo.src = gameVideos[nextIndex];
+    nextVideo.play().catch(() => {});
+
+    const handleVideoEnded = () => {
+      // Crossfade to next video
+      setIsFirstVideoActive(false);
+      
+      // Prepare for the next transition
+      setTimeout(() => {
+        const newCurrentIndex = (currentVideoIndex + 1) % gameVideos.length;
+        const newNextIndex = (currentVideoIndex + 2) % gameVideos.length;
+        
+        // Swap videos
+        video.src = gameVideos[newNextIndex];
+        video.play().catch(() => {});
+        
+        setCurrentVideoIndex(newCurrentIndex);
+        setIsFirstVideoActive(true);
+      }, 1500); // After fade completes
+    };
+
+    video.addEventListener('ended', handleVideoEnded);
+    return () => video.removeEventListener('ended', handleVideoEnded);
+  }, [showVideo, currentVideoIndex, gameVideos]);
+
+  // Update next video source when current video changes
+  useEffect(() => {
+    const nextVideo = nextVideoRef.current;
+    if (!nextVideo || !showVideo) return;
+    
+    const nextIndex = (currentVideoIndex + 1) % gameVideos.length;
+    nextVideo.src = gameVideos[nextIndex];
+    nextVideo.play().catch(() => {});
+  }, [currentVideoIndex, showVideo, gameVideos]);
 
   useEffect(() => {
     if (!canvasRef.current || dimensions.width === 0) return;
@@ -223,15 +284,20 @@ export const MenuBackground: React.FC = () => {
     initConstellations();
 
     const drawGradientBackground = (ctx: CanvasRenderingContext2D, time: number) => {
-      const gradient = ctx.createLinearGradient(0, 0, dimensions.width, dimensions.height);
-      const hue1 = (time * 0.01) % 360;
-      const hue2 = (hue1 + 60) % 360;
-      const hue3 = (hue1 + 120) % 360;
-      gradient.addColorStop(0, `hsla(${hue1}, 70%, 10%, 1)`);
-      gradient.addColorStop(0.5, `hsla(${hue2}, 60%, 8%, 1)`);
-      gradient.addColorStop(1, `hsla(${hue3}, 70%, 12%, 1)`);
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, dimensions.width, dimensions.height);
+      if (showVideo) {
+        // Clear canvas for video background
+        ctx.clearRect(0, 0, dimensions.width, dimensions.height);
+      } else {
+        const gradient = ctx.createLinearGradient(0, 0, dimensions.width, dimensions.height);
+        const hue1 = (time * 0.01) % 360;
+        const hue2 = (hue1 + 60) % 360;
+        const hue3 = (hue1 + 120) % 360;
+        gradient.addColorStop(0, `hsla(${hue1}, 70%, 10%, 1)`);
+        gradient.addColorStop(0.5, `hsla(${hue2}, 60%, 8%, 1)`);
+        gradient.addColorStop(1, `hsla(${hue3}, 70%, 12%, 1)`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, dimensions.width, dimensions.height);
+      }
     };
 
     const drawStars = (ctx: CanvasRenderingContext2D, time: number) => {
@@ -431,10 +497,39 @@ export const MenuBackground: React.FC = () => {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [dimensions]);
+  }, [dimensions, showVideo]);
 
   return (
     <div className="absolute inset-0 overflow-hidden">
+      {showVideo && (
+        <>
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ 
+              opacity: isFirstVideoActive ? 1 : 0,
+              transition: 'opacity 1.5s ease-in-out',
+              pointerEvents: 'none'
+            }}
+            autoPlay
+            muted
+            playsInline
+            preload="auto"
+          />
+          <video
+            ref={nextVideoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ 
+              opacity: isFirstVideoActive ? 0 : 1,
+              transition: 'opacity 1.5s ease-in-out',
+              pointerEvents: 'none'
+            }}
+            muted
+            playsInline
+            preload="auto"
+          />
+        </>
+      )}
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
