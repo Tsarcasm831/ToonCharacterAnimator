@@ -68,6 +68,7 @@ export const Game: React.FC = () => {
     // Gate scene mounting so the loading screen can paint before heavy initialization begins
     const [shouldMountScene, setShouldMountScene] = React.useState(false);
     const [isVideoStable, setIsVideoStable] = React.useState(false);
+    const [isVideoFinished, setIsVideoFinished] = React.useState(false);
     const [isSceneInitializing, setIsSceneInitializing] = React.useState(false);
     const mountSceneTimeout = React.useRef<number | null>(null);
 
@@ -83,21 +84,23 @@ export const Game: React.FC = () => {
         activeSceneRef.current = activeScene;
     }, [activeScene]);
 
-    // Mount scene only after the loading video is stable to avoid blocking
+    // Mount scene immediately when loading starts
     React.useEffect(() => {
-        if (gameState === 'LOADING' && isVideoStable && !shouldMountScene) {
+        if (gameState === 'LOADING' && !shouldMountScene && !isSceneInitializing) {
             setIsSceneInitializing(true);
+            // Small delay to ensure LoadingScreen component is rendered first
             mountSceneTimeout.current = window.setTimeout(() => {
                 setShouldMountScene(true);
                 setIsSceneInitializing(false);
-            }, 100); // Small delay to ensure smooth transition
+            }, 50);
         }
-    }, [gameState, isVideoStable, shouldMountScene]);
+    }, [gameState, shouldMountScene, isSceneInitializing]);
 
     // Reset video states when leaving menu
     React.useEffect(() => {
         if (gameState !== 'MENU') {
             setIsVideoStable(false);
+            setIsVideoFinished(false);
             setIsSceneInitializing(false);
         }
     }, [gameState]);
@@ -110,6 +113,7 @@ export const Game: React.FC = () => {
         setGameState('LOADING');
         setShouldMountScene(false);
         setIsVideoStable(false);
+        setIsVideoFinished(false);
         setIsSceneInitializing(false);
         if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
         if (startInDev) {
@@ -123,6 +127,10 @@ export const Game: React.FC = () => {
         } else {
           setActiveScene('dev');
         }
+        // Defer mounting the scene to next tick to allow loading UI to paint
+        mountSceneTimeout.current = window.setTimeout(() => {
+          setShouldMountScene(true);
+        }, 150);
     };
 
     const handleEnvironmentReady = () => {
@@ -427,6 +435,16 @@ export const Game: React.FC = () => {
                                 </div>
                             )}
                             
+                            {isBuilderMode && (
+                                <>
+                                {console.log('BuilderUI rendering - isBuilderMode:', isBuilderMode, 'gameState:', gameState, 'activeStructure:', activeStructure, 'activeScene:', activeScene)}
+                                <BuilderUI 
+                                    activeType={activeStructure} 
+                                    onSelectType={onSelectStructure} 
+                                />
+                                </>
+                            )}
+                            
                             {showGlobalHUD && (
                                 <>
                                     <GameHUD 
@@ -455,13 +473,6 @@ export const Game: React.FC = () => {
                                         isBuilderMode={isBuilderMode}
                                     />
                                     
-                                    {isBuilderMode && (
-                                        <BuilderUI 
-                                            activeType={activeStructure} 
-                                            onSelectType={onSelectStructure} 
-                                        />
-                                    )}
-                                    
                                     <BuilderLog />
 
                                     <ControlPanel 
@@ -483,7 +494,7 @@ export const Game: React.FC = () => {
                                 isSystemReady={isSystemReady}
                                 onFinished={handleStartPlaying}
                                 onVideoStable={() => setIsVideoStable(true)}
-                                isLoadingScene={isSceneInitializing}
+                                isLoadingScene={isSceneInitializing || !isSystemReady}
                             />
                             
                             <DialogueOverlay dialogue={dialogue} onClose={onCloseDialogue} />

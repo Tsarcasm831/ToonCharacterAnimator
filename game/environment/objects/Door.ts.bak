@@ -1,0 +1,170 @@
+import * as THREE from 'three';
+
+export interface DoorState {
+    isOpen: boolean;
+    isAnimating: boolean;
+    openAngle: number;
+    closedAngle: number;
+    currentAngle: number;
+    animationSpeed: number;
+}
+
+export class Door {
+    public mesh: THREE.Group;
+    public state: DoorState;
+    private leftDoor: THREE.Mesh;
+    private rightDoor: THREE.Mesh;
+    private frame: THREE.Group;
+
+    constructor(position: THREE.Vector3, rotation: number = 0) {
+        this.state = {
+            isOpen: false,
+            isAnimating: false,
+            openAngle: Math.PI / 2, // 90 degrees
+            closedAngle: 0,
+            currentAngle: 0,
+            animationSpeed: 2.0 // radians per second
+        };
+
+        this.mesh = new THREE.Group();
+        this.frame = new THREE.Group();
+        
+        this.createDoorGeometry();
+        this.positionDoor(position, rotation);
+        this.setupInteraction();
+    }
+
+    private createDoorGeometry(): void {
+        const GRID_SIZE = 1.3333;
+        const doorWidth = GRID_SIZE / 2 - 0.05; // Split doorway in half
+        const doorHeight = 2.35;
+        const doorDepth = 0.15;
+        const frameDepth = 0.25;
+
+        // Materials
+        const doorMaterial = new THREE.MeshStandardMaterial({
+            color: 0x8d6e63,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            color: 0x5d4037,
+            roughness: 0.8,
+            metalness: 0.1
+        });
+
+        // Create door frame (posts and lintel)
+        const postWidth = 0.05;
+        const totalHeight = 3.3;
+        const lintelHeight = 0.95;
+
+        // Left post
+        const leftPostGeo = new THREE.BoxGeometry(postWidth, totalHeight, frameDepth);
+        const leftPost = new THREE.Mesh(leftPostGeo, frameMaterial);
+        leftPost.position.x = -(GRID_SIZE/2 - postWidth/2);
+        leftPost.castShadow = true;
+        leftPost.receiveShadow = true;
+        this.frame.add(leftPost);
+
+        // Right post
+        const rightPostGeo = new THREE.BoxGeometry(postWidth, totalHeight, frameDepth);
+        const rightPost = new THREE.Mesh(rightPostGeo, frameMaterial);
+        rightPost.position.x = +(GRID_SIZE/2 - postWidth/2);
+        rightPost.castShadow = true;
+        rightPost.receiveShadow = true;
+        this.frame.add(rightPost);
+
+        // Lintel
+        const lintelGeo = new THREE.BoxGeometry(GRID_SIZE - postWidth * 2, lintelHeight, frameDepth);
+        const lintel = new THREE.Mesh(lintelGeo, frameMaterial);
+        lintel.position.y = (totalHeight/2 - lintelHeight/2);
+        lintel.castShadow = true;
+        lintel.receiveShadow = true;
+        this.frame.add(lintel);
+
+        // Create left door
+        const leftDoorGeo = new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth);
+        this.leftDoor = new THREE.Mesh(leftDoorGeo, doorMaterial);
+        this.leftDoor.position.x = -(doorWidth/2 + postWidth/2);
+        this.leftDoor.position.y = -0.475; // Center the door in the opening
+        this.leftDoor.castShadow = true;
+        this.leftDoor.receiveShadow = true;
+        this.leftDoor.userData.isLeftDoor = true;
+
+        // Create right door
+        const rightDoorGeo = new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth);
+        this.rightDoor = new THREE.Mesh(rightDoorGeo, doorMaterial);
+        this.rightDoor.position.x = +(doorWidth/2 + postWidth/2);
+        this.rightDoor.position.y = -0.475; // Center the door in the opening
+        this.rightDoor.castShadow = true;
+        this.rightDoor.receiveShadow = true;
+        this.rightDoor.userData.isRightDoor = true;
+
+        // Add doors to mesh
+        this.mesh.add(this.leftDoor);
+        this.mesh.add(this.rightDoor);
+        this.mesh.add(this.frame);
+    }
+
+    private positionDoor(position: THREE.Vector3, rotation: number): void {
+        this.mesh.position.copy(position);
+        this.mesh.position.y += 1.65; // Align with doorway height
+        this.mesh.rotation.y = rotation;
+    }
+
+    private setupInteraction(): void {
+        // Mark this as an interactable object
+        this.mesh.userData.interactType = 'door';
+        this.mesh.userData.door = this;
+        this.mesh.userData.type = 'interactable';
+    }
+
+    public update(dt: number): void {
+        if (this.state.isAnimating) {
+            const targetAngle = this.state.isOpen ? this.state.openAngle : this.state.closedAngle;
+            const angleDiff = targetAngle - this.state.currentAngle;
+            
+            if (Math.abs(angleDiff) < 0.01) {
+                // Animation complete
+                this.state.currentAngle = targetAngle;
+                this.state.isAnimating = false;
+            } else {
+                // Continue animation
+                const direction = angleDiff > 0 ? 1 : -1;
+                this.state.currentAngle += direction * this.state.animationSpeed * dt;
+                
+                // Clamp to target
+                if (direction > 0) {
+                    this.state.currentAngle = Math.min(this.state.currentAngle, targetAngle);
+                } else {
+                    this.state.currentAngle = Math.max(this.state.currentAngle, targetAngle);
+                }
+            }
+
+            // Apply rotation to doors
+            this.leftDoor.rotation.y = this.state.currentAngle;
+            this.rightDoor.rotation.y = -this.state.currentAngle;
+        }
+    }
+
+    public interact(): void {
+        if (!this.state.isAnimating) {
+            this.state.isOpen = !this.state.isOpen;
+            this.state.isAnimating = true;
+        }
+    }
+
+    public getInteractionPrompt(): string {
+        if (this.state.isOpen) {
+            return "Close Door [E]";
+        } else {
+            return "Open Door [E]";
+        }
+    }
+
+    public isPlayerInRange(playerPosition: THREE.Vector3, range: number = 2.0): boolean {
+        const distance = this.mesh.position.distanceTo(playerPosition);
+        return distance <= range;
+    }
+}

@@ -10,22 +10,6 @@ export type QuestStatus = 'active' | 'completed' | 'failed';
 
 export type UnitState = 'IDLE' | 'MOVING' | 'ATTACKING' | 'CASTING' | 'STUNNED' | 'DEAD' | 'DEFENDING';
 
-export interface ItemStats {
-  damage?: number;
-  defense?: number;
-  healthBonus?: number;
-  manaBonus?: number;
-  speedBonus?: number;
-}
-
-export interface ItemData {
-  name: string;
-  description: string;
-  type: 'weapon' | 'armor' | 'consumable' | 'material' | 'quest' | 'accessory';
-  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
-  stats?: ItemStats;
-}
-
 export interface InventoryItem {
   name: string;
   count: number;

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { PlayerConfig, InventoryItem, ItemData } from '../../../types';
-import { ITEM_ICONS, ITEM_IMAGES, ITEM_DATA } from '../../../data/constants';
+import { PlayerConfig, InventoryItem } from '../../../types';
+import { ITEM_ICONS, ITEM_IMAGES } from '../../../data/constants';
 import { PlayerPreview } from '../previews/PlayerPreview';
-import { ItemTooltip } from '../hud/ItemTooltip';
 
 // --- Types & Constants ---
 
@@ -50,24 +49,24 @@ const getStats = (cfg: PlayerConfig, eq: any) => {
 const EQUIPMENT_SLOTS = [
     // Center Column
     { id: 'helm', icon: '⛑️', label: 'Helm', style: { top: '5%', left: '50%', width: '56px', height: '56px', transform: 'translateX(-50%)' } },
-    { id: 'mask', icon: '😷', label: 'Mask', style: { top: '9.65%', left: '81.67%', width: '56px', height: '56px' } },
-    { id: 'amulet', icon: '📿', label: 'Amulet', style: { top: '7%', left: '33.58%', width: '56px', height: '56px' } },
+    { id: 'mask', icon: '😷', label: 'Mask', style: { top: '8.8%', left: '57%', width: '40px', height: '40px' } },
+    { id: 'amulet', icon: '📿', label: 'Amulet', style: { top: '8.8%', left: '38%', width: '40px', height: '40px' } },
     
-    { id: 'torso', icon: '👕', label: 'Torso', style: { top: '20.83%', left: '44.13%', width: '99.7px', height: '118.7px' } },
-    { id: 'hood', icon: '🧥', label: 'Hood', style: { top: '26.29%', left: '80.37%', width: '78.95px', height: '108.05px' } },
-    { id: 'legs', icon: '👖', label: 'Legs', style: { top: '61.03%', left: '45.21%', width: '83.91px', height: '89.8px' } },
+    { id: 'torso', icon: '👕', label: 'Torso', style: { top: '21%', left: '50%', width: '100px', height: '120px', transform: 'translateX(-50%)' } },
+    { id: 'hood', icon: '🧥', label: 'Hood', style: { top: '53%', left: '50%', width: '78px', height: '32px', transform: 'translateX(-50%)' } },
+    { id: 'legs', icon: '�', label: 'Legs', style: { top: '74.5%', left: '50%', width: '84px', height: '90px', transform: 'translateX(-50%)' } },
 
     // Left Side
-    { id: 'weapon', icon: '⚔️', label: 'Main Hand', style: { top: '23.86%', left: '32.52%', width: '72.08px', height: '116.59px' } },
-    { id: 'ring1', icon: '💍', label: 'Ring', style: { top: '57.7%', left: '34.03%', width: '56px', height: '56px' } },
-    { id: 'gloves', icon: '🧤', label: 'Gloves', style: { top: '77.85%', left: '34.62%', width: '56px', height: '56px' } },
-    { id: 'boots', icon: '👢', label: 'Boots', style: { top: '76.94%', left: '58.91%', width: '66.13px', height: '63.78px' } },
+    { id: 'weapon', icon: '⚔️', label: 'Main Hand', style: { top: '21%', left: '32%', width: '64px', height: '128px' } },
+    { id: 'ring1', icon: '💍', label: 'Ring', style: { top: '55%', left: '38%', width: '40px', height: '40px' } },
+    { id: 'gloves', icon: '🧤', label: 'Gloves', style: { top: '57%', left: '29.5%', width: '56px', height: '56px' } },
+    { id: 'boots', icon: '�', label: 'Boots', style: { top: '74%', left: '32%', width: '78px', height: '80px' } },
 
     // Right Side
-    { id: 'focus', icon: '🔮', label: 'Off Hand', style: { top: '24.22%', left: '58.71%', width: '76.56px', height: '119.58px' } },
-    { id: 'ring2', icon: '💍', label: 'Ring', style: { top: '58.61%', left: '59.6%', width: '56px', height: '56px' } },
-    { id: 'shoulder', icon: '🛡️', label: 'Shoulder', style: { top: '7%', left: '59.98%', width: '56px', height: '56px' } },
-    { id: 'mount', icon: '🐎', label: 'Mount', style: { top: '73.73%', left: '80.89%', width: '80.38px', height: '85.92px' } },
+    { id: 'focus', icon: '🔮', label: 'Off Hand', style: { top: '21%', left: '60%', width: '64px', height: '128px' } },
+    { id: 'ring2', icon: '💍', label: 'Ring', style: { top: '55%', left: '56.5%', width: '40px', height: '40px' } },
+    { id: 'shoulder', icon: '🛡️', label: 'Shoulder', style: { top: '55%', left: '64%', width: '56px', height: '56px' } },
+    { id: 'mount', icon: '�', label: 'Mount', style: { top: '74%', left: '60%', width: '80px', height: '86px' } },
 ];
 
 export const InventoryModal: React.FC<InventoryModalProps> = ({
@@ -82,14 +81,12 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [resizingSlot, setResizingSlot] = useState<string | null>(null);
     const [showLayoutModal, setShowLayoutModal] = useState(false);
-    const [hoveredItem, setHoveredItem] = useState<ItemData | null>(null);
-    const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
     if (!isOpen) return null;
 
     const stats = getStats(config, equipmentSlots);
     const hotbarItems = inventory.slice(0, 8);
-    const mainInventoryItems = inventory.slice(8, 58); // Show first 50 main slots (increased from 40)
+    const mainInventoryItems = inventory.slice(8, 48); // Show first 40 main slots
 
     // --- Handlers ---
 
@@ -199,25 +196,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
         setResizingSlot(resizingSlot === slotId ? null : slotId);
     };
 
-    const handleMouseEnter = (e: React.MouseEvent, itemName: string) => {
-        if (isEditMode) return;
-        const data = ITEM_DATA[itemName];
-        if (data) {
-            setHoveredItem(data);
-            setMousePos({ x: e.clientX, y: e.clientY });
-        }
-    };
-
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (hoveredItem) {
-            setMousePos({ x: e.clientX, y: e.clientY });
-        }
-    };
-
-    const handleMouseLeave = () => {
-        setHoveredItem(null);
-    };
-
     const handleResizeHandleMouseDown = (e: React.MouseEvent, slotId: string) => {
         e.stopPropagation();
         setResizingSlot(slotId);
@@ -233,8 +211,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     // --- Render Helpers ---
 
     const renderGridSlot = (item: InventoryItem | null, index: number, isHotbar: boolean) => {
-        const itemImage = item ? ITEM_IMAGES[item.name] : null;
-        
         return (
             <div
                 key={isHotbar ? `hb-${index}` : `inv-${index}`}
@@ -242,11 +218,8 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 onDragStart={(e) => item && handleDragStart(e, index, item, isHotbar)}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => handleDrop(e, index, isHotbar)}
-                onMouseEnter={(e) => item && handleMouseEnter(e, item.name)}
-                onMouseMove={handleMouseMove}
-                onMouseLeave={handleMouseLeave}
                 className={`
-                    relative flex items-center justify-center border transition-all cursor-pointer select-none overflow-hidden
+                    relative flex items-center justify-center border transition-all cursor-pointer select-none
                     ${isHotbar ? 'w-12 h-12' : 'aspect-square'}
                     ${item 
                         ? 'bg-stone-900 border-amber-900/60 hover:border-amber-500 shadow-inner' 
@@ -255,25 +228,21 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
             >
                 {item && (
                     <>
-                        {itemImage ? (
-                            <img src={itemImage} alt={item.name} className="w-full h-full object-cover" />
-                        ) : (
-                            <span className="text-2xl drop-shadow-md filter">{ITEM_ICONS[item.name] || '📦'}</span>
-                        )}
+                        <span className="text-2xl drop-shadow-md filter">{ITEM_ICONS[item.name] || '📦'}</span>
                         {item.count > 1 && (
-                            <span className="absolute top-0.5 left-0.5 text-[9px] font-bold text-white bg-black/80 px-1 rounded border border-stone-600 z-10">
+                            <span className="absolute top-0.5 left-0.5 text-[9px] font-bold text-white bg-black/80 px-1 rounded border border-stone-600">
                                 {item.count}
                             </span>
                         )}
                     </>
                 )}
-                {isHotbar && <span className="absolute bottom-0.5 right-1 text-[8px] text-stone-500 font-mono z-10">{index + 1}</span>}
+                {isHotbar && <span className="absolute bottom-0.5 right-1 text-[8px] text-stone-500 font-mono">{index + 1}</span>}
             </div>
         );
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 pt-20">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
             
             {/* Main Window Frame */}
             <div className="w-[850px] h-[90vh] bg-[#0c0a09] border-2 border-[#4a3b2a] shadow-[0_0_50px_rgba(0,0,0,0.8)] relative flex flex-col font-serif">
@@ -288,7 +257,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 <div className="h-14 bg-gradient-to-b from-[#1c1917] to-[#0c0a09] border-b border-[#4a3b2a] flex items-center justify-between px-6 shrink-0 relative">
                     <div className="absolute inset-x-0 bottom-0 h-[1px] bg-gradient-to-r from-transparent via-amber-900/50 to-transparent" />
                     
-                    <h2 className="text-2xl text-amber-500 font-serif tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] pr-64">
+                    <h2 className="text-2xl text-amber-500 font-serif tracking-widest drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] mx-auto pl-20">
                         INVENTORY
                     </h2>
 
@@ -337,14 +306,14 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                             <div className="flex justify-between mb-1"><span>ATK</span><span className="text-red-400">{stats.ATK}</span></div>
                             <div className="flex justify-between"><span>DEF</span><span className="text-blue-400">{stats.DEF}</span></div>
                             
-                            {/* {onUpdateSlotLayouts && (
+                            {onUpdateSlotLayouts && (
                                 <button 
                                     onClick={toggleEditMode}
                                     className={`mt-4 w-full py-1 text-[10px] font-bold border transition-colors ${isEditMode ? 'bg-amber-600 border-amber-400 text-white' : 'bg-stone-800 border-stone-600 text-stone-400 hover:text-amber-500'}`}
                                 >
                                     {isEditMode ? '🔒 LOCK SLOTS' : '🔓 UNLOCK SLOTS'}
                                 </button>
-                            )} */}
+                            )}
                             {isEditMode && (
                                 <button 
                                     onClick={() => onUpdateSlotLayouts({})}
@@ -367,7 +336,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                             const equippedId = equipmentSlots[slot.id];
                             const isEquipped = !!equippedId;
                             const customStyle = slotLayouts?.[slot.id] || slot.style;
-                            const equippedImage = equippedId ? ITEM_IMAGES[equippedId] : null;
                             
                             // Size classes
                             let sizeClass = 'w-14 h-14'; // default
@@ -383,35 +351,29 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                                     onDragOver={(e) => e.preventDefault()}
                                     onDrop={(e) => handleDropOnEquip(e, slot.id)}
                                     onMouseDown={(e) => handleSlotDragStart(e, slot.id)}
-                                    onMouseEnter={(e) => isEquipped && handleMouseEnter(e, equippedId)}
-                                    onMouseMove={handleMouseMove}
-                                    onMouseLeave={handleMouseLeave}
                                     onDoubleClick={() => handleSlotDoubleClick(slot.id)}
                                     onClick={() => !isEditMode && equippedId ? onUnequipItem(slot.id) : null}
                                     className={`
                                         absolute ${customStyle.width ? '' : sizeClass}
                                         flex items-center justify-center
-                                        bg-black/60 border transition-colors group overflow-hidden
+                                        bg-black/60 border transition-colors group
                                         ${isEditMode ? 'cursor-move border-amber-500/50 bg-amber-900/20 z-30' : 'cursor-pointer'}
                                         ${isEquipped 
                                             ? 'border-amber-700/80 shadow-[0_0_10px_rgba(180,83,9,0.2)] bg-stone-900' 
                                             : 'border-stone-800 border-dashed hover:border-amber-900/50'}
                                     `}
+                                    title={isEditMode ? `Drag to move / Double-click to resize ${slot.label}` : (equippedId || slot.label)}
                                 >
                                     {isEquipped ? (
-                                        equippedImage ? (
-                                            <img src={equippedImage} alt={equippedId} className={`w-full h-full object-cover ${isEditMode ? 'opacity-50' : ''}`} />
-                                        ) : (
-                                            <span className={`text-2xl drop-shadow-lg filter contrast-125 ${isEditMode ? 'opacity-50' : ''}`}>
-                                                {ITEM_ICONS[equippedId] || '⚔️'}
-                                            </span>
-                                        )
+                                        <span className={`text-2xl drop-shadow-lg filter contrast-125 ${isEditMode ? 'opacity-50' : ''}`}>
+                                            {ITEM_ICONS[equippedId] || '⚔️'}
+                                        </span>
                                     ) : (
                                         <span className={`text-2xl opacity-20 grayscale ${isEditMode ? 'opacity-40' : ''}`}>{slot.icon}</span>
                                     )}
                                     {isEditMode && (
                                         <>
-                                            <div className="absolute -top-1 -left-1 w-2 h-2 bg-amber-500 rounded-full z-10" />
+                                            <div className="absolute -top-1 -left-1 w-2 h-2 bg-amber-500 rounded-full" />
                                             {resizingSlot === slot.id && (
                                                 <div 
                                                     className="absolute -bottom-1 -right-1 w-3 h-3 bg-amber-500 cursor-nwse-resize z-40 rounded-sm hover:scale-125 transition-transform"
@@ -440,7 +402,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                         {activeTab === 'INVENTORY' ? (
                             <div className="grid grid-cols-10 gap-1 place-content-start h-full">
                                 {mainInventoryItems.map((item, i) => renderGridSlot(item, i, false))}
-                                {Array.from({ length: 50 - mainInventoryItems.length }).map((_, i) => (
+                                {Array.from({ length: 40 - mainInventoryItems.length }).map((_, i) => (
                                     <div key={`empty-${i}`} className="aspect-square bg-black/20 border border-stone-800/30 border-dashed rounded-sm" />
                                 ))}
                             </div>
@@ -461,13 +423,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     </div>
 
                 </div>
-
-                <ItemTooltip 
-                    item={hoveredItem} 
-                    x={mousePos.x} 
-                    y={mousePos.y} 
-                    visible={!!hoveredItem} 
-                />
 
                 {/* --- Layout Modal --- */}
                 {showLayoutModal && (

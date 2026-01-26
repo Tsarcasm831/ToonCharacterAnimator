@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { TreeData, RockData, ENV_CONSTANTS, BIOME_DATA } from '../EnvironmentTypes';
+import { TreeData, RockData, ENV_CONSTANTS } from '../EnvironmentTypes';
 import { ObjectFactory } from '../ObjectFactory';
 import { ScatterFactory } from '../objects/ScatterFactory';
 import { PlayerUtils } from '../../player/PlayerUtils';
@@ -26,22 +26,6 @@ const maybeYield = async (count: number, options?: PopulateOptions) => {
     if (count % options.yieldEvery === 0) {
         await options.yieldFrame();
     }
-};
-
-const isGrassGround = (x: number, z: number): boolean => {
-    // Check water first (ponds)
-    const pondDepth = PlayerUtils.getTerrainHeight(x, z);
-    if (pondDepth < -0.1) return false;
-
-    // Check biome type
-    const biomeSize = ENV_CONSTANTS.BIOME_SIZE;
-    const ix = Math.round(x / biomeSize);
-    const iz = Math.round(z / biomeSize);
-    const key = `${ix},${iz}`;
-    const biome = BIOME_DATA[key] || BIOME_DATA['0,0'];
-    
-    // Only allow grass on grass-type biomes
-    return biome.type === 'Grass';
 };
 
 export async function initBiomes(ctx: ObstacleInitContext, options?: PopulateOptions) {
@@ -238,7 +222,7 @@ export async function initWorldScatter(ctx: ObstacleInitContext, options?: Popul
 
             if (isInsideHouse(sx, sz)) continue;
 
-            if (Math.random() > 0.4 && isGrassGround(sx, sz)) {
+            if (Math.random() > 0.4) {
                 // Use new dense tufts occasionally
                 const grass = Math.random() > 0.6 
                     ? ObjectFactory.createGrassTuft(new THREE.Vector3(sx, sy, sz))
@@ -280,7 +264,7 @@ export async function initWorldScatter(ctx: ObstacleInitContext, options?: Popul
                 rotation: new THREE.Euler(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI)
             });
 
-            if (Math.random() > 0.8 && isGrassGround(sx, sz)) {
+            if (Math.random() > 0.8) {
                 const grass = ObjectFactory.createGrassTuft(new THREE.Vector3(sx, sy, sz));
                 ctx.scene.add(grass);
                 ctx.decorativeItems.push(grass);
@@ -293,10 +277,16 @@ export async function initWorldScatter(ctx: ObstacleInitContext, options?: Popul
         const x = (Math.random() - 0.5) * 180;
         const z = (Math.random() - 0.5) * 180;
         if (isInsideHouse(x, z)) continue;
-        
-        // Use the same grass ground check that includes pond checking
-        if (!isGrassGround(x, z)) continue;
-        
+        let insidePond = false;
+        for (const pond of ENV_CONSTANTS.PONDS) {
+            const dx = x - pond.x;
+            const dz = z - pond.z;
+            if (dx * dx + dz * dz < Math.pow(pond.radius + 0.8, 2)) {
+                insidePond = true;
+                break;
+            }
+        }
+        if (insidePond) continue;
         const y = PlayerUtils.getTerrainHeight(x, z);
         if (y > -2.0) {
             const grass = Math.random() > 0.5 

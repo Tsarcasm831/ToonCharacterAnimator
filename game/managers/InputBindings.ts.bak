@@ -78,8 +78,8 @@ export const DEFAULT_KEYBINDINGS: KeyBindingMap = {
     [InputCommand.ToggleHands]: ['KeyH'],
     [InputCommand.ToggleSkeletonMode]: ['KeyJ'],
     [InputCommand.ToggleBuilder]: ['KeyB'],
-    [InputCommand.ToggleGrid]: ['KeyT'],
-    [InputCommand.RotateGhost]: ['KeyR'],
+    [InputCommand.ToggleGrid]: ['KeyT'], // Was shared with RotateGhost? 
+    [InputCommand.RotateGhost]: ['KeyT'],
     [InputCommand.ToggleBuilderLog]: ['Period'],
     [InputCommand.ConfirmBuild]: ['Enter'],
     [InputCommand.TeleportToTown]: ['BracketRight'],

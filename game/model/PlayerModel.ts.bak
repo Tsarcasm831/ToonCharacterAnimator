@@ -21,11 +21,6 @@ export class PlayerModel {
     private equipmentManager: EquipmentManager;
     private hairSimulation: HairSimulation;
     
-    // Damage flash tracking
-    private damageFlashTimer: number = 0;
-    private damageFlashDuration: number = 0.2; // 200ms flash duration
-    private originalEmissiveColors: Map<THREE.Mesh, { color: THREE.Color; intensity: number }> = new Map();
-    
     public forefootGroups: THREE.Group[] = [];
     public heelGroups: THREE.Group[] = [];
     public toeUnits: THREE.Group[] = [];
@@ -109,60 +104,26 @@ export class PlayerModel {
 
     update(dt: number, velocity: THREE.Vector3) {
         this.hairSimulation.update(dt, velocity, this.parts.head);
-        
-        // Handle damage flash timer
-        if (this.damageFlashTimer > 0) {
-            this.damageFlashTimer -= dt;
-            if (this.damageFlashTimer <= 0) {
-                this.revertDamageFlash();
-            }
-        }
     }
 
     flashDamage() {
-        // Store original emissive colors if not already stored
-        this.group.traverse((obj) => {
-            if (obj instanceof THREE.Mesh && obj.material) {
-                const mat = obj.material as THREE.MeshStandardMaterial;
-                if (mat.emissive && !this.originalEmissiveColors.has(obj)) {
-                    this.originalEmissiveColors.set(obj, {
-                        color: mat.emissive.clone(),
-                        intensity: mat.emissiveIntensity
-                    });
-                }
-            }
-        });
-
-        // Apply red flash
         this.group.traverse((obj) => {
             if (obj instanceof THREE.Mesh && obj.material) {
                 const mat = obj.material as THREE.MeshStandardMaterial;
                 if (mat.emissive) {
+                    const originalEmissive = mat.emissive.clone();
+                    const originalIntensity = mat.emissiveIntensity;
+                    
                     mat.emissive.setHex(0xff0000);
                     mat.emissiveIntensity = 0.5;
+                    
+                    setTimeout(() => {
+                        mat.emissive.copy(originalEmissive);
+                        mat.emissiveIntensity = originalIntensity;
+                    }, 100);
                 }
             }
         });
-
-        // Start the flash timer
-        this.damageFlashTimer = this.damageFlashDuration;
-    }
-
-    private revertDamageFlash() {
-        // Restore original emissive colors
-        this.group.traverse((obj) => {
-            if (obj instanceof THREE.Mesh && obj.material) {
-                const mat = obj.material as THREE.MeshStandardMaterial;
-                const original = this.originalEmissiveColors.get(obj);
-                if (mat.emissive && original) {
-                    mat.emissive.copy(original.color);
-                    mat.emissiveIntensity = original.intensity;
-                }
-            }
-        });
-
-        // Clear stored colors to free memory
-        this.originalEmissiveColors.clear();
     }
 
     updateHeldItem(itemName: string | null) {

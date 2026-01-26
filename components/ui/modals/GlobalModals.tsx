@@ -53,7 +53,7 @@ export const GlobalModals: React.FC = () => {
         isLandSelectionOpen, setIsLandSelectionOpen
     } = uiState;
 
-    const { inventory, setInventory, equipmentSlots } = inventoryState;
+    const { inventory, setInventory, equipmentSlots, slotLayouts, updateSlotLayouts } = inventoryState;
     const { coins, config } = playerState;
     const { handleEquipItem, handleUnequipItem } = equipmentLogic;
     const { handleBuy, handleSell } = economyLogic;
@@ -252,6 +252,8 @@ export const GlobalModals: React.FC = () => {
                 onEquipItem={handleEquipItem}
                 onUnequipItem={handleUnequipItem}
                 coins={coins}
+                slotLayouts={slotLayouts}
+                onUpdateSlotLayouts={updateSlotLayouts}
               />
             )}
             {isTradeOpen && (

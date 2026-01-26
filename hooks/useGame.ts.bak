@@ -99,8 +99,6 @@ export const useGame = ({
             game.inputManager.onToggleQuestLog = onToggleQuestLog;
         }
 
-        onGameReady?.(game);
-
         game.start();
 
         const handleResize = () => game.resize();
