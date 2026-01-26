@@ -513,16 +513,6 @@ export class Game {
 
         this.particleManager.update(delta);
         this.doorManager.update(delta);
-        if (currentEnv) {
-            const updatedDoors = new Set<Door>();
-            for (const obstacle of currentEnv.obstacles) {
-                const door = obstacle.userData?.door;
-                if (door && !updatedDoors.has(door)) {
-                    door.update(delta);
-                    updatedDoors.add(door);
-                }
-            }
-        }
         
         if (currentEnv) {
             if (time - this.lastBiomeCheck > 500) {

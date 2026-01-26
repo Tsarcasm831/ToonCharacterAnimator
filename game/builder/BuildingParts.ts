@@ -10,6 +10,7 @@ import { Torch } from '../environment/objects/torch_stand';
 import { WoodenWall } from '../environment/objects/wooden_wall';
 import { Flag } from '../environment/objects/flag';
 import { ObjectFactory } from '../environment/ObjectFactory';
+import { Door } from '../environment/objects/Door';
 import { getCottage } from '../building/Cottage';
 import { getGatehouse } from '../building/Gatehouse';
 import { getLShape } from '../building/LShape';
@@ -268,6 +269,11 @@ export class BuildingParts {
         };
 
         const mat = getMat(type);
+
+        if (type === 'door') {
+            const door = new Door(new THREE.Vector3(), 0);
+            return door.mesh;
+        }
 
         if (type === 'doorway' && !isGhost) {
             // Build as a Group to allow per-component collision checking

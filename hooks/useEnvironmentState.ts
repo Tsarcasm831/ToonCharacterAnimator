@@ -13,7 +13,11 @@ export function useEnvironmentState() {
   } | null>(null);
   const [isEnvironmentBuilt, setIsEnvironmentBuilt] = useState(false);
   const [isVisualLoadingDone, setIsVisualLoadingDone] = useState(false);
-  const [isBuilderMode, setIsBuilderMode] = useState(false);
+  const [isBuilderMode, setIsBuilderModeState] = useState(false);
+  const setIsBuilderMode = (value: boolean) => {
+    console.log('useEnvironmentState.setIsBuilderMode called with:', value);
+    setIsBuilderModeState(value);
+  };
   const [activeStructure, setActiveStructure] = useState<StructureType>('foundation');
   const [currentBiome, setCurrentBiome] = useState({ name: 'Verdant Meadows', color: '#4ade80' });
   const [playerRotation, setPlayerRotation] = useState(0);

@@ -11,8 +11,7 @@
     ],
     "skipLibCheck": true,
     "types": [
-      "node",
-      "vitest"
+      "node"
     ],
     "moduleResolution": "bundler",
     "isolatedModules": true,

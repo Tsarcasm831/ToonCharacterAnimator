@@ -165,6 +165,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
     const [showClickToStart, setShowClickToStart] = useState(false);
     const [isVideoReady, setIsVideoReady] = useState(false);
     const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+    const [isFullyLoaded, setIsFullyLoaded] = useState(false);
     const [showRunnerTrack, setShowRunnerTrack] = useState(false);
     const [showLoadingTrack, setShowLoadingTrack] = useState(false);
     const [loadingProgress, setLoadingProgress] = useState(0);
@@ -181,6 +182,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
             setShowClickToStart(false);
             setIsVideoReady(false);
             setIsVideoPlaying(false);
+            setIsFullyLoaded(false);
             setShowRunnerTrack(false);
             setShowLoadingTrack(false);
             setLoadingProgress(0);
@@ -202,6 +204,15 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
         const video = videoRef.current;
         if (!video) return;
 
+        // Auto-show tracks even if video hasn't played yet to avoid hanging on load
+        const trackTimeout1 = window.setTimeout(() => {
+            setShowRunnerTrack(true);
+        }, 150);
+        const trackTimeout2 = window.setTimeout(() => {
+            setShowLoadingTrack(true);
+        }, 650);
+        sequenceTimers.current.push(trackTimeout1, trackTimeout2);
+
         const handlePlay = () => {
             setIsVideoPlaying(true);
             
@@ -210,14 +221,6 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                 onVideoStable?.();
             }, 500);
             sequenceTimers.current.push(stableTimeout);
-
-            sequenceTimers.current.push(window.setTimeout(() => {
-                setShowRunnerTrack(true);
-            }, 150));
-
-            sequenceTimers.current.push(window.setTimeout(() => {
-                setShowLoadingTrack(true);
-            }, 650));
             
             // Start loading enemies in chunks to reduce resource contention
             const loadEnemiesInChunks = async () => {
@@ -236,6 +239,12 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
 
         video.addEventListener('play', handlePlay);
         video.addEventListener('canplaythrough', handleCanPlayThrough);
+
+        // Fallback for video ready
+        const videoFallback = setTimeout(() => {
+            if (!isVideoReady) setIsVideoReady(true);
+        }, 2000);
+        sequenceTimers.current.push(videoFallback as unknown as number);
 
         return () => {
             video.removeEventListener('play', handlePlay);
@@ -290,10 +299,15 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
 
     // Check completion gate
     useEffect(() => {
-        if (isSystemReady && loadingProgress >= 100 && runnerProgress >= 100 && !showClickToStart) {
-            setShowClickToStart(true);
+        if (isSystemReady && loadingProgress >= 100 && runnerProgress >= 100 && !isFullyLoaded) {
+            setIsFullyLoaded(true);
+            // Small extra delay to ensure everything is really settled
+            const settleTimeout = window.setTimeout(() => {
+                setShowClickToStart(true);
+            }, 200);
+            sequenceTimers.current.push(settleTimeout);
         }
-    }, [isSystemReady, loadingProgress, runnerProgress, showClickToStart]);
+    }, [isSystemReady, loadingProgress, runnerProgress, isFullyLoaded]);
 
     if (!shouldRender) return null;
 

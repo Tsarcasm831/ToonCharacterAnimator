@@ -123,7 +123,7 @@ export const ITEM_ICONS: Record<string, string> = {
 
 export const ITEM_DATA: Record<string, ItemData> = {
   'Axe': { name: 'Axe', description: 'A heavy woodcutting axe that can also serve as a weapon.', type: 'weapon', rarity: 'common', stats: { damage: 12 } },
-  'Sword': { name: 'Sword', description: 'A simple stone sword.', type: 'weapon', rarity: 'common', stats: { damage: 15 } },
+  'Sword': { name: 'Sword', description: 'A standard steel sword.', type: 'weapon', rarity: 'common', stats: { damage: 15 } },
   'Staff': { name: 'Staff', description: 'A wooden staff imbued with minor magical properties.', type: 'weapon', rarity: 'common', stats: { damage: 8, manaBonus: 10 } },
   'Pickaxe': { name: 'Pickaxe', description: 'Useful for mining ores.', type: 'weapon', rarity: 'common', stats: { damage: 10 } },
   'Knife': { name: 'Knife', description: 'A small, quick blade.', type: 'weapon', rarity: 'common', stats: { damage: 6, speedBonus: 0.2 } },
@@ -144,7 +144,7 @@ export const ITEM_DATA: Record<string, ItemData> = {
   'Mana Potion': { name: 'Mana Potion', description: 'Restores a moderate amount of mana.', type: 'consumable', rarity: 'common', stats: { manaBonus: 30 } },
   'Wood': { name: 'Wood', description: 'Basic crafting material.', type: 'material', rarity: 'common' },
   'Coal': { name: 'Coal', description: 'A common fuel source.', type: 'material', rarity: 'common' },
-  'Shield': { name: 'Shield', description: 'A simple stone shield.', type: 'armor', rarity: 'common', stats: { defense: 8 } },
+  'Shield': { name: 'Shield', description: 'A sturdy wooden shield.', type: 'armor', rarity: 'common', stats: { defense: 8 } },
   'Helm': { name: 'Helm', description: 'A basic head protection.', type: 'armor', rarity: 'common', stats: { defense: 4 } },
   'Gold Ring': { name: 'Gold Ring', description: 'A simple band of gold.', type: 'accessory', rarity: 'uncommon' },
   'Bone Dust': { name: 'Bone Dust', description: 'Fine white powder from old bones.', type: 'material', rarity: 'common' },

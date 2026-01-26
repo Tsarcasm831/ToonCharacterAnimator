@@ -131,7 +131,7 @@ export class Player {
         this.setVisible(true);
     }
 
-    update(dt: number, input: PlayerInput, cameraPosition: THREE.Vector3, cameraAngle: number, environment: any, particleManager: ParticleManager, entities: any[] = [], isInCombat: boolean = false) {
+    update(dt: number, input: PlayerInput, cameraPosition: THREE.Vector3, cameraAngle: number, environment: any, particleManager: ParticleManager, entities: any[] = [], isInCombat: boolean = false, additionalObstacles: THREE.Object3D[] = []) {
         this.syncConfig();
         
         // 1. Physics & Model Update
@@ -206,7 +206,9 @@ export class Player {
             // No physics or actions when dead
         } else {
             if (this.status.recoverTimer <= 0) {
-                PlayerInteraction.update(this, dt, input, environment.obstacles, entities);
+                // Combine environment obstacles with additional obstacles for interaction
+                const allObstacles = [...environment.obstacles, ...additionalObstacles];
+                PlayerInteraction.update(this, dt, input, allObstacles, entities);
                 this.combat.update(dt, input, environment, particleManager, entities);
             } else {
                 // Interrupted - clear channelings but allow timer cleanup if needed

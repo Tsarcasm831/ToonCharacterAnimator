@@ -18,6 +18,20 @@ export class PlayerInteraction {
             }
         }
 
+        // Interaction
+        if (input.interact && !player.isInteracting) {
+            player.isInteracting = true;
+            player.interactTimer = 0;
+        }
+
+        if (player.isInteracting) {
+            player.interactTimer += dt;
+            if (player.interactTimer > 0.4) {
+                player.isInteracting = false;
+                player.interactTimer = 0;
+            }
+        }
+
         // Skinning Check & Logic
         const hasKnife = player.config.selectedItem === 'Knife';
         const skinnableTarget = this.getSkinnableTargetNearby(player, obstacles);
@@ -28,22 +42,9 @@ export class PlayerInteraction {
         // Set the interactable target on the player
         player.interactableTarget = interactableTarget;
 
-        // Interaction
-        const isFreshInteract = input.interact && !player.isInteracting;
-        if (isFreshInteract) {
-            player.isInteracting = true;
-            player.interactTimer = 0;
-            if (interactableTarget) {
-                this.handleInteraction(player, interactableTarget);
-            }
-        }
-
-        if (player.isInteracting) {
-            player.interactTimer += dt;
-            if (player.interactTimer > 0.4) {
-                player.isInteracting = false;
-                player.interactTimer = 0;
-            }
+        // Handle door interaction
+        if (input.interact && !player.isInteracting && interactableTarget) {
+            this.handleInteraction(player, interactableTarget);
         }
 
         // Dialogue Check

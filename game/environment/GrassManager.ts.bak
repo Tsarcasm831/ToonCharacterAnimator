@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { ENV_CONSTANTS, BIOME_DATA } from './EnvironmentTypes';
+import { ENV_CONSTANTS } from './EnvironmentTypes';
 import { PlayerUtils } from '../player/PlayerUtils';
 
 const GRASS_VERTEX_SHADER = `
@@ -88,22 +88,6 @@ export class GrassManager {
         this.populate();
     }
 
-    private isGrassGround(x: number, z: number): boolean {
-        // Check water first (ponds)
-        const pondDepth = PlayerUtils.getTerrainHeight(x, z);
-        if (pondDepth < -0.1) return false;
-
-        // Check biome type
-        const biomeSize = ENV_CONSTANTS.BIOME_SIZE;
-        const ix = Math.round(x / biomeSize);
-        const iz = Math.round(z / biomeSize);
-        const key = `${ix},${iz}`;
-        const biome = BIOME_DATA[key] || BIOME_DATA['0,0'];
-        
-        // Only allow grass on grass-type biomes
-        return biome.type === 'Grass';
-    }
-
     private populate() {
         const dummy = new THREE.Object3D();
         const patchSize = 180; 
@@ -118,8 +102,16 @@ export class GrassManager {
             const x = (Math.random() - 0.5) * patchSize;
             const z = (Math.random() - 0.5) * patchSize;
 
-            // Check if this position is suitable for grass
-            if (!this.isGrassGround(x, z)) continue;
+            let insidePond = false;
+            for (const pond of ENV_CONSTANTS.PONDS) {
+                const dx = x - pond.x;
+                const dz = z - pond.z;
+                if (dx * dx + dz * dz < Math.pow(pond.radius + 1.2, 2)) {
+                    insidePond = true;
+                    break;
+                }
+            }
+            if (insidePond) continue;
 
             const tx = x + (Math.random() - 0.5) * 0.4;
             const tz = z + (Math.random() - 0.5) * 0.4;

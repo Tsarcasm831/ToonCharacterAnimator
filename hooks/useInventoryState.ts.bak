@@ -29,25 +29,6 @@ export function useInventoryState() {
   const [inventory, setInventory] = useState<(InventoryItem | null)[]>(getInitialInventory());
   const [bench, setBench] = useState<(InventoryItem | null)[]>(Array(6).fill(null)); // Bench for units/abilities
   
-  // Load slot layouts from localStorage
-  const [slotLayouts, setSlotLayouts] = useState<Record<string, any>>(() => {
-    try {
-      const saved = localStorage.getItem('inventory-slot-layouts');
-      return saved ? JSON.parse(saved) : {};
-    } catch (e) {
-      return {};
-    }
-  });
-
-  const updateSlotLayouts = (layouts: Record<string, any>) => {
-    setSlotLayouts(layouts);
-    try {
-      localStorage.setItem('inventory-slot-layouts', JSON.stringify(layouts));
-    } catch (e) {
-      console.error('Failed to save slot layouts', e);
-    }
-  };
-
   const [equipmentSlots, setEquipmentSlots] = useState<Record<string, string | null>>({
     helm: null,
     mask: null,
@@ -71,8 +52,6 @@ export function useInventoryState() {
     bench,
     setBench,
     equipmentSlots,
-    setEquipmentSlots,
-    slotLayouts,
-    updateSlotLayouts
+    setEquipmentSlots
   };
 }
