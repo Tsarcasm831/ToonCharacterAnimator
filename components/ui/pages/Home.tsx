@@ -8,8 +8,7 @@ export const Home: React.FC = () => {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
     const isIphoneLayout = useIsIphoneLayout();
     const keySequenceRef = useRef('');
-    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
-
+    
     const videos = [
         '/assets/videos/lands/Birds.mp4',
         '/assets/videos/lands/Cloud.mp4',
@@ -29,12 +28,89 @@ export const Home: React.FC = () => {
         '/assets/videos/lands/Woods.mp4',
     ];
 
+    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+    const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+    const [videoDurations, setVideoDurations] = useState<number[]>(new Array(videos.length).fill(0));
+    const [isTransitioning, setIsTransitioning] = useState(false);
+    const nextVideoIndex = (currentVideoIndex + 1) % videos.length;
+
+    // Update video durations when loaded
     useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentVideoIndex((prev) => (prev + 1) % videos.length);
-        }, 5000);
-        return () => clearInterval(interval);
-    }, [videos.length]);
+        videos.forEach((_, index) => {
+            const video = videoRefs.current[index];
+            if (video && !videoDurations[index]) {
+                const handleLoadedMetadata = () => {
+                    const newDurations = [...videoDurations];
+                    newDurations[index] = video.duration / 0.5; // Adjusted for playback rate
+                    setVideoDurations(newDurations);
+                    console.log(`Video ${index} duration: ${video.duration}s, adjusted: ${newDurations[index]}s`);
+                };
+                
+                if (video.readyState >= 1) {
+                    handleLoadedMetadata();
+                } else {
+                    video.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+                }
+            }
+        });
+    }, [videoRefs.current, videoDurations]);
+
+    // Handle dynamic transitions with fallback
+    useEffect(() => {
+        const currentDuration = videoDurations[currentVideoIndex];
+        const currentVideo = videoRefs.current[currentVideoIndex];
+        
+        // Fallback: if no duration detected after 3 seconds, use default
+        const fallbackTimeout = setTimeout(() => {
+            if (currentDuration === 0 && currentVideo) {
+                console.log('Using fallback duration for video', currentVideoIndex);
+                const newDurations = [...videoDurations];
+                newDurations[currentVideoIndex] = 10; // 10 second fallback
+                setVideoDurations(newDurations);
+            }
+        }, 3000);
+
+        return () => clearTimeout(fallbackTimeout);
+    }, [currentVideoIndex, videoDurations]);
+
+    // Handle transitions
+    useEffect(() => {
+        const currentDuration = videoDurations[currentVideoIndex];
+        if (currentDuration === 0) return;
+
+        console.log(`Setting transition for video ${currentVideoIndex} in ${currentDuration - 0.5}s`);
+        
+        const transitionTimeout = setTimeout(() => {
+            console.log('Starting transition...');
+            const nextVideo = videoRefs.current[nextVideoIndex];
+            if (nextVideo) {
+                nextVideo.currentTime = 0;
+                nextVideo.playbackRate = 0.5;
+                nextVideo.play().catch(e => console.log('Video play error:', e));
+            }
+            setIsTransitioning(true);
+            
+            // Switch to next video immediately after starting transition
+            // The CSS transition will handle the crossfade
+            setTimeout(() => {
+                console.log('Switching to next video');
+                setCurrentVideoIndex(nextVideoIndex);
+                setIsTransitioning(false);
+            }, 500); // Match the CSS transition duration
+        }, (currentDuration - 0.5) * 1000); // Convert to milliseconds
+
+        return () => clearTimeout(transitionTimeout);
+    }, [currentVideoIndex, nextVideoIndex, videoDurations, videos.length]);
+
+    // Reset video to beginning when it becomes active
+    useEffect(() => {
+        const currentVideo = videoRefs.current[currentVideoIndex];
+        if (currentVideo) {
+            currentVideo.currentTime = 0;
+            currentVideo.playbackRate = 0.5;
+            currentVideo.play().catch(e => console.log('Video play error:', e));
+        }
+    }, [currentVideoIndex]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -69,17 +145,30 @@ export const Home: React.FC = () => {
                 {videos.map((src, index) => (
                     <div
                         key={src}
-                        className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                            index === currentVideoIndex ? 'opacity-100' : 'opacity-0'
+                        className={`absolute inset-0 transition-opacity ${
+                            isTransitioning ? 'duration-500' : 'duration-0'
+                        } ease-in-out ${
+                            index === currentVideoIndex
+                                ? (isTransitioning ? 'opacity-0' : 'opacity-100')
+                                : index === nextVideoIndex
+                                    ? (isTransitioning ? 'opacity-100' : 'opacity-0')
+                                    : 'opacity-0'
                         }`}
                     >
                         <video
+                            ref={(el) => { videoRefs.current[index] = el; }}
                             src={src}
                             autoPlay
                             muted
-                            loop
                             playsInline
                             className="w-full h-full object-cover opacity-60"
+                            onLoadedData={() => {
+                                const video = videoRefs.current[index];
+                                if (video) {
+                                    video.currentTime = 0;
+                                    video.playbackRate = 0.5;
+                                }
+                            }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
                     </div>
