@@ -125,13 +125,29 @@ export const useGame = ({
     // Sync Props
     useEffect(() => {
         const game = gameRef.current;
-        if (!game) return;
+        if (!game) {
+            console.log(`[useGame] No game instance yet for scene: ${activeScene}`);
+            return;
+        }
+
+        const currentInternalScene = game.getActiveScene();
+        console.log(`[useGame] Syncing props. Internal: ${currentInternalScene}, Prop: ${activeScene}`);
+
+        // Update callback first to ensure fresh closure is used
+        if (onEnvironmentReady) game.onEnvironmentReady = onEnvironmentReady;
 
         // If scene changed in props but we initialized with a fixed one, handle switch?
         // Game constructor takes activeScene. SwitchScene is method on Game/SceneManager.
         // If activeScene prop changes, we should switch scene.
-        if (game.getActiveScene() !== (activeScene as any)) {
-            game.switchScene(activeScene as any);
+        if (currentInternalScene !== (activeScene as any)) {
+            console.log(`[useGame] Scene mismatch detected. Internal: ${currentInternalScene}, Prop: ${activeScene}. Switching...`);
+            try {
+                game.switchScene(activeScene as any);
+            } catch (e) {
+                console.error('[useGame] Error switching scene:', e);
+                // Try to force ready if switch fails, so we don't hang
+                onEnvironmentReady?.();
+            }
         }
 
         game.setConfig(config);

@@ -105,8 +105,12 @@ export class SceneManager {
     }
 
     public updateSingleBiomeLand(points: number[][], biome?: { name: string, color: string, type?: string }) {
+        console.log(`[SceneManager] updateSingleBiomeLand called. ActiveScene: ${this.activeScene}, Env: ${!!this.singleBiomeEnvironment}`);
         if (this.activeScene === 'singleBiome' && this.singleBiomeEnvironment) {
             this.singleBiomeEnvironment.setLandData(points, biome);
+            // Trigger environment ready after land data is applied
+            console.log(`[SceneManager] land data applied, triggering onEnvironmentReady`);
+            this.onEnvironmentReady?.();
         }
     }
 
@@ -224,7 +228,9 @@ export class SceneManager {
             this.player.locomotion.velocity.set(0,0,0);
             this.player.locomotion.jumpVelocity = 0;
             this.player.locomotion.isJumping = false;
-            if (sceneName !== 'dev') {
+            
+            // For singleBiome, we wait for updateSingleBiomeLand to trigger onEnvironmentReady
+            if (sceneName !== 'dev' && sceneName !== 'singleBiome') {
                 this.onEnvironmentReady?.();
             }
         }

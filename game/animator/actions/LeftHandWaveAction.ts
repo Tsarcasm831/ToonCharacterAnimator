@@ -35,20 +35,21 @@ export class LeftHandWaveAction {
             // === PHASE 1: RAISE FOREARM ===
             const raiseDamp = damp * 6;
             
-            // Upper Arm: Down and slightly forward/out
-            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.3, raiseDamp); 
-            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.4, raiseDamp); 
-            parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0.0, raiseDamp);
+            // Upper Arm: Out to side and slightly forward
+            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.4, raiseDamp); 
+            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 1.4, raiseDamp); 
+            parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0.2, raiseDamp);
             
-            // Forearm: Bend up 90-100 degrees
-            parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -1.8, raiseDamp); 
+            // Forearm: Bend up significantly (elbow vertical-ish)
+            parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -1.6, raiseDamp); 
             parts.leftForeArm.rotation.z = lerp(parts.leftForeArm.rotation.z, 0, raiseDamp);
             
-            // Hand: Palm forward
+            // Hand: Palm forward/slight tilt
             parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, raiseDamp);
+            parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, -0.2, raiseDamp);
 
             // Look at hand
-            parts.head.rotation.y = lerp(parts.head.rotation.y, 0.3, raiseDamp); 
+            parts.head.rotation.y = lerp(parts.head.rotation.y, 0.4, raiseDamp); 
             poseWaveHand(false);
 
         } else if (t < 2.0) {
@@ -58,18 +59,19 @@ export class LeftHandWaveAction {
             const activeDamp = damp * 10;
 
             // Stable Upper Arm & Elbow
-            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.4, activeDamp);
-            parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -1.8, activeDamp);
+            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 1.4, activeDamp);
+            parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -1.6, activeDamp);
 
             // THE WAVE: Rotate Upper Arm Y (Internal/External rotation)
             // This sweeps the vertical forearm left and right
-            parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, wave * 0.6, activeDamp);
+            parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0.2 + wave * 0.4, activeDamp);
             
             // Keep palm facing forward relative to camera/viewer
             parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, activeDamp);
+            parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, -0.2 + wave * 0.1, activeDamp);
 
             // Head tracks center
-            parts.head.rotation.y = lerp(parts.head.rotation.y, 0.3, damp);
+            parts.head.rotation.y = lerp(parts.head.rotation.y, 0.4, damp);
             parts.head.rotation.z = lerp(parts.head.rotation.z, wave * 0.05, damp);
             poseWaveHand(false);
 
@@ -81,6 +83,7 @@ export class LeftHandWaveAction {
             parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0, lowerDamp);
             parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.15, lowerDamp);
             parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, lowerDamp);
+            parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, 0, lowerDamp);
             
             parts.head.rotation.y = lerp(parts.head.rotation.y, 0, lowerDamp);
             parts.head.rotation.z = lerp(parts.head.rotation.z, 0, lowerDamp);

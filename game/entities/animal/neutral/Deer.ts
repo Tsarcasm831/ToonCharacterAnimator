@@ -324,7 +324,8 @@ export class Deer {
         }
 
         // Lift slightly so hooves don't sink into ground
-        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.12;
+        // Increased offset from 0.12 to 0.20 to ensure hooves are above terrain
+        this.position.y = PlayerUtils.getTerrainHeight(this.position.x, this.position.z) + 0.20;
         this.group.position.copy(this.position);
         this.group.rotation.y = this.rotationY;
 

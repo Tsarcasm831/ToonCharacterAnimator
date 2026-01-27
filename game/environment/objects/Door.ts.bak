@@ -16,10 +16,8 @@ export class Door {
     private rightDoor: THREE.Group;
     private frame: THREE.Group;
     private lastCollisionOpenState: boolean | null = null;
-    private gridSize: number;
 
-    constructor(position: THREE.Vector3, rotation: number = 0, gridSize: number = 1.3333) {
-        this.gridSize = gridSize;
+    constructor(position: THREE.Vector3, rotation: number = 0) {
         this.state = {
             isOpen: false,
             isAnimating: false,
@@ -38,7 +36,7 @@ export class Door {
     }
 
     private createDoorGeometry(): void {
-        const GRID_SIZE = this.gridSize;
+        const GRID_SIZE = 1.3333;
         const doorWidth = GRID_SIZE / 2 - 0.05; // Split doorway in half
         const doorHeight = 2.35;
         const doorDepth = 0.15;

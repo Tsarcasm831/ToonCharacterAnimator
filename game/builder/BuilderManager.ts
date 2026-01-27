@@ -51,10 +51,30 @@ export class BuilderManager {
         }
     }
 
+    private getGridSizeForType(type: StructureType): number {
+        // Palisade walls use 4x grid size
+        if (type === 'palisade') {
+            return 1.3333 * 4;
+        }
+        // Palisade doorways should match palisade walls (4x grid size)
+        if (type === 'palisade_doorway') {
+            return 1.3333 * 4;
+        }
+        // Doorways should match the wall type they're replacing
+        // For now, we'll use standard grid size, but this could be enhanced
+        // to detect adjacent wall types and match them
+        if (type === 'doorway' || type === 'door') {
+            return 1.3333; // Standard grid size for now
+        }
+        // Default grid size for all other types
+        return 1.3333;
+    }
+
     private updateGhost() {
         this.clearGhost();
         console.log('BuilderManager.updateGhost called for type:', this.currentType);
-        this.ghostMesh = BuildingParts.createStructureMesh(this.currentType, true);
+        const gridSize = this.getGridSizeForType(this.currentType);
+        this.ghostMesh = BuildingParts.createStructureMesh(this.currentType, true, undefined, gridSize);
         if (!this.ghostMesh) {
             console.error('BuilderManager.updateGhost: Failed to create ghost mesh for type:', this.currentType);
             return;
@@ -217,7 +237,8 @@ export class BuilderManager {
         }
 
         console.log('BuilderManager.build: Building', this.currentType, 'at position:', this.ghostMesh.position);
-        const realMesh = BuildingParts.createStructureMesh(this.currentType, false);
+        const gridSize = this.getGridSizeForType(this.currentType);
+        const realMesh = BuildingParts.createStructureMesh(this.currentType, false, undefined, gridSize);
         if (!realMesh) {
             console.error('BuilderManager.build: Failed to create real mesh for type:', this.currentType);
             return;

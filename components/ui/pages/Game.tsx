@@ -67,10 +67,12 @@ export const Game: React.FC = () => {
 
     // Gate scene mounting so the loading screen can paint before heavy initialization begins
     const [shouldMountScene, setShouldMountScene] = React.useState(false);
+    const [lastScene, setLastScene] = React.useState<string | null>(null);
     const [isVideoStable, setIsVideoStable] = React.useState(false);
     const [isVideoFinished, setIsVideoFinished] = React.useState(false);
     const [isSceneInitializing, setIsSceneInitializing] = React.useState(false);
     const mountSceneTimeout = React.useRef<number | null>(null);
+    const visualReadyTimeout = React.useRef<number | null>(null);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
     const selectedLandRef = React.useRef(selectedLand);
@@ -96,17 +98,49 @@ export const Game: React.FC = () => {
         }
     }, [gameState, shouldMountScene, isSceneInitializing]);
 
-    // Reset video states when leaving menu
+    // Safety fallback: if loading any scene hangs, force completion after a timeout
     React.useEffect(() => {
-        if (gameState !== 'MENU') {
-            setIsVideoStable(false);
-            setIsVideoFinished(false);
-            setIsSceneInitializing(false);
+        if (gameState === 'LOADING' && (!isEnvironmentBuilt || !isVisualLoadingDone) && shouldMountScene) {
+            const t = setTimeout(() => {
+                console.warn(`[Game.tsx] Safety fallback: Forcefully finishing loading for ${activeScene} scene`);
+                if (!isEnvironmentBuilt) setIsEnvironmentBuilt(true);
+                if (!isVisualLoadingDone) setIsVisualLoadingDone(true);
+            }, 5000);
+            return () => clearTimeout(t);
         }
-    }, [gameState]);
+    }, [gameState, activeScene, isEnvironmentBuilt, isVisualLoadingDone, shouldMountScene]);
+
+    // Reset shouldMountScene when activeScene changes while in LOADING state
+    React.useEffect(() => {
+        if (gameState === 'LOADING' && activeScene !== lastScene) {
+            console.log(`[Game.tsx] Scene change detected: ${lastScene} -> ${activeScene}. Resetting mount state.`);
+            setShouldMountScene(false);
+            setLastScene(activeScene);
+            
+            // Re-trigger mounting after a short delay
+            const t = setTimeout(() => {
+                setShouldMountScene(true);
+            }, 100);
+            return () => clearTimeout(t);
+        }
+    }, [gameState, activeScene, lastScene]);
+
+    const scheduleVisualLoadingDone = () => {
+        if (visualReadyTimeout.current) {
+            window.clearTimeout(visualReadyTimeout.current);
+        }
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                visualReadyTimeout.current = window.setTimeout(() => {
+                    setIsVisualLoadingDone(true);
+                }, 800);
+            });
+        });
+    };
 
     // Handlers
-    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInDev: boolean = false, startInTown: boolean = false) => {
+    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInDev: boolean = false, startInTown: boolean = false, startInSingleBiome: boolean = false) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
@@ -116,6 +150,7 @@ export const Game: React.FC = () => {
         setIsVideoFinished(false);
         setIsSceneInitializing(false);
         if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
+        if (visualReadyTimeout.current) window.clearTimeout(visualReadyTimeout.current);
         if (startInDev) {
           setActiveScene('dev');
         } else if (startInTown) {
@@ -124,6 +159,8 @@ export const Game: React.FC = () => {
           setActiveScene('land');
         } else if (startInCombat) {
           setActiveScene('combat');
+        } else if (startInSingleBiome) {
+          setActiveScene('singleBiome');
         } else {
           setActiveScene('dev');
         }
@@ -134,11 +171,12 @@ export const Game: React.FC = () => {
     };
 
     const handleEnvironmentReady = () => {
+        console.log(`[Game.tsx] Environment ready for scene: ${activeSceneRef.current}`);
         setIsEnvironmentBuilt(true);
-    };
-
-    const handleVisualLoadingFinished = () => {
-        setIsVisualLoadingDone(true);
+        // Ensure visual loading also proceeds immediately if we are switching scenes
+        if (gameState === 'LOADING') {
+            scheduleVisualLoadingDone();
+        }
     };
 
     const handleStartPlaying = () => {
@@ -186,6 +224,7 @@ export const Game: React.FC = () => {
     React.useEffect(() => {
         return () => {
             if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
+            if (visualReadyTimeout.current) window.clearTimeout(visualReadyTimeout.current);
             // Cleanup game instance and 3D resources on unmount
             if (gameInstance.current) {
                 // Dispose of Three.js resources if the game instance has a dispose method
@@ -343,7 +382,7 @@ export const Game: React.FC = () => {
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
                                                 handleEnvironmentReady();
-                                                handleVisualLoadingFinished();
+                                                scheduleVisualLoadingDone();
                                             }}
                                             onInteractionUpdate={handleInteractionUpdate}
                                             onToggleQuestLog={uiState.toggleQuestLog}
@@ -368,7 +407,7 @@ export const Game: React.FC = () => {
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
                                                 handleEnvironmentReady();
-                                                handleVisualLoadingFinished();
+                                                scheduleVisualLoadingDone();
                                             }}
                                             onToggleQuestLog={uiState.toggleQuestLog}
                                             showGrid={showGrid}
@@ -386,7 +425,7 @@ export const Game: React.FC = () => {
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
                                                 handleEnvironmentReady();
-                                                handleVisualLoadingFinished();
+                                                scheduleVisualLoadingDone();
                                             }}
                                             onToggleWorldMap={handleMapToggle}
                                             onToggleQuestLog={uiState.toggleQuestLog}
@@ -405,7 +444,7 @@ export const Game: React.FC = () => {
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
                                                 handleEnvironmentReady();
-                                                handleVisualLoadingFinished();
+                                                scheduleVisualLoadingDone();
                                             }}
                                             onToggleWorldMap={handleMapToggle}
                                             onToggleQuestLog={uiState.toggleQuestLog}
@@ -424,7 +463,7 @@ export const Game: React.FC = () => {
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
                                                 handleEnvironmentReady();
-                                                handleVisualLoadingFinished();
+                                                scheduleVisualLoadingDone();
                                             }}
                                             onToggleWorldMap={handleMapToggle}
                                             onToggleQuestLog={uiState.toggleQuestLog}

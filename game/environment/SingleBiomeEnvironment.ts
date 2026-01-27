@@ -36,6 +36,7 @@ export class SingleBiomeEnvironment {
     }
 
     public setLandData(points: number[][], biome?: { name: string, color: string, type?: string }) {
+        console.log(`[SingleBiomeEnvironment] setLandData called. Points: ${points?.length}, Biome: ${biome?.name}`);
         this.landPoints = points;
         if (biome) {
             this.currentBiome = {
@@ -44,6 +45,9 @@ export class SingleBiomeEnvironment {
                 type: biome.type || 'Grass'
             };
         }
+        
+        // Ensure group is visible when building
+        this.group.visible = true;
         this.build();
     }
 
@@ -81,6 +85,7 @@ export class SingleBiomeEnvironment {
     }
 
     private build() {
+        console.log(`[SingleBiomeEnvironment] Building... Points: ${this.landPoints?.length}`);
         if (!this.landPoints) return;
 
         // Dispose existing mesh if any
