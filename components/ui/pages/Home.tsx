@@ -8,34 +8,33 @@ export const Home: React.FC = () => {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
     const isIphoneLayout = useIsIphoneLayout();
     const keySequenceRef = useRef('');
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
 
-    const images = [
-        '/assets/images/lands/Birds.jpg',
-        '/assets/images/lands/Cloud.jpg',
-        '/assets/images/lands/Earth.jpg',
-        '/assets/images/lands/Fire.jpg',
-        '/assets/images/lands/Frost.jpg',
-        '/assets/images/lands/Ghosts.jpg',
-        '/assets/images/lands/Grass.jpg',
-        '/assets/images/lands/Hotsprings.jpg',
-        '/assets/images/lands/NagaIsland.jpg',
-        '/assets/images/lands/Rain.jpg',
-        '/assets/images/lands/RicePaddies.jpg',
-        '/assets/images/lands/Rivers.jpg',
-        '/assets/images/lands/Tea.jpg',
-        '/assets/images/lands/Water.jpg',
-        '/assets/images/lands/Waterfalls.jpg',
-        '/assets/images/lands/Wind.jpg',
-        '/assets/images/lands/Woods.jpg',
+    const videos = [
+        '/assets/videos/lands/Birds.mp4',
+        '/assets/videos/lands/Cloud.mp4',
+        '/assets/videos/lands/Earth.mp4',
+        '/assets/videos/lands/Fire.mp4',
+        '/assets/videos/lands/Frost.mp4',
+        '/assets/videos/lands/Ghosts.mp4',
+        '/assets/videos/lands/Grass.mp4',
+        '/assets/videos/lands/Hotsprings.mp4',
+        '/assets/videos/lands/NagaIsland.mp4',
+        '/assets/videos/lands/Rain.mp4',
+        '/assets/videos/lands/RicePaddies.mp4',
+        '/assets/videos/lands/Rivers.mp4',
+        '/assets/videos/lands/Tea.mp4',
+        '/assets/videos/lands/Water.mp4',
+        '/assets/videos/lands/Waterfalls.mp4',
+        '/assets/videos/lands/Woods.mp4',
     ];
 
     useEffect(() => {
         const interval = setInterval(() => {
-            setCurrentImageIndex((prev) => (prev + 1) % images.length);
+            setCurrentVideoIndex((prev) => (prev + 1) % videos.length);
         }, 5000);
         return () => clearInterval(interval);
-    }, [images.length]);
+    }, [videos.length]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -67,16 +66,19 @@ export const Home: React.FC = () => {
     return (
         <div className="w-full h-full flex flex-col items-center justify-start relative">
             <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
-                {images.map((src, index) => (
+                {videos.map((src, index) => (
                     <div
                         key={src}
                         className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                            index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+                            index === currentVideoIndex ? 'opacity-100' : 'opacity-0'
                         }`}
                     >
-                        <img
+                        <video
                             src={src}
-                            alt="Background"
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
                             className="w-full h-full object-cover opacity-60"
                         />
                         <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
