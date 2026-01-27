@@ -48,11 +48,10 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
   const { selectedLand } = environmentState;
 
   useEffect(() => {
-    // Open land selection on mount
-    uiState.setIsLandSelectionOpen(true);
+    // We handle opening the modal in handleGameReady to ensure the game instance is ready
   }, []);
 
-  const handleGameReady = (game: Game) => {
+    const handleGameReady = (game: Game) => {
     gameRef.current = game;
     if (onGameReady) onGameReady(game);
 
@@ -61,6 +60,7 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
     game.player.mesh.scale.setScalar(playerScale);
 
     if (selectedLand?.points) {
+      console.log("SingleBiomeScene: Using previously selected land", selectedLand.name);
       game.sceneManager.updateSingleBiomeLand(selectedLand.points, {
         name: selectedLand.name,
         color: selectedLand.color || '#4ade80',
@@ -68,6 +68,9 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
       });
       const wallCenters = getTownWallCenters(selectedLand, CITIES);
       game.sceneManager.singleBiomeEnvironment?.setTownWallCenters(wallCenters);
+    } else {
+      // Open land selection on mount if none selected
+      uiState.setIsLandSelectionOpen(true);
     }
     
     // Disable environment systems if needed, but SingleBiomeEnvironment handles its own build
@@ -78,8 +81,6 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
       (env as any).snowSystem = null;
       (env as any).debrisSystem = { update: () => {}, dispose: () => {} };
     }
-    
-    if (onEnvironmentReady) onEnvironmentReady();
   };
 
   useGame({

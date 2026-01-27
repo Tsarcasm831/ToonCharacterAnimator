@@ -21,7 +21,23 @@ const App: React.FC = () => {
 
   const { activePage, setActivePage, setGameState } = gameStateContext;
   const { isLandMapOpen, setIsLandMapOpen } = uiState;
-  const { playerPosForMap } = environmentState;
+  const { playerPosForMap, setIsEnvironmentBuilt, setIsVisualLoadingDone } = environmentState;
+
+  const scheduleVisualLoadingDone = () => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          setIsVisualLoadingDone(true);
+        }, 800);
+      });
+    });
+  };
+
+  const handleSingleBiomeEnvironmentReady = () => {
+    console.log("[App.tsx] SingleBiome environment ready signal received from land selection");
+    setIsEnvironmentBuilt(true);
+    scheduleVisualLoadingDone();
+  };
 
   // Force Game component to remount when navigating away and back
   // This ensures cleanup of 3D scenes and fresh state on return
@@ -51,7 +67,7 @@ const App: React.FC = () => {
               <Game key={gameKey} />
             )}
           </div>
-          <GlobalModals />
+          <GlobalModals onEnvironmentReady={handleSingleBiomeEnvironmentReady} />
           <LandMapModal 
             isOpen={isLandMapOpen}
             onClose={() => setIsLandMapOpen(false)}

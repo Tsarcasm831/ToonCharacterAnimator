@@ -28,6 +28,7 @@ const BUILD_PARTS: { id: StructureType, label: string, icon: string }[] = [
     { id: 'tire', label: 'Tire', icon: '⭕' },
     { id: 'pallet', label: 'Pallet', icon: '🪵' },
     { id: 'road_sign', label: 'Sign', icon: '🛑' },
+    { id: 'animal_pen', label: 'Animal Pen', icon: '🐷' },
     { id: 'blueprint_forge', label: 'Forge', icon: '⚒️' },
     { id: 'blueprint_cottage', label: 'Cottage', icon: '🏡' },
     { id: 'blueprint_longhouse', label: 'Longhouse', icon: '🛖' },

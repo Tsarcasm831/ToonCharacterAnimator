@@ -21,7 +21,11 @@ import { LandMapModal } from './LandMapModal';
 import { WorldMapModal } from './WorldMapModal';
 const LandSelectionModal = lazy(() => import('./LandSelectionModal').then(m => ({ default: m.LandSelectionModal })));
 
-export const GlobalModals: React.FC = () => {
+interface GlobalModalsProps {
+    onEnvironmentReady: () => void;
+}
+
+export const GlobalModals: React.FC<GlobalModalsProps> = ({ onEnvironmentReady }) => {
     const {
         uiState,
         playerState,
@@ -105,12 +109,21 @@ export const GlobalModals: React.FC = () => {
 
     const handleTravel = (scene: ActiveScene) => {
         if (scene === (activeScene as any)) { setIsTravelOpen(false); return; }
+        
+        console.log(`[GlobalModals] Initiating travel to ${scene}`);
+        
+        // Use functional updates to ensure we're working with the latest state
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
         setGameState('LOADING');
         setIsTravelOpen(false);
-        setTimeout(() => setActiveScene(scene as any), 100);
+        
+        // Small delay to let the state changes propagate and LoadingScreen to mount
+        setTimeout(() => {
+            console.log(`[GlobalModals] Setting active scene to ${scene}`);
+            setActiveScene(scene as any);
+        }, 150);
     };
 
     const handleSpawnAnimal = (type: string, count: number) => { 
@@ -197,11 +210,20 @@ export const GlobalModals: React.FC = () => {
         if (gameInstance.current && land.points) {
             const biomeType = getBiomeType(land.texture);
 
-            gameInstance.current.sceneManager.updateSingleBiomeLand(land.points, {
+            console.log("GlobalModals: Updating SingleBiomeLand", land.name);
+            
+            // Critical: The SingleBiomeEnvironment must exist for the build to occur.
+            // When we switch scenes, the environment instance is updated in SceneManager.
+            const game = gameInstance.current;
+            
+            // 1. Update land data in the game instance
+            game.sceneManager.updateSingleBiomeLand(land.points, {
                 name: land.name,
                 color: land.color,
                 type: biomeType
             });
+            
+            // 2. Update global state for other components
             setSelectedLand({
                 id: land.id,
                 name: land.name,
@@ -213,7 +235,7 @@ export const GlobalModals: React.FC = () => {
 
             const isLand23 = land.id === 'Land23';
             let didLand23Teleport = false;
-            const singleBiomeEnv = gameInstance.current.sceneManager.singleBiomeEnvironment;
+            const singleBiomeEnv = game.sceneManager.singleBiomeEnvironment;
             if (singleBiomeEnv) {
                 const wallCenters = getTownWallCenters(land, CITIES);
                 singleBiomeEnv.setTownWallCenters(wallCenters);
@@ -229,12 +251,22 @@ export const GlobalModals: React.FC = () => {
                 }
             }
             
-            // Reset player position to center/safe spot
-            if (gameInstance.current.player && !didLand23Teleport) {
+            // Reset player position to center/safe spot if not already teleported
+            if (game.player && !didLand23Teleport) {
                const { bounds, worldPoints } = getLandWorldData(land.points);
                const spawnWorld = findSpawnPointInLand(worldPoints, bounds);
                teleportPlayerToSpawn(spawnWorld, singleBiomeEnv?.obstacles);
             }
+
+            // 3. Signal environment ready after land selection AND building is complete
+            // Building in SingleBiomeEnvironment is synchronous, so we can signal now.
+            console.log("GlobalModals: Land selected and built, triggering onEnvironmentReady");
+            onEnvironmentReady();
+        } else {
+            console.error("GlobalModals: Cannot select land - gameInstance or land.points missing", { 
+                game: !!gameInstance.current, 
+                points: !!land?.points 
+            });
         }
     };
 

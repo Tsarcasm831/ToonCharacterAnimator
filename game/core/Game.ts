@@ -161,7 +161,9 @@ export class Game {
             const groundHeight = PlayerUtils.getGroundHeight(playerPos, this.player.config, this.sceneManager.currentEnvironment?.obstacles);
             this.player.mesh.position.y = groundHeight;
         }
-        this.sceneManager.onEnvironmentReady = () => this.onEnvironmentReady?.();
+        this.sceneManager.onEnvironmentReady = () => {
+            this.onEnvironmentReady?.();
+        };
 
         if (activeScene === 'dev') {
             LevelGenerator.buildDevLevel(this.sceneManager.environment);
@@ -338,7 +340,14 @@ export class Game {
     private combatInitialized: boolean = false;
     
     public setCombatActive(active: boolean) {
-        this.combatManager.setCombatActive(active);
+        // Force Interaction Manager to be active if we are in Combat Scene
+        // This ensures players can select/move units during Prep Phase (active=false)
+        if (this.sceneManager.activeScene === 'combat') {
+            this.combatManager.setCombatActive(true);
+        } else {
+            this.combatManager.setCombatActive(active);
+        }
+
         if (active && this.sceneManager.activeScene === 'combat' && !this.combatInitialized) {
             this.config.isAssassinHostile = true;
             if (this.sceneManager.combatEnvironment) {
@@ -349,6 +358,9 @@ export class Game {
             this.combatSystem.initializeCombat(this.player, [], enemies);
             this.combatInitialized = true;
         } else if (!active) {
+            if (this.sceneManager.combatEnvironment) {
+                this.sceneManager.combatEnvironment.setCombatStarted(false);
+            }
             this.combatInitialized = false;
         }
     }
@@ -365,6 +377,17 @@ export class Game {
         this.combatManager.setCombatActive(sceneName === 'combat');
         if (sceneName === 'town') {
             this.setupTownScene();
+        } else if (sceneName === 'dev' && !isInit) {
+            // Manually handle dev environment build on switch
+            requestAnimationFrame(() => {
+                if (this.sceneManager.environment) {
+                    this.sceneManager.environment.buildAsync().then(() => {
+                        this.onEnvironmentReady?.();
+                    });
+                } else {
+                     this.onEnvironmentReady?.();
+                }
+            });
         }
     }
 

@@ -10,6 +10,7 @@ import { Torch } from '../environment/objects/torch_stand';
 import { WoodenWall } from '../environment/objects/wooden_wall';
 import { Flag } from '../environment/objects/flag';
 import { ObjectFactory } from '../environment/ObjectFactory';
+import { AnimalPen } from '../environment/objects/AnimalPen';
 import { Door } from '../environment/objects/Door';
 import { getCottage } from '../building/Cottage';
 import { getGatehouse } from '../building/Gatehouse';
@@ -20,8 +21,8 @@ import { getTheForge } from '../building/TheForge';
 import type { BlueprintPart } from '../building/BlueprintTypes';
 
 export type StructureType = 'foundation' | 'wall' | 'doorway' | 'door' | 'roof' | 'pillar' | 'round_foundation' | 'round_wall' | 
-                            'palisade' | 'event_tent' | 'firepit' | 'potion_tent' | 'supply_cart' | 'stone_wall' | 'torch' | 'wooden_wall' | 'flag' | 'lightpole' |
-                            'barrel' | 'crate' | 'tire' | 'pallet' | 'road_sign' |
+                            'palisade' | 'palisade_doorway' | 'event_tent' | 'firepit' | 'potion_tent' | 'supply_cart' | 'stone_wall' | 'torch' | 'wooden_wall' | 'flag' | 'lightpole' |
+                            'barrel' | 'crate' | 'tire' | 'pallet' | 'road_sign' | 'animal_pen' |
                             'blueprint_forge' | 'blueprint_cottage' | 'blueprint_longhouse' | 'blueprint_l_shape' | 'blueprint_roundhouse' | 'blueprint_gatehouse';
 
 export class BuildingParts {
@@ -117,7 +118,67 @@ export class BuildingParts {
         }
     }
 
-    static createStructureMesh(type: StructureType, isGhost: boolean = false, customColor?: number): THREE.Object3D {
+    private static createDoorway(gridSize: number, mat: THREE.Material, isGhost: boolean): THREE.Group {
+        // Build as a Group to allow per-component collision checking
+        const GRID_SIZE = gridSize;
+        const postWidth = 0.05; // Thin posts
+        const totalWidth = GRID_SIZE;
+        const holeWidth = totalWidth - (postWidth * 2); 
+        const totalHeight = 3.3; 
+        const lintelHeight = 0.95; 
+        const depth = 0.25; 
+
+        const group = new THREE.Group();
+        
+        const postGeo = new THREE.BoxGeometry(postWidth, totalHeight, depth);
+        const lPost = new THREE.Mesh(postGeo, mat);
+        lPost.position.x = -(totalWidth/2 - postWidth/2);
+        lPost.castShadow = true;
+        lPost.receiveShadow = true;
+        group.add(lPost);
+
+        const rPost = new THREE.Mesh(postGeo, mat);
+        rPost.position.x = +(totalWidth/2 - postWidth/2);
+        rPost.castShadow = true;
+        rPost.receiveShadow = true;
+        group.add(rPost);
+
+        const lintelGeo = new THREE.BoxGeometry(holeWidth, lintelHeight, depth);
+        const lintel = new THREE.Mesh(lintelGeo, mat);
+        lintel.position.y = (totalHeight/2 - lintelHeight/2);
+        lintel.castShadow = true;
+        lintel.receiveShadow = true;
+        group.add(lintel);
+
+        if (isGhost) {
+            group.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.material = new THREE.MeshStandardMaterial({
+                        color: 0x44ff44,
+                        transparent: true,
+                        opacity: 0.4,
+                        wireframe: true
+                    });
+                }
+                child.castShadow = false;
+                child.receiveShadow = false;
+            });
+        } else {
+            group.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                    child.userData = { 
+                        type: 'hard', 
+                        structureType: 'doorway',
+                        material: 'wood'
+                    };
+                }
+            });
+        }
+
+        return group;
+    }
+
+    static createStructureMesh(type: StructureType, isGhost: boolean = false, customColor?: number, gridSize: number = 1.3333): THREE.Object3D {
         // Handle complex custom structures
         if (type === 'palisade') return Wall.create(isGhost);
         if (type === 'event_tent') return EventTent.create(isGhost);
@@ -128,6 +189,10 @@ export class BuildingParts {
         if (type === 'torch') return Torch.create(isGhost);
         if (type === 'wooden_wall') return WoodenWall.create(isGhost);
         if (type === 'flag') return Flag.create(isGhost);
+        if (type === 'animal_pen') {
+            const group = AnimalPen.create(isGhost);
+            return group;
+        }
         if (type === 'barrel') {
             const result = ObjectFactory.createBarrel(new THREE.Vector3());
             if (isGhost) this.applyGhostMaterial(result.group);
@@ -205,7 +270,16 @@ export class BuildingParts {
             const GRID_SIZE = 1.3333;
             
             blueprintParts.forEach(part => {
-                const mesh = this.createStructureMesh(part.type, isGhost);
+                // Determine grid size for doorway based on wall type context
+                let partGridSize = GRID_SIZE;
+                if (part.type === 'doorway') {
+                    // Check if this blueprint uses palisade walls (4x width)
+                    // For now, we'll assume standard blueprints use standard grid size
+                    // In the future, blueprints could specify wall types
+                    partGridSize = GRID_SIZE;
+                }
+                
+                const mesh = this.createStructureMesh(part.type, isGhost, undefined, partGridSize);
                 
                 // Position based on grid
                 mesh.position.x = part.x * GRID_SIZE;
@@ -271,43 +345,17 @@ export class BuildingParts {
         const mat = getMat(type);
 
         if (type === 'door') {
-            const door = new Door(new THREE.Vector3(), 0);
+            const door = new Door(new THREE.Vector3(), 0, gridSize);
             return door.mesh;
         }
 
+        if (type === 'palisade_doorway') {
+            // Palisade doorway uses same logic as regular doorway but with larger grid size
+            return this.createDoorway(gridSize, mat, isGhost);
+        }
+
         if (type === 'doorway' && !isGhost) {
-            // Build as a Group to allow per-component collision checking
-            const GRID_SIZE = 1.3333;
-            const postWidth = 0.05; // Thin posts
-            const totalWidth = GRID_SIZE;
-            const holeWidth = totalWidth - (postWidth * 2); 
-            const totalHeight = 3.3; 
-            const lintelHeight = 0.95; 
-            const depth = 0.25; 
-
-            const group = new THREE.Group();
-            
-            const postGeo = new THREE.BoxGeometry(postWidth, totalHeight, depth);
-            const lPost = new THREE.Mesh(postGeo, mat);
-            lPost.position.x = -(totalWidth/2 - postWidth/2);
-            lPost.castShadow = true;
-            lPost.receiveShadow = true;
-            group.add(lPost);
-
-            const rPost = new THREE.Mesh(postGeo, mat);
-            rPost.position.x = +(totalWidth/2 - postWidth/2);
-            rPost.castShadow = true;
-            rPost.receiveShadow = true;
-            group.add(rPost);
-
-            const lintelGeo = new THREE.BoxGeometry(holeWidth, lintelHeight, depth);
-            const lintel = new THREE.Mesh(lintelGeo, mat);
-            lintel.position.y = (totalHeight/2 - lintelHeight/2);
-            lintel.castShadow = true;
-            lintel.receiveShadow = true;
-            group.add(lintel);
-
-            return group;
+            return this.createDoorway(gridSize, mat, isGhost);
         }
 
         const geo = this.getGeometry(type);

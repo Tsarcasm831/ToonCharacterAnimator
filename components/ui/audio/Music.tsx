@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Music as MusicIcon, Play, Pause, Volume2, SkipForward, SkipBack, X, ChevronUp } from 'lucide-react';
 import { useMusic } from '../../../contexts/MusicContext';
 import { useIsIphoneLayout } from '../../../hooks/useIsIphoneLayout';
+import { supabase } from '../../../lib/supabase';
 
 interface Track {
     id: string;
@@ -370,6 +371,114 @@ const ALBUMS: Album[] = [
                 fileUrl: '/assets/musicshrunk/OldTracks/Puppet on a Wire (Cover).opus'
             }
         ]
+    },
+    {
+        id: 'unsorted',
+        title: 'Unsorted',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
+        genre: 'Various',
+        coverColor: 'bg-gradient-to-br from-purple-600 via-pink-600 to-red-600',
+        tracks: [
+            {
+                id: 'clusterflux',
+                title: 'Clusterflux',
+                artist: 'Lord Tsarcasm',
+                duration: '3:24',
+                fileUrl: '/assets/musicshrunk/Unsorted/Clusterflux.opus'
+            },
+            {
+                id: 'cool-story-bro',
+                title: 'Cool Story, Bro',
+                artist: 'Lord Tsarcasm',
+                duration: '3:42',
+                fileUrl: '/assets/musicshrunk/Unsorted/Cool Story, Bro.opus'
+            },
+            {
+                id: 'dnb-focus',
+                title: 'DnB Focus',
+                artist: 'Lord Tsarcasm',
+                duration: '4:18',
+                fileUrl: '/assets/musicshrunk/Unsorted/DnB Focus.opus'
+            },
+            {
+                id: 'falterlight',
+                title: 'Falterlight',
+                artist: 'Lord Tsarcasm',
+                duration: '3:44',
+                fileUrl: '/assets/musicshrunk/Unsorted/Falterlight.opus'
+            },
+            {
+                id: 'gone',
+                title: 'GONE',
+                artist: 'Lord Tsarcasm',
+                duration: '2:04',
+                fileUrl: '/assets/musicshrunk/Unsorted/GONE.opus'
+            },
+            {
+                id: 'i-just-hid',
+                title: 'I Just Hid (INFJ Anthem)',
+                artist: 'Lord Tsarcasm',
+                duration: '3:36',
+                fileUrl: '/assets/musicshrunk/Unsorted/I Just Hid (INFJ Anthem).opus'
+            },
+            {
+                id: 'minion-remastered',
+                title: 'Minion (Remastered)',
+                artist: 'Lord Tsarcasm',
+                duration: '2:41',
+                fileUrl: '/assets/musicshrunk/Unsorted/Minion (Remastered).opus'
+            },
+            {
+                id: 'new-medicine',
+                title: 'New Medicine',
+                artist: 'Lord Tsarcasm',
+                duration: '3:24',
+                fileUrl: '/assets/musicshrunk/Unsorted/New Medicine.opus'
+            },
+            {
+                id: 'out-of-control',
+                title: 'Out Of Control',
+                artist: 'Lord Tsarcasm',
+                duration: '3:53',
+                fileUrl: '/assets/musicshrunk/Unsorted/Out Of Control.opus'
+            },
+            {
+                id: 'riding-shotgun',
+                title: 'Riding Shotgun',
+                artist: 'Lord Tsarcasm',
+                duration: '3:17',
+                fileUrl: '/assets/musicshrunk/Unsorted/Riding Shotgun.opus'
+            },
+            {
+                id: 'safety-net',
+                title: 'Safety Net',
+                artist: 'Lord Tsarcasm',
+                duration: '3:59',
+                fileUrl: '/assets/musicshrunk/Unsorted/Safety Net.opus'
+            },
+            {
+                id: 'twelve',
+                title: 'Twelve',
+                artist: 'Lord Tsarcasm',
+                duration: '3:14',
+                fileUrl: '/assets/musicshrunk/Unsorted/Twelve.opus'
+            },
+            {
+                id: 'who-are-you',
+                title: 'Who Are You?',
+                artist: 'Lord Tsarcasm',
+                duration: '3:53',
+                fileUrl: '/assets/musicshrunk/Unsorted/Who Are You_.opus'
+            },
+            {
+                id: 'tushka-chubby',
+                title: 'Тушка - Chubby',
+                artist: 'Lord Tsarcasm',
+                duration: '1:34',
+                fileUrl: '/assets/musicshrunk/Unsorted/Тушка - Chubby.opus'
+            }
+        ]
     }
 ];
 
@@ -381,8 +490,30 @@ export const MusicView: React.FC = () => {
     const isIphoneLayout = useIsIphoneLayout();
     const previewTrackCount = isIphoneLayout ? 2 : 3;
 
-    const handlePlayTrack = (track: Track) => {
+    const handlePlayTrack = async (track: Track) => {
         playTrack(track);
+        
+        // Track play in Supabase
+        try {
+            const { error } = await supabase
+                .from('music_analytics')
+                .upsert({
+                    track_id: track.id,
+                    track_title: track.title,
+                    track_artist: track.artist,
+                    play_count: 1, // This will be incremented with a trigger or handled differently
+                    last_played: new Date().toISOString()
+                }, {
+                    onConflict: 'track_id'
+                });
+            
+            if (error) {
+                console.error('Analytics error:', error);
+            }
+        } catch (err) {
+            console.error('Failed to track play:', err);
+        }
+        
         // Open mobile player when track starts
         setIsMobilePlayerOpen(true);
     };
@@ -402,6 +533,36 @@ export const MusicView: React.FC = () => {
         const seconds = Math.floor(time % 60);
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     };
+
+    // Hourly analytics logging
+    useEffect(() => {
+        const interval = setInterval(async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('music_analytics')
+                    .select('*')
+                    .order('play_count', { ascending: false })
+                    .limit(10);
+                
+                if (error) {
+                    console.error('Analytics fetch error:', error);
+                    return;
+                }
+                
+                console.log(`🎵 5-Minute Music Analytics (${new Date().toLocaleTimeString()}):`);
+                console.table(data?.map(track => ({
+                    title: track.track_title,
+                    artist: track.track_artist,
+                    plays: track.play_count,
+                    last_played: new Date(track.last_played).toLocaleString()
+                })));
+            } catch (err) {
+                console.error('Failed to fetch analytics:', err);
+            }
+        }, 300000); // 5 minutes = 300,000 ms
+        
+        return () => clearInterval(interval);
+    }, []);
 
     const getAlbumCoverStyle = (album: Album) =>
         album.coverImage

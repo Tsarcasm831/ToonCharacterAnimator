@@ -243,6 +243,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
         // Fallback for video ready
         const videoFallback = setTimeout(() => {
             if (!isVideoReady) setIsVideoReady(true);
+            if (!isVideoPlaying) setIsVideoPlaying(true);
         }, 2000);
         sequenceTimers.current.push(videoFallback as unknown as number);
 
@@ -289,10 +290,10 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
             setRunnerProgress((prev) => {
                 const baseTarget = showLoadingTrack ? Math.max(10, loadingProgress * 0.9) : 15;
                 const target = isSystemReady ? 100 : Math.min(95, baseTarget);
-                const step = isSystemReady ? 2 : 0.6;
+                const step = isSystemReady ? 4 : 1.2; // Larger steps
                 return Math.min(target, prev + step);
             });
-        }, 60);
+        }, 120); // Slower interval (was 60)
 
         return () => window.clearInterval(interval);
     }, [showRunnerTrack, showLoadingTrack, isVisible, loadingProgress, isSystemReady]);

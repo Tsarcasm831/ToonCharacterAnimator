@@ -9,7 +9,7 @@ const DEFAULT_COMMITS = [
 ];
 
 interface MainMenuProps {
-    onStart: (startInCombat: boolean, startInLand: boolean, startInDev: boolean, startInTown: boolean) => void;
+    onStart: (startInCombat: boolean, startInLand: boolean, startInDev: boolean, startInTown: boolean, startInSingleBiome: boolean) => void;
     onShowEnemies: () => void;
     isMobile?: boolean;
     showVideoBackground?: boolean;
@@ -20,6 +20,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
     const [startInLand, setStartInLand] = React.useState(false);
     const [startInDev, setStartInDev] = React.useState(false);
     const [startInTown, setStartInTown] = React.useState(false);
+    const [startInSingleBiome, setStartInSingleBiome] = React.useState(false);
     const [showOptions, setShowOptions] = React.useState(false);
     const [showUnits, setShowUnits] = React.useState(false);
     const [showMap, setShowMap] = React.useState(false);
@@ -93,7 +94,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
                             </button>
 
                             <button 
-                                onClick={() => onStart(startInCombat, startInLand, startInDev, startInTown)}
+                                onClick={() => onStart(startInCombat, startInLand, startInDev, startInTown, startInSingleBiome)}
                                 className="px-16 py-5 bg-white text-black font-black text-xl uppercase tracking-widest rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(59,130,246,0.6)] active:scale-95 transform hover:-translate-y-1"
                             >
                                 Enter World
@@ -183,6 +184,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
                                             if (next) {
                                                 setStartInCombat(false);
                                                 setStartInLand(false);
+                                                setStartInSingleBiome(false);
                                             }
                                         }}
                                     >
@@ -194,6 +196,29 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
                                             )}
                                         </div>
                                         <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">Town Scene</span>
+                                    </div>
+
+                                    <div
+                                        className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
+                                        onClick={() => {
+                                            const next = !startInSingleBiome;
+                                            setStartInSingleBiome(next);
+                                            if (next) {
+                                                setStartInCombat(false);
+                                                setStartInLand(false);
+                                                setStartInTown(false);
+                                                setStartInDev(false);
+                                            }
+                                        }}
+                                    >
+                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${startInSingleBiome ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/30'}`}>
+                                            {startInSingleBiome && (
+                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">Single Biome</span>
                                     </div>
                                 </div>
                             )}
