@@ -9,6 +9,8 @@ import { FaceControls } from '../controls/FaceControls';
 import { RiggingControls } from '../controls/RiggingControls';
 import { EquipmentRiggingControls } from '../controls/EquipmentRiggingControls';
 import { ImpersonateControls } from '../controls/ImpersonateControls';
+import RandomizeControls from '../controls/RandomizeControls';
+import LoadoutControls from '../controls/LoadoutControls';
 import { Slider } from './CommonControls';
 
 interface ControlPanelProps {
@@ -21,23 +23,34 @@ interface ControlPanelProps {
     triggerAction: (key: keyof PlayerInput) => void;
     onExport: () => void;
     onSpawnAnimals: () => void;
+    onUndo: () => void;
+    onRedo: () => void;
+    canUndo: boolean;
+    canRedo: boolean;
 }
 
-type TabKey = 'settings' | 'environment' | 'actions' | 'impersonate' | 'body' | 'outfit' | 'face' | 'rigging' | 'eq_rigging';
+type TabKey = 'settings' | 'environment' | 'actions' | 'impersonate' | 'body' | 'outfit' | 'face' | 'rigging' | 'eq_rigging' | 'randomize' | 'loadouts';
 
-export const ControlPanel: React.FC<ControlPanelProps> = ({ 
-    config, 
-    manualInput, 
-    isDeadUI, 
-    setConfig, 
-    setManualInput, 
-    handleDeathToggle, 
+export const ControlPanel: React.FC<ControlPanelProps> = ({
+    config,
+    manualInput,
+    isDeadUI,
+    setConfig,
+    setManualInput,
+    handleDeathToggle,
     triggerAction,
     onExport,
-    onSpawnAnimals
+    onSpawnAnimals,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<TabKey>('actions');
+    const [isMobileLayout, setIsMobileLayout] = useState(() =>
+        typeof window !== 'undefined' ? window.matchMedia('(max-width: 1024px)').matches : false
+    );
     
     const showLegend = activeTab === 'rigging' && isOpen;
 
@@ -45,9 +58,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         setConfig(prev => ({ ...prev, [key]: value }));
     };
 
+    React.useEffect(() => {
+        const mediaQuery = window.matchMedia('(max-width: 1024px)');
+        const handleChange = () => setIsMobileLayout(mediaQuery.matches);
+        handleChange();
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+    }, []);
+
     const TABS: { id: TabKey; label: string; icon: string }[] = [
         { id: 'actions', label: 'Actions & Input', icon: '🎮' },
         { id: 'impersonate', label: 'Impersonate', icon: '🎭' },
+        { id: 'randomize', label: 'Randomize', icon: '🎲' },
+        { id: 'loadouts', label: 'Loadouts', icon: '💾' },
         { id: 'settings', label: 'Game Settings', icon: '⚙️' },
         { id: 'environment', label: 'Environment', icon: '🌍' },
         { id: 'body', label: 'Body Details', icon: '💪' },
@@ -61,7 +84,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         <>
             {/* Trigger Button */}
             {!isOpen && (
-                <button 
+                <button type="button" 
                     onClick={() => setIsOpen(true)}
                     className="absolute bottom-4 right-4 z-[60] p-4 bg-slate-900/90 backdrop-blur-md shadow-2xl rounded-full border border-white/20 text-white hover:bg-blue-600 hover:border-blue-400 transition-all hover:scale-105 active:scale-95 group"
                     title="Open Studio OS"
@@ -78,9 +101,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {/* Split UI Layout */}
             {isOpen && (
-                <div className="fixed inset-0 z-[100] flex justify-between p-4 pointer-events-none animate-fade-in overflow-hidden">
+                <div className={`fixed inset-0 z-[100] pointer-events-none animate-fade-in overflow-hidden ${isMobileLayout ? 'flex items-start p-2' : 'flex justify-between p-4'}`}>
                     
                     {/* LEFT PANEL: Navigation */}
+                    {!isMobileLayout && (
                     <div className="w-72 h-full bg-slate-950/90 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
                         <div className="p-8 border-b border-white/5">
                             <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Studio<span className="text-blue-500">OS</span></h2>
@@ -89,7 +113,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         
                         <div className="flex-1 overflow-y-auto py-6 space-y-1 custom-scrollbar">
                             {TABS.map(tab => (
-                                <button
+                                <button type="button"
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`w-full px-8 py-4 text-left flex items-center gap-4 transition-all relative group ${
@@ -110,8 +134,43 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         </div>
 
                         {/* Global Controls at Bottom of Nav */}
-                        <div className="p-6 border-t border-white/5 bg-black/20">
-                            <button 
+                        <div className="p-6 border-t border-white/5 bg-black/20 space-y-3">
+                            {/* Undo/Redo Controls */}
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={onUndo}
+                                    disabled={!canUndo}
+                                    className={`flex-1 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${
+                                        canUndo
+                                            ? 'bg-blue-500/20 border border-blue-500/40 text-blue-400 hover:bg-blue-500 hover:text-white'
+                                            : 'bg-slate-800/30 border border-slate-700/30 text-slate-600 cursor-not-allowed'
+                                    }`}
+                                    title="Undo (Ctrl+Z)"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                                    </svg>
+                                    Undo
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={onRedo}
+                                    disabled={!canRedo}
+                                    className={`flex-1 py-2.5 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${
+                                        canRedo
+                                            ? 'bg-blue-500/20 border border-blue-500/40 text-blue-400 hover:bg-blue-500 hover:text-white'
+                                            : 'bg-slate-800/30 border border-slate-700/30 text-slate-600 cursor-not-allowed'
+                                    }`}
+                                    title="Redo (Ctrl+Y)"
+                                >
+                                    Redo
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a8 8 0 00-8 8v2m18-10l-6 6m6-6l-6-6" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <button type="button"
                                 onClick={() => setIsOpen(false)}
                                 className="w-full py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95"
                             >
@@ -119,28 +178,51 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                             </button>
                         </div>
                     </div>
+                    )}
 
                     {/* CENTER: CLEAR SPACE FOR CHARACTER VIEW */}
-                    <div className="flex-1 flex items-center justify-center pointer-events-none" />
+                    {!isMobileLayout && <div className="flex-1 flex items-center justify-center pointer-events-none" />}
 
                     {/* RIGHT PANEL: Content & Settings */}
-                    <div className="w-[450px] h-full bg-slate-950/90 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
-                        <div className="p-8 pb-4 border-b border-white/5 flex justify-between items-start">
+                    <div className={`${isMobileLayout ? 'w-full h-[calc(100dvh-1rem)] rounded-2xl' : 'w-[450px] h-full rounded-[2rem]'} bg-slate-950/90 backdrop-blur-xl border border-white/10 shadow-2xl flex flex-col overflow-hidden pointer-events-auto`}>
+                        <div className={`${isMobileLayout ? 'p-4 pb-3' : 'p-8 pb-4'} border-b border-white/5 flex justify-between items-start`}>
                             <div>
-                                <h3 className="text-2xl font-black text-white uppercase tracking-tight">
+                                <h3 className={`${isMobileLayout ? 'text-xl' : 'text-2xl'} font-black text-white uppercase tracking-tight`}>
                                     {TABS.find(t => t.id === activeTab)?.label}
                                 </h3>
                                 <div className="h-1.5 w-16 bg-blue-500 mt-2 rounded-full shadow-[0_0_10px_#3b82f6]" />
                             </div>
-                            <button 
+                            <button type="button" 
                                 onClick={() => setIsOpen(false)}
+                                aria-label="Close Studio OS panel"
                                 className="p-2 text-slate-500 hover:text-white bg-white/5 hover:bg-red-500/20 rounded-xl transition-all"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                        {isMobileLayout && (
+                            <div className="px-4 pt-3 overflow-x-auto custom-scrollbar border-b border-white/5">
+                                <div className="flex gap-2 min-w-max pb-3">
+                                    {TABS.map(tab => (
+                                        <button
+                                            type="button"
+                                            key={tab.id}
+                                            onClick={() => setActiveTab(tab.id)}
+                                            className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+                                                activeTab === tab.id
+                                                    ? 'bg-blue-600/30 border-blue-400/60 text-white'
+                                                    : 'bg-white/5 border-white/10 text-slate-400'
+                                            }`}
+                                        >
+                                            {tab.icon} {tab.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className={`${isMobileLayout ? 'p-4' : 'p-8'} flex-1 overflow-y-auto custom-scrollbar`}>
                             <div className="animate-fade-in-right">
                                 {activeTab === 'actions' && (
                                     <ActionControls 
@@ -158,6 +240,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
                                 {activeTab === 'impersonate' && (
                                     <ImpersonateControls setConfig={setConfig} />
+                                )}
+
+                                {activeTab === 'randomize' && (
+                                    <RandomizeControls config={config} setConfig={setConfig} />
+                                )}
+
+                                {activeTab === 'loadouts' && (
+                                    <LoadoutControls config={config} setConfig={setConfig} />
                                 )}
 
                                 {activeTab === 'settings' && (
@@ -178,7 +268,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                         <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 space-y-6">
                                             <div className="flex items-center justify-between bg-black/20 p-4 rounded-xl">
                                                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Auto Day Cycle</label>
-                                                <button 
+                                                <button type="button" 
                                                     onClick={() => handleConfigChange('isAutoTime', !config.isAutoTime)}
                                                     className={`w-12 h-6 rounded-full transition-all relative ${config.isAutoTime ? 'bg-blue-600' : 'bg-slate-800'}`}
                                                 >
@@ -227,7 +317,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         </div>
                         
                         {/* Footer Context Info */}
-                        <div className="p-6 bg-black/40 border-t border-white/5">
+                        <div className={`${isMobileLayout ? 'p-4' : 'p-6'} bg-black/40 border-t border-white/5`}>
                             <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-widest">
                                 <span>Session ID: {Math.random().toString(16).slice(2, 8).toUpperCase()}</span>
                                 <span className="text-blue-500/50">Core.V1.Active</span>

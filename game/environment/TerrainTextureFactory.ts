@@ -5,11 +5,13 @@ export class TerrainTextureFactory {
     private static textureCache: Map<string, THREE.Texture> = new Map();
     private static inflight: Map<string, Promise<void>> = new Map();
     private static worker: Worker | null = null;
-    private static readonly TEXTURE_SIZE = 256;
+    private static readonly DEFAULT_TEXTURE_SIZE = 256;
+    private static readonly LOW_END_TEXTURE_SIZE = 128;
     private static readonly STORAGE_VERSION = 'v3';
+    private static resolvedTextureSize: number | null = null;
 
     private static getStorageKey(type: string) {
-        return `terrain-texture:${type}:${TerrainTextureFactory.TEXTURE_SIZE}:${TerrainTextureFactory.STORAGE_VERSION}`;
+        return `terrain-texture:${type}:${TerrainTextureFactory.getTextureSize()}:${TerrainTextureFactory.STORAGE_VERSION}`;
     }
 
     /**
@@ -55,6 +57,22 @@ export class TerrainTextureFactory {
         return tex;
     }
 
+    private static getTextureSize() {
+        if (TerrainTextureFactory.resolvedTextureSize !== null) {
+            return TerrainTextureFactory.resolvedTextureSize;
+        }
+
+        const deviceMemory = typeof navigator !== 'undefined' ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory : undefined;
+        const hardwareConcurrency = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : undefined;
+        const isLowEndDevice = (deviceMemory !== undefined && deviceMemory <= 4) || (hardwareConcurrency !== undefined && hardwareConcurrency <= 4);
+
+        TerrainTextureFactory.resolvedTextureSize = isLowEndDevice
+            ? TerrainTextureFactory.LOW_END_TEXTURE_SIZE
+            : TerrainTextureFactory.DEFAULT_TEXTURE_SIZE;
+
+        return TerrainTextureFactory.resolvedTextureSize;
+    }
+
     private static applyRepeat(type: string, tex: THREE.Texture) {
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.RepeatWrapping;
@@ -75,18 +93,19 @@ export class TerrainTextureFactory {
         return new Promise<void>((resolve) => {
             const work = () => {
                 const canvas = document.createElement('canvas');
-                canvas.width = TerrainTextureFactory.TEXTURE_SIZE;
-                canvas.height = TerrainTextureFactory.TEXTURE_SIZE;
+                const textureSize = TerrainTextureFactory.getTextureSize();
+                canvas.width = textureSize;
+                canvas.height = textureSize;
                 const ctx = canvas.getContext('2d');
                 if (!ctx) return resolve();
-                TerrainTextureFactory.drawTexture(ctx, TerrainTextureFactory.TEXTURE_SIZE, type);
+                TerrainTextureFactory.drawTexture(ctx, textureSize, type);
                 TerrainTextureFactory.applyImageToTexture(tex, canvas);
-                TerrainTextureFactory.cacheToLocalStorage(type, canvas);
+                TerrainTextureFactory.scheduleCacheToLocalStorage(type, canvas);
                 resolve();
             };
 
             if ('requestIdleCallback' in window) {
-                (window as any).requestIdleCallback(work);
+                (window as any).requestIdleCallback(work, { timeout: 500 });
             } else {
                 setTimeout(work, 0);
             }
@@ -96,8 +115,9 @@ export class TerrainTextureFactory {
     private static cacheToLocalStorage(type: string, image: CanvasImageSource) {
         try {
             const canvas = document.createElement('canvas');
-            canvas.width = TerrainTextureFactory.TEXTURE_SIZE;
-            canvas.height = TerrainTextureFactory.TEXTURE_SIZE;
+            const textureSize = TerrainTextureFactory.getTextureSize();
+            canvas.width = textureSize;
+            canvas.height = textureSize;
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
             ctx.drawImage(image as any, 0, 0, canvas.width, canvas.height);
@@ -106,6 +126,15 @@ export class TerrainTextureFactory {
         } catch {
             // Ignore storage failures
         }
+    }
+
+    private static scheduleCacheToLocalStorage(type: string, image: CanvasImageSource) {
+        const cacheTexture = () => TerrainTextureFactory.cacheToLocalStorage(type, image);
+        if ('requestIdleCallback' in window) {
+            (window as any).requestIdleCallback(cacheTexture, { timeout: 1500 });
+            return;
+        }
+        setTimeout(cacheTexture, 0);
     }
 
     private static getWorker(): Worker | null {
@@ -130,7 +159,7 @@ export class TerrainTextureFactory {
             const image = new Image();
             image.onload = () => {
                 TerrainTextureFactory.applyImageToTexture(tex, image);
-                TerrainTextureFactory.cacheToLocalStorage(type, image);
+                TerrainTextureFactory.scheduleCacheToLocalStorage(type, image);
                 resolve(true);
             };
             image.onerror = () => resolve(false);
@@ -154,6 +183,8 @@ export class TerrainTextureFactory {
     }
 
     private static drawTexture(ctx: CanvasRenderingContext2D, size: number, type: string) {
+        const detailScale = Math.max(0.35, size / TerrainTextureFactory.DEFAULT_TEXTURE_SIZE);
+        const detailCount = (count: number) => Math.max(1, Math.round(count * detailScale * detailScale));
         const noise = (amount: number, scale: number = 1) => {
             for (let i = 0; i < amount; i++) {
                 ctx.fillStyle = Math.random() > 0.5 ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
@@ -171,10 +202,10 @@ export class TerrainTextureFactory {
             case 'Grass':
                 fill('#2d3a1e'); 
                 // Base Noise
-                noise(40000, 2);
+                noise(detailCount(40000), 2);
                 
                 // Varied Color Patches
-                for(let i=0; i<20; i++) {
+                for(let i=0; i<detailCount(20); i++) {
                     const cx = Math.random() * size;
                     const cy = Math.random() * size;
                     const r = 50 + Math.random() * 100;
@@ -190,7 +221,7 @@ export class TerrainTextureFactory {
 
                 // Dense Blades
                 const bladeColors = ['#416128', '#537d32', '#6a9c42', '#345221', '#7ca856', '#2e4a1a'];
-                for(let i=0; i<12000; i++) {
+                for(let i=0; i<detailCount(12000); i++) {
                     const x = Math.random() * size;
                     const y = Math.random() * size;
                     const w = 1 + Math.random() * 2;
@@ -210,7 +241,7 @@ export class TerrainTextureFactory {
                 }
                 
                 // Add some small flowers/weeds
-                for(let i=0; i<300; i++) {
+                for(let i=0; i<detailCount(300); i++) {
                     const x = Math.random() * size;
                     const y = Math.random() * size;
                     ctx.fillStyle = Math.random() > 0.7 ? '#ffffaa' : '#ffffff';
@@ -220,7 +251,7 @@ export class TerrainTextureFactory {
                 }
                 break;
             case 'Sand':
-                fill('#fbc02d'); noise(8000, 2);
+                fill('#fbc02d'); noise(detailCount(8000), 2);
                 ctx.strokeStyle = '#fdd835'; ctx.lineWidth = 12; ctx.globalAlpha = 0.4;
                 for(let i=0; i<size; i+=30) {
                     ctx.beginPath(); ctx.moveTo(0, i);
@@ -230,9 +261,9 @@ export class TerrainTextureFactory {
                 ctx.globalAlpha = 1.0;
                 break;
             case 'Stone':
-                fill('#475569'); noise(15000, 3);
+                fill('#475569'); noise(detailCount(15000), 3);
                 ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3; ctx.globalAlpha = 0.6;
-                for(let i=0; i<40; i++) {
+                for(let i=0; i<detailCount(40); i++) {
                     ctx.beginPath(); ctx.moveTo(Math.random()*size, Math.random()*size);
                     ctx.lineTo(Math.random()*size, Math.random()*size); ctx.stroke();
                 }
@@ -254,8 +285,8 @@ export class TerrainTextureFactory {
                 }
                 break;
             case 'Snow':
-                fill('#f8fafc'); noise(5000, 2);
-                for(let i=0; i<8; i++) {
+                fill('#f8fafc'); noise(detailCount(5000), 2);
+                for(let i=0; i<detailCount(8); i++) {
                    const cx = Math.random()*size; const cy = Math.random()*size;
                    const r = 50 + Math.random()*100;
                    const grad = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
@@ -266,7 +297,7 @@ export class TerrainTextureFactory {
                 break;
             case 'Gravel':
                 fill('#64748b');
-                for(let i=0; i<1500; i++) {
+                for(let i=0; i<detailCount(1500); i++) {
                     ctx.fillStyle = Math.random()>0.5 ? '#334155' : '#94a3b8';
                     const s = 3 + Math.random() * 8; const x = Math.random()*size; const y = Math.random()*size;
                     ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI*2); ctx.fill();
@@ -274,8 +305,8 @@ export class TerrainTextureFactory {
                 }
                 break;
             case 'Dirt':
-                fill('#78716c'); noise(12000, 4); ctx.strokeStyle = '#44403c'; ctx.lineWidth = 1;
-                for(let i=0; i<30; i++) {
+                fill('#78716c'); noise(detailCount(12000), 4); ctx.strokeStyle = '#44403c'; ctx.lineWidth = 1;
+                for(let i=0; i<detailCount(30); i++) {
                     ctx.beginPath(); const x = Math.random()*size, y = Math.random()*size;
                     ctx.moveTo(x,y); ctx.lineTo(x+Math.random()*20-10, y+Math.random()*20-10); ctx.stroke();
                 }
@@ -299,7 +330,7 @@ export class TerrainTextureFactory {
                 break;
             case 'Leaves':
                 fill('#7c2d12'); const leafColors = ['#ea580c', '#c2410c', '#facc15', '#9a3412', '#b91c1c'];
-                for(let i=0; i<1200; i++) {
+                for(let i=0; i<detailCount(1200); i++) {
                     ctx.fillStyle = leafColors[Math.floor(Math.random()*leafColors.length)];
                     const x = Math.random()*size; const y = Math.random()*size;
                     const w = 8 + Math.random()*12; const h = 4 + Math.random()*6;
@@ -308,15 +339,15 @@ export class TerrainTextureFactory {
                 }
                 break;
             case 'Obsidian':
-                fill('#0a0a0a'); noise(12000, 1.5); ctx.strokeStyle = '#4a148c'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.2;
-                for(let i=0; i<20; i++) {
+                fill('#0a0a0a'); noise(detailCount(12000), 1.5); ctx.strokeStyle = '#4a148c'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.2;
+                for(let i=0; i<detailCount(20); i++) {
                     ctx.beginPath(); ctx.moveTo(Math.random()*size, 0); ctx.lineTo(Math.random()*size, size); ctx.stroke();
                 }
                 ctx.globalAlpha = 1.0;
                 break;
             case 'Marble':
                 fill('#f5f5f5'); ctx.strokeStyle = '#bdbdbd'; ctx.lineWidth = 2;
-                for(let i=0; i<15; i++) {
+                for(let i=0; i<detailCount(15); i++) {
                     ctx.beginPath(); ctx.moveTo(Math.random()*size, 0);
                     ctx.bezierCurveTo(Math.random()*size, size/2, Math.random()*size, size/2, Math.random()*size, size);
                     ctx.stroke();
@@ -324,15 +355,15 @@ export class TerrainTextureFactory {
                 break;
             case 'Toxic':
                 fill('#1a2e05');
-                for(let i=0; i<30; i++) {
+                for(let i=0; i<detailCount(30); i++) {
                     ctx.fillStyle = Math.random() > 0.5 ? '#4d7c0f' : '#bef264';
                     ctx.beginPath(); ctx.arc(Math.random()*size, Math.random()*size, Math.random()*30 + 10, 0, Math.PI*2); ctx.fill();
                 }
-                noise(15000, 2);
+                noise(detailCount(15000), 2);
                 break;
             case 'Crimson':
-                fill('#450a0a'); noise(12000, 2); ctx.fillStyle = '#991b1b';
-                for(let i=0; i<40; i++) {
+                fill('#450a0a'); noise(detailCount(12000), 2); ctx.fillStyle = '#991b1b';
+                for(let i=0; i<detailCount(40); i++) {
                     ctx.beginPath(); ctx.arc(Math.random()*size, Math.random()*size, Math.random()*20 + 5, 0, Math.PI*2); ctx.fill();
                 }
                 break;
@@ -373,12 +404,12 @@ export class TerrainTextureFactory {
                                 worker.removeEventListener('message', handleMessage);
                                 if (bitmap) {
                                     TerrainTextureFactory.applyImageToTexture(placeholder, bitmap as ImageBitmap);
-                                    TerrainTextureFactory.cacheToLocalStorage(type, bitmap as ImageBitmap);
+                                    TerrainTextureFactory.scheduleCacheToLocalStorage(type, bitmap as ImageBitmap);
                                 }
                                 resolve(!!bitmap);
                             };
                             worker.addEventListener('message', handleMessage);
-                            worker.postMessage({ id: requestId, type, size: TerrainTextureFactory.TEXTURE_SIZE });
+                            worker.postMessage({ id: requestId, type, size: TerrainTextureFactory.getTextureSize() });
                         });
 
                         if (resolved) return;

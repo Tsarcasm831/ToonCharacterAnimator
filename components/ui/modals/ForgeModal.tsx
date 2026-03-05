@@ -206,7 +206,7 @@ export const ForgeModal: React.FC<ForgeModalProps> = ({
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
             <div className="flex w-[850px] h-[550px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden relative">
-                <button onClick={onClose} className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white transition-colors">
+                <button type="button" onClick={onClose} className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white transition-colors">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
                 <div className="w-1/2 bg-slate-800/40 border-r border-slate-700 flex flex-col items-center justify-center p-8">
@@ -267,7 +267,7 @@ export const ForgeModal: React.FC<ForgeModalProps> = ({
                         </div>
                     </div>
                     
-                    <button 
+                    <button type="button" 
                         onClick={isForging ? stopForging : startForge} 
                         disabled={(!inputItem && !isForging) || (currentRecipe && inputItem && inputItem.count < currentRecipe.required && !isForging)} 
                         className={`mt-12 px-10 py-3 rounded-full font-black uppercase tracking-widest text-sm transition-all shadow-xl active:scale-95 ${((!inputItem && !isForging) || (currentRecipe && inputItem && inputItem.count < currentRecipe.required && !isForging)) ? 'bg-slate-700 text-slate-500 cursor-not-allowed' : 'bg-orange-600 text-white hover:bg-orange-500 hover:shadow-orange-500/20'}`}

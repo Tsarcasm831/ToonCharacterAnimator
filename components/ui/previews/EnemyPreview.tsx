@@ -241,7 +241,7 @@ export const EnemyPreview: React.FC<EnemyPreviewProps> = ({ type }) => {
             {previewUrl ? (
                 <img 
                     src={previewUrl} 
-                    alt={type} 
+                    alt={`${type} unit preview`} 
                     className="w-full h-full object-contain animate-fade-in"
                 />
             ) : (

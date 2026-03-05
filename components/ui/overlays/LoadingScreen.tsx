@@ -47,6 +47,7 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
         model: PlayerModel;
         clock: THREE.Clock;
     } | null>(null);
+    const zeroVecRef = useRef(new THREE.Vector3(0, 0, 0));
 
     useEffect(() => {
         const mountNode = mountRef.current;
@@ -66,9 +67,13 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
         camera.position.set(0, 1.2, 5.5);
         camera.lookAt(0, 0.8, 0);
 
-        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        const renderer = new THREE.WebGLRenderer({
+            alpha: true,
+            antialias: false,
+            powerPreference: 'low-power'
+        });
         renderer.setSize(width, height);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setPixelRatio(1);
         mountNode.appendChild(renderer.domElement);
 
         const disposeRenderer = () => {
@@ -103,6 +108,7 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
         sceneRef.current = { renderer, scene, camera, model, clock };
 
         let frameId: number;
+        let lastTime = 0;
         const mockInput = { x: 0, y: -1, isRunning: true };
         const mockPlayer = {
             config,
@@ -114,19 +120,21 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
             isCombatStance: false,
             model
         };
+        const targetFrameMs = 1000 / 30;
 
-        const animate = () => {
+        const animate = (time: number = 0) => {
             frameId = requestAnimationFrame(animate);
-            const dt = sceneRef.current?.clock.getDelta() || 0.016;
-            
+            if (time - lastTime < targetFrameMs) return;
+            lastTime = time;
+
+            const dt = Math.min(sceneRef.current?.clock.getDelta() || 0.016, 0.033);
             MovementAction.animate(mockPlayer, model.parts, dt, 0.1, mockInput as any);
-            model.update(dt, new THREE.Vector3(0, 0, 0));
-            model.sync(config, false);
+            model.update(dt, zeroVecRef.current);
 
             renderer.render(scene, camera);
         };
 
-        animate();
+        frameId = requestAnimationFrame(animate);
 
         return () => {
             cancelAnimationFrame(frameId);
@@ -318,6 +326,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                 <video
                     ref={videoRef}
                     className="absolute inset-0 w-full h-full object-cover"
+                    aria-label="Loading cinematic background"
                     autoPlay
                     muted
                     playsInline

@@ -27,7 +27,14 @@ import { EnemyPreview } from '../previews/EnemyPreview';
 import { CLASS_STATS } from '../../../data/stats';
 import { Heart, Zap, Sword, Shield, Wind, Target } from 'lucide-react';
 
-const ENEMIES = [
+interface UnitEntity {
+    id: string;
+    name: string;
+    description: string;
+    class: any;
+}
+
+const ENEMIES: UnitEntity[] = [
     { id: 'archer', name: 'Archer', description: 'Ranged combatant using precise bow attacks.', class: Archer },
     { id: 'assassin', name: 'Assassin', description: 'Quick and deadly, specializes in critical strikes.', class: Assassin },
     { id: 'bandit', name: 'Bandit', description: 'A common ruffian with balanced combat skills.', class: Bandit },
@@ -37,7 +44,7 @@ const ENEMIES = [
     { id: 'warlock', name: 'Warlock', description: 'Commands dark magic and debilitating curses.', class: Warlock },
 ];
 
-const ALLIES = [
+const ALLIES: UnitEntity[] = [
     { id: 'paladin', name: 'Paladin', description: 'Holy warrior wielding divine power and righteous fury.', class: Paladin },
     { id: 'ranger', name: 'Ranger', description: 'Forest protector skilled in archery and tracking.', class: Ranger },
     { id: 'monk', name: 'Monk', description: 'Martial artist with lightning-fast unarmed strikes.', class: Monk },
@@ -46,7 +53,7 @@ const ALLIES = [
     { id: 'knight', name: 'Knight', description: 'Heavily armored warrior with high survivability.', class: Knight },
 ];
 
-const FAUNA = [
+const FAUNA: UnitEntity[] = [
     { id: 'wolf', name: 'Wolf', description: 'Pack hunter that patrols the grove with fierce loyalty.', class: Wolf },
     { id: 'bear', name: 'Bear', description: 'Powerful omnivore with immense strength and thick hide.', class: Bear },
     { id: 'spider', name: 'Spider', description: 'Eight-legged arachnid with venomous bite and web attacks.', class: Spider },
@@ -102,111 +109,216 @@ const CompactStatBar = ({
 };
 
 export const Units: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'enemies' | 'allies' | 'fauna'>('enemies');
+    type UnitGroupKey = 'enemies' | 'allies' | 'fauna';
+    type SortKey = 'name' | 'hp' | 'atk' | 'def';
+
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState<SortKey>('name');
+    const [expandedGroups, setExpandedGroups] = useState<Record<UnitGroupKey, boolean>>({
+        enemies: false,
+        allies: false,
+        fauna: false,
+    });
+
     const activeScene = 'land';
     const isLand = activeScene === 'land';
-    const currentList = activeTab === 'enemies' ? ENEMIES : activeTab === 'allies' ? ALLIES : FAUNA;
+
+    const unitGroups: {
+        key: UnitGroupKey;
+        label: string;
+        icon: string;
+        roleLabel: string;
+        roleClass: string;
+        buttonClass: string;
+        units: UnitEntity[];
+    }[] = [
+        {
+            key: 'enemies',
+            label: 'Enemies',
+            icon: '👹',
+            roleLabel: 'Threat',
+            roleClass: 'bg-red-900/20 text-red-400 border-red-500/20',
+            buttonClass: 'border-red-500/30 text-red-200 hover:bg-red-600/20',
+            units: ENEMIES,
+        },
+        {
+            key: 'allies',
+            label: 'Allies',
+            icon: '⚔️',
+            roleLabel: 'Ally',
+            roleClass: 'bg-emerald-900/20 text-emerald-400 border-emerald-500/20',
+            buttonClass: 'border-emerald-500/30 text-emerald-200 hover:bg-emerald-600/20',
+            units: ALLIES,
+        },
+        {
+            key: 'fauna',
+            label: 'Fauna',
+            icon: '🦌',
+            roleLabel: 'Neutral',
+            roleClass: 'bg-blue-900/20 text-blue-400 border-blue-500/20',
+            buttonClass: 'border-blue-500/30 text-blue-200 hover:bg-blue-600/20',
+            units: FAUNA,
+        },
+    ];
+
+    const normalize = (value: string) => value.toLowerCase().trim();
+
+    const getSortedUnits = (units: UnitEntity[]) => {
+        const query = normalize(searchTerm);
+        const filtered = units.filter((entity) => {
+            if (!query) return true;
+            return (
+                normalize(entity.name).includes(query) ||
+                normalize(entity.description).includes(query)
+            );
+        });
+
+        const sorted = [...filtered].sort((a, b) => {
+            const statsA = CLASS_STATS[a.id];
+            const statsB = CLASS_STATS[b.id];
+
+            if (sortBy === 'name') return a.name.localeCompare(b.name);
+            if (sortBy === 'hp') return (statsB?.health ?? 0) - (statsA?.health ?? 0);
+            if (sortBy === 'atk') return (statsB?.damage ?? 0) - (statsA?.damage ?? 0);
+            return (statsB?.defense ?? 0) - (statsA?.defense ?? 0);
+        });
+
+        return sorted;
+    };
+
+    const toggleGroup = (key: UnitGroupKey) => {
+        setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
 
     return (
         <div className="w-full h-full flex flex-col bg-slate-950 text-white overflow-hidden">
             {/* Header */}
-            <div className="px-8 py-8 border-b border-white/5 flex justify-between items-end bg-gradient-to-b from-white/5 to-transparent">
+            <div className="px-6 sm:px-8 py-6 sm:py-8 border-b border-white/5 bg-gradient-to-b from-white/5 to-transparent space-y-4">
                 <div>
-                    <h2 className="text-5xl font-black text-white uppercase tracking-tighter">Units Roster</h2>
+                    <h2 className="text-3xl sm:text-5xl font-black text-white uppercase tracking-tighter">Units Roster</h2>
                     <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.4em] mt-2">Database of all discovered lifeforms</p>
                     <p className="text-slate-500 text-[9px] font-normal uppercase tracking-[0.2em] mt-1">*Stat values are placeholders and subject to change</p>
                 </div>
-                
-                {/* Tabs */}
-                <div className="flex gap-4">
-                    <button
-                        onClick={() => setActiveTab('enemies')}
-                        className={`px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all ${
-                            activeTab === 'enemies' 
-                                ? 'bg-red-600 text-white shadow-lg shadow-red-600/30' 
-                                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
-                        }`}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        placeholder="Search units by name or description..."
+                        aria-label="Search units"
+                        className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none focus:border-blue-400/60"
+                    />
+                    <select
+                        value={sortBy}
+                        onChange={(event) => setSortBy(event.target.value as SortKey)}
+                        aria-label="Sort units"
+                        className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-blue-400/60"
                     >
-                        👹 Enemies ({ENEMIES.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('allies')}
-                        className={`px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all ${
-                            activeTab === 'allies' 
-                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30' 
-                                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
-                        }`}
-                    >
-                        ⚔️ Allies ({ALLIES.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('fauna')}
-                        className={`px-8 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all ${
-                            activeTab === 'fauna' 
-                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' 
-                                : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
-                        }`}
-                    >
-                        🦌 Fauna ({FAUNA.length})
-                    </button>
+                        <option value="name">Sort: Name (A-Z)</option>
+                        <option value="hp">Sort: Highest HP</option>
+                        <option value="atk">Sort: Highest Attack</option>
+                        <option value="def">Sort: Highest Defense</option>
+                    </select>
                 </div>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {currentList.map((entity) => {
-                        const stats = CLASS_STATS[entity.id];
+                <div className="space-y-4">
+                    {unitGroups.map((group) => {
+                        const filteredUnits = getSortedUnits(group.units);
+                        const isExpanded = expandedGroups[group.key];
+
                         return (
-                            <div 
-                                key={entity.id}
-                                className={`group bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col hover:bg-white/[0.05] transition-all duration-300 hover:border-white/20`}
-                            >
-                                <div className={`w-24 h-24 bg-slate-900 rounded-xl overflow-hidden border border-white/10 shadow-xl transition-all duration-300 group-hover:border-white/30 mx-auto`}>
-                                    <EnemyPreview type={entity.id} />
-                                </div>
-                                <div className="flex flex-col flex-1 min-w-0 mt-4">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className={`text-lg font-black uppercase tracking-tight transition-colors group-hover:text-blue-400`}>
-                                            {entity.name}
-                                        </h3>
-                                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                                            activeTab === 'enemies'
-                                                ? 'bg-red-900/20 text-red-400 border-red-500/20'
-                                                : activeTab === 'allies'
-                                                ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/20'
-                                                : 'bg-blue-900/20 text-blue-400 border-blue-500/20'
-                                        }`}>
-                                            {activeTab === 'enemies' ? 'Threat' : activeTab === 'allies' ? 'Ally' : 'Neutral'}
-                                        </span>
-                                    </div>
-                                    <p className="text-slate-400 text-xs leading-relaxed font-medium line-clamp-2 mb-3">
-                                        {entity.description}
-                                    </p>
-                                    
-                                    {isLand && stats && (
-                                        <div className="mt-auto pt-3 space-y-2">
-                                            <CompactStatBar icon={Heart} label="HP" value={stats.health} color="text-red-500" />
-                                            <CompactStatBar icon={Sword} label="ATK" value={stats.damage} color="text-orange-500" />
-                                            <CompactStatBar icon={Shield} label="DEF" value={stats.defense} color="text-emerald-500" />
-                                            <div className="flex gap-3 pt-1">
-                                                <div className="flex items-center gap-1">
-                                                    <Zap className="w-3 h-3 text-blue-500 opacity-80" />
-                                                    <span className="text-xs font-bold text-blue-400">{stats.chakra}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Wind className="w-3 h-3 text-cyan-500 opacity-80" />
-                                                    <span className="text-xs font-bold text-cyan-400">{stats.evasion}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1">
-                                                    <Target className="w-3 h-3 text-purple-500 opacity-80" />
-                                                    <span className="text-xs font-bold text-purple-400">{stats.dexterity}</span>
-                                                </div>
-                                            </div>
+                            <section key={group.key} className="rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => toggleGroup(group.key)}
+                                    aria-expanded={isExpanded}
+                                    className={`w-full px-4 sm:px-6 py-4 flex items-center justify-between text-left transition-colors border-b border-white/5 ${group.buttonClass}`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xl">{group.icon}</span>
+                                        <div>
+                                            <h3 className="text-sm sm:text-base font-black uppercase tracking-widest">{group.label}</h3>
+                                            <p className="text-[10px] uppercase tracking-[0.25em] text-slate-500">
+                                                {filteredUnits.length} result{filteredUnits.length === 1 ? '' : 's'}
+                                            </p>
                                         </div>
-                                    )}
-                                </div>
-                            </div>
+                                    </div>
+                                    <span className={`text-xs font-mono ${isExpanded ? 'text-white' : 'text-slate-500'}`}>
+                                        {isExpanded ? 'Hide' : 'Show'}
+                                    </span>
+                                </button>
+
+                                {isExpanded && (
+                                    <div className="p-4 sm:p-6">
+                                        {filteredUnits.length === 0 ? (
+                                            <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-6 text-center text-sm text-slate-400">
+                                                No units match your current search.
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {filteredUnits.map((entity) => {
+                                                    const stats = CLASS_STATS[entity.id];
+                                                    return (
+                                                        <div
+                                                            key={entity.id}
+                                                            className="group bg-white/[0.02] border border-white/5 rounded-2xl p-4 flex flex-col hover:bg-white/[0.05] transition-all duration-300 hover:border-white/20"
+                                                        >
+                                                            <div
+                                                                className="w-24 h-24 bg-slate-900 rounded-xl overflow-hidden border border-white/10 shadow-xl transition-all duration-300 group-hover:border-white/30 mx-auto"
+                                                                title={`${entity.name}: ${entity.description}`}
+                                                            >
+                                                                <EnemyPreview type={entity.id} />
+                                                            </div>
+                                                            <div className="flex flex-col flex-1 min-w-0 mt-4">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <h4
+                                                                        className="text-lg font-black uppercase tracking-tight transition-colors group-hover:text-blue-400"
+                                                                        title={entity.description}
+                                                                    >
+                                                                        {entity.name}
+                                                                    </h4>
+                                                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${group.roleClass}`}>
+                                                                        {group.roleLabel}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-slate-400 text-xs leading-relaxed font-medium line-clamp-2 mb-3">
+                                                                    {entity.description}
+                                                                </p>
+
+                                                                {isLand && stats && (
+                                                                    <div className="mt-auto pt-3 space-y-2">
+                                                                        <CompactStatBar icon={Heart} label="HP" value={stats.health} color="text-red-500" />
+                                                                        <CompactStatBar icon={Sword} label="ATK" value={stats.damage} color="text-orange-500" />
+                                                                        <CompactStatBar icon={Shield} label="DEF" value={stats.defense} color="text-emerald-500" />
+                                                                        <div className="flex gap-3 pt-1">
+                                                                            <div className="flex items-center gap-1">
+                                                                                <Zap className="w-3 h-3 text-blue-500 opacity-80" />
+                                                                                <span className="text-xs font-bold text-blue-400">{stats.chakra}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <Wind className="w-3 h-3 text-cyan-500 opacity-80" />
+                                                                                <span className="text-xs font-bold text-cyan-400">{stats.evasion}</span>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <Target className="w-3 h-3 text-purple-500 opacity-80" />
+                                                                                <span className="text-xs font-bold text-purple-400">{stats.dexterity}</span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </section>
                         );
                     })}
                 </div>

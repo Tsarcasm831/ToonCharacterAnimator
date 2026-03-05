@@ -9,6 +9,7 @@ interface EquipmentRiggingControlsProps {
 }
 
 export const EquipmentRiggingControls: React.FC<EquipmentRiggingControlsProps> = ({ config, setConfig }) => {
+    const [showHelp, setShowHelp] = React.useState(false);
 
     const handleConfigChange = (key: keyof PlayerConfig, value: any) => {
         setConfig(prev => ({ ...prev, [key]: value }));
@@ -19,6 +20,25 @@ export const EquipmentRiggingControls: React.FC<EquipmentRiggingControlsProps> =
 
     return (
         <div className="space-y-6">
+            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <button
+                    type="button"
+                    onClick={() => setShowHelp((prev) => !prev)}
+                    aria-expanded={showHelp}
+                    className="w-full flex items-center justify-between text-left"
+                >
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Gear Rigging Help</span>
+                    <span className="text-xs font-mono text-slate-400">{showHelp ? 'Hide' : 'Show'}</span>
+                </button>
+                {showHelp && (
+                    <div className="mt-3 space-y-1 text-[10px] leading-relaxed text-slate-400">
+                        <p><span className="text-slate-200 font-bold">Offset:</span> Reposition gear to fit body shape and stance.</p>
+                        <p><span className="text-slate-200 font-bold">Rotation:</span> Align item orientation to bones/pose.</p>
+                        <p><span className="text-slate-200 font-bold">Scale/Stretch:</span> Resize or reshape only when clipping appears.</p>
+                        <p><span className="text-slate-200 font-bold">Tip:</span> Start with X/Y/Z, then rotation, then scale for fastest results.</p>
+                    </div>
+                )}
+            </div>
             {config.equipment.helm && (
                 <div className="space-y-2 border-b border-gray-100 pb-4">
                     <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Helm Rigging</h5>

@@ -117,7 +117,7 @@ export const TradeModal: React.FC<TradeModalProps> = ({
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
             <div className="flex w-[900px] h-[600px] bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden relative">
-                <button onClick={onClose} className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white transition-colors">
+                <button type="button" onClick={onClose} className="absolute top-4 right-4 z-10 text-slate-400 hover:text-white transition-colors">
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
                 <div className="w-1/2 bg-slate-800/50 border-r border-slate-700 flex flex-col">

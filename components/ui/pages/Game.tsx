@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { CITIES } from '../../../data/lands/cities';
 import { getTownWallCenters } from '../../../game/environment/townWalls';
 import { useIsMobileDevice } from '../../../hooks/useIsMobileDevice';
+import { useUndoRedo } from '../../../hooks/useUndoRedo';
 
 export const Game: React.FC = () => {
     const isMobileDevice = useIsMobileDevice();
@@ -34,6 +35,9 @@ export const Game: React.FC = () => {
     const { activeScene, gameState, setGameState, setActiveScene } = gameStateContext;
     const { config, setConfig, manualInput, setManualInput } = playerState;
     const { inventory, bench, setInventory } = inventoryState;
+
+    // Undo/Redo functionality
+    const { undo, redo, canUndo, canRedo } = useUndoRedo(config, setConfig);
     const { 
         dialogue, 
         selectedSlot, setSelectedSlot,
@@ -258,6 +262,10 @@ export const Game: React.FC = () => {
         if (gameInstance.current) gameInstance.current.player.isTalking = false;
     };
 
+    const handleRotationUpdate = React.useCallback((rotation: number) => {
+        setPlayerRotation((prev) => (Math.abs(prev - rotation) < 0.01 ? prev : rotation));
+    }, [setPlayerRotation]);
+
     const onShowEnemies = () => {
         setIsEnemiesModalOpen(true);
     };
@@ -313,7 +321,7 @@ export const Game: React.FC = () => {
         game.onTradeTrigger = () => uiState.setIsTradeOpen(true);
         game.onShopkeeperTrigger = () => uiState.setIsShopkeeperChatOpen(true);
         game.onForgeTrigger = () => uiState.setIsForgeOpen(true);
-        game.onRotationUpdate = (r: number) => setPlayerRotation(r);
+        game.onRotationUpdate = handleRotationUpdate;
         game.onShowCharacterStats = (stats: any, name: string) => {
             if (stats) uiState.setStatsForModal(stats);
             else uiState.setStatsForModal(config.stats);
@@ -386,7 +394,7 @@ export const Game: React.FC = () => {
                                             }}
                                             onInteractionUpdate={handleInteractionUpdate}
                                             onToggleQuestLog={uiState.toggleQuestLog}
-                                            onRotationUpdate={setPlayerRotation}
+                                            onRotationUpdate={handleRotationUpdate}
                                             onAttackHit={(type, count) => {
                                                 addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
                                             }}
@@ -514,7 +522,7 @@ export const Game: React.FC = () => {
                                     
                                     <BuilderLog />
 
-                                    <ControlPanel 
+                                    <ControlPanel
                                         config={config}
                                         manualInput={manualInput}
                                         isDeadUI={isDeadUI}
@@ -524,6 +532,10 @@ export const Game: React.FC = () => {
                                         triggerAction={triggerAction}
                                         onExport={handleExport}
                                         onSpawnAnimals={handleSpawnAnimals}
+                                        onUndo={undo}
+                                        onRedo={redo}
+                                        canUndo={canUndo}
+                                        canRedo={canRedo}
                                     />
                                 </>
                             )}

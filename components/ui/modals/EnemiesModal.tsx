@@ -78,7 +78,7 @@ export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) =
                         <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Combat Bestiary</h2>
                         <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Combatants of the Arena</p>
                     </div>
-                    <button 
+                    <button type="button" 
                         onClick={onClose}
                         className="p-2 hover:bg-white/10 rounded-xl transition-colors group"
                     >
@@ -90,7 +90,7 @@ export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) =
 
                 {/* Tabs */}
                 <div className="px-8 py-4 border-b border-white/5 flex gap-4">
-                    <button
+                    <button type="button"
                         onClick={() => setActiveTab('enemies')}
                         className={`px-6 py-2 rounded-full font-black uppercase tracking-widest text-xs transition-all ${
                             activeTab === 'enemies' 
@@ -100,7 +100,7 @@ export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) =
                     >
                         👹 Enemies ({ENEMIES.length})
                     </button>
-                    <button
+                    <button type="button"
                         onClick={() => setActiveTab('allies')}
                         className={`px-6 py-2 rounded-full font-black uppercase tracking-widest text-xs transition-all ${
                             activeTab === 'allies' 
@@ -110,7 +110,7 @@ export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) =
                     >
                         ⚔️ Allies ({ALLIES.length})
                     </button>
-                    <button
+                    <button type="button"
                         onClick={() => setActiveTab('fauna')}
                         className={`px-6 py-2 rounded-full font-black uppercase tracking-widest text-xs transition-all ${
                             activeTab === 'fauna' 
@@ -177,7 +177,7 @@ export const EnemiesModal: React.FC<EnemiesModalProps> = ({ isOpen, onClose }) =
 
                 {/* Footer */}
                 <div className="px-8 py-4 border-t border-white/5 bg-white/5 flex justify-end">
-                    <button 
+                    <button type="button" 
                         onClick={onClose}
                         className="px-8 py-3 bg-white text-black font-black uppercase tracking-widest text-xs rounded-full hover:bg-blue-500 hover:text-white transition-all active:scale-95 shadow-lg"
                     >

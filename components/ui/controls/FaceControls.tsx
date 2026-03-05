@@ -25,8 +25,8 @@ export const FaceControls: React.FC<FaceControlsProps> = ({ config, setConfig })
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
-                <button onClick={toggleBrain} className={`py-1 text-xs font-bold rounded border ${config.showBrain ? 'bg-pink-100 border-pink-500 text-pink-800' : 'bg-white border-gray-200 text-gray-400'}`}>Brain</button>
-                <button onClick={toggleDebugHead} className={`py-1 text-xs font-bold rounded border ${config.debugHead ? 'bg-purple-100 border-purple-500 text-purple-800' : 'bg-white border-gray-200 text-gray-400'}`}>Debug Mask</button>
+                <button type="button" onClick={toggleBrain} aria-pressed={config.showBrain} className={`py-1 text-xs font-bold rounded border ${config.showBrain ? 'bg-pink-100 border-pink-500 text-pink-800' : 'bg-white border-gray-200 text-gray-400'}`}>Brain</button>
+                <button type="button" onClick={toggleDebugHead} aria-pressed={config.debugHead} className={`py-1 text-xs font-bold rounded border ${config.debugHead ? 'bg-purple-100 border-purple-500 text-purple-800' : 'bg-white border-gray-200 text-gray-400'}`}>Debug Mask</button>
             </div>
             {config.showBrain && <Slider label="Brain Size" value={config.brainSize} min={0.5} max={2.0} step={0.1} onChange={(v) => handleConfigChange('brainSize', v)} />}
             

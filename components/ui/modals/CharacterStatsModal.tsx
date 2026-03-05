@@ -26,7 +26,7 @@ export const CharacterStatsModal: React.FC<CharacterStatsModalProps> = ({ isOpen
                             <h2 className="text-2xl font-black text-white uppercase tracking-tighter">{name} Status</h2>
                             <p className="text-blue-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">Level {level} {bodyType === 'male' ? 'Hero' : 'Heroine'}</p>
                         </div>
-                        <button 
+                        <button type="button" 
                             onClick={onClose}
                             className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
                         >

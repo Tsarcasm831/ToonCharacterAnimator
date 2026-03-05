@@ -103,20 +103,41 @@ export const useGame = ({
 
         game.start();
 
-        const handleResize = () => game.resize();
-        window.addEventListener('resize', handleResize);
+        let resizeFrame = 0;
+        let lastWidth = 0;
+        let lastHeight = 0;
+        const flushResize = () => {
+            resizeFrame = 0;
+            const container = containerRef.current;
+            if (!container) return;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            if (width === 0 || height === 0) return;
+            if (width === lastWidth && height === lastHeight) return;
+            lastWidth = width;
+            lastHeight = height;
+            game.resize();
+        };
+        const scheduleResize = () => {
+            if (resizeFrame !== 0) return;
+            resizeFrame = requestAnimationFrame(flushResize);
+        };
+        window.addEventListener('resize', scheduleResize);
 
         let resizeObserver: ResizeObserver | null = null;
         if (typeof ResizeObserver !== 'undefined') {
-            resizeObserver = new ResizeObserver(() => handleResize());
+            resizeObserver = new ResizeObserver(() => scheduleResize());
             resizeObserver.observe(containerRef.current);
         }
 
-        requestAnimationFrame(() => handleResize());
+        scheduleResize();
 
         return () => {
-            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('resize', scheduleResize);
             resizeObserver?.disconnect();
+            if (resizeFrame !== 0) {
+                cancelAnimationFrame(resizeFrame);
+            }
             game.stop();
             gameRef.current = null;
         };

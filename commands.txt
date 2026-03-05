@@ -23,3 +23,50 @@ sudo find /home/lordtsarcasm.com/public_html -type f -exec chmod 640 {} \;
 
 Conversion to opus music:
 ffmpeg -i input.wav -c:a libopus -b:a 48k output.opus
+
+
+VPS deploy command:
+[root@srv1035613 ~]# cat /usr/local/bin/deploy.toon
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="/home/tsarcasm/repos/ToonCharacterAnimator"
+WEBROOT="/home/lordtsarcasm.com/public_html"
+OWNER="lordt1262:nobody"
+
+echo "==> Deploying ToonCharacterAnimator to $WEBROOT"
+echo
+
+cd "$REPO"
+
+echo "==> Pulling latest main..."
+git fetch origin
+git checkout main
+git pull origin main
+
+echo
+echo "==> Installing deps..."
+npm ci
+
+echo
+echo "==> Building..."
+npm run build
+
+if [ ! -d "dist" ]; then
+  echo "ERROR: dist/ not found after build. Deploy failed."
+  exit 1
+fi
+
+echo
+echo "==> Syncing dist/ -> webroot..."
+sudo rsync -a --delete dist/ "$WEBROOT/"
+
+echo "==> Fixing ownership + permissions..."
+sudo chown -R "$OWNER" "$WEBROOT"
+sudo find "$WEBROOT" -type d -exec chmod 750 {} \;
+sudo find "$WEBROOT" -type f -exec chmod 640 {} \;
+
+echo
+echo "✅ Deploy complete."
+---
+aka "deploy.toon"
