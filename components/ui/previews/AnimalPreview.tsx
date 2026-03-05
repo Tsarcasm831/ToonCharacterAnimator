@@ -96,7 +96,7 @@ export const AnimalPreview: React.FC<AnimalPreviewProps> = ({ type }) => {
             {previewUrl ? (
                 <img 
                     src={previewUrl} 
-                    alt={type} 
+                    alt={`${type} animal preview`} 
                     className="w-full h-full object-contain animate-fade-in"
                 />
             ) : (

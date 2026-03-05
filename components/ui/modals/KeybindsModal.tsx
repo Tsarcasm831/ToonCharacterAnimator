@@ -66,7 +66,7 @@ export const KeybindsModal: React.FC<KeybindsModalProps> = ({ isOpen, onClose })
                         <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Command Reference</h2>
                         <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Master your avatar</p>
                     </div>
-                    <button 
+                    <button type="button" 
                         onClick={onClose}
                         className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
                     >
@@ -99,7 +99,7 @@ export const KeybindsModal: React.FC<KeybindsModalProps> = ({ isOpen, onClose })
                 </div>
 
                 <div className="p-6 border-t border-white/5 bg-slate-800/30 flex justify-center">
-                    <button 
+                    <button type="button" 
                         onClick={onClose}
                         className="px-8 py-2 bg-white text-black font-black uppercase tracking-widest text-xs rounded-full hover:bg-blue-400 hover:text-white transition-all shadow-lg active:scale-95"
                     >

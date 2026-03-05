@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { MenuBackground } from '../menus/MenuBackground';
 import './about.css';
 import { useIsIphoneLayout } from '../../../hooks/useIsIphoneLayout';
+import { ChevronUp } from 'lucide-react';
 
 const TypewriterText: React.FC<{ text: string; delay?: number; onComplete?: () => void }> = ({
     text,
@@ -42,6 +43,7 @@ const Badge: React.FC<{ color: 'cyan' | 'emerald' | 'amber' | 'blue'; children: 
 
 export const About: React.FC = () => {
     const isIphoneLayout = useIsIphoneLayout();
+    const scrollContainerRef = React.useRef<HTMLDivElement | null>(null);
     const datastream = useMemo(
         () => [
             { text: 'Initializing secure uplink...', status: 'OK', delay: 400 },
@@ -154,6 +156,7 @@ export const About: React.FC = () => {
     const [showContent, setShowContent] = useState(false);
     const [datastreamVisible, setDatastreamVisible] = useState(true);
     const [revealDossier, setRevealDossier] = useState(false);
+    const [showBackToTop, setShowBackToTop] = useState(false);
 
     const panelClassName = isIphoneLayout
         ? 'about-panel w-full max-w-[94vw] bg-slate-950/80 border border-cyan-500/30 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden'
@@ -209,12 +212,29 @@ export const About: React.FC = () => {
         }
     }, [showContent]);
 
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            setShowBackToTop(container.scrollTop > 320);
+        };
+
+        handleScroll();
+        container.addEventListener('scroll', handleScroll);
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [revealDossier]);
+
+    const handleBackToTop = () => {
+        scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     return (
         <div className="about-page w-full h-full flex flex-col items-center justify-start relative">
             <div className="w-full flex-1 bg-slate-950 border-x border-t border-white/10 shadow-2xl overflow-hidden relative">
                 <MenuBackground />
 
-                <div className="absolute inset-0 z-10 flex items-center justify-center p-5 md:p-10">
+                <div ref={scrollContainerRef} className="absolute inset-0 z-10 flex items-center justify-center p-5 md:p-10 overflow-y-auto">
                     <div className={panelClassName}>
                         <div className={`about-header ${headerClassName}`}>
                             <div className={`about-kicker flex flex-col gap-2 text-cyan-200/80 font-mono uppercase ${isIphoneLayout ? 'text-[11px] tracking-[0.3em]' : 'text-sm md:text-base tracking-[0.35em]'}`}>
@@ -337,6 +357,17 @@ export const About: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {showBackToTop && (
+                    <button
+                        type="button"
+                        onClick={handleBackToTop}
+                        className="absolute bottom-6 right-6 z-20 h-12 w-12 rounded-full bg-cyan-500/90 hover:bg-cyan-400 text-slate-950 shadow-xl shadow-cyan-900/40 flex items-center justify-center transition-colors"
+                        aria-label="Back to top"
+                    >
+                        <ChevronUp className="h-5 w-5" />
+                    </button>
+                )}
             </div>
         </div>
     );

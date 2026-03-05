@@ -51,7 +51,9 @@ export const BodyControls: React.FC<BodyControlsProps> = ({ config, setConfig })
                         {['average', 'muscular', 'slim', 'heavy'].map(variant => (
                             <button 
                                 key={variant} 
+                                type="button"
                                 onClick={() => handleBodyVariantChange(variant as BodyVariant)} 
+                                aria-pressed={config.bodyVariant === variant}
                                 className={`py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border ${
                                     config.bodyVariant === variant 
                                     ? 'bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.2)]' 

@@ -53,7 +53,7 @@ export const LandMapModal: React.FC<LandMapModalProps> = ({ isOpen, onClose, pla
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-blue-400 font-black uppercase tracking-[0.2em] text-sm">{mapTitle}</h2>
-            <button 
+            <button type="button" 
               onClick={onClose}
               className="text-white/60 hover:text-white transition-colors"
             >

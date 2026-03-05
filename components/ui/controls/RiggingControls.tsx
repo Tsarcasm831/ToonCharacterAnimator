@@ -9,6 +9,7 @@ interface RiggingControlsProps {
 }
 
 export const RiggingControls: React.FC<RiggingControlsProps> = ({ config, setConfig }) => {
+    const [showHelp, setShowHelp] = React.useState(false);
 
     const handleConfigChange = (key: keyof PlayerConfig, value: any) => {
         setConfig(prev => ({ ...prev, [key]: value }));
@@ -16,6 +17,25 @@ export const RiggingControls: React.FC<RiggingControlsProps> = ({ config, setCon
 
     return (
         <div className="space-y-5">
+            <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                <button
+                    type="button"
+                    onClick={() => setShowHelp((prev) => !prev)}
+                    aria-expanded={showHelp}
+                    className="w-full flex items-center justify-between text-left"
+                >
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Rigging Help</span>
+                    <span className="text-xs font-mono text-slate-400">{showHelp ? 'Hide' : 'Show'}</span>
+                </button>
+                {showHelp && (
+                    <div className="mt-3 space-y-1 text-[10px] leading-relaxed text-slate-400">
+                        <p><span className="text-slate-200 font-bold">X/Y/Z:</span> Axis offsets (X left-right, Y up-down, Z forward-back).</p>
+                        <p><span className="text-slate-200 font-bold">Rot:</span> Rotation on an axis. Small values are usually enough.</p>
+                        <p><span className="text-slate-200 font-bold">Scale:</span> Overall size of the selected mesh or body part.</p>
+                        <p><span className="text-slate-200 font-bold">Stretch:</span> Non-uniform scaling to reshape features.</p>
+                    </div>
+                )}
+            </div>
             <div className="space-y-1">
                 <h4 className="text-[10px] font-bold text-gray-400 uppercase">Proportions</h4>
                 <Slider label="Head" value={config.headScale} min={0.5} max={2.0} step={0.1} onChange={(v) => handleConfigChange('headScale', v)} />

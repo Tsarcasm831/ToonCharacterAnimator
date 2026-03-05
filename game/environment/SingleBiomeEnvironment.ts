@@ -5,6 +5,7 @@ import { LightingManager } from './LightingManager';
 import { WorldGridManager } from './WorldGridManager';
 import { ObjectFactory } from './ObjectFactory';
 import { PlayerUtils } from '../player/PlayerUtils';
+import { HiveMindController } from '../entities/swarm/HiveMindController';
 
 export class SingleBiomeEnvironment {
     public group: THREE.Group;
@@ -18,6 +19,8 @@ export class SingleBiomeEnvironment {
     private circularWallCenters: THREE.Vector2[] = [];
     private currentBiome: { name: string, color: string, type: string } = { name: 'Grass', color: '#4ade80', type: 'Grass' };
     
+    public hiveController: HiveMindController | null = null;
+
     constructor(scene: THREE.Scene) {
         this.scene = scene;
         this.group = new THREE.Group();
@@ -49,6 +52,13 @@ export class SingleBiomeEnvironment {
         // Ensure group is visible when building
         this.group.visible = true;
         this.build();
+
+        // Initialize HiveMindController
+        if (this.hiveController) {
+            this.hiveController.dispose();
+        }
+        // Spawn slightly offset from center/player
+        this.hiveController = new HiveMindController(this.scene, new THREE.Vector3(10, 3, 10), 50);
     }
 
     public setVisible(visible: boolean) {
@@ -62,6 +72,11 @@ export class SingleBiomeEnvironment {
     public dispose() {
         if (this.scene && this.group) {
             this.scene.remove(this.group);
+        }
+
+        if (this.hiveController) {
+            this.hiveController.dispose();
+            this.hiveController = null;
         }
 
         this.group.traverse((child) => {
@@ -211,6 +226,9 @@ export class SingleBiomeEnvironment {
         if (!this.group.visible) return;
         this.lightingManager.update(dt, config);
         this.worldGrid.update(playerPos);
+        if (this.hiveController) {
+            this.hiveController.update(dt, playerPos);
+        }
     }
 
     // Interface methods for compatibility with Player/Game
@@ -245,6 +263,17 @@ export class SingleBiomeEnvironment {
         this.clearCircularWalls();
         if (centers.length > 0) {
             centers.forEach(center => this.addCircularWall(center, 2));
+
+            // Move Hive to the first wall
+            if (this.hiveController) {
+                // Wall is at center (x, z).
+                // Place hive nearby (offset by 10 units)
+                const wallPos = centers[0];
+                // Use y=8 to be safe above ground (land is approx y=5)
+                const spawnPos = new THREE.Vector3(wallPos.x + 10, 8, wallPos.y + 10);
+                this.hiveController.teleport(spawnPos);
+                console.log(`[SingleBiomeEnvironment] Hive teleported to wall at ${spawnPos.x}, ${spawnPos.y}, ${spawnPos.z}`);
+            }
         }
     }
 

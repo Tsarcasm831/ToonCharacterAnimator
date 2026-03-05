@@ -7,14 +7,16 @@ export class TerrainManager {
     private group: THREE.Group;
     private meshes: THREE.Mesh[] = [];
     private waterMeshes: THREE.Mesh[] = [];
+    private materialCache: Map<string, THREE.MeshStandardMaterial> = new Map();
 
     constructor(group: THREE.Group) {
         this.group = group;
     }
 
-    public async buildAsync(batchSize: number = 3) { // Reduced from 10 to 3
-        const start = performance.now();
+    public async buildAsync(batchSize: number = 3) {
         const yieldFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        const maxSliceMs = 8;
+        let sliceStart = performance.now();
 
         // Terrain Optimization: Use LODs for patches
         const patchSize = ENV_CONSTANTS.PATCH_SIZE;
@@ -25,89 +27,86 @@ export class TerrainManager {
         const highResSharedGeo = new THREE.PlaneGeometry(patchSize, patchSize, 32, 32);
         const lowResSharedGeo = new THREE.PlaneGeometry(patchSize, patchSize, 1, 1);
 
+        const effectiveBatchSize = Math.max(1, Math.min(batchSize, 2));
         let x = -gridRadius;
         let z = -gridRadius;
         const totalPatches = (gridRadius * 2 + 1) ** 2;
         let created = 0;
+        let batchCount = 0;
         
         while (x <= gridRadius) {
-            let batchCount = 0;
-            while (x <= gridRadius && batchCount < batchSize) {
-                const centerX = x * patchSize;
-                const centerZ = z * patchSize;
-                
-                const biomeX = Math.round(centerX / biomeSize);
-                const biomeZ = Math.round(centerZ / biomeSize);
-                const biomeKey = `${biomeX},${biomeZ}`;
-                
-                const biomeData = BIOME_DATA[biomeKey] || BIOME_DATA['0,0'];
-                const type = biomeData.type;
-                
-                // Only use high resolution if near the pond for vertex deformation
-                const patchDiagRadius = (patchSize / 2) * 1.414;
-                const distToNearestPond = Math.min(
-                    ...ENV_CONSTANTS.PONDS.map(p => Math.hypot(centerX - p.x, centerZ - p.z))
-                );
-                
-                let geo: THREE.BufferGeometry;
-                
-                if (distToNearestPond < Math.max(...ENV_CONSTANTS.PONDS.map(p => p.radius)) + patchDiagRadius) {
-                    // NEAR POND: Deformable High-Res
-                    geo = highResSharedGeo.clone();
-                    const posAttribute = geo.attributes.position;
-                    const vertex = new THREE.Vector3();
-                    for (let i = 0; i < posAttribute.count; i++) {
-                        vertex.fromBufferAttribute(posAttribute, i);
-                        const wX = centerX + vertex.x;
-                        const wZ = centerZ - vertex.y; 
-                        let depthOffset = 0;
-                        for (const pond of ENV_CONSTANTS.PONDS) {
-                            const pdx = wX - pond.x;
-                            const pdz = wZ - pond.z;
-                            const dist = Math.sqrt(pdx * pdx + pdz * pdz);
-                            if (dist < pond.radius) {
-                                const normDist = dist / pond.radius;
-                                const depth = pond.depth * (1 - normDist * normDist);
-                                depthOffset = Math.max(depthOffset, depth);
-                            }
+            const centerX = x * patchSize;
+            const centerZ = z * patchSize;
+
+            const biomeX = Math.round(centerX / biomeSize);
+            const biomeZ = Math.round(centerZ / biomeSize);
+            const biomeKey = `${biomeX},${biomeZ}`;
+
+            const biomeData = BIOME_DATA[biomeKey] || BIOME_DATA['0,0'];
+            const type = biomeData.type;
+
+            // Only use high resolution if near the pond for vertex deformation
+            const patchDiagRadius = (patchSize / 2) * 1.414;
+            const distToNearestPond = Math.min(
+                ...ENV_CONSTANTS.PONDS.map(p => Math.hypot(centerX - p.x, centerZ - p.z))
+            );
+
+            let geo: THREE.BufferGeometry;
+
+            if (distToNearestPond < Math.max(...ENV_CONSTANTS.PONDS.map(p => p.radius)) + patchDiagRadius) {
+                // NEAR POND: Deformable High-Res
+                geo = highResSharedGeo.clone();
+                const posAttribute = geo.attributes.position;
+                const vertex = new THREE.Vector3();
+                for (let i = 0; i < posAttribute.count; i++) {
+                    vertex.fromBufferAttribute(posAttribute, i);
+                    const wX = centerX + vertex.x;
+                    const wZ = centerZ - vertex.y; 
+                    let depthOffset = 0;
+                    for (const pond of ENV_CONSTANTS.PONDS) {
+                        const pdx = wX - pond.x;
+                        const pdz = wZ - pond.z;
+                        const dist = Math.sqrt(pdx * pdx + pdz * pdz);
+                        if (dist < pond.radius) {
+                            const normDist = dist / pond.radius;
+                            const depth = pond.depth * (1 - normDist * normDist);
+                            depthOffset = Math.max(depthOffset, depth);
                         }
-                        vertex.z -= depthOffset; 
-                        posAttribute.setZ(i, vertex.z);
                     }
-                    geo.computeVertexNormals();
-                } else {
-                    // DISTANT: Static Low-Res
-                    geo = lowResSharedGeo;
+                    vertex.z -= depthOffset; 
+                    posAttribute.setZ(i, vertex.z);
                 }
+                geo.computeVertexNormals();
+            } else {
+                // DISTANT: Static Low-Res
+                geo = lowResSharedGeo;
+            }
 
-                const texture = TerrainTextureFactory.getTexture(type);
-                const mat = new THREE.MeshStandardMaterial({ 
-                    map: texture,
-                    color: 0xdddddd,
-                    roughness: 0.9,
-                    metalness: (type === 'Metal' || type === 'Obsidian') ? 0.4 : 0.05
-                });
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.rotation.x = -Math.PI / 2;
-                mesh.position.set(centerX, 0, centerZ);
-                mesh.receiveShadow = true;
-                // Mark terrain as ground so collision ignores it but raycasts can use it.
-                mesh.userData = { type: 'ground', terrainType: type };
-                this.group.add(mesh);
-                this.meshes.push(mesh);
+            const mat = this.getMaterial(type);
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(centerX, 0, centerZ);
+            mesh.receiveShadow = true;
+            // Mark terrain as ground so collision ignores it but raycasts can use it.
+            mesh.userData = { type: 'ground', terrainType: type };
+            this.group.add(mesh);
+            this.meshes.push(mesh);
 
-                created++;
-                batchCount++;
-                z++;
-                if (z > gridRadius) {
-                    z = -gridRadius;
-                    x++;
-                }
-                
-                // Yield after each patch to prevent blocking
-                if (created < totalPatches) {
-                    await yieldFrame();
-                }
+            created++;
+            batchCount++;
+            z++;
+            if (z > gridRadius) {
+                z = -gridRadius;
+                x++;
+            }
+
+            if (
+                created < totalPatches &&
+                (batchCount >= effectiveBatchSize || performance.now() - sliceStart >= maxSliceMs)
+            ) {
+                batchCount = 0;
+                await yieldFrame();
+                sliceStart = performance.now();
             }
         }
         
@@ -122,6 +121,21 @@ export class TerrainManager {
         }
         grid.position.y = 0.01;
         this.group.add(grid);
+    }
+
+    private getMaterial(type: string) {
+        const cached = this.materialCache.get(type);
+        if (cached) return cached;
+
+        const texture = TerrainTextureFactory.getTexture(type);
+        const material = new THREE.MeshStandardMaterial({
+            map: texture,
+            color: 0xdddddd,
+            roughness: 0.9,
+            metalness: (type === 'Metal' || type === 'Obsidian') ? 0.4 : 0.05
+        });
+        this.materialCache.set(type, material);
+        return material;
     }
 
     private buildWater() {
@@ -159,24 +173,30 @@ export class TerrainManager {
     }
 
     dispose() {
+        const geometries = new Set<THREE.BufferGeometry>();
+        const materials = new Set<THREE.Material>();
+
         this.meshes.forEach(mesh => {
-            mesh.geometry.dispose();
+            geometries.add(mesh.geometry);
             if (Array.isArray(mesh.material)) {
-                mesh.material.forEach(m => m.dispose());
+                mesh.material.forEach(material => materials.add(material));
             } else {
-                mesh.material.dispose();
+                materials.add(mesh.material);
             }
         });
         for (const mesh of this.waterMeshes) {
-            mesh.geometry.dispose();
+            geometries.add(mesh.geometry);
             if (Array.isArray(mesh.material)) {
-                mesh.material.forEach(m => m.dispose());
+                mesh.material.forEach(material => materials.add(material));
             } else {
-                mesh.material.dispose();
+                materials.add(mesh.material);
             }
         }
+        geometries.forEach((geometry) => geometry.dispose());
+        materials.forEach((material) => material.dispose());
         this.meshes = [];
         this.waterMeshes = [];
+        this.materialCache.clear();
     }
     
     public getTerrainMeshes(): THREE.Mesh[] {

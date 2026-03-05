@@ -6,6 +6,7 @@ import { WorldMapModal } from './ui/modals/WorldMapModal';
 import { useGame } from '../hooks/useGame';
 import { useGlobalState } from '../contexts/GlobalContext';
 import { CITIES } from '../data/lands/cities';
+import { Land23 } from '../data/lands/Land23';
 import { getTownWallCenters } from '../game/environment/townWalls';
 
 interface SceneProps {
@@ -68,9 +69,22 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
       });
       const wallCenters = getTownWallCenters(selectedLand, CITIES);
       game.sceneManager.singleBiomeEnvironment?.setTownWallCenters(wallCenters);
+      // Ensure we call onEnvironmentReady when loading a selected land
+      if (onEnvironmentReady) onEnvironmentReady();
     } else {
-      // Open land selection on mount if none selected
-      uiState.setIsLandSelectionOpen(true);
+      // Default to Land 23 (Land of Ghosts) for testing the Hive Mind
+      console.log("SingleBiomeScene: Defaulting to Land 23");
+      game.sceneManager.updateSingleBiomeLand(Land23.points, {
+        name: Land23.name,
+        color: Land23.color,
+        type: Land23.texture || 'snow'
+      });
+      const wallCenters = getTownWallCenters(Land23 as any, CITIES);
+      game.sceneManager.singleBiomeEnvironment?.setTownWallCenters(wallCenters);
+      
+      // uiState.setIsLandSelectionOpen(true);
+      // Ensure we call onEnvironmentReady when falling back to default land
+      if (onEnvironmentReady) onEnvironmentReady();
     }
     
     // Disable environment systems if needed, but SingleBiomeEnvironment handles its own build
@@ -109,6 +123,27 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
       if (e.code === 'Comma') {
         e.preventDefault();
         setIsWorldMapOpen(prev => !prev);
+      }
+
+      if (e.code === 'KeyH') {
+         const env = gameRef.current?.sceneManager.singleBiomeEnvironment;
+         if (env?.hiveController) {
+             if (env.hiveController.isSwarmMode) {
+                 env.hiveController.reform();
+                 console.log("Hive reforming!");
+             } else {
+                 env.hiveController.shatter();
+                 console.log("Hive shattering!");
+             }
+         }
+      }
+
+      if (e.code === 'KeyJ') {
+         const env = gameRef.current?.sceneManager.singleBiomeEnvironment;
+         if (env?.hiveController) {
+             env.hiveController.isRolling = !env.hiveController.isRolling;
+             console.log("Hive rolling:", env.hiveController.isRolling);
+         }
       }
 
       if (e.code === 'Escape') {

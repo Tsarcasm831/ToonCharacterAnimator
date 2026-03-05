@@ -9,6 +9,8 @@ export const ColorPicker: React.FC<{ label: string, value: string, onChange: (v:
                 type="color" 
                 value={value} 
                 onChange={(e) => onChange(e.target.value)} 
+                aria-label={label}
+                title={label}
                 className="absolute inset-0 w-full h-full scale-[2] cursor-pointer" 
             />
         </div>
@@ -32,6 +34,8 @@ export const Slider: React.FC<{ label: string, value: number, min: number, max: 
         step={step} 
         value={value} 
         onChange={(e) => onChange(parseFloat(e.target.value))} 
+        aria-label={label}
+        title={`${label}: ${formatted}`}
         className="w-full h-1.5 bg-slate-800 rounded-full appearance-none cursor-pointer accent-blue-500 hover:accent-blue-400 transition-all" 
       />
     </div>
@@ -55,6 +59,7 @@ export const Button: React.FC<{
 
     return (
         <button 
+            type="button"
             onClick={onClick} 
             disabled={disabled}
             className={`${baseStyles} ${variants[variant]} ${className}`}
@@ -82,7 +87,10 @@ export const ToggleButton: React.FC<{
 
     return (
         <button 
+            type="button"
             onClick={onClick} 
+            aria-pressed={isActive}
+            title={label}
             className={`p-2 rounded-lg font-bold text-[10px] uppercase tracking-wider border transition-all active:scale-95 ${
                 isActive 
                 ? activeStyles[activeColor] 

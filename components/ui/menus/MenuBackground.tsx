@@ -506,6 +506,7 @@ export const MenuBackground: React.FC<MenuBackgroundProps> = ({ showVideo = fals
           <video
             ref={videoRef}
             className="absolute inset-0 w-full h-full object-cover"
+            aria-hidden="true"
             style={{ 
               opacity: isFirstVideoActive ? 1 : 0,
               transition: 'opacity 1.5s ease-in-out',
@@ -519,6 +520,7 @@ export const MenuBackground: React.FC<MenuBackgroundProps> = ({ showVideo = fals
           <video
             ref={nextVideoRef}
             className="absolute inset-0 w-full h-full object-cover"
+            aria-hidden="true"
             style={{ 
               opacity: isFirstVideoActive ? 0 : 1,
               transition: 'opacity 1.5s ease-in-out',

@@ -95,22 +95,24 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             )}
 
             {isCombat && (
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-6 w-full max-w-5xl px-4 pointer-events-none">
+                <div className="absolute bottom-4 sm:bottom-8 left-1/2 -translate-x-1/2 z-[50] flex flex-col items-center gap-3 sm:gap-6 w-full max-w-5xl px-2 sm:px-4 pointer-events-none">
                     {/* Tactical Command Panel */}
-                    <div className="flex items-center gap-4 pointer-events-auto bg-slate-900/60 backdrop-blur-xl p-2 rounded-full border border-white/10 shadow-2xl animate-fade-in-up">
+                    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 pointer-events-auto bg-slate-900/70 backdrop-blur-xl p-2 sm:p-2.5 rounded-2xl sm:rounded-full border border-white/10 shadow-2xl animate-fade-in-up max-w-full">
                         {!isCombatActive && (
                             <button 
+                                type="button"
                                 onClick={() => setIsCombatActive(true)}
-                                className="px-10 py-3 rounded-full bg-blue-600 text-white font-black uppercase tracking-[0.2em] text-xs shadow-[0_0_30px_rgba(37,99,235,0.4)] border-2 border-blue-400 hover:bg-blue-500 hover:scale-105 transition-all active:scale-95 animate-pulse"
+                                className="px-6 sm:px-10 py-2.5 sm:py-3 rounded-full bg-blue-600 text-white font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[10px] sm:text-xs shadow-[0_0_30px_rgba(37,99,235,0.4)] border-2 border-blue-400 hover:bg-blue-500 hover:scale-105 transition-all active:scale-95 animate-pulse"
                             >
                                 Start Combat
                             </button>
                         )}
                         {isCombatActive && onEndTurn && (
                             <button 
+                                type="button"
                                 onClick={onEndTurn}
                                 disabled={!isPlayerTurn}
-                                className={`px-8 py-3 rounded-full font-black uppercase tracking-[0.2em] text-xs border-2 transition-all ${
+                                className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-full font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[10px] sm:text-xs border-2 transition-all ${
                                     isPlayerTurn 
                                         ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_0_30px_rgba(251,191,36,0.35)] hover:bg-amber-300 hover:scale-105 active:scale-95' 
                                         : 'bg-slate-800/70 text-slate-400 border-white/10 cursor-not-allowed'
@@ -121,30 +123,33 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                         )}
                         {isCombatActive && onWaitTurn && isPlayerTurn && (
                             <button 
+                                type="button"
                                 onClick={onWaitTurn}
-                                className="px-6 py-3 rounded-full bg-purple-600/80 text-white font-black uppercase tracking-[0.15em] text-xs border-2 border-purple-400/50 shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:bg-purple-500 hover:scale-105 transition-all active:scale-95"
+                                className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-purple-600/80 text-white font-black uppercase tracking-[0.12em] sm:tracking-[0.15em] text-[10px] sm:text-xs border-2 border-purple-400/50 shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:bg-purple-500 hover:scale-105 transition-all active:scale-95"
                             >
                                 Wait
                             </button>
                         )}
                         {isCombatActive && onDefend && isPlayerTurn && (
                             <button 
+                                type="button"
                                 onClick={onDefend}
-                                className="px-6 py-3 rounded-full bg-green-600/80 text-white font-black uppercase tracking-[0.15em] text-xs border-2 border-green-400/50 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:bg-green-500 hover:scale-105 transition-all active:scale-95"
+                                className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-green-600/80 text-white font-black uppercase tracking-[0.12em] sm:tracking-[0.15em] text-[10px] sm:text-xs border-2 border-green-400/50 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:bg-green-500 hover:scale-105 transition-all active:scale-95"
                             >
                                 Defend
                             </button>
                         )}
                         <button 
+                            type="button"
                             onClick={() => setShowGrid(!showGrid)}
-                            className={`px-6 py-3 rounded-full backdrop-blur-md border-2 transition-all group flex items-center gap-3 ${showGrid ? 'bg-indigo-600/40 border-indigo-400' : 'bg-white/5 border-white/10 hover:border-white/30'}`}
+                            className={`px-4 sm:px-6 py-2.5 sm:py-3 rounded-full backdrop-blur-md border-2 transition-all group flex items-center gap-2 sm:gap-3 ${showGrid ? 'bg-indigo-600/40 border-indigo-400' : 'bg-white/5 border-white/10 hover:border-white/30'}`}
                         >
                             <div className={`p-1 rounded-lg transition-colors ${showGrid ? 'bg-indigo-500 shadow-[0_0_10px_#6366f1]' : 'bg-white/10'}`}>
                                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
                                 </svg>
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white">Grid Labels</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider sm:tracking-widest text-white">Grid Labels</span>
                         </button>
                     </div>
                     

@@ -47,7 +47,6 @@ export class SceneManager {
         if (sceneName === 'dev') {
             if (!this.environment) {
                 this.environment = new Environment(this.scene);
-                this.environment.buildAsync();
             }
         } else if (sceneName === 'singleBiome') {
             if (!this.singleBiomeEnvironment) {
