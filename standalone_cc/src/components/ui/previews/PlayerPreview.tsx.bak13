@@ -25,7 +25,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         target: new THREE.Vector3(),
         distance: 3.8,
     });
-    const defaultOrbitDirectionRef = useRef(new THREE.Vector3(0.05, 0.12, 1).normalize());
 
     const frameModel = () => {
         const camera = cameraRef.current;
@@ -51,12 +50,11 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         const offset = camera.position.clone().sub(currentTarget);
         const direction = offset.lengthSq() > 0.000001
             ? offset.normalize()
-            : defaultOrbitDirectionRef.current;
-        const nextDistance = Math.max(offset.length(), distance);
+            : new THREE.Vector3(0.05, 0.12, 1).normalize();
 
         orbitStateRef.current.target.copy(nextTarget);
-        orbitStateRef.current.distance = nextDistance;
-        camera.position.copy(nextTarget).addScaledVector(direction, nextDistance);
+        orbitStateRef.current.distance = distance;
+        camera.position.copy(nextTarget).addScaledVector(direction, distance);
         camera.lookAt(nextTarget);
         camera.updateProjectionMatrix();
 
@@ -101,14 +99,10 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         renderer.shadowMap.type = THREE.PCFShadowMap; 
         containerRef.current.appendChild(renderer.domElement);
         renderer.domElement.style.touchAction = 'none';
-        const handleContextMenu = (event: MouseEvent) => event.preventDefault();
-        renderer.domElement.addEventListener('contextmenu', handleContextMenu);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
-        controls.enableRotate = true;
-        controls.enablePan = true;
         controls.rotateSpeed = 0.9;
         controls.panSpeed = 0.85;
         controls.enableZoom = false;
@@ -213,7 +207,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
             resizeObserver.disconnect();
             controlsRef.current?.dispose();
             controlsRef.current = null;
-            renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
             if (rendererRef.current && containerRef.current) {
                 containerRef.current.removeChild(rendererRef.current.domElement);
                 rendererRef.current.dispose();

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { PlayerPreview } from './components/ui/previews/PlayerPreview';
 import { ControlPanel } from './components/ui/panels/ControlPanel';
 import { BODY_PRESETS, OUTFIT_PRESETS } from './data/constants';
