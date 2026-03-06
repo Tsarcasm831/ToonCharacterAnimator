@@ -1,332 +1,147 @@
-
-import React, { useEffect, useState, useRef, CSSProperties } from 'react';
-import * as THREE from 'three';
-import { PlayerModel } from '../../../game/model/PlayerModel';
-import { MovementAction } from '../../../game/animator/actions/MovementAction';
-import { DEFAULT_CONFIG } from '../../../types';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface LoadingScreenProps {
     isVisible: boolean;
-    isSystemReady: boolean; // Passed from App to indicate environment build is done
+    isSystemReady: boolean;
     onFinished?: () => void;
-    onVideoStable?: () => void; // Callback when video is playing and stable
-    isLoadingScene?: boolean; // Scene initialization in progress
+    isLoadingScene?: boolean;
 }
 
 const MESSAGES = [
-    "Initializing Render Engine...",
-    "Building Procedural Biomes...",
-    "Generating Terrain Textures...",
-    "Instancing Flora Systems...",
-    "Populating Wildlife...",
-    "Simulating Physics Mesh...",
-    "Finalizing World Geometry...",
-    "System Synchronized."
+    'Initializing Render Engine...',
+    'Preparing Terrain Systems...',
+    'Instancing World Geometry...',
+    'Populating Scene Data...',
+    'Finalizing World State...',
+    'System Synchronized.'
 ];
 
-interface LoadingRunnerProps {
-    progress: number;
-    progressScale?: number;
-    mirror?: boolean;
-    className?: string;
-    style?: CSSProperties;
-}
+const STATUS_DELAY_MS = 120;
+const AUTO_ENTER_DELAY_MS = 180;
 
-const LoadingRunner: React.FC<LoadingRunnerProps> = ({ 
-    progress, 
-    progressScale = 1, 
-    mirror = false, 
-    className = '', 
-    style = {}
+const LoadingScreen: React.FC<LoadingScreenProps> = ({
+    isVisible,
+    isSystemReady,
+    onFinished,
+    isLoadingScene = false
 }) => {
-    const mountRef = useRef<HTMLDivElement>(null);
-    const sceneRef = useRef<{
-        renderer: THREE.WebGLRenderer;
-        scene: THREE.Scene;
-        camera: THREE.PerspectiveCamera;
-        model: PlayerModel;
-        clock: THREE.Clock;
-    } | null>(null);
-    const zeroVecRef = useRef(new THREE.Vector3(0, 0, 0));
-
-    useEffect(() => {
-        const mountNode = mountRef.current;
-        if (!mountNode) return;
-
-        // Force explicit dimensions for the mount node if they aren't set
-        if (mountNode.clientWidth === 0) {
-            mountNode.style.width = '100px';
-            mountNode.style.height = '100px';
-        }
-
-        const width = mountNode.clientWidth || 100;
-        const height = mountNode.clientHeight || 100;
-
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(35, width / height, 0.1, 100);
-        camera.position.set(0, 1.2, 5.5);
-        camera.lookAt(0, 0.8, 0);
-
-        const renderer = new THREE.WebGLRenderer({
-            alpha: true,
-            antialias: false,
-            powerPreference: 'low-power'
-        });
-        renderer.setSize(width, height);
-        renderer.setPixelRatio(1);
-        mountNode.appendChild(renderer.domElement);
-
-        const disposeRenderer = () => {
-            if (renderer) {
-                renderer.dispose();
-                renderer.forceContextLoss();
-                if (renderer.domElement && renderer.domElement.parentNode === mountNode) {
-                    mountNode.removeChild(renderer.domElement);
-                }
-            }
-        };
-
-        scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        dirLight.position.set(2, 5, 5);
-        scene.add(dirLight);
-
-        // Character without pants (Naked variant shows base underwear)
-        const config = { 
-            ...DEFAULT_CONFIG, 
-            outfit: 'naked' as const,
-            equipment: { ...DEFAULT_CONFIG.equipment, pants: false, shoes: false, shirt: false, mask: false, hood: false },
-            bodyVariant: 'slim' as const,
-            skinColor: '#ffdbac'
-        };
-        const model = new PlayerModel(config);
-        // Face progress direction
-        model.group.rotation.y = mirror ? -Math.PI / 2 : Math.PI / 2;
-        scene.add(model.group);
-
-        const clock = new THREE.Clock();
-        sceneRef.current = { renderer, scene, camera, model, clock };
-
-        let frameId: number;
-        let lastTime = 0;
-        const mockInput = { x: 0, y: -1, isRunning: true };
-        const mockPlayer = {
-            config,
-            walkTime: 0,
-            lastStepCount: 0,
-            didStep: false,
-            isPureStrafe: false,
-            isJumping: false,
-            isCombatStance: false,
-            model
-        };
-        const targetFrameMs = 1000 / 30;
-
-        const animate = (time: number = 0) => {
-            frameId = requestAnimationFrame(animate);
-            if (time - lastTime < targetFrameMs) return;
-            lastTime = time;
-
-            const dt = Math.min(sceneRef.current?.clock.getDelta() || 0.016, 0.033);
-            MovementAction.animate(mockPlayer, model.parts, dt, 0.1, mockInput as any);
-            model.update(dt, zeroVecRef.current);
-
-            renderer.render(scene, camera);
-        };
-
-        frameId = requestAnimationFrame(animate);
-
-        return () => {
-            cancelAnimationFrame(frameId);
-            disposeRenderer();
-        };
-    }, [mirror]);
-
-    const clamped = Math.min(100, Math.max(0, progress * progressScale));
-
-    return (
-        <div 
-            ref={mountRef} 
-            className={`z-10 ${className}`}
-            style={{ 
-                position: 'absolute',
-                left: `${clamped}%`,
-                bottom: '100%',
-                transform: 'translateX(-50%)',
-                transition: 'left 0.12s linear',
-                width: '96px',
-                height: '96px',
-                display: 'block',
-                visibility: 'visible',
-                pointerEvents: 'none',
-                ...style
-            }}
-        />
-    );
-};
-
-const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady, onFinished, onVideoStable, isLoadingScene = false }) => {
-    const [runnerProgress, setRunnerProgress] = useState(0);
-    const [messageIndex, setMessageIndex] = useState(0);
     const [shouldRender, setShouldRender] = useState(isVisible);
-    const [isEnemiesPreloaded, setIsEnemiesPreloaded] = useState(false);
-    const [showClickToStart, setShowClickToStart] = useState(false);
-    const [isVideoReady, setIsVideoReady] = useState(false);
-    const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-    const [isFullyLoaded, setIsFullyLoaded] = useState(false);
-    const [showRunnerTrack, setShowRunnerTrack] = useState(false);
-    const [showLoadingTrack, setShowLoadingTrack] = useState(false);
-    const [loadingProgress, setLoadingProgress] = useState(0);
-    const hasCalledFinished = useRef(false);
-    const sequenceTimers = useRef<number[]>([]);
+    const [progress, setProgress] = useState(0);
+    const [messageIndex, setMessageIndex] = useState(0);
+    const finishTriggeredRef = useRef(false);
+    const autoEnterTimerRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (isVisible) {
             setShouldRender(true);
-            setRunnerProgress(0);
+            setProgress(0);
             setMessageIndex(0);
-            hasCalledFinished.current = false;
-            setIsEnemiesPreloaded(false);
-            setShowClickToStart(false);
-            setIsVideoReady(false);
-            setIsVideoPlaying(false);
-            setIsFullyLoaded(false);
-            setShowRunnerTrack(false);
-            setShowLoadingTrack(false);
-            setLoadingProgress(0);
-
-            return () => {
-                sequenceTimers.current.forEach((timer) => window.clearTimeout(timer));
-                sequenceTimers.current = [];
-            };
-        } else {
-            const timer = setTimeout(() => setShouldRender(false), 500);
-            return () => clearTimeout(timer);
+            finishTriggeredRef.current = false;
+            if (autoEnterTimerRef.current !== null) {
+                window.clearTimeout(autoEnterTimerRef.current);
+                autoEnterTimerRef.current = null;
+            }
+            return;
         }
+
+        const hideTimer = window.setTimeout(() => setShouldRender(false), 300);
+        return () => window.clearTimeout(hideTimer);
     }, [isVisible]);
 
-    const videoRef = useRef<HTMLVideoElement>(null);
-
-    // Handle video start and preload enemies after video starts playing
     useEffect(() => {
-        const video = videoRef.current;
-        if (!video) return;
+        if (!isVisible) {
+            return;
+        }
 
-        // Auto-show tracks even if video hasn't played yet to avoid hanging on load
-        const trackTimeout1 = window.setTimeout(() => {
-            setShowRunnerTrack(true);
-        }, 150);
-        const trackTimeout2 = window.setTimeout(() => {
-            setShowLoadingTrack(true);
-        }, 650);
-        sequenceTimers.current.push(trackTimeout1, trackTimeout2);
+        const interval = window.setInterval(() => {
+            setProgress((prev) => {
+                if (isSystemReady) {
+                    return 100;
+                }
 
-        const handlePlay = () => {
-            setIsVideoPlaying(true);
-            
-            // Notify parent that video is stable after a short delay
-            const stableTimeout = window.setTimeout(() => {
-                onVideoStable?.();
-            }, 500);
-            sequenceTimers.current.push(stableTimeout);
-            
-            // Start loading enemies in chunks to reduce resource contention
-            const loadEnemiesInChunks = async () => {
-                // Skip enemy preloading during loading to avoid blocking
-                // Enemies will be lazy-loaded when first encountered
-                console.log('Skipping enemy preloading - will lazy load on demand');
-                setIsEnemiesPreloaded(true);
-            };
-            
-            loadEnemiesInChunks();
-        };
+                if (prev < 68) {
+                    return prev + 3.5;
+                }
 
-        const handleCanPlayThrough = () => {
-            setIsVideoReady(true);
-        };
+                if (prev < 88) {
+                    return prev + 1.1;
+                }
 
-        video.addEventListener('play', handlePlay);
-        video.addEventListener('canplaythrough', handleCanPlayThrough);
+                return Math.min(prev + 0.25, 94);
+            });
+        }, STATUS_DELAY_MS);
 
-        // Fallback for video ready
-        const videoFallback = setTimeout(() => {
-            if (!isVideoReady) setIsVideoReady(true);
-            if (!isVideoPlaying) setIsVideoPlaying(true);
-        }, 2000);
-        sequenceTimers.current.push(videoFallback as unknown as number);
+        return () => window.clearInterval(interval);
+    }, [isVisible, isSystemReady]);
+
+    useEffect(() => {
+        if (!isVisible) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            setMessageIndex((prev) => {
+                const maxIndex = isSystemReady ? MESSAGES.length - 1 : MESSAGES.length - 2;
+                return Math.min(prev + 1, maxIndex);
+            });
+        }, 700);
+
+        return () => window.clearInterval(interval);
+    }, [isVisible, isSystemReady]);
+
+    useEffect(() => {
+        if (!isSystemReady || !isVisible || finishTriggeredRef.current) {
+            return;
+        }
+
+        setProgress(100);
+        setMessageIndex(MESSAGES.length - 1);
+
+        autoEnterTimerRef.current = window.setTimeout(() => {
+            if (finishTriggeredRef.current) {
+                return;
+            }
+
+            finishTriggeredRef.current = true;
+            onFinished?.();
+        }, AUTO_ENTER_DELAY_MS);
 
         return () => {
-            video.removeEventListener('play', handlePlay);
-            video.removeEventListener('canplaythrough', handleCanPlayThrough);
+            if (autoEnterTimerRef.current !== null) {
+                window.clearTimeout(autoEnterTimerRef.current);
+                autoEnterTimerRef.current = null;
+            }
+        };
+    }, [isSystemReady, isVisible, onFinished]);
+
+    useEffect(() => {
+        return () => {
+            if (autoEnterTimerRef.current !== null) {
+                window.clearTimeout(autoEnterTimerRef.current);
+            }
         };
     }, []);
 
-    useEffect(() => {
-        if (!showLoadingTrack || !isVisible) return;
+    if (!shouldRender) {
+        return null;
+    }
 
-        const interval = window.setInterval(() => {
-            setLoadingProgress((prev) => {
-                if (isSystemReady) return 100;
-                const next = prev + 1.2;
-                return Math.min(92, next);
-            });
-        }, 120);
-
-        return () => window.clearInterval(interval);
-    }, [showLoadingTrack, isVisible, isSystemReady]);
-
-    useEffect(() => {
-        if (isSystemReady) {
-            setLoadingProgress(100);
-            setMessageIndex(MESSAGES.length - 1);
-        }
-    }, [isSystemReady]);
-
-    useEffect(() => {
-        if (!showLoadingTrack || !isVisible) return;
-        const msgInterval = setInterval(() => {
-            setMessageIndex(prev => Math.min(prev + 1, MESSAGES.length - 1));
-        }, 800);
-
-        return () => clearInterval(msgInterval);
-    }, [showLoadingTrack, isVisible]);
-
-    useEffect(() => {
-        if (!showRunnerTrack || !isVisible) return;
-
-        const interval = window.setInterval(() => {
-            setRunnerProgress((prev) => {
-                const baseTarget = showLoadingTrack ? Math.max(10, loadingProgress * 0.9) : 15;
-                const target = isSystemReady ? 100 : Math.min(95, baseTarget);
-                const step = isSystemReady ? 4 : 1.2; // Larger steps
-                return Math.min(target, prev + step);
-            });
-        }, 120); // Slower interval (was 60)
-
-        return () => window.clearInterval(interval);
-    }, [showRunnerTrack, showLoadingTrack, isVisible, loadingProgress, isSystemReady]);
-
-    // Check completion gate
-    useEffect(() => {
-        if (isSystemReady && loadingProgress >= 100 && runnerProgress >= 100 && !isFullyLoaded) {
-            setIsFullyLoaded(true);
-            // Small extra delay to ensure everything is really settled
-            const settleTimeout = window.setTimeout(() => {
-                setShowClickToStart(true);
-            }, 200);
-            sequenceTimers.current.push(settleTimeout);
-        }
-    }, [isSystemReady, loadingProgress, runnerProgress, isFullyLoaded]);
-
-    if (!shouldRender) return null;
+    const dots = Array.from({ length: 4 }, (_, index) => (
+        <span
+            key={index}
+            className="h-2.5 w-2.5 rounded-full bg-cyan-300/90"
+            style={{
+                animation: `loaderPulse 900ms ${index * 120}ms ease-in-out infinite`
+            }}
+        />
+    ));
 
     return (
-        <div className={`absolute inset-0 z-[150] flex flex-col items-center justify-center transition-opacity duration-700 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`absolute inset-0 z-[150] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
             <div className="absolute inset-0">
                 <video
-                    ref={videoRef}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    aria-label="Loading cinematic background"
+                    className="absolute inset-0 h-full w-full object-cover"
+                    aria-label="Loading background"
                     autoPlay
                     muted
                     playsInline
@@ -336,98 +151,68 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isVisible, isSystemReady,
                     <source src="/assets/videos/loading_compressed.mp4" type="video/mp4" />
                 </video>
             </div>
-            <div className="absolute inset-0 bg-black/40" />
-            <div className="relative w-full max-w-2xl px-12 flex flex-col items-center">
-                <div className="h-[20vh]" />
-                
-                {!isVideoReady ? (
-                    <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse">
-                        Loading Cinematic...
-                    </div>
-                ) : !isVideoPlaying ? (
-                    <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse">
-                        Preparing Assets...
-                    </div>
-                ) : (
-                    <>
-                        {isLoadingScene && (
-                            <div className="text-white/80 font-black uppercase tracking-[0.6em] text-[11px] animate-pulse mb-6">
-                                Initializing Scene...
-                            </div>
-                        )}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.16),_transparent_38%),linear-gradient(180deg,_rgba(5,10,20,0.55),_rgba(2,6,12,0.88))]" />
+            <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:36px_36px]" />
 
-                        {/* Secondary Loading Track with Runner */}
-                        {showRunnerTrack && (
-                            <div className="relative w-full h-1.5 bg-white/5 rounded-full mb-8">
-                                <div 
-                                    className="absolute inset-y-0 left-0 bg-blue-500/20 blur-sm transition-[width] duration-[120ms] ease-linear"
-                                    style={{ width: `${runnerProgress}%` }}
-                                />
-                                <div 
-                                    className="absolute inset-y-0 left-0 bg-blue-600 transition-[width] duration-[120ms] ease-linear shadow-[0_0_10px_#2563eb]"
-                                    style={{ width: `${runnerProgress}%` }}
-                                />
-                                
-                                {runnerProgress < 100 && (
-                                    <LoadingRunner 
-                                        progress={runnerProgress} 
-                                        className="w-24 h-24" 
-                                    />
-                                )}
+            <div className="relative flex h-full w-full items-center justify-center px-6">
+                <div className="w-full max-w-xl rounded-[32px] border border-white/10 bg-black/35 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-md">
+                    <div className="mb-6 flex items-center justify-between gap-4">
+                        <div>
+                            <div className="text-[11px] font-black uppercase tracking-[0.5em] text-cyan-200/80">
+                                World Boot
                             </div>
-                        )}
-
-                        {/* Primary System Status Bar */}
-                        {showLoadingTrack && (
-                            <div className="relative w-80 h-1.5 bg-white/10 rounded-full mb-6 shadow-[0_0_15px_rgba(0,0,0,0.5)] border border-white/5">
-                                <div 
-                                    className="absolute inset-y-0 left-0 bg-green-500/80 shadow-[0_0_15px_#22c55e] transition-[width] duration-[200ms] ease-linear"
-                                    style={{ width: `${loadingProgress}%` }}
-                                />
-                            </div>
-                        )}
-
-                        <div className="flex flex-col items-center gap-4">
-                            {showClickToStart ? (
-                                <button
-                                    className="px-12 py-4 bg-white text-black font-black text-xl uppercase tracking-widest rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(59,130,246,0.6)] active:scale-95 transform hover:-translate-y-1 animate-pulse"
-                                    onClick={() => {
-                                        hasCalledFinished.current = true;
-                                        onFinished?.();
-                                    }}
-                                >
-                                    Click to Start
-                                </button>
-                            ) : (
-                                <div className="text-white font-black uppercase tracking-[0.6em] text-[11px] animate-pulse drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
-                                    {showLoadingTrack ? (isSystemReady && runnerProgress >= 100 ? "Finalizing..." : MESSAGES[messageIndex]) : "Booting World Systems..."}
-                                </div>
-                            )}
-                            <div className="flex items-center gap-4">
-                                <div className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${isSystemReady ? 'text-green-500' : 'text-slate-600'}`}>
-                                    Assets: {isSystemReady ? 'Loaded' : 'Mounting...'}
-                                </div>
-                                <div className="w-[1px] h-3 bg-white/10" />
-                                <div className={`text-[9px] font-bold uppercase tracking-widest transition-colors ${isEnemiesPreloaded ? 'text-green-500' : 'text-slate-600'}`}>
-                                    Bestiary: {isEnemiesPreloaded ? 'Preloaded' : 'Indexing...'}
-                                </div>
-                                <div className="w-[1px] h-3 bg-white/10" />
-                                <div className="text-blue-500 font-mono text-[9px] font-bold uppercase tracking-widest">
-                                    Runner: {Math.floor(runnerProgress)}%
-                                </div>
+                            <div className="mt-2 text-3xl font-black uppercase tracking-[0.14em] text-white">
+                                {isSystemReady ? 'Entering Scene' : 'Loading'}
                             </div>
                         </div>
-                    </>
-                )}
-            </div>
+                        <div className="text-right text-xs font-bold uppercase tracking-[0.35em] text-white/55">
+                            <div>{Math.round(progress)}%</div>
+                            <div className="mt-1 text-[10px] text-cyan-200/60">
+                                {isLoadingScene ? 'Scene init' : 'Syncing'}
+                            </div>
+                        </div>
+                    </div>
 
-            <div className="absolute bottom-12 flex flex-col items-center gap-4 opacity-30">
-                <div className="flex items-center gap-6">
-                    <div className="h-[1px] w-16 bg-gradient-to-r from-transparent to-white" />
-                    <span className="text-[9px] font-black uppercase tracking-[0.8em] text-white">© Lord Tsarcasm 2026</span>
-                    <div className="h-[1px] w-16 bg-gradient-to-l from-transparent to-white" />
+                    <div className="mb-5 overflow-hidden rounded-full border border-cyan-400/15 bg-white/5">
+                        <div
+                            className="h-3 rounded-full bg-[linear-gradient(90deg,_#22d3ee,_#38bdf8,_#60a5fa)] transition-[width] duration-150 ease-out"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+
+                    <div className="mb-6 flex items-center gap-3">
+                        {dots}
+                        <div className="text-xs font-black uppercase tracking-[0.35em] text-white/70">
+                            {MESSAGES[messageIndex]}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 text-[10px] font-bold uppercase tracking-[0.28em] text-white/60">
+                        <div className={`rounded-2xl border px-3 py-3 ${isLoadingScene ? 'border-amber-400/30 bg-amber-400/10 text-amber-100' : 'border-white/10 bg-white/5'}`}>
+                            Scene
+                        </div>
+                        <div className={`rounded-2xl border px-3 py-3 ${progress >= 50 ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/5'}`}>
+                            Assets
+                        </div>
+                        <div className={`rounded-2xl border px-3 py-3 ${isSystemReady ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100' : 'border-white/10 bg-white/5'}`}>
+                            Ready
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <style>{`
+                @keyframes loaderPulse {
+                    0%, 80%, 100% {
+                        transform: scale(0.72);
+                        opacity: 0.35;
+                    }
+                    40% {
+                        transform: scale(1);
+                        opacity: 1;
+                    }
+                }
+            `}</style>
         </div>
     );
 };

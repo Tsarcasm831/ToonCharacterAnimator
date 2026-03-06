@@ -1,0 +1,288 @@
+
+import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import type { PlayerConfig } from '../../../types';
+import { IdleAction } from '../../../game/animator/actions/IdleAction';
+import { PlayerModel } from '../../../game/model/PlayerModel';
+
+interface PlayerPreviewProps {
+    config: PlayerConfig;
+}
+
+export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const sceneRef = useRef<THREE.Scene | null>(null);
+    const modelRef = useRef<PlayerModel | null>(null);
+    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+    const stageRef = useRef<THREE.Mesh | null>(null);
+    const shadowStageRef = useRef<THREE.Mesh | null>(null);
+    const frameIdRef = useRef<number>(0);
+    const orbitStateRef = useRef({
+        target: new THREE.Vector3(),
+        distance: 3.8,
+        yaw: 0.05,
+        pitch: 0.12,
+    });
+    const interactionRef = useRef({
+        mode: null as 'rotate' | 'pan' | null,
+        pointerId: null as number | null,
+        lastX: 0,
+        lastY: 0,
+    });
+
+    const applyCameraState = () => {
+        const camera = cameraRef.current;
+        if (!camera) return;
+
+        const orbit = orbitStateRef.current;
+        const cosPitch = Math.cos(orbit.pitch);
+        camera.position.set(
+            orbit.target.x + orbit.distance * Math.sin(orbit.yaw) * cosPitch,
+            orbit.target.y + orbit.distance * Math.sin(orbit.pitch),
+            orbit.target.z + orbit.distance * Math.cos(orbit.yaw) * cosPitch,
+        );
+        camera.lookAt(orbit.target);
+        camera.updateProjectionMatrix();
+    };
+
+    const frameModel = () => {
+        const camera = cameraRef.current;
+        const playerModel = modelRef.current;
+        const stage = stageRef.current;
+        const shadowStage = shadowStageRef.current;
+        if (!camera || !playerModel) return;
+
+        const bounds = new THREE.Box3().setFromObject(playerModel.group);
+        if (bounds.isEmpty()) return;
+
+        const size = bounds.getSize(new THREE.Vector3());
+        const center = bounds.getCenter(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fitHeightDistance = maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)));
+        const fitWidthDistance = fitHeightDistance / Math.max(camera.aspect, 0.75);
+        const distance = Math.max(fitHeightDistance, fitWidthDistance) * 1.35;
+
+        orbitStateRef.current.target.set(center.x, center.y + size.y * 0.04, center.z);
+        orbitStateRef.current.distance = distance;
+        applyCameraState();
+
+        if (stage) {
+            const stageScale = Math.max(size.x, size.z) * 1.05;
+            const floorY = bounds.min.y - 0.07;
+            stage.position.set(center.x, floorY, center.z);
+            stage.scale.set(stageScale * 1.8, stageScale * 1.8, 1);
+            if (shadowStage) {
+                shadowStage.position.set(center.x, floorY + 0.002, center.z);
+                shadowStage.scale.setScalar(stageScale * 0.98);
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const width = containerRef.current.clientWidth;
+        const height = containerRef.current.clientHeight;
+
+        const scene = new THREE.Scene();
+        scene.background = null;
+
+        const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 100);
+        camera.position.set(0.2, 1.4, 3.8);
+        camera.lookAt(0, 1.15, 0);
+        cameraRef.current = camera;
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setPixelRatio(1);
+        renderer.setSize(width, height);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFShadowMap;
+        containerRef.current.appendChild(renderer.domElement);
+        renderer.domElement.style.touchAction = 'none';
+
+        const hemiLight = new THREE.HemisphereLight(0xbfd7ff, 0x101626, 1.35);
+        scene.add(hemiLight);
+
+        const keyLight = new THREE.DirectionalLight(0xfff1d6, 2.2);
+        keyLight.position.set(3.5, 4.5, 5);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 1024;
+        keyLight.shadow.mapSize.height = 1024;
+        keyLight.shadow.bias = -0.0008;
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0x8db4ff, 0.9);
+        fillLight.position.set(-4, 2, 3);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0x5d7cff, 1.1);
+        rimLight.position.set(-2.5, 3.2, -4);
+        scene.add(rimLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(0, -1, 2);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 512;
+        dirLight.shadow.mapSize.height = 512;
+        dirLight.shadow.bias = -0.001;
+        scene.add(dirLight);
+
+        const stage = new THREE.Mesh(
+            new THREE.PlaneGeometry(1, 1),
+            new THREE.MeshStandardMaterial({
+                color: 0xe0e2e7,
+                roughness: 1,
+                metalness: 0,
+            }),
+        );
+        stage.rotation.x = -Math.PI / 2;
+        stage.receiveShadow = true;
+        scene.add(stage);
+        stageRef.current = stage;
+
+        const shadowStage = new THREE.Mesh(
+            new THREE.CircleGeometry(1.45, 48),
+            new THREE.ShadowMaterial({ opacity: 0.18, color: 0x000000 }),
+        );
+        shadowStage.rotation.x = -Math.PI / 2;
+        shadowStage.receiveShadow = true;
+        scene.add(shadowStage);
+        shadowStageRef.current = shadowStage;
+
+        const playerModel = new PlayerModel(config);
+        playerModel.group.rotation.y = 0.18;
+        scene.add(playerModel.group);
+
+        sceneRef.current = scene;
+        modelRef.current = playerModel;
+        rendererRef.current = renderer;
+        frameModel();
+
+        const mockPlayer = {
+            config,
+            isCombatStance: false,
+            model: playerModel,
+        };
+
+        const animate = () => {
+            frameIdRef.current = requestAnimationFrame(animate);
+            IdleAction.animate(mockPlayer, playerModel.parts, 0.1, false);
+            playerModel.update(0.016, new THREE.Vector3(0, 0, 0));
+            renderer.render(scene, camera);
+        };
+
+        animate();
+
+        const handleResize = () => {
+            if (!containerRef.current || !rendererRef.current) return;
+            const w = containerRef.current.clientWidth;
+            const h = containerRef.current.clientHeight;
+            camera.aspect = w / h;
+            rendererRef.current.setSize(w, h);
+            frameModel();
+        };
+
+        const handlePointerDown = (event: PointerEvent) => {
+            if (event.button === 0) {
+                interactionRef.current.mode = 'rotate';
+            } else if (event.button === 2) {
+                interactionRef.current.mode = 'pan';
+            } else {
+                return;
+            }
+
+            interactionRef.current.pointerId = event.pointerId;
+            interactionRef.current.lastX = event.clientX;
+            interactionRef.current.lastY = event.clientY;
+            renderer.domElement.setPointerCapture(event.pointerId);
+        };
+
+        const handlePointerMove = (event: PointerEvent) => {
+            const interaction = interactionRef.current;
+            if (interaction.pointerId !== event.pointerId || !interaction.mode) return;
+
+            const deltaX = event.clientX - interaction.lastX;
+            const deltaY = event.clientY - interaction.lastY;
+            interaction.lastX = event.clientX;
+            interaction.lastY = event.clientY;
+
+            if (interaction.mode === 'rotate') {
+                orbitStateRef.current.yaw -= deltaX * 0.01;
+                orbitStateRef.current.pitch = THREE.MathUtils.clamp(
+                    orbitStateRef.current.pitch - deltaY * 0.008,
+                    -1.2,
+                    1.2,
+                );
+            } else {
+                const panScale = orbitStateRef.current.distance * 0.0009;
+                const forward = new THREE.Vector3();
+                camera.getWorldDirection(forward);
+                const right = new THREE.Vector3().crossVectors(forward, camera.up).normalize();
+                const up = new THREE.Vector3().copy(camera.up).normalize();
+
+                orbitStateRef.current.target.addScaledVector(right, -deltaX * panScale);
+                orbitStateRef.current.target.addScaledVector(up, deltaY * panScale);
+            }
+
+            applyCameraState();
+        };
+
+        const endInteraction = (pointerId: number) => {
+            if (interactionRef.current.pointerId !== pointerId) return;
+            interactionRef.current.mode = null;
+            interactionRef.current.pointerId = null;
+            renderer.domElement.releasePointerCapture(pointerId);
+        };
+
+        const handlePointerUp = (event: PointerEvent) => endInteraction(event.pointerId);
+        const handlePointerCancel = (event: PointerEvent) => endInteraction(event.pointerId);
+        const handleContextMenu = (event: MouseEvent) => event.preventDefault();
+
+        renderer.domElement.addEventListener('pointerdown', handlePointerDown);
+        renderer.domElement.addEventListener('pointermove', handlePointerMove);
+        renderer.domElement.addEventListener('pointerup', handlePointerUp);
+        renderer.domElement.addEventListener('pointercancel', handlePointerCancel);
+        renderer.domElement.addEventListener('contextmenu', handleContextMenu);
+
+        const resizeObserver = new ResizeObserver(handleResize);
+        resizeObserver.observe(containerRef.current);
+
+        return () => {
+            cancelAnimationFrame(frameIdRef.current);
+            resizeObserver.disconnect();
+            renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
+            renderer.domElement.removeEventListener('pointermove', handlePointerMove);
+            renderer.domElement.removeEventListener('pointerup', handlePointerUp);
+            renderer.domElement.removeEventListener('pointercancel', handlePointerCancel);
+            renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
+            modelRef.current?.dispose();
+            if (rendererRef.current && containerRef.current) {
+                containerRef.current.removeChild(rendererRef.current.domElement);
+                rendererRef.current.dispose();
+            }
+            cameraRef.current = null;
+            stageRef.current = null;
+            shadowStageRef.current = null;
+            interactionRef.current.mode = null;
+            interactionRef.current.pointerId = null;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (modelRef.current) {
+            modelRef.current.sync(config, false);
+            frameModel();
+        }
+    }, [config]);
+
+    return (
+        <div
+            ref={containerRef}
+            className="h-full w-full bg-[#e6e7eb]"
+        />
+    );
+};
