@@ -1,5 +1,11 @@
 # React + TypeScript + Vite
 
+## Project note
+
+`standalone_cc` has a documented regression history around preview controls, stale config in the animation loop, shirt pattern updates, and face baseline constants.
+
+Before changing preview/input/appearance behavior, read [REGRESSION_NOTES.md](/c:/Users/xris_/Documents/GitHub/ToonCharacterAnimator/standalone_cc/REGRESSION_NOTES.md).
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
