@@ -1,0 +1,137 @@
+
+import React, { useRef, useEffect } from 'react';
+import * as THREE from 'three';
+import type { PlayerConfig } from '../../../types';
+import { PlayerModel } from '../../../game/model/PlayerModel';
+import { IdleAction } from '../../../game/animator/actions/IdleAction';
+
+interface PlayerPreviewProps {
+    config: PlayerConfig;
+}
+
+export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const sceneRef = useRef<THREE.Scene | null>(null);
+    const modelRef = useRef<PlayerModel | null>(null);
+    const frameIdRef = useRef<number>(0);
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const width = containerRef.current.clientWidth;
+        const height = containerRef.current.clientHeight;
+
+        const scene = new THREE.Scene();
+        scene.background = null; 
+        
+        const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 100);
+        camera.position.set(0.2, 1.4, 3.8);
+        camera.lookAt(0, 1.15, 0);
+
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setPixelRatio(1); // Performance win in UI
+        renderer.setSize(width, height);
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFShadowMap; 
+        containerRef.current.appendChild(renderer.domElement);
+
+        const hemiLight = new THREE.HemisphereLight(0xbfd7ff, 0x101626, 1.35);
+        scene.add(hemiLight);
+
+        const keyLight = new THREE.DirectionalLight(0xfff1d6, 2.2);
+        keyLight.position.set(3.5, 4.5, 5);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.width = 1024;
+        keyLight.shadow.mapSize.height = 1024;
+        keyLight.shadow.bias = -0.0008;
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0x8db4ff, 0.9);
+        fillLight.position.set(-4, 2, 3);
+        scene.add(fillLight);
+
+        const rimLight = new THREE.DirectionalLight(0x5d7cff, 1.1);
+        rimLight.position.set(-2.5, 3.2, -4);
+        scene.add(rimLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        dirLight.position.set(0, -1, 2);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 512;
+        dirLight.shadow.mapSize.height = 512;
+        dirLight.shadow.bias = -0.001;
+        scene.add(dirLight);
+
+        const stage = new THREE.Mesh(
+            new THREE.CircleGeometry(1.45, 48),
+            new THREE.ShadowMaterial({ opacity: 0.18, color: 0x000000 })
+        );
+        stage.rotation.x = -Math.PI / 2;
+        stage.position.set(0, -1.48, 0);
+        stage.receiveShadow = true;
+        scene.add(stage);
+
+        const playerModel = new PlayerModel(config);
+        playerModel.group.position.y = -1.42;
+        playerModel.group.rotation.y = 0.18;
+        scene.add(playerModel.group);
+
+        sceneRef.current = scene;
+        modelRef.current = playerModel;
+        rendererRef.current = renderer;
+
+        const mockPlayer = {
+            config: config,
+            isCombatStance: false,
+            model: playerModel,
+        };
+
+        const animate = () => {
+            frameIdRef.current = requestAnimationFrame(animate);
+            IdleAction.animate(mockPlayer, playerModel.parts, 0.1, false);
+            playerModel.update(0.016, new THREE.Vector3(0,0,0));
+            renderer.render(scene, camera);
+        };
+
+        animate();
+
+        const handleResize = () => {
+            if (!containerRef.current || !rendererRef.current) return;
+            const w = containerRef.current.clientWidth;
+            const h = containerRef.current.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            rendererRef.current.setSize(w, h);
+        };
+        
+        const resizeObserver = new ResizeObserver(() => handleResize());
+        resizeObserver.observe(containerRef.current);
+
+        return () => {
+            cancelAnimationFrame(frameIdRef.current);
+            resizeObserver.disconnect();
+            if (rendererRef.current && containerRef.current) {
+                containerRef.current.removeChild(rendererRef.current.domElement);
+                rendererRef.current.dispose();
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (modelRef.current) {
+            modelRef.current.sync(config, false);
+        }
+    }, [config]);
+
+    return (
+        <div
+            ref={containerRef}
+            className="w-full h-full bg-[radial-gradient(circle_at_top,_rgba(67,97,238,0.22),_transparent_28%),linear-gradient(180deg,_#07111f_0%,_#040814_55%,_#02040b_100%)]"
+        />
+    );
+};
+

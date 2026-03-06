@@ -5,10 +5,6 @@ import { Units } from '../pages/Units';
 import { Map } from '../pages/Map';
 import { X } from 'lucide-react';
 
-const DEFAULT_COMMITS = [
-    { hash: 'pending', date: '—', message: 'No commits found. Run build to populate.' }
-];
-
 interface MainMenuProps {
     onStart: (startInCombat: boolean, startInLand: boolean, startInDev: boolean, startInTown: boolean, startInSingleBiome: boolean) => void;
     onShowEnemies: () => void;
@@ -25,37 +21,19 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
     const [showOptions, setShowOptions] = React.useState(false);
     const [showUnits, setShowUnits] = React.useState(false);
     const [showMap, setShowMap] = React.useState(false);
-    const [showChangelog, setShowChangelog] = React.useState(false);
     const hideControls = isMobile;
 
-    const buildCommits = React.useMemo(() => {
-        const raw = import.meta.env.VITE_RECENT_COMMITS as unknown;
-        if (!raw) return [] as Array<{ hash: string; date: string; message: string }>;
-        if (Array.isArray(raw)) return raw as Array<{ hash: string; date: string; message: string }>;
-        if (typeof raw === 'string') {
-            try {
-                const parsed = JSON.parse(raw);
-                return Array.isArray(parsed) ? parsed : [];
-            } catch (err) {
-                console.warn('Failed to parse VITE_RECENT_COMMITS', err);
-            }
-        }
-        return [] as Array<{ hash: string; date: string; message: string }>;
-    }, []);
-    const commitList = (buildCommits.length ? buildCommits : DEFAULT_COMMITS).slice(0, 3);
-
     React.useEffect(() => {
-        if (!showUnits && !showMap && !showChangelog) return;
+        if (!showUnits && !showMap) return;
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 setShowUnits(false);
                 setShowMap(false);
-                setShowChangelog(false);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [showUnits, showMap, showChangelog]);
+    }, [showUnits, showMap]);
 
     return (
         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center">
@@ -99,14 +77,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
 
                     {!hideControls && (
                         <div className="flex flex-col gap-6 items-center">
-                            <button
-                                type="button"
-                                onClick={() => setShowChangelog(true)}
-                                className="px-10 py-3 bg-white/10 text-white font-black text-sm uppercase tracking-widest rounded-full border border-white/10 hover:bg-white/20 hover:border-white/30 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-                            >
-                                Changelog
-                            </button>
-
                             <button 
                                 type="button"
                                 onClick={() => onStart(startInCombat, startInLand, startInDev, startInTown, startInSingleBiome)}
@@ -303,49 +273,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
                         </div>
                         <div className="flex-1 min-h-0">
                             <Map />
-                        </div>
-                    </div>
-                </div>
-            )}
-            {showChangelog && !hideControls && (
-                <div
-                    className="absolute inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-                    onClick={() => setShowChangelog(false)}
-                >
-                    <div
-                        className="relative w-[min(700px,96vw)] max-h-[min(88dvh,88vh)] sm:max-h-[70vh] rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-950/90 flex flex-col"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <div className="sticky top-0 z-20 flex justify-end p-3 bg-gradient-to-b from-black/90 to-black/30">
-                            <button
-                                type="button"
-                                onClick={() => setShowChangelog(false)}
-                                className="h-10 w-10 flex items-center justify-center bg-black/60 text-white border border-white/10 rounded-full hover:bg-black/80"
-                                aria-label="Close changelog"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        <div className="p-6 sm:p-8 space-y-4 text-left text-white overflow-y-auto custom-scrollbar">
-                            <div>
-                                <p className="text-[10px] uppercase tracking-[0.4em] text-slate-400 font-bold">Latest Updates</p>
-                                <h2 className="text-4xl font-black text-white mt-2">Changelog</h2>
-                            </div>
-
-                            <div className="space-y-3">
-                                {commitList.map((entry) => (
-                                    <div key={entry.hash} className="flex items-start gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
-                                        <div className="px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-blue-500/20 text-blue-200 rounded-full border border-blue-500/40">
-                                            {entry.date}
-                                        </div>
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-black tracking-wide">{entry.message}</span>
-                                            <span className="text-[11px] text-slate-400 font-mono">{entry.hash}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
                         </div>
                     </div>
                 </div>

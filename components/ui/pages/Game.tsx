@@ -72,8 +72,6 @@ export const Game: React.FC = () => {
     // Gate scene mounting so the loading screen can paint before heavy initialization begins
     const [shouldMountScene, setShouldMountScene] = React.useState(false);
     const [lastScene, setLastScene] = React.useState<string | null>(null);
-    const [isVideoStable, setIsVideoStable] = React.useState(false);
-    const [isVideoFinished, setIsVideoFinished] = React.useState(false);
     const [isSceneInitializing, setIsSceneInitializing] = React.useState(false);
     const mountSceneTimeout = React.useRef<number | null>(null);
     const visualReadyTimeout = React.useRef<number | null>(null);
@@ -150,8 +148,6 @@ export const Game: React.FC = () => {
         setIsCombatActive(false);
         setGameState('LOADING');
         setShouldMountScene(false);
-        setIsVideoStable(false);
-        setIsVideoFinished(false);
         setIsSceneInitializing(false);
         if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
         if (visualReadyTimeout.current) window.clearTimeout(visualReadyTimeout.current);
@@ -544,7 +540,6 @@ export const Game: React.FC = () => {
                                 isVisible={gameState === 'LOADING'}
                                 isSystemReady={isSystemReady}
                                 onFinished={handleStartPlaying}
-                                onVideoStable={() => setIsVideoStable(true)}
                                 isLoadingScene={isSceneInitializing || !isSystemReady}
                             />
                             

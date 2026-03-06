@@ -1,24 +1,9 @@
 import path from 'path';
-import { execFileSync } from 'child_process';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
-
-    // Get latest 3 commits for the changelog
-    let recentCommits: any[] = [];
-    try {
-        const gitLog = execFileSync('git', ['log', '-n', '3', '--pretty=format:%h|%ad|%s', '--date=short']).toString();
-        const commits = gitLog.split('\n').map(line => {
-            const [hash, date, message] = line.split('|');
-            return { hash, date, message };
-        });
-        recentCommits = commits;
-        console.log('[vite] recent commits for changelog:', recentCommits);
-    } catch (e) {
-        console.warn('Failed to fetch git commits for changelog:', e);
-    }
 
     return {
       base: './',
@@ -31,11 +16,8 @@ export default defineConfig(({ mode }) => {
         react()
       ],
       define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.SUPABASE_URL': JSON.stringify(env.SUPABASE_URL),
-        'process.env.SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY),
-        'import.meta.env.VITE_RECENT_COMMITS': JSON.stringify(recentCommits)
+        'process.env.SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY)
       },
       resolve: {
         alias: {

@@ -1,0 +1,294 @@
+import React, { useState, useEffect } from 'react';
+import { PlayerConfig } from '../../../types';
+import { LoadoutManager, CharacterLoadout } from '../../../utils/LoadoutManager';
+
+interface LoadoutControlsProps {
+  config: PlayerConfig;
+  setConfig: React.Dispatch<React.SetStateAction<PlayerConfig>>;
+}
+
+const LoadoutControls: React.FC<LoadoutControlsProps> = ({ config, setConfig }) => {
+  const [loadouts, setLoadouts] = useState<CharacterLoadout[]>([]);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [loadoutName, setLoadoutName] = useState('');
+  const [selectedLoadout, setSelectedLoadout] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+
+  // Load all loadouts on mount and when changes occur
+  const refreshLoadouts = () => {
+    setLoadouts(LoadoutManager.getAllLoadouts());
+  };
+
+  useEffect(() => {
+    refreshLoadouts();
+  }, []);
+
+  const handleSaveLoadout = () => {
+    if (!loadoutName.trim()) {
+      alert('Please enter a name for your loadout');
+      return;
+    }
+
+    try {
+      LoadoutManager.saveLoadout(loadoutName, config);
+      setLoadoutName('');
+      setShowSaveModal(false);
+      refreshLoadouts();
+    } catch (error) {
+      alert('Failed to save loadout. Please try again.');
+    }
+  };
+
+  const handleLoadLoadout = (id: string) => {
+    const loadedConfig = LoadoutManager.loadLoadout(id);
+    if (loadedConfig) {
+      setConfig(loadedConfig);
+      setSelectedLoadout(id);
+    } else {
+      alert('Failed to load loadout');
+    }
+  };
+
+  const handleDeleteLoadout = (id: string) => {
+    if (LoadoutManager.deleteLoadout(id)) {
+      if (selectedLoadout === id) {
+        setSelectedLoadout(null);
+      }
+      refreshLoadouts();
+      setShowDeleteConfirm(null);
+    } else {
+      alert('Failed to delete loadout');
+    }
+  };
+
+  const handleExportLoadouts = () => {
+    try {
+      const json = LoadoutManager.exportLoadouts();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tca_loadouts_${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert('Failed to export loadouts');
+    }
+  };
+
+  const handleImportLoadouts = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const json = event.target?.result as string;
+            if (LoadoutManager.importLoadouts(json, true)) {
+              refreshLoadouts();
+              alert('Loadouts imported successfully');
+            } else {
+              alert('Failed to import loadouts');
+            }
+          } catch (error) {
+            alert('Invalid loadout file');
+          }
+        };
+        reader.readAsText(file);
+      }
+    };
+    input.click();
+  };
+
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  return (
+    <div className="bg-neutral-800 rounded-lg p-4 border border-purple-500/30">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold text-purple-300 flex items-center gap-2">
+          <span className="text-2xl">💾</span>
+          Character Loadouts
+        </h3>
+        <span className="text-xs text-neutral-400">{loadouts.length}/{20} saved</span>
+      </div>
+
+      {/* Save New Loadout Button */}
+      <button
+        type="button"
+        onClick={() => setShowSaveModal(true)}
+        className="w-full px-4 py-3 mb-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white font-bold rounded transition-all duration-300 flex items-center justify-center gap-2 shadow-lg"
+      >
+        <span className="text-xl">💾</span>
+        Save Current Character
+      </button>
+
+      {/* Loadout List */}
+      <div className="space-y-2 mb-4 max-h-96 overflow-y-auto custom-scrollbar">
+        {loadouts.length === 0 ? (
+          <div className="text-center py-8 text-neutral-500 text-sm">
+            <p>No saved loadouts yet</p>
+            <p className="text-xs mt-1">Save your first character configuration above</p>
+          </div>
+        ) : (
+          loadouts.map((loadout) => (
+            <div
+              key={loadout.id}
+              className={`bg-neutral-700 rounded-lg p-3 border transition-all ${
+                selectedLoadout === loadout.id
+                  ? 'border-purple-500 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
+                  : 'border-neutral-600 hover:border-neutral-500'
+              }`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <h4 className="font-semibold text-white text-sm">{loadout.name}</h4>
+                  <p className="text-xs text-neutral-400">{formatDate(loadout.timestamp)}</p>
+                </div>
+                {selectedLoadout === loadout.id && (
+                  <span className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs font-bold rounded border border-purple-400/30">
+                    ACTIVE
+                  </span>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleLoadLoadout(loadout.id)}
+                  className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded transition-colors"
+                >
+                  Load
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(loadout.id)}
+                  className="px-3 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+
+              {/* Delete Confirmation */}
+              {showDeleteConfirm === loadout.id && (
+                <div className="mt-2 p-2 bg-red-900/20 border border-red-500/30 rounded">
+                  <p className="text-xs text-red-300 mb-2">Are you sure you want to delete this loadout?</p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteLoadout(loadout.id)}
+                      className="flex-1 px-2 py-1 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded"
+                    >
+                      Yes, Delete
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(null)}
+                      className="flex-1 px-2 py-1 bg-neutral-600 hover:bg-neutral-500 text-white text-xs font-semibold rounded"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Import/Export Buttons */}
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={handleImportLoadouts}
+          className="px-3 py-2 bg-neutral-700 hover:bg-neutral-600 text-white text-xs font-semibold rounded transition-colors flex items-center justify-center gap-1"
+        >
+          <span>📥</span>
+          Import
+        </button>
+        <button
+          type="button"
+          onClick={handleExportLoadouts}
+          disabled={loadouts.length === 0}
+          className={`px-3 py-2 text-white text-xs font-semibold rounded transition-colors flex items-center justify-center gap-1 ${
+            loadouts.length === 0
+              ? 'bg-neutral-800 text-neutral-600 cursor-not-allowed'
+              : 'bg-neutral-700 hover:bg-neutral-600'
+          }`}
+        >
+          <span>📤</span>
+          Export
+        </button>
+      </div>
+
+      {/* Info Text */}
+      <div className="mt-4 p-3 bg-neutral-700/50 rounded text-xs text-neutral-400">
+        <p className="mb-1">
+          <strong className="text-neutral-300">Quick tip:</strong> Loadouts are saved locally in your browser.
+        </p>
+        <p>
+          Use Export to back up your loadouts or share them. Import to restore from a backup.
+        </p>
+      </div>
+
+      {/* Save Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="bg-neutral-900 border border-purple-500/50 rounded-lg p-6 w-full max-w-md shadow-[0_0_50px_rgba(168,85,247,0.3)]">
+            <h3 className="text-xl font-bold text-purple-300 mb-4">Save Character Loadout</h3>
+
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-neutral-300 mb-2">
+                Loadout Name
+              </label>
+              <input
+                type="text"
+                value={loadoutName}
+                onChange={(e) => setLoadoutName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSaveLoadout();
+                  } else if (e.key === 'Escape') {
+                    setShowSaveModal(false);
+                  }
+                }}
+                placeholder="e.g., My Hero, Dark Mage, Warrior Build..."
+                className="w-full px-4 py-2 bg-neutral-800 border border-neutral-600 text-white rounded focus:border-purple-500 focus:outline-none"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSaveModal(false);
+                  setLoadoutName('');
+                }}
+                className="flex-1 px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white font-semibold rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveLoadout}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded transition-colors"
+              >
+                Save Loadout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default LoadoutControls;

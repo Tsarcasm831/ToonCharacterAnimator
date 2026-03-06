@@ -1,0 +1,84 @@
+import React, { useState } from 'react';
+import { PlayerPreview } from './components/ui/previews/PlayerPreview';
+import { ControlPanel } from './components/ui/panels/ControlPanel';
+import { OUTFIT_PRESETS } from './data/constants';
+import { DEFAULT_CONFIG } from './types';
+import type { PlayerConfig, PlayerInput } from './types';
+import './index.css';
+
+const DEFAULT_INPUT: Partial<PlayerInput> = {
+    x: 0,
+    y: 0,
+    isRunning: false,
+    jump: false,
+    isDead: false,
+    isPickingUp: false,
+    attack1: false,
+    attack2: false,
+    interact: false,
+    combat: false,
+    toggleFirstPerson: false,
+    wave: false,
+    leftHandWave: false,
+    summon: false,
+    toggleBuilder: false,
+    rotateGhost: false,
+    fireball: false,
+    crouch: false
+};
+
+const INITIAL_CONFIG: PlayerConfig = {
+  ...DEFAULT_CONFIG,
+  ...OUTFIT_PRESETS.peasant,
+  hairStyle: 'crew',
+  hairColor: '#2b1d16',
+  skinColor: '#d8b89a',
+  eyeColor: '#445b78',
+  shirtColor: '#8d6e63',
+  pantsColor: '#5d4037',
+  bootsColor: '#2a1b14',
+  timeOfDay: 16.8,
+  isAutoTime: false,
+};
+
+function App() {
+  const [config, setConfig] = useState<PlayerConfig>(INITIAL_CONFIG);
+  const [manualInput, setManualInput] = useState<Partial<PlayerInput>>(DEFAULT_INPUT);
+  const [isDeadUI, setIsDeadUI] = useState(false);
+
+  const handleDeathToggle = () => {
+      setManualInput(prev => ({ ...prev, isDead: !prev.isDead }));
+      setIsDeadUI(prev => !prev);
+  };
+
+  const triggerAction = (key: keyof PlayerInput) => {
+      setManualInput(prev => ({ ...prev, [key]: true }));
+      setTimeout(() => setManualInput(prev => ({ ...prev, [key]: false })), 100);
+  };
+
+  return (
+    <div className="w-screen h-screen bg-slate-950 overflow-hidden text-slate-50 flex flex-col relative">
+      <div className="absolute inset-0">
+         <PlayerPreview config={config} />
+      </div>
+      
+      <ControlPanel
+          config={config}
+          manualInput={manualInput}
+          isDeadUI={isDeadUI}
+          setConfig={setConfig}
+          setManualInput={setManualInput}
+          handleDeathToggle={handleDeathToggle}
+          triggerAction={triggerAction}
+          onExport={() => console.log('Export model')}
+          onSpawnAnimals={() => console.log('Spawn animals')}
+          onUndo={() => console.log('Undo')}
+          onRedo={() => console.log('Redo')}
+          canUndo={false}
+          canRedo={false}
+      />
+    </div>
+  )
+}
+
+export default App;

@@ -122,7 +122,7 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
         };
         const targetFrameMs = 1000 / 30;
 
-        const animate = (time: number) => {
+        const animate = (time: number = 0) => {
             frameId = requestAnimationFrame(animate);
             if (time - lastTime < targetFrameMs) return;
             lastTime = time;
@@ -134,7 +134,7 @@ const LoadingRunner: React.FC<LoadingRunnerProps> = ({
             renderer.render(scene, camera);
         };
 
-        animate();
+        frameId = requestAnimationFrame(animate);
 
         return () => {
             cancelAnimationFrame(frameId);

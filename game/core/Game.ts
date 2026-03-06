@@ -366,7 +366,9 @@ export class Game {
         this.combatManager.setCombatActive(sceneName === 'combat');
         if (sceneName === 'town') {
             this.setupTownScene();
-        } else if (sceneName === 'dev' && !isInit) {
+        }
+
+        if (!isInit && sceneName !== 'singleBiome') {
             this.scheduleEnvironmentReady(sceneName);
         }
     }
