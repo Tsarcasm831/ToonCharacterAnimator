@@ -10,6 +10,7 @@ interface OutfitControlsProps {
 }
 
 export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfig }) => {
+    const outfitSelectId = React.useId();
 
     const handleConfigChange = (key: keyof PlayerConfig, value: any) => {
         setConfig(prev => ({ ...prev, [key]: value }));
@@ -46,8 +47,10 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
         <div className="space-y-6">
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 space-y-6">
                 <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Base Outfit Template</label>
+                    <label htmlFor={outfitSelectId} className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Base Outfit Template</label>
                     <select 
+                        id={outfitSelectId}
+                        name="base_outfit_template"
                         aria-label="Base outfit template"
                         value={config.outfit} 
                         onChange={(e) => handleOutfitChange(e.target.value as OutfitType)} 

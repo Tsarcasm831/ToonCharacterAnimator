@@ -24,8 +24,23 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
     const orbitStateRef = useRef({
         target: new THREE.Vector3(),
         distance: 3.8,
+        yaw: 0.05,
+        pitch: 0.12,
     });
-    const defaultOrbitDirectionRef = useRef(new THREE.Vector3(0.05, 0.12, 1).normalize());
+    const applyCameraState = () => {
+        const camera = cameraRef.current;
+        if (!camera) return;
+
+        const orbit = orbitStateRef.current;
+        const cosPitch = Math.cos(orbit.pitch);
+        camera.position.set(
+            orbit.target.x + orbit.distance * Math.sin(orbit.yaw) * cosPitch,
+            orbit.target.y + orbit.distance * Math.sin(orbit.pitch),
+            orbit.target.z + orbit.distance * Math.cos(orbit.yaw) * cosPitch,
+        );
+        camera.lookAt(orbit.target);
+        camera.updateProjectionMatrix();
+    };
 
     const frameModel = () => {
         const camera = cameraRef.current;
@@ -43,25 +58,11 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         const fitHeightDistance = maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)));
         const fitWidthDistance = fitHeightDistance / Math.max(camera.aspect, 0.75);
         const distance = Math.max(fitHeightDistance, fitWidthDistance) * 1.35;
-        const nextTarget = new THREE.Vector3(center.x, center.y + size.y * 0.04, center.z);
-
-        const currentTarget = controlsRef.current
-            ? controlsRef.current.target.clone()
-            : orbitStateRef.current.target.clone();
-        const offset = camera.position.clone().sub(currentTarget);
-        const direction = offset.lengthSq() > 0.000001
-            ? offset.normalize()
-            : defaultOrbitDirectionRef.current;
-        const nextDistance = Math.max(offset.length(), distance);
-
-        orbitStateRef.current.target.copy(nextTarget);
-        orbitStateRef.current.distance = nextDistance;
-        camera.position.copy(nextTarget).addScaledVector(direction, nextDistance);
-        camera.lookAt(nextTarget);
-        camera.updateProjectionMatrix();
-
+        orbitStateRef.current.target.set(center.x, center.y + size.y * 0.04, center.z);
+        orbitStateRef.current.distance = distance;
+        applyCameraState();
         if (controlsRef.current) {
-            controlsRef.current.target.copy(nextTarget);
+            controlsRef.current.target.copy(orbitStateRef.current.target);
             controlsRef.current.update();
         }
 
@@ -101,14 +102,10 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         renderer.shadowMap.type = THREE.PCFShadowMap; 
         containerRef.current.appendChild(renderer.domElement);
         renderer.domElement.style.touchAction = 'none';
-        const handleContextMenu = (event: MouseEvent) => event.preventDefault();
-        renderer.domElement.addEventListener('contextmenu', handleContextMenu);
 
         const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
-        controls.enableRotate = true;
-        controls.enablePan = true;
         controls.rotateSpeed = 0.9;
         controls.panSpeed = 0.85;
         controls.enableZoom = false;
@@ -213,7 +210,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
             resizeObserver.disconnect();
             controlsRef.current?.dispose();
             controlsRef.current = null;
-            renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
             if (rendererRef.current && containerRef.current) {
                 containerRef.current.removeChild(rendererRef.current.domElement);
                 rendererRef.current.dispose();
@@ -229,6 +225,10 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         if (modelRef.current) {
             modelRef.current.sync(config, false);
             frameModel();
+            if (controlsRef.current) {
+                controlsRef.current.target.copy(orbitStateRef.current.target);
+                controlsRef.current.update();
+            }
         }
     }, [config]);
 
