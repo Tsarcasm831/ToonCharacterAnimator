@@ -99,6 +99,7 @@ function App() {
           handleMovementToggle={handleMovementToggle}
           triggerAction={triggerAction}
           onExport={() => console.log('Export model')}
+          onSpawnAnimals={() => console.log('Spawn animals')}
           onUndo={() => console.log('Undo')}
           onRedo={() => console.log('Redo')}
           canUndo={false}

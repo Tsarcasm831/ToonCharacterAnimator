@@ -199,7 +199,7 @@ export class IdleAction {
         }
     }
 
-    private static animateBlink(player: any, damp: number) {
+    private static animateBlink(player: any, _damp: number) {
         const eyelids = player.model?.eyelids as THREE.Group[] | undefined;
         if (!eyelids?.length) return;
 
@@ -207,13 +207,12 @@ export class IdleAction {
         const key = player.model as object;
         const state = this.getBlinkState(key, now);
         const blinkAmount = this.getBlinkAmount(state, now);
-        const lerp = THREE.MathUtils.lerp;
 
         eyelids.forEach((lid, index) => {
             const isTopLid = index % 2 === 0;
             const openRotation = isTopLid ? this.topLidOpenRotation : this.bottomLidOpenRotation;
             const closedRotation = isTopLid ? this.topLidClosedRotation : this.bottomLidClosedRotation;
-            lid.rotation.x = lerp(lid.rotation.x, THREE.MathUtils.lerp(openRotation, closedRotation, blinkAmount), damp * 1.8);
+            lid.rotation.x = THREE.MathUtils.lerp(openRotation, closedRotation, blinkAmount);
         });
     }
 

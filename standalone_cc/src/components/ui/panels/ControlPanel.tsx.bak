@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { PlayerConfig, PlayerInput } from '../../../types';
 import { SkeletonLegend } from '../controls/SkeletonLegend';
@@ -7,6 +8,7 @@ import { OutfitControls } from '../controls/OutfitControls';
 import { FaceControls } from '../controls/FaceControls';
 import { RiggingControls } from '../controls/RiggingControls';
 import { EquipmentRiggingControls } from '../controls/EquipmentRiggingControls';
+import { ImpersonateControls } from '../controls/ImpersonateControls';
 import RandomizeControls from '../controls/RandomizeControls';
 import LoadoutControls from '../controls/LoadoutControls';
 import { Slider } from './CommonControls';
@@ -22,13 +24,14 @@ interface ControlPanelProps {
     handleMovementToggle: () => void;
     triggerAction: (key: keyof PlayerInput) => void;
     onExport: () => void;
+    onSpawnAnimals: () => void;
     onUndo: () => void;
     onRedo: () => void;
     canUndo: boolean;
     canRedo: boolean;
 }
 
-type TabKey = 'settings' | 'environment' | 'actions' | 'body' | 'outfit' | 'face' | 'rigging' | 'eq_rigging' | 'randomize' | 'loadouts';
+type TabKey = 'settings' | 'environment' | 'actions' | 'impersonate' | 'body' | 'outfit' | 'face' | 'rigging' | 'eq_rigging' | 'randomize' | 'loadouts';
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
     config,
@@ -41,6 +44,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     handleMovementToggle,
     triggerAction,
     onExport,
+    onSpawnAnimals,
     onUndo,
     onRedo,
     canUndo,
@@ -70,6 +74,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
     const TABS: { id: TabKey; label: string; icon: string }[] = [
         { id: 'actions', label: 'Actions & Input', icon: '🎮' },
+        { id: 'impersonate', label: 'Impersonate', icon: '🎭' },
         { id: 'randomize', label: 'Randomize', icon: '🎲' },
         { id: 'loadouts', label: 'Loadouts', icon: '💾' },
         { id: 'settings', label: 'Game Settings', icon: '⚙️' },
@@ -228,6 +233,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                 {activeTab === 'actions' && (
                                     <ActionControls 
                                         manualInput={manualInput}
+                                        config={config}
+                                        setConfig={setConfig}
                                         isDeadUI={isDeadUI}
                                         movementMode={movementMode}
                                         setManualInput={setManualInput}
@@ -235,7 +242,12 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                         handleMovementToggle={handleMovementToggle}
                                         triggerAction={triggerAction}
                                         onExport={onExport}
+                                        onSpawnAnimals={onSpawnAnimals}
                                     />
+                                )}
+
+                                {activeTab === 'impersonate' && (
+                                    <ImpersonateControls setConfig={setConfig} />
                                 )}
 
                                 {activeTab === 'randomize' && (

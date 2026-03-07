@@ -5,12 +5,6 @@ import type { PlayerConfig, PlayerInput } from '../../../types';
 import { PlayerModel } from '../../../game/model/PlayerModel';
 import { IdleAction } from '../../../game/animator/actions/IdleAction';
 import { MovementAction } from '../../../../../game/animator/actions/MovementAction';
-import { SummonAction } from '../../../../../game/animator/actions/SummonAction';
-import { PickupAction } from '../../../game/animator/actions/PickupAction';
-import { WeaponAction } from '../../../game/animator/actions/WeaponAction';
-import { UnarmedPunchAction } from '../../../game/animator/actions/UnarmedPunchAction';
-import { WaveAction } from '../../../game/animator/actions/WaveAction';
-import { LeftHandWaveAction } from '../../../game/animator/actions/LeftHandWaveAction';
 
 interface PlayerPreviewProps {
     config: PlayerConfig;
@@ -38,13 +32,13 @@ type DeathState = {
 };
 
 const ACTION_DURATIONS: Record<keyof ActionTimers, number> = {
-    attack1: 1.8,
-    attack2: 1.8,
+    attack1: 0.32,
+    attack2: 0.44,
     interact: 0.28,
-    isPickingUp: 1.2,
-    wave: 3.0,
-    leftHandWave: 2.7,
-    summon: 6.0,
+    isPickingUp: 0.32,
+    wave: 0.95,
+    leftHandWave: 0.95,
+    summon: 0.7,
     fireball: 0.7,
     toggleFirstPerson: 0.22,
 };
@@ -57,23 +51,8 @@ const closeEyes = (model: PlayerModel) => {
     });
 };
 
-const getActionDuration = (config: PlayerConfig, key: keyof ActionTimers) => {
-    if (key === 'attack1' || key === 'attack2') {
-        if (!config.selectedItem) {
-            return key === 'attack1' ? 0.68 : 0.72;
-        }
-
-        if (config.selectedItem === 'Sword') return 0.6;
-        if (config.selectedItem === 'Knife') return 0.4;
-        if (config.selectedItem === 'Staff') return 0.7;
-        return 0.9;
-    }
-
-    return ACTION_DURATIONS[key];
-};
-
-const startAction = (timers: ActionTimers, key: keyof ActionTimers, config: PlayerConfig) => {
-    timers[key] = Math.max(timers[key], getActionDuration(config, key));
+const startAction = (timers: ActionTimers, key: keyof ActionTimers) => {
+    timers[key] = Math.max(timers[key], ACTION_DURATIONS[key]);
 };
 
 const updateActionTimers = (timers: ActionTimers, dt: number) => {
@@ -121,10 +100,32 @@ const applyJumpOverlay = (
 const applyActionOverlay = (parts: any, timers: ActionTimers) => {
     const lerp = THREE.MathUtils.lerp;
 
+    if (timers.attack1 > 0) {
+        const alpha = Math.sin((1 - timers.attack1 / ACTION_DURATIONS.attack1) * Math.PI);
+        parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.45 * alpha, 0.48);
+        parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -1.2 * alpha, 0.48);
+        parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.25 * alpha, 0.35);
+    }
+
+    if (timers.attack2 > 0) {
+        const alpha = Math.sin((1 - timers.attack2 / ACTION_DURATIONS.attack2) * Math.PI);
+        parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.85 * alpha, 0.42);
+        parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.55 * alpha, 0.42);
+        parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.6 * alpha, 0.3);
+        parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -0.48 * alpha, 0.32);
+    }
+
     if (timers.interact > 0) {
         const alpha = Math.sin((1 - timers.interact / ACTION_DURATIONS.interact) * Math.PI);
         parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.85 * alpha, 0.35);
         parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -1.05 * alpha, 0.35);
+    }
+
+    if (timers.isPickingUp > 0) {
+        const alpha = Math.sin((1 - timers.isPickingUp / ACTION_DURATIONS.isPickingUp) * Math.PI);
+        parts.hips.position.y = lerp(parts.hips.position.y, parts.hips.position.y - 0.08 * alpha, 0.5);
+        parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, 0.28 * alpha, 0.35);
+        parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, 0.55 * alpha, 0.35);
     }
 
     if (timers.wave > 0) {
@@ -397,12 +398,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             config: configRef.current,
             isCombatStance: false,
             locomotion: { walkTime: 0, isCrouching: false, lastStepCount: 0 } as any,
-            combat: { isCombatStance: false, punchTimer: 0, axeSwingTimer: 0, punchVariant: 'cross', summonTimer: 0 },
-            pickUpTime: 0,
-            waveTimer: 0,
-            leftHandWaveTimer: 0,
-            scene,
-            mesh: playerModel.group,
+            combat: { isCombatStance: false },
             model: playerModel,
         };
 
@@ -412,7 +408,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             const damp = Math.min(0.26, Math.max(0.1, dt * 9));
             const input = manualInputRef.current;
             const prevInput = prevInputRef.current;
-            const actionTimers = actionTimersRef.current;
 
             const isDead = !!input.isDead;
             const isMoving = !!input.x || !!input.y;
@@ -423,19 +418,13 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             mockPlayer.combat.isCombatStance = !!input.combat;
             mockPlayer.locomotion.walkTime = walkTimeRef.current;
             mockPlayer.locomotion.isCrouching = !!input.crouch;
+
+            const actionTimers = actionTimersRef.current;
             (Object.keys(ACTION_DURATIONS) as Array<keyof ActionTimers>).forEach((key) => {
                 if (input[key] && !prevInput[key]) {
-                    startAction(actionTimers, key, configRef.current);
+                    startAction(actionTimers, key);
                 }
             });
-
-            mockPlayer.combat.punchTimer = getActionDuration(configRef.current, 'attack1') - Math.max(actionTimers.attack1, actionTimers.attack2);
-            mockPlayer.combat.axeSwingTimer = getActionDuration(configRef.current, 'attack1') - Math.max(actionTimers.attack1, actionTimers.attack2);
-            mockPlayer.combat.punchVariant = actionTimers.attack2 > actionTimers.attack1 ? 'hook' : 'cross';
-            mockPlayer.combat.summonTimer = getActionDuration(configRef.current, 'summon') - actionTimers.summon;
-            mockPlayer.pickUpTime = getActionDuration(configRef.current, 'isPickingUp') - actionTimers.isPickingUp;
-            mockPlayer.waveTimer = getActionDuration(configRef.current, 'wave') - actionTimers.wave;
-            mockPlayer.leftHandWaveTimer = getActionDuration(configRef.current, 'leftHandWave') - actionTimers.leftHandWave;
 
             const animationInput: PlayerInput = {
                 x: input.x ?? 0,
@@ -487,25 +476,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                 walkTimeRef.current = mockPlayer.locomotion.walkTime;
                 applyJumpOverlay(playerModel.parts, dt, jumpStateRef, !!input.jump);
                 updateActionTimers(actionTimers, dt);
-                if (actionTimers.attack1 > 0 || actionTimers.attack2 > 0) {
-                    if (mockPlayer.config.selectedItem) {
-                        WeaponAction.animate(mockPlayer, playerModel.parts, dt, damp, isMoving);
-                    } else {
-                        UnarmedPunchAction.animate(mockPlayer, playerModel.parts, dt, damp, isMoving);
-                    }
-                }
-                if (actionTimers.wave > 0) {
-                    WaveAction.animate(mockPlayer, playerModel.parts, dt, damp);
-                }
-                if (actionTimers.leftHandWave > 0) {
-                    LeftHandWaveAction.animate(mockPlayer, playerModel.parts, dt, damp);
-                }
-                if (actionTimers.isPickingUp > 0) {
-                    PickupAction.animate(mockPlayer, playerModel.parts, dt, damp);
-                }
-                if (actionTimers.summon > 0) {
-                    SummonAction.animate(mockPlayer, playerModel.parts, dt, damp);
-                }
                 applyActionOverlay(playerModel.parts, actionTimers);
             }
 
