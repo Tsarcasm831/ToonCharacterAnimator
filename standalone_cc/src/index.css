@@ -15,3 +15,7 @@ body {
 canvas {
   display: block;
 }
+
+canvas[data-engine] {
+  touch-action: none !important;
+}
