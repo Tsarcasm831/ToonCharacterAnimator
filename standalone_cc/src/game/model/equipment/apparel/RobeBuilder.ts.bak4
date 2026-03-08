@@ -194,36 +194,6 @@ export class RobeBuilder {
         createdMeshes.push(mantle);
         scaleUVs(mantle, mantleBottomRad, mantleHeight);
 
-        // Top yoke cover to hide the shirt peeking through between the mantle and neck.
-        const yokeGeo = new THREE.SphereGeometry(
-            torsoRadiusTop * layerScale * 0.98,
-            20,
-            14,
-            0,
-            Math.PI * 2,
-            0,
-            Math.PI * 0.34
-        );
-        yokeGeo.scale(1.26, 0.22, torsoDepthScale * 1.08);
-        const yokePos = yokeGeo.attributes.position;
-        const yv = new THREE.Vector3();
-        for (let i = 0; i < yokePos.count; i++) {
-            yv.fromBufferAttribute(yokePos, i);
-            if (yv.z > 0) {
-                const centerBias = Math.max(0, 1.0 - Math.abs(yv.x) / 0.22);
-                yv.y -= centerBias * 0.035;
-                yv.z -= centerBias * 0.01;
-            }
-            yokePos.setXYZ(i, yv.x, yv.y, yv.z);
-        }
-        yokeGeo.computeVertexNormals();
-
-        const yoke = new THREE.Mesh(yokeGeo, robeMat);
-        yoke.position.set(0, robeLen / 2 + 0.012, -0.005);
-        robeTorso.add(yoke);
-        createdMeshes.push(yoke);
-        scaleUVs(yoke, torsoRadiusTop * layerScale, torsoRadiusTop * layerScale * 0.6);
-
         // Visible shoulder caps that sit over the sleeve roots.
         [-1, 1].forEach((side) => {
             const capGeo = new THREE.SphereGeometry(0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
@@ -265,9 +235,9 @@ export class RobeBuilder {
         armPairs.forEach(({ arm }) => {
             if (!arm) return;
             // Wizard sleeve: Narrow at shoulder, wide at wrist
-            const sLen = 0.34;
-            const sRadTop = 0.112;
-            const sRadBot = 0.155;
+            const sLen = 0.36;
+            const sRadTop = 0.135;
+            const sRadBot = 0.185;
 
             const sleeveGeo = new THREE.CylinderGeometry(sRadTop, sRadBot, sLen, 16, 1, true);
             sleeveGeo.translate(0, -sLen * 0.45 + 0.005, 0);

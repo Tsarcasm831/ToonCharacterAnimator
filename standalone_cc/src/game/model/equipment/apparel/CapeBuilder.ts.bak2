@@ -136,9 +136,9 @@ export class CapeBuilder {
 
         // --- 5. ATTACHMENT CHAINS (Front) ---
         // Clasps (Buttons on the chest/clavicle)
-        const claspSpread = 0.115;
-        const claspY = shoulderLevelY + 0.005;
-        const claspZ = chestSurfaceZ + 0.02;
+        const claspSpread = 0.125;
+        const claspY = shoulderLevelY - 0.055;
+        const claspZ = chestSurfaceZ + 0.01;
 
         const claspGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.01, 16);
         claspGeo.rotateX(Math.PI / 2);
@@ -154,8 +154,8 @@ export class CapeBuilder {
             const strapGeo = new THREE.TubeGeometry(
                 new THREE.CatmullRomCurve3([
                     new THREE.Vector3(side * claspSpread, claspY, claspZ), // Front
-                    new THREE.Vector3(side * 0.135, shoulderLevelY + 0.05, chestSurfaceZ + 0.005),
-                    new THREE.Vector3(side * 0.095, shoulderLevelY + 0.005, backSurfaceZ + 0.025)
+                    new THREE.Vector3(side * 0.155, shoulderLevelY + 0.035, -0.005),
+                    new THREE.Vector3(side * 0.1, shoulderLevelY - 0.005, backSurfaceZ + 0.02)
                 ]), 
                 8, 0.01, 6, false
             );
@@ -167,7 +167,7 @@ export class CapeBuilder {
         // The Chain Hanging between clasps
         const chainCurve = new THREE.CatmullRomCurve3([
             new THREE.Vector3(-claspSpread, claspY, claspZ + 0.01),
-            new THREE.Vector3(0, claspY - 0.045, claspZ + 0.015), // Keep the chain close to the shirt cap instead of floating
+            new THREE.Vector3(0, claspY - 0.1, claspZ + 0.025), // Hangs down with gravity
             new THREE.Vector3(claspSpread, claspY, claspZ + 0.01)
         ]);
         const chainGeo = new THREE.TubeGeometry(chainCurve, 16, 0.008, 6, false);

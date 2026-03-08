@@ -47,9 +47,9 @@ export class CapeBuilder {
         const backSurfaceZ = -(torsoRadiusTop * torsoDepthScale) - armorBulkOffset;
 
         // --- 3. THE CAPE MESH ---
-        const capeWidthTop = 0.24; // Keep the cape anchored near the neck rather than spanning the shoulders
-        const capeWidthBottom = 0.88; // Slightly narrower so it hangs behind the body
-        const capeLength = 1.2;
+        const capeWidthTop = 0.35; // Neck width
+        const capeWidthBottom = 1.0; // Flared bottom
+        const capeLength = 1.25;
         const segW = 12;
         const segH = 24;
 
@@ -74,35 +74,31 @@ export class CapeBuilder {
             // We want the top to curve forward (Z+) to rest on traps, then fall back (Z-)
             
             // Base Z is the back of the armor
-            let zPos = backSurfaceZ - 0.045; // Keep the cloth sitting behind the torso instead of over the shoulders
+            let zPos = backSurfaceZ - 0.02; // Slight air gap
 
-            if (t < 0.18) {
+            if (t < 0.15) {
                 // Top 15% curves forward to meet the neck/shoulders
                 // 0.0 = Neck, 0.15 = Shoulder Blade drop off
-                const neckFactor = (0.18 - t) / 0.18; // 1 at top, 0 at shoulder
-                zPos += Math.sin(neckFactor * Math.PI * 0.5) * 0.055;
-
-                // Pull the outer top corners back so the cape does not wrap around one shoulder.
-                const shoulderBias = Math.min(1, Math.abs(v.x) / (capeWidthBottom * 0.28));
-                zPos -= shoulderBias * 0.04;
+                const neckFactor = (0.15 - t) / 0.15; // 1 at top, 0 at shoulder
+                zPos += Math.sin(neckFactor * Math.PI * 0.5) * 0.12; 
                 
                 // Lift Y slightly at the neck for "bunching"
-                v.y += neckFactor * 0.028;
+                v.y += neckFactor * 0.05;
             } else {
                 // Gravity takes over below the shoulders
                 // Add a slight curve outward at the bottom for dramatic effect
-                zPos -= Math.pow(t - 0.18, 2) * 0.12;
+                zPos -= Math.pow(t - 0.15, 2) * 0.2; 
             }
 
             // 3. Folds and Ripples
             // Sine wave based on X creates vertical folds
             // We dampen the folds at the top (tight against neck) and amplify at bottom
-            const foldAmp = 0.025 * t;
-            const foldFreq = 10.0;
+            const foldAmp = 0.04 * t; 
+            const foldFreq = 12.0;
             const fold = Math.sin(v.x * foldFreq) * foldAmp;
             
             // 4. Wind/Motion Sway (Static for now, but lively)
-            const sway = Math.sin(t * 3) * 0.02;
+            const sway = Math.sin(t * 3) * 0.05;
 
             v.z = zPos + fold - sway;
 
@@ -114,7 +110,7 @@ export class CapeBuilder {
         const capeMesh = new THREE.Mesh(capeGeo, capeMat);
         // Position relative to torso container:
         // Plane center is (0,0,0). Top of plane needs to be at shoulderLevel
-        capeMesh.position.set(0, shoulderLevelY - (capeLength/2) + 0.015, -0.015);
+        capeMesh.position.set(0, shoulderLevelY - (capeLength/2) + 0.05, 0);
         capeMesh.castShadow = true;
         parts.torsoContainer.add(capeMesh);
         createdMeshes.push(capeMesh);
@@ -123,9 +119,9 @@ export class CapeBuilder {
         // --- 4. THE COLLAR (Folded cloth around neck) ---
         // Hides the transition between cape and neck
         const collarCurve = new THREE.CatmullRomCurve3([
-            new THREE.Vector3(-0.13, shoulderLevelY + 0.02, backSurfaceZ + 0.03),
-            new THREE.Vector3(0, shoulderLevelY + 0.045, backSurfaceZ + 0.015),
-            new THREE.Vector3(0.13, shoulderLevelY + 0.02, backSurfaceZ + 0.03),
+            new THREE.Vector3(-0.16, shoulderLevelY + 0.04, backSurfaceZ + 0.06), // Left Shoulder
+            new THREE.Vector3(0, shoulderLevelY + 0.06, backSurfaceZ + 0.04),     // Back Neck (High)
+            new THREE.Vector3(0.16, shoulderLevelY + 0.04, backSurfaceZ + 0.06),  // Right Shoulder
         ]);
         
         const collarGeo = new THREE.TubeGeometry(collarCurve, 12, 0.04, 8, false);
@@ -136,9 +132,9 @@ export class CapeBuilder {
 
         // --- 5. ATTACHMENT CHAINS (Front) ---
         // Clasps (Buttons on the chest/clavicle)
-        const claspSpread = 0.115;
-        const claspY = shoulderLevelY + 0.005;
-        const claspZ = chestSurfaceZ + 0.02;
+        const claspSpread = 0.14;
+        const claspY = shoulderLevelY - 0.06;
+        const claspZ = chestSurfaceZ + 0.01;
 
         const claspGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.01, 16);
         claspGeo.rotateX(Math.PI / 2);
@@ -154,8 +150,8 @@ export class CapeBuilder {
             const strapGeo = new THREE.TubeGeometry(
                 new THREE.CatmullRomCurve3([
                     new THREE.Vector3(side * claspSpread, claspY, claspZ), // Front
-                    new THREE.Vector3(side * 0.135, shoulderLevelY + 0.05, chestSurfaceZ + 0.005),
-                    new THREE.Vector3(side * 0.095, shoulderLevelY + 0.005, backSurfaceZ + 0.025)
+                    new THREE.Vector3(side * 0.18, shoulderLevelY + 0.05, 0), // Top Shoulder (Peak)
+                    new THREE.Vector3(side * 0.12, shoulderLevelY, backSurfaceZ + 0.05) // Back connect
                 ]), 
                 8, 0.01, 6, false
             );
@@ -167,7 +163,7 @@ export class CapeBuilder {
         // The Chain Hanging between clasps
         const chainCurve = new THREE.CatmullRomCurve3([
             new THREE.Vector3(-claspSpread, claspY, claspZ + 0.01),
-            new THREE.Vector3(0, claspY - 0.045, claspZ + 0.015), // Keep the chain close to the shirt cap instead of floating
+            new THREE.Vector3(0, claspY - 0.1, claspZ + 0.025), // Hangs down with gravity
             new THREE.Vector3(claspSpread, claspY, claspZ + 0.01)
         ]);
         const chainGeo = new THREE.TubeGeometry(chainCurve, 16, 0.008, 6, false);

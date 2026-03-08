@@ -17,9 +17,6 @@ interface PlayerPreviewProps {
     manualInput: Partial<PlayerInput>;
 }
 
-type CameraFocusKey = 'torso' | 'head' | 'feet';
-const CAMERA_FOCUS_ORDER: CameraFocusKey[] = ['torso', 'head', 'feet'];
-
 type ActionTimers = {
     attack1: number;
     attack2: number;
@@ -203,41 +200,6 @@ const applyDeathRagdoll = (
     closeEyes(model);
 };
 
-const getFocusTarget = (playerModel: PlayerModel, focus: CameraFocusKey, bounds: THREE.Box3) => {
-    const target = new THREE.Vector3();
-    const center = bounds.getCenter(new THREE.Vector3());
-
-    if (focus === 'head' && playerModel.parts.head) {
-        playerModel.parts.head.getWorldPosition(target);
-        target.y -= 0.02;
-        return target;
-    }
-
-    if (focus === 'feet') {
-        const leftAnkle = playerModel.parts.leftAnkle as THREE.Object3D | undefined;
-        const rightAnkle = playerModel.parts.rightAnkle as THREE.Object3D | undefined;
-        if (leftAnkle && rightAnkle) {
-            const left = new THREE.Vector3();
-            const right = new THREE.Vector3();
-            leftAnkle.getWorldPosition(left);
-            rightAnkle.getWorldPosition(right);
-            target.copy(left).add(right).multiplyScalar(0.5);
-            target.y = bounds.min.y + 0.12;
-            target.z = center.z;
-            return target;
-        }
-        return new THREE.Vector3(center.x, bounds.min.y + 0.12, center.z);
-    }
-
-    if (playerModel.parts.torsoContainer) {
-        playerModel.parts.torsoContainer.getWorldPosition(target);
-        target.y += 0.16;
-        return target;
-    }
-
-    return center;
-};
-
 export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInput }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -277,8 +239,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         distance: 3.8,
     });
     const defaultOrbitDirectionRef = useRef(new THREE.Vector3(0.05, 0.12, 1).normalize());
-    const cameraFocusRef = useRef<CameraFocusKey>('torso');
-    const showPlayerMeshRef = useRef(true);
 
     const frameModel = () => {
         const camera = cameraRef.current;
@@ -296,7 +256,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         const fitHeightDistance = maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)));
         const fitWidthDistance = fitHeightDistance / Math.max(camera.aspect, 0.75);
         const distance = Math.max(fitHeightDistance, fitWidthDistance) * 1.35;
-        const nextTarget = getFocusTarget(playerModel, cameraFocusRef.current, bounds);
+        const nextTarget = new THREE.Vector3(center.x, center.y + size.y * 0.04, center.z);
 
         const currentTarget = controlsRef.current
             ? controlsRef.current.target.clone()
@@ -305,12 +265,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         const direction = offset.lengthSq() > 0.000001
             ? offset.normalize()
             : defaultOrbitDirectionRef.current;
-        const desiredDistance = offset.lengthSq() > 0.000001 ? offset.length() : orbitStateRef.current.distance;
-        const minDistance = cameraFocusRef.current === 'head' ? 0.65 : cameraFocusRef.current === 'torso' ? 1.05 : 1.35;
-        const maxDistance = Math.max(distance * 1.8, 5.5);
-        const nextDistance = controlsRef.current
-            ? THREE.MathUtils.clamp(desiredDistance, minDistance, maxDistance)
-            : distance;
+        const nextDistance = Math.max(offset.length(), distance);
 
         orbitStateRef.current.target.copy(nextTarget);
         orbitStateRef.current.distance = nextDistance;
@@ -369,10 +324,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         controls.enablePan = true;
         controls.rotateSpeed = 0.9;
         controls.panSpeed = 0.85;
-        controls.enableZoom = true;
-        controls.zoomSpeed = 0.9;
-        controls.minDistance = 0.55;
-        controls.maxDistance = 8.5;
+        controls.enableZoom = false;
         controls.screenSpacePanning = true;
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.ROTATE,
@@ -433,41 +385,12 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
 
         const playerModel = new PlayerModel(configRef.current);
         playerModel.group.rotation.y = 0.18;
-        playerModel.group.visible = showPlayerMeshRef.current;
         scene.add(playerModel.group);
 
         sceneRef.current = scene;
         modelRef.current = playerModel;
         rendererRef.current = renderer;
         frameModel();
-
-        const handleKeyDown = (event: KeyboardEvent) => {
-            const active = document.activeElement as HTMLElement | null;
-            const tag = active?.tagName;
-            const isEditing = !!active && (
-                active.isContentEditable
-                || tag === 'INPUT'
-                || tag === 'TEXTAREA'
-                || tag === 'SELECT'
-            );
-            if (isEditing || event.repeat) return;
-
-            const key = event.key.toLowerCase();
-            if (key === 'v') {
-                const currentIndex = CAMERA_FOCUS_ORDER.indexOf(cameraFocusRef.current);
-                cameraFocusRef.current = CAMERA_FOCUS_ORDER[(currentIndex + 1) % CAMERA_FOCUS_ORDER.length];
-                frameModel();
-            } else if (key === 'g') {
-                showPlayerMeshRef.current = !showPlayerMeshRef.current;
-                if (modelRef.current) {
-                    modelRef.current.group.visible = showPlayerMeshRef.current;
-                    if (showPlayerMeshRef.current) {
-                        frameModel();
-                    }
-                }
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
 
         const clock = new THREE.Clock();
         const mockPlayer = {
@@ -591,8 +514,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                 .multiplyScalar(isRunning ? 2.4 : 1.2);
             playerModel.update(dt, velocity);
             controls.update();
-            orbitStateRef.current.target.copy(controls.target);
-            orbitStateRef.current.distance = camera.position.distanceTo(controls.target);
             renderer.render(scene, camera);
         };
 
@@ -616,7 +537,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             controlsRef.current?.dispose();
             controlsRef.current = null;
             renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
-            window.removeEventListener('keydown', handleKeyDown);
             if (rendererRef.current && containerRef.current) {
                 containerRef.current.removeChild(rendererRef.current.domElement);
                 rendererRef.current.dispose();
