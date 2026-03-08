@@ -87,7 +87,6 @@ export class PlayerMaterials {
     underwear: THREE.MeshToonMaterial;
     hair: THREE.MeshToonMaterial;
     brain: THREE.MeshPhysicalMaterial;
-    chakra: THREE.MeshStandardMaterial;
 
     constructor(config: PlayerConfig) {
         this.skin = new THREE.MeshToonMaterial({ color: config.skinColor, transparent: true, opacity: 1.0 });
@@ -102,15 +101,6 @@ export class PlayerMaterials {
         
         this.underwear = new THREE.MeshToonMaterial({ color: 0xeaeaea, transparent: true, opacity: 1.0 });
         this.hair = new THREE.MeshToonMaterial({ color: config.hairColor, side: THREE.DoubleSide, transparent: true, opacity: 1.0 });
-        this.chakra = new THREE.MeshStandardMaterial({
-            color: config.chakraNetworkColor,
-            emissive: new THREE.Color(config.chakraNetworkColor),
-            emissiveIntensity: config.chakraNetworkIntensity,
-            roughness: 0.25,
-            metalness: 0.0,
-            transparent: true,
-            opacity: 0.95,
-        });
         
         // Brain Material setup - Physical for wet/organic look
         const brainTex = createBrainTexture();
@@ -135,7 +125,7 @@ export class PlayerMaterials {
         const materials = [
             this.skin, this.shirt, this.pants, this.boots, 
             this.sclera, this.iris, this.pupil, this.lip, 
-            this.underwear, this.hair, this.brain, this.chakra
+            this.underwear, this.hair, this.brain
         ];
         
         materials.forEach(mat => {
@@ -161,11 +151,6 @@ export class PlayerMaterials {
         applyColor(this.pupil, config.pupilColor);
         applyColor(this.lip, config.lipColor);
         applyColor(this.hair, config.hairColor);
-        this.chakra.color.set(config.chakraNetworkColor);
-        this.chakra.emissive.set(config.chakraNetworkColor);
-        this.chakra.emissiveIntensity = config.showChakraNetwork ? config.chakraNetworkIntensity : 0;
-        this.chakra.opacity = config.showChakraNetwork ? 0.95 : 0;
-        this.chakra.transparent = this.chakra.opacity < 1.0;
 
         if (config.equipment.shirt) {
             applyColor(this.shirt, config.shirtColor);
@@ -192,7 +177,7 @@ export class PlayerMaterials {
         const mats = [
             this.skin, this.shirt, this.pants, this.boots, 
             this.sclera, this.iris, this.pupil, this.lip, 
-            this.underwear, this.hair, this.brain, this.chakra
+            this.underwear, this.hair, this.brain
         ];
         mats.forEach(m => {
             if (m.bumpMap) m.bumpMap.dispose();
@@ -201,3 +186,4 @@ export class PlayerMaterials {
         });
     }
 }
+

@@ -292,9 +292,6 @@ export interface FaceProportionsConfig {
   showBrain: boolean;
   brainSize: number;
   debugHead: boolean;
-  showChakraNetwork: boolean;
-  chakraNetworkColor: string;
-  chakraNetworkIntensity: number;
 }
 
 export interface AccessoryRiggingConfig {
@@ -643,7 +640,4 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   showBrain: false,
   brainSize: 1.0,
   debugHead: false,
-  showChakraNetwork: true,
-  chakraNetworkColor: '#6ed8ff',
-  chakraNetworkIntensity: 1.6,
 };

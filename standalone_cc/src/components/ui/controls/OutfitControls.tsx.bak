@@ -60,10 +60,7 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                         <option value="naked">Standard (Underwear)</option>
                         <option value="peasant">Commoner / Peasant</option>
                         <option value="warrior">Combatant / Warrior</option>
-                        <option value="ranger">Scout / Ranger</option>
-                        <option value="knight">Guardian / Knight</option>
                         <option value="noble">Regal / Noble</option>
-                        <option value="mage">Arcane / Mage</option>
                     </select>
                 </div>
 
@@ -131,3 +128,4 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
         </div>
     );
 };
+

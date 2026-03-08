@@ -5,23 +5,6 @@ import { BrainBuilder } from './BrainBuilder';
 
 export class HeadBuilder {
     static build(materials: PlayerMaterials, arrays: any) {
-        const markChakra = <T extends THREE.Object3D>(obj: T) => {
-            obj.userData.isChakraNetwork = true;
-            obj.traverse((child) => {
-                child.userData.isChakraNetwork = true;
-            });
-            return obj;
-        };
-
-        const chakraNode = (radius: number = 0.0055) => {
-            return markChakra(new THREE.Mesh(new THREE.SphereGeometry(radius, 10, 10), materials.chakra));
-        };
-
-        const chakraPath = (points: THREE.Vector3[], radius: number = 0.0038) => {
-            const curve = new THREE.CatmullRomCurve3(points);
-            return markChakra(new THREE.Mesh(new THREE.TubeGeometry(curve, 20, radius, 8, false), materials.chakra));
-        };
-
         const headRadius = 0.21;
         const headGeo = new THREE.SphereGeometry(headRadius, 64, 64);
         const posAttribute = headGeo.attributes.position;
@@ -371,17 +354,6 @@ export class HeadBuilder {
             topLid.rotation.x = -0.7; botLid.rotation.x = 0.7;  
             eyeContainer.add(topLid); eyeContainer.add(botLid);
             arrays.eyelids.push(topLid); arrays.eyelids.push(botLid);
-
-            const eyeRing = markChakra(new THREE.Mesh(
-                new THREE.TorusGeometry(eyeRadius * 1.22, 0.004, 8, 24),
-                materials.chakra
-            ));
-            eyeRing.position.z = 0.002;
-            eyeContainer.add(eyeRing);
-
-            const eyeTearNode = chakraNode(0.0045);
-            eyeTearNode.position.set(side * -0.012, -0.018, eyeRadius * 0.9);
-            eyeContainer.add(eyeTearNode);
         }
 
         // Nose
@@ -397,67 +369,6 @@ export class HeadBuilder {
             const ala = new THREE.Mesh(new THREE.SphereGeometry(0.015, 8, 8), materials.skin);
             ala.position.set(s * 0.02, -0.015, 0.01); ala.scale.set(1.2, 0.8, 1); nose.add(ala);
         });
-
-        const browArc = chakraPath([
-            new THREE.Vector3(-0.11, 0.012, 0.12),
-            new THREE.Vector3(-0.055, 0.03, 0.137),
-            new THREE.Vector3(0, 0.038, 0.144),
-            new THREE.Vector3(0.055, 0.03, 0.137),
-            new THREE.Vector3(0.11, 0.012, 0.12),
-        ]);
-        faceGroup.add(browArc);
-
-        const browNode = chakraNode(0.006);
-        browNode.position.set(0, 0.038, 0.144);
-        faceGroup.add(browNode);
-
-        [-1, 1].forEach((side) => {
-            const cheekLine = chakraPath([
-                new THREE.Vector3(side * 0.1, 0.006, 0.12),
-                new THREE.Vector3(side * 0.082, -0.03, 0.138),
-                new THREE.Vector3(side * 0.058, -0.072, 0.152),
-            ], 0.0033);
-            faceGroup.add(cheekLine);
-
-            const cheekNode = chakraNode(0.0048);
-            cheekNode.position.set(side * 0.058, -0.072, 0.152);
-            faceGroup.add(cheekNode);
-        });
-
-        const noseBridge = chakraPath([
-            new THREE.Vector3(0, 0.045, -0.002),
-            new THREE.Vector3(0, 0.014, 0.01),
-            new THREE.Vector3(0, -0.012, 0.02),
-        ], 0.0036);
-        nose.add(noseBridge);
-
-        const noseTipNode = chakraNode(0.005);
-        noseTipNode.position.set(0, -0.016, 0.022);
-        nose.add(noseTipNode);
-
-        const maxillaNet = chakraPath([
-            new THREE.Vector3(-0.038, -0.006, 0.015),
-            new THREE.Vector3(0, 0.002, 0.028),
-            new THREE.Vector3(0.038, -0.006, 0.015),
-        ], 0.0033);
-        maxilla.add(maxillaNet);
-
-        const philtrum = chakraPath([
-            new THREE.Vector3(0, 0.014, 0.018),
-            new THREE.Vector3(0, -0.004, 0.024),
-        ], 0.003);
-        maxilla.add(philtrum);
-
-        const jawLine = chakraPath([
-            new THREE.Vector3(-0.05, 0.02, 0.088),
-            new THREE.Vector3(0, 0.014, 0.122),
-            new THREE.Vector3(0.05, 0.02, 0.088),
-        ], 0.0036);
-        jaw.add(jawLine);
-
-        const jawNode = chakraNode(0.0055);
-        jawNode.position.set(0, 0.014, 0.122);
-        jaw.add(jawNode);
 
         // We return the specific lip meshes so PlayerModel can find them easily
         return { head, headMount, maxilla, jaw, jawMesh, faceGroup, nose, brain, upperLip, lowerLip };
