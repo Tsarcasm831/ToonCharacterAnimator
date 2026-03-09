@@ -20,10 +20,29 @@ interface Album {
     genre: string;
     coverColor: string;
     coverImage?: string;
+    spotifyUrl?: string;
     tracks: Track[];
 }
 
 const ALBUMS: Album[] = [
+    {
+        id: 'best-friend-exe-single',
+        title: 'best_friend.exe (Single)',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
+        genre: 'Single',
+        coverColor: 'bg-gradient-to-br from-fuchsia-900 via-indigo-900 to-slate-950',
+        coverImage: '/assets/images/singles/bestfriendexe.png',
+        tracks: [
+            {
+                id: 'best-friend-exe',
+                title: 'best_friend.exe',
+                artist: 'Lord Tsarcasm',
+                duration: '4:00',
+                fileUrl: '/assets/musicshrunk/singles/best_friend.exe.opus'
+            }
+        ]
+    },
     {
         id: 'journeys',
         title: 'Journeys',
@@ -246,7 +265,7 @@ const ALBUMS: Album[] = [
         year: '2026',
         genre: 'Tavern Music',
         coverColor: 'bg-gradient-to-br from-amber-600 to-orange-700',
-        coverImage: '/assets/images/albums/comingsoonGMT.png',
+        coverImage: '/assets/images/albums/GreyMatterTavern.png',
         tracks: [
             {
                 id: 'success-the-obsession',
@@ -329,10 +348,10 @@ const ALBUMS: Album[] = [
     },
     {
         id: 'old-tracks',
-        title: 'Old Tracks',
+        title: 'Old Tracks + Unsorted',
         artist: 'Lord Tsarcasm',
-        year: '2025',
-        genre: 'Rock / Alt',
+        year: '2025-2026',
+        genre: 'Rock / Alt / Various',
         coverColor: 'bg-gradient-to-br from-slate-700 via-slate-800 to-black',
         tracks: [
             {
@@ -369,17 +388,7 @@ const ALBUMS: Album[] = [
                 artist: 'Lord Tsarcasm',
                 duration: '2:51',
                 fileUrl: '/assets/musicshrunk/OldTracks/Puppet on a Wire (Cover).opus'
-            }
-        ]
-    },
-    {
-        id: 'unsorted',
-        title: 'Unsorted',
-        artist: 'Lord Tsarcasm',
-        year: '2026',
-        genre: 'Various',
-        coverColor: 'bg-gradient-to-br from-purple-600 via-pink-600 to-red-600',
-        tracks: [
+            },
             {
                 id: 'clusterflux',
                 title: 'Clusterflux',
@@ -400,20 +409,6 @@ const ALBUMS: Album[] = [
                 artist: 'Lord Tsarcasm',
                 duration: '4:18',
                 fileUrl: '/assets/musicshrunk/Unsorted/DnB Focus.opus'
-            },
-            {
-                id: 'falterlight',
-                title: 'Falterlight',
-                artist: 'Lord Tsarcasm',
-                duration: '3:44',
-                fileUrl: '/assets/musicshrunk/Unsorted/Falterlight.opus'
-            },
-            {
-                id: 'gone',
-                title: 'GONE',
-                artist: 'Lord Tsarcasm',
-                duration: '2:04',
-                fileUrl: '/assets/musicshrunk/Unsorted/GONE.opus'
             },
             {
                 id: 'i-just-hid',
@@ -444,13 +439,6 @@ const ALBUMS: Album[] = [
                 fileUrl: '/assets/musicshrunk/Unsorted/Out Of Control.opus'
             },
             {
-                id: 'riding-shotgun',
-                title: 'Riding Shotgun',
-                artist: 'Lord Tsarcasm',
-                duration: '3:17',
-                fileUrl: '/assets/musicshrunk/Unsorted/Riding Shotgun.opus'
-            },
-            {
                 id: 'safety-net',
                 title: 'Safety Net',
                 artist: 'Lord Tsarcasm',
@@ -479,6 +467,119 @@ const ALBUMS: Album[] = [
                 fileUrl: '/assets/musicshrunk/Unsorted/Тушка - Chubby.opus'
             }
         ]
+    },
+    {
+        id: 'gone-single',
+        title: 'Gone (Single)',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
+        genre: 'Single',
+        coverColor: 'bg-gradient-to-br from-slate-800 via-red-900 to-black',
+        coverImage: '/assets/images/singles/gone.png',
+        spotifyUrl: 'https://open.spotify.com/track/4tt8reEEs8eqT6KZAd4t3v?si=8295b47d3190423',
+        tracks: [
+            {
+                id: 'gone',
+                title: 'GONE',
+                artist: 'Lord Tsarcasm',
+                duration: '2:04',
+                fileUrl: '/assets/musicshrunk/Unsorted/GONE.opus'
+            }
+        ]
+    },
+    {
+        id: 'fridge-room-single',
+        title: 'Fridge Room (Single)',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
+        genre: 'Single',
+        coverColor: 'bg-gradient-to-br from-cyan-900 via-slate-800 to-indigo-950',
+        coverImage: '/assets/images/singles/fridgeroom.png',
+        spotifyUrl: 'https://open.spotify.com/track/4TQ141eI7veKusa920gbof?si=135a51aa02aa47f1',
+        tracks: [
+            {
+                id: 'fridge-room',
+                title: 'Fridge Room',
+                artist: 'Lord Tsarcasm',
+                duration: '2:37',
+                fileUrl: '/assets/musicshrunk/singles/Fridge Room.opus'
+            }
+        ]
+    },
+    {
+        id: 'riding-shotgun-single',
+        title: 'Riding Shotgun (Single)',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
+        genre: 'Single',
+        coverColor: 'bg-gradient-to-br from-amber-700 via-orange-700 to-red-900',
+        coverImage: '/assets/images/singles/ridingshotgun.png',
+        spotifyUrl: 'https://open.spotify.com/track/4yQE1TOktuTYEjg9Rx0KOk?si=b5ead6c6d3724151',
+        tracks: [
+            {
+                id: 'riding-shotgun',
+                title: 'Riding Shotgun',
+                artist: 'Lord Tsarcasm',
+                duration: '3:17',
+                fileUrl: '/assets/musicshrunk/singles/Riding Shotgun.opus'
+            }
+        ]
+    },
+    {
+        id: 'falterlight-single',
+        title: 'Falterlight (Single)',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
+        genre: 'Single',
+        coverColor: 'bg-gradient-to-br from-violet-800 via-fuchsia-800 to-slate-900',
+        coverImage: '/assets/images/singles/falterlight.png',
+        spotifyUrl: 'https://open.spotify.com/track/3raZiaaYelR9yU1rKT11S8?si=aa1d5f6ac2154d3b',
+        tracks: [
+            {
+                id: 'falterlight',
+                title: 'Falterlight',
+                artist: 'Lord Tsarcasm',
+                duration: '3:44',
+                fileUrl: '/assets/musicshrunk/singles/Falterlight.opus'
+            }
+        ]
+    },
+    {
+        id: 'pests-single',
+        title: 'Pests (Single)',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
+        genre: 'Single',
+        coverColor: 'bg-gradient-to-br from-lime-900 via-emerald-900 to-slate-950',
+        coverImage: '/assets/images/singles/pests.png',
+        spotifyUrl: 'https://open.spotify.com/track/513K6iiKykRj5uRT20GxKX?si=f28a07410e6d430b',
+        tracks: [
+            {
+                id: 'pests',
+                title: 'Pests',
+                artist: 'Lord Tsarcasm',
+                duration: '3:08',
+                fileUrl: '/assets/musicshrunk/singles/Pests.opus'
+            }
+        ]
+    },
+    {
+        id: 'witching-hour-single',
+        title: 'The Witching Hour (Single)',
+        artist: 'Lord Tsarcasm',
+        year: '2026',
+        genre: 'Single',
+        coverColor: 'bg-gradient-to-br from-violet-950 via-purple-900 to-slate-950',
+        coverImage: '/assets/images/singles/witchinghour.png',
+        tracks: [
+            {
+                id: 'the-witching-hour',
+                title: 'The Witching Hour',
+                artist: 'Lord Tsarcasm',
+                duration: '4:21',
+                fileUrl: '/assets/musicshrunk/singles/The Witching Hour.opus'
+            }
+        ]
     }
 ];
 
@@ -489,38 +590,42 @@ interface FeaturedTrack {
     trackId: string;
     albumId: string;
     coverImage?: string; // placeholder — user will add individual images later
+    spotifyUrl?: string;
     accentColor: string;
     tagline: string;
 }
 
 const FEATURED_TRACKS: FeaturedTrack[] = [
     {
-        trackId: 'hidden-wings',
-        albumId: 'legends',
-        coverImage: '/assets/images/singles/hiddenwings.png',
-        accentColor: 'from-rose-500 via-pink-600 to-purple-700',
-        tagline: 'A soaring anthem of hidden strength',
-    },
-    {
-        trackId: 'tushka-chubby',
-        albumId: 'unsorted',
-        coverImage: '/assets/images/singles/тушка.png',
-        accentColor: 'from-amber-400 via-orange-500 to-red-600',
-        tagline: 'Playful energy, pure vibes',
-    },
-    {
         trackId: 'dnb-focus',
-        albumId: 'unsorted',
+        albumId: 'old-tracks',
         coverImage: '/assets/images/singles/dnbfocus.png',
         accentColor: 'from-cyan-400 via-blue-500 to-indigo-700',
         tagline: 'Lock in. Drum & Bass focus mode',
     },
     {
-        trackId: 'bonnie-clyde',
-        albumId: 'grey-matter-tavern',
-        coverImage: '/assets/images/singles/b&c.png',
-        accentColor: 'from-emerald-400 via-teal-500 to-cyan-700',
-        tagline: 'Partners in crime, ride or die',
+        trackId: 'gone',
+        albumId: 'gone-single',
+        coverImage: '/assets/images/singles/gone.png',
+        spotifyUrl: 'https://open.spotify.com/track/4tt8reEEs8eqT6KZAd4t3v?si=8295b47d3190423',
+        accentColor: 'from-slate-700 via-rose-800 to-red-950',
+        tagline: 'A sharp, stripped-down single release',
+    },
+    {
+        trackId: 'fridge-room',
+        albumId: 'fridge-room-single',
+        coverImage: '/assets/images/singles/fridgeroom.png',
+        spotifyUrl: 'https://open.spotify.com/track/4TQ141eI7veKusa920gbof?si=135a51aa02aa47f1',
+        accentColor: 'from-cyan-500 via-slate-600 to-indigo-800',
+        tagline: 'Cold room ambience with sharp edges',
+    },
+    {
+        trackId: 'pests',
+        albumId: 'pests-single',
+        coverImage: '/assets/images/singles/pests.png',
+        spotifyUrl: 'https://open.spotify.com/track/513K6iiKykRj5uRT20GxKX?si=f28a07410e6d430b',
+        accentColor: 'from-lime-600 via-emerald-700 to-slate-900',
+        tagline: 'Dark, crawling tension in motion',
     },
 ];
 
@@ -638,13 +743,25 @@ export const MusicView: React.FC = () => {
     const libraryScrollRef = useRef<HTMLDivElement | null>(null);
     const isIphoneLayout = useIsIphoneLayout();
     const previewTrackCount = isIphoneLayout ? 2 : 3;
+    const albumsForDisplay = [...ALBUMS].sort((a, b) => {
+        const rank: Record<string, number> = {
+            'best-friend-exe-single': -10,
+            journeys: 10,
+            echoes: 11,
+            legends: 12,
+            'old-tracks': 99,
+        };
+        const aRank = rank[a.id] ?? 0;
+        const bRank = rank[b.id] ?? 0;
+        return aRank - bRank;
+    });
 
     // Featured carousel auto-rotation
     useEffect(() => {
         if (featuredPaused) return;
         featuredTimerRef.current = setInterval(() => {
             setFeaturedIndex(prev => (prev + 1) % FEATURED_TRACKS.length);
-        }, 6000);
+        }, 12000);
         return () => {
             if (featuredTimerRef.current) clearInterval(featuredTimerRef.current);
         };
@@ -949,10 +1066,6 @@ export const MusicView: React.FC = () => {
                                         <p className={`text-slate-400 font-medium mt-0.5 ${isIphoneLayout ? 'text-xs' : 'text-sm'}`}>
                                             {fTrack.artist} &bull; <span className="text-slate-500">{fAlbum.title}</span>
                                         </p>
-                                        <p className={`text-slate-500 italic mt-1 ${isIphoneLayout ? 'text-[10px]' : 'text-xs sm:text-sm'}`}>
-                                            {ft.tagline}
-                                        </p>
-
                                         {/* Play button */}
                                         <button
                                             onClick={(e) => {
@@ -976,6 +1089,17 @@ export const MusicView: React.FC = () => {
                                             )}
                                             <span className="text-white/50 text-xs font-mono ml-1">{fTrack.duration}</span>
                                         </button>
+                                        {ft.spotifyUrl && (
+                                            <a
+                                                href={ft.spotifyUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="mt-2 inline-flex items-center gap-2 px-4 py-2 rounded-full font-bold text-xs bg-white/10 hover:bg-white/20 transition-colors"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <MusicIcon className="w-3.5 h-3.5" /> Open on Spotify
+                                            </a>
+                                        )}
                                     </div>
 
                                     {/* Nav arrows (desktop) */}
@@ -1030,7 +1154,7 @@ export const MusicView: React.FC = () => {
                                         <div
                                             className="h-full bg-purple-500/60 rounded-full"
                                             style={{
-                                                animation: 'featured-progress 6s linear infinite',
+                                                animation: 'featured-progress 12s linear infinite',
                                             }}
                                         />
                                     </div>
@@ -1040,7 +1164,7 @@ export const MusicView: React.FC = () => {
                     })()}
 
                     <div className={`grid gap-4 sm:gap-6 ${isIphoneLayout ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
-                        {ALBUMS.map((album) => (
+                        {albumsForDisplay.map((album) => (
                             <div
                                 key={album.id}
                                 className={`group bg-white/[0.02] border border-white/5 rounded-2xl overflow-hidden hover:bg-white/[0.05] transition-all duration-500 hover:scale-[1.01] hover:border-white/15 hover:shadow-xl hover:shadow-purple-500/5 cursor-pointer ${
@@ -1144,6 +1268,16 @@ export const MusicView: React.FC = () => {
                                     <p className="text-sm text-slate-400 font-medium">{selectedAlbum.artist} &bull; {selectedAlbum.year}</p>
                                 )}
                                 <p className="text-xs text-purple-400 font-black uppercase tracking-widest mt-1">{selectedAlbum.genre}</p>
+                                {selectedAlbum.spotifyUrl && (
+                                    <a
+                                        href={selectedAlbum.spotifyUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-emerald-300 hover:text-emerald-200 transition-colors"
+                                    >
+                                        <MusicIcon className="w-3.5 h-3.5" /> Listen on Spotify
+                                    </a>
+                                )}
 
                                 {/* Play All / Shuffle Play */}
                                 <div className="flex gap-2 mt-4">
@@ -1313,6 +1447,17 @@ export const MusicView: React.FC = () => {
                                     <div>
                                         <h3 className="text-lg font-black text-white uppercase tracking-tight">{selectedAlbum.title}</h3>
                                         <p className="text-xs text-slate-400">{selectedAlbum.artist} &bull; {selectedAlbum.tracks.length} tracks</p>
+                                        {selectedAlbum.spotifyUrl && (
+                                            <a
+                                                href={selectedAlbum.spotifyUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="mt-1 inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300 hover:text-emerald-200 transition-colors"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <MusicIcon className="w-3 h-3" /> Spotify
+                                            </a>
+                                        )}
                                     </div>
                                 </div>
                                 <button

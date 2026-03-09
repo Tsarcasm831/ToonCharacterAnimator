@@ -11,18 +11,14 @@ import { WeaponAction } from '../../../game/animator/actions/WeaponAction';
 import { UnarmedPunchAction } from '../../../game/animator/actions/UnarmedPunchAction';
 import { WaveAction } from '../../../game/animator/actions/WaveAction';
 import { LeftHandWaveAction } from '../../../game/animator/actions/LeftHandWaveAction';
-import { ChakraNetwork } from '../../../game/effects/ChakraNetwork';
 
 interface PlayerPreviewProps {
     config: PlayerConfig;
     manualInput: Partial<PlayerInput>;
-    onZoomChange?: (zoom: number) => void;
 }
 
 type CameraFocusKey = 'torso' | 'head' | 'feet';
 const CAMERA_FOCUS_ORDER: CameraFocusKey[] = ['torso', 'head', 'feet'];
-type PlayerRenderMode = 'normal' | 'wire' | 'missing';
-const PLAYER_RENDER_MODE_ORDER: PlayerRenderMode[] = ['normal', 'wire', 'missing'];
 
 type ActionTimers = {
     attack1: number;
@@ -57,112 +53,6 @@ const ACTION_DURATIONS: Record<keyof ActionTimers, number> = {
 };
 
 const clamp01 = (v: number) => THREE.MathUtils.clamp(v, 0, 1);
-const ZOOM_MIN_DISTANCE = 0.55;
-const ZOOM_MAX_DISTANCE = 8.5;
-const INITIAL_ZOOM_PERCENT = 50;
-const distanceFromZoomPercent = (zoom: number) => {
-    const normalized = THREE.MathUtils.clamp(zoom, 0, 100) / 100;
-    return ZOOM_MIN_DISTANCE + (1 - normalized) * (ZOOM_MAX_DISTANCE - ZOOM_MIN_DISTANCE);
-};
-const zoomPercentFromDistance = (distance: number) => {
-    const normalized = (THREE.MathUtils.clamp(distance, ZOOM_MIN_DISTANCE, ZOOM_MAX_DISTANCE) - ZOOM_MIN_DISTANCE)
-        / (ZOOM_MAX_DISTANCE - ZOOM_MIN_DISTANCE);
-    return Math.round(100 - normalized * 100);
-};
-
-const setWireframeOnMaterial = (material: THREE.Material, wireframe: boolean) => {
-    const wireframeMaterial = material as THREE.Material & { wireframe?: boolean };
-    if (typeof wireframeMaterial.wireframe === 'boolean') {
-        wireframeMaterial.wireframe = wireframe;
-        wireframeMaterial.needsUpdate = true;
-    }
-};
-
-const applyPlayerRenderMode = (playerModel: PlayerModel, mode: PlayerRenderMode) => {
-    const isVisible = mode !== 'missing';
-    const wireframe = mode === 'wire';
-    playerModel.group.visible = isVisible;
-
-    playerModel.group.traverse((obj) => {
-        const mesh = obj as THREE.Mesh;
-        if (!mesh.isMesh || !mesh.material) return;
-        if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((material) => setWireframeOnMaterial(material, wireframe));
-            return;
-        }
-        setWireframeOnMaterial(mesh.material, wireframe);
-    });
-
-    // Hide hair only in wire stage (G toggle), then restore prior state on exit.
-    playerModel.group.traverse((obj) => {
-        const isHairPart = obj.name === 'HairCap'
-            || obj.name === 'HairInstanced'
-            || obj.name.startsWith('HairCover_');
-        if (!isHairPart) return;
-
-        const previewKey = '__previewHairVisible';
-        const userData = obj.userData as Record<string, unknown>;
-        if (wireframe) {
-            if (typeof userData[previewKey] !== 'boolean') {
-                userData[previewKey] = obj.visible;
-            }
-            obj.visible = false;
-            return;
-        }
-
-        if (typeof userData[previewKey] === 'boolean') {
-            obj.visible = userData[previewKey] as boolean;
-            delete userData[previewKey];
-        }
-    });
-};
-
-const createSkyTexture = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, '#9ec8ff');
-    grad.addColorStop(0.45, '#b9d8ff');
-    grad.addColorStop(1, '#f1f7ff');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Cloud bands
-    for (let i = 0; i < 40; i++) {
-        const x = Math.random() * canvas.width;
-        const y = 90 + Math.random() * 260;
-        const rx = 70 + Math.random() * 180;
-        const ry = 20 + Math.random() * 55;
-        const alpha = 0.03 + Math.random() * 0.08;
-        ctx.beginPath();
-        ctx.ellipse(x, y, rx, ry, Math.random() * Math.PI, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-        ctx.fill();
-    }
-
-    // Fine grain so the sky reads as textured instead of flat.
-    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = image.data;
-    for (let i = 0; i < data.length; i += 4) {
-        const n = (Math.random() - 0.5) * 8;
-        data[i] = THREE.MathUtils.clamp(data[i] + n, 0, 255);
-        data[i + 1] = THREE.MathUtils.clamp(data[i + 1] + n, 0, 255);
-        data[i + 2] = THREE.MathUtils.clamp(data[i + 2] + n, 0, 255);
-    }
-    ctx.putImageData(image, 0, 0);
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.repeat.set(1, 1);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.needsUpdate = true;
-    return tex;
-};
 
 const closeEyes = (model: PlayerModel) => {
     model.eyelids.forEach((lid, index) => {
@@ -348,7 +238,7 @@ const getFocusTarget = (playerModel: PlayerModel, focus: CameraFocusKey, bounds:
     return center;
 };
 
-export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInput, onZoomChange }) => {
+export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInput }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
@@ -358,9 +248,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
     const shadowStageRef = useRef<THREE.Mesh | null>(null);
     const keyLightRef = useRef<THREE.DirectionalLight | null>(null);
     const controlsRef = useRef<OrbitControls | null>(null);
-    const skyDomeRef = useRef<THREE.Mesh | null>(null);
-    const skyTextureRef = useRef<THREE.Texture | null>(null);
-    const chakraNetworkRef = useRef<ChakraNetwork | null>(null);
     const frameIdRef = useRef<number>(0);
     const configRef = useRef<PlayerConfig>(config);
     const manualInputRef = useRef<Partial<PlayerInput>>(manualInput);
@@ -388,14 +275,11 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
 
     const orbitStateRef = useRef({
         target: new THREE.Vector3(),
-        distance: distanceFromZoomPercent(INITIAL_ZOOM_PERCENT),
-        lastReportedZoom: -1,
+        distance: 4.4,
     });
     const defaultOrbitDirectionRef = useRef(new THREE.Vector3(0.05, 0.12, 1).normalize());
     const cameraFocusRef = useRef<CameraFocusKey>('torso');
-    const playerRenderModeRef = useRef<PlayerRenderMode>('normal');
-    const initialZoomAppliedRef = useRef(false);
-    const userAdjustedCameraRef = useRef(false);
+    const showPlayerMeshRef = useRef(true);
 
     const syncStageToModel = () => {
         const playerModel = modelRef.current;
@@ -410,7 +294,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         const center = bounds.getCenter(new THREE.Vector3());
         const horizontalSpan = Math.max(size.x, size.z * 0.9);
         const stageScale = THREE.MathUtils.clamp(horizontalSpan * 1.15, 1.3, 2.2);
-        const floorY = 0;
+        let floorY = bounds.min.y - 0.07;
         let anchorX = center.x;
         let anchorZ = center.z;
 
@@ -421,6 +305,8 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             const rightPos = new THREE.Vector3();
             leftAnkle.getWorldPosition(leftPos);
             rightAnkle.getWorldPosition(rightPos);
+            const feetFloorY = Math.min(leftPos.y, rightPos.y) - 0.095;
+            floorY = Math.max(floorY, feetFloorY);
             anchorX = (leftPos.x + rightPos.x) * 0.5;
             anchorZ = (leftPos.z + rightPos.z) * 0.5;
         }
@@ -459,6 +345,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         if (bounds.isEmpty()) return;
 
         const size = bounds.getSize(new THREE.Vector3());
+        const center = bounds.getCenter(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
         const fitHeightDistance = maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)));
         const fitWidthDistance = fitHeightDistance / Math.max(camera.aspect, 0.75);
@@ -475,14 +362,9 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         const desiredDistance = offset.lengthSq() > 0.000001 ? offset.length() : orbitStateRef.current.distance;
         const minDistance = cameraFocusRef.current === 'head' ? 0.65 : cameraFocusRef.current === 'torso' ? 1.05 : 1.35;
         const maxDistance = Math.max(distance * 1.8, 5.5);
-        
-        const isFirstFrame = !initialZoomAppliedRef.current;
-        const keepStartupZoom = !userAdjustedCameraRef.current;
-        const nextDistance = (isFirstFrame || keepStartupZoom)
-            ? distanceFromZoomPercent(INITIAL_ZOOM_PERCENT)
-            : controlsRef.current
-                ? THREE.MathUtils.clamp(desiredDistance, minDistance, maxDistance)
-                : distance;
+        const nextDistance = controlsRef.current
+            ? THREE.MathUtils.clamp(desiredDistance, minDistance, maxDistance)
+            : distance;
 
         orbitStateRef.current.target.copy(nextTarget);
         orbitStateRef.current.distance = nextDistance;
@@ -495,23 +377,11 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             controlsRef.current.update();
         }
 
-        if (isFirstFrame) {
-            initialZoomAppliedRef.current = true;
-        }
-
         syncStageToModel();
     };
 
     useEffect(() => {
         if (!containerRef.current) return;
-
-        // Reset orbit state on every mount/effect run so dev re-mounts can't keep stale zoom.
-        initialZoomAppliedRef.current = false;
-        userAdjustedCameraRef.current = false;
-        orbitStateRef.current.target.set(0, 0, 0);
-        orbitStateRef.current.distance = distanceFromZoomPercent(INITIAL_ZOOM_PERCENT);
-        orbitStateRef.current.lastReportedZoom = -1;
-        onZoomChange?.(INITIAL_ZOOM_PERCENT);
 
         const width = containerRef.current.clientWidth;
         const height = containerRef.current.clientHeight;
@@ -519,25 +389,8 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         const scene = new THREE.Scene();
         scene.background = null;
 
-        const skyTexture = createSkyTexture();
-        if (skyTexture) {
-            const skyDome = new THREE.Mesh(
-                new THREE.SphereGeometry(60, 48, 32),
-                new THREE.MeshBasicMaterial({
-                    map: skyTexture,
-                    side: THREE.BackSide,
-                    depthWrite: false,
-                    fog: false,
-                }),
-            );
-            skyDome.position.set(0, 8, 0);
-            scene.add(skyDome);
-            skyDomeRef.current = skyDome;
-            skyTextureRef.current = skyTexture;
-        }
-
         const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 100);
-        camera.position.set(0.24, 1.6, 5.3);
+        camera.position.set(0.24, 1.5, 4.4);
         camera.lookAt(0, 1.15, 0);
         cameraRef.current = camera;
 
@@ -563,8 +416,8 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         controls.panSpeed = 0.85;
         controls.enableZoom = true;
         controls.zoomSpeed = 0.9;
-        controls.minDistance = ZOOM_MIN_DISTANCE;
-        controls.maxDistance = ZOOM_MAX_DISTANCE;
+        controls.minDistance = 0.55;
+        controls.maxDistance = 8.5;
         controls.screenSpacePanning = true;
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.ROTATE,
@@ -573,10 +426,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         };
         controls.target.copy(orbitStateRef.current.target);
         controlsRef.current = controls;
-        const handleControlsStart = () => {
-            userAdjustedCameraRef.current = true;
-        };
-        controls.addEventListener('start', handleControlsStart);
 
         const hemiLight = new THREE.HemisphereLight(0xbfd7ff, 0x101626, 1.35);
         scene.add(hemiLight);
@@ -622,12 +471,8 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
 
         const playerModel = new PlayerModel(configRef.current);
         playerModel.group.rotation.y = 0.18;
-        applyPlayerRenderMode(playerModel, playerRenderModeRef.current);
+        playerModel.group.visible = showPlayerMeshRef.current;
         scene.add(playerModel.group);
-        const chakraNetwork = new ChakraNetwork(scene);
-        chakraNetwork.setAppearance(configRef.current.chakraNetworkColor, configRef.current.chakraNetworkIntensity);
-        chakraNetwork.setVisible(configRef.current.showChakraNetwork);
-        chakraNetworkRef.current = chakraNetwork;
 
         sceneRef.current = scene;
         modelRef.current = playerModel;
@@ -651,10 +496,12 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                 cameraFocusRef.current = CAMERA_FOCUS_ORDER[(currentIndex + 1) % CAMERA_FOCUS_ORDER.length];
                 frameModel();
             } else if (key === 'g') {
+                showPlayerMeshRef.current = !showPlayerMeshRef.current;
                 if (modelRef.current) {
-                    const currentIndex = PLAYER_RENDER_MODE_ORDER.indexOf(playerRenderModeRef.current);
-                    playerRenderModeRef.current = PLAYER_RENDER_MODE_ORDER[(currentIndex + 1) % PLAYER_RENDER_MODE_ORDER.length];
-                    applyPlayerRenderMode(modelRef.current, playerRenderModeRef.current);
+                    modelRef.current.group.visible = showPlayerMeshRef.current;
+                    if (showPlayerMeshRef.current) {
+                        frameModel();
+                    }
                 }
             }
         };
@@ -681,10 +528,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             const input = manualInputRef.current;
             const prevInput = prevInputRef.current;
             const actionTimers = actionTimersRef.current;
-
-            if (!initialZoomAppliedRef.current) {
-                frameModel();
-            }
 
             const isDead = !!input.isDead;
             const isMoving = !!input.x || !!input.y;
@@ -784,34 +627,10 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             prevInputRef.current = { ...input };
             const velocity = new THREE.Vector3(input.x ?? 0, 0, input.y ?? 0)
                 .multiplyScalar(isRunning ? 2.4 : 1.2);
-
-            const isWearingShoes = configRef.current.equipment?.shoes;
-            playerModel.group.position.y = isWearingShoes ? 0.015 : 0;
-
             playerModel.update(dt, velocity);
-            if (configRef.current.showChakraNetwork) {
-                chakraNetwork.update(dt, playerModel);
-            }
-
-            if (!userAdjustedCameraRef.current) {
-                const startupDistance = distanceFromZoomPercent(INITIAL_ZOOM_PERCENT);
-                const offset = camera.position.clone().sub(controls.target);
-                const direction = offset.lengthSq() > 0.000001
-                    ? offset.normalize()
-                    : defaultOrbitDirectionRef.current;
-                camera.position.copy(controls.target).addScaledVector(direction, startupDistance);
-            }
-
             controls.update();
             orbitStateRef.current.target.copy(controls.target);
             orbitStateRef.current.distance = camera.position.distanceTo(controls.target);
-
-            const zoomPct = zoomPercentFromDistance(orbitStateRef.current.distance);
-            if (zoomPct !== orbitStateRef.current.lastReportedZoom) {
-                orbitStateRef.current.lastReportedZoom = zoomPct;
-                onZoomChange?.(zoomPct);
-            }
-
             renderer.render(scene, camera);
         };
 
@@ -832,7 +651,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         return () => {
             cancelAnimationFrame(frameIdRef.current);
             resizeObserver.disconnect();
-            controls.removeEventListener('start', handleControlsStart);
             controlsRef.current?.dispose();
             controlsRef.current = null;
             renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
@@ -845,18 +663,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             stageRef.current = null;
             shadowStageRef.current = null;
             keyLightRef.current = null;
-            if (skyDomeRef.current) {
-                scene.remove(skyDomeRef.current);
-                (skyDomeRef.current.geometry as THREE.BufferGeometry).dispose();
-                (skyDomeRef.current.material as THREE.Material).dispose();
-                skyDomeRef.current = null;
-            }
-            if (skyTextureRef.current) {
-                skyTextureRef.current.dispose();
-                skyTextureRef.current = null;
-            }
-            chakraNetworkRef.current?.dispose();
-            chakraNetworkRef.current = null;
         };
     }, []);
 
@@ -864,11 +670,8 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         configRef.current = config;
         if (modelRef.current) {
             modelRef.current.sync(config, !!manualInputRef.current.combat);
-            applyPlayerRenderMode(modelRef.current, playerRenderModeRef.current);
             syncStageToModel();
         }
-        chakraNetworkRef.current?.setAppearance(config.chakraNetworkColor, config.chakraNetworkIntensity);
-        chakraNetworkRef.current?.setVisible(config.showChakraNetwork);
     }, [config]);
 
     useEffect(() => {
@@ -881,7 +684,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
     return (
         <div
             ref={containerRef}
-            className="w-full h-full bg-[#d4dbe8]"
+            className="w-full h-full bg-[#e6e7eb]"
         />
     );
 };

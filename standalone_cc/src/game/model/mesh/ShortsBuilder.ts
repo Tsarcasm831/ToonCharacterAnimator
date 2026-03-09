@@ -114,7 +114,7 @@ export class ShortsBuilder {
                 const bMesh = PantsBulgeBuilder.build(mat, {
                     position: { x: 0, y: -0.088, z: 0.1 },
                     scale: { x: 0.8, y: 0.78, z: 0.58 },
-                    rotationX: -0.1
+                    rotationX: 0.1
                 });
                 bMesh.name = 'shortsBulge';
                 parts.pelvis.add(bMesh);

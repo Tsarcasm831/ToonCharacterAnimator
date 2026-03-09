@@ -96,7 +96,7 @@ export class LeatherPants {
                 const bulge = PantsBulgeBuilder.build(mat, {
                     position: { x: 0, y: -0.098, z: 0.102 },
                     scale: { x: 0.9, y: 0.86, z: 0.66 },
-                    rotationX: -0.16
+                    rotationX: 0.16
                 });
                 bulge.name = 'leatherPantsBulge';
                 parts.pelvis.add(bulge);

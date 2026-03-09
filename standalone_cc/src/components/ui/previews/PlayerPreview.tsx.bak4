@@ -17,6 +17,9 @@ interface PlayerPreviewProps {
     manualInput: Partial<PlayerInput>;
 }
 
+type CameraFocusKey = 'torso' | 'head' | 'feet';
+const CAMERA_FOCUS_ORDER: CameraFocusKey[] = ['torso', 'head', 'feet'];
+
 type ActionTimers = {
     attack1: number;
     attack2: number;
@@ -93,7 +96,7 @@ const applyJumpOverlay = (
 
     if (jumpPressed && !jump.isJumping) {
         jump.isJumping = true;
-        jump.jumpVel = 3.8;
+        jump.jumpVel = 2.7;
         jump.jumpOffset = 0.001;
     }
 
@@ -200,6 +203,41 @@ const applyDeathRagdoll = (
     closeEyes(model);
 };
 
+const getFocusTarget = (playerModel: PlayerModel, focus: CameraFocusKey, bounds: THREE.Box3) => {
+    const target = new THREE.Vector3();
+    const center = bounds.getCenter(new THREE.Vector3());
+
+    if (focus === 'head' && playerModel.parts.head) {
+        playerModel.parts.head.getWorldPosition(target);
+        target.y -= 0.02;
+        return target;
+    }
+
+    if (focus === 'feet') {
+        const leftAnkle = playerModel.parts.leftAnkle as THREE.Object3D | undefined;
+        const rightAnkle = playerModel.parts.rightAnkle as THREE.Object3D | undefined;
+        if (leftAnkle && rightAnkle) {
+            const left = new THREE.Vector3();
+            const right = new THREE.Vector3();
+            leftAnkle.getWorldPosition(left);
+            rightAnkle.getWorldPosition(right);
+            target.copy(left).add(right).multiplyScalar(0.5);
+            target.y = bounds.min.y + 0.12;
+            target.z = center.z;
+            return target;
+        }
+        return new THREE.Vector3(center.x, bounds.min.y + 0.12, center.z);
+    }
+
+    if (playerModel.parts.torsoContainer) {
+        playerModel.parts.torsoContainer.getWorldPosition(target);
+        target.y += 0.16;
+        return target;
+    }
+
+    return center;
+};
+
 export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInput }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -208,6 +246,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
     const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
     const stageRef = useRef<THREE.Mesh | null>(null);
     const shadowStageRef = useRef<THREE.Mesh | null>(null);
+    const keyLightRef = useRef<THREE.DirectionalLight | null>(null);
     const controlsRef = useRef<OrbitControls | null>(null);
     const frameIdRef = useRef<number>(0);
     const configRef = useRef<PlayerConfig>(config);
@@ -236,15 +275,70 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
 
     const orbitStateRef = useRef({
         target: new THREE.Vector3(),
-        distance: 3.8,
+        distance: 4.4,
     });
     const defaultOrbitDirectionRef = useRef(new THREE.Vector3(0.05, 0.12, 1).normalize());
+    const cameraFocusRef = useRef<CameraFocusKey>('torso');
+    const showPlayerMeshRef = useRef(true);
+
+    const syncStageToModel = () => {
+        const playerModel = modelRef.current;
+        const stage = stageRef.current;
+        const shadowStage = shadowStageRef.current;
+        if (!playerModel || !stage) return;
+
+        const bounds = new THREE.Box3().setFromObject(playerModel.group);
+        if (bounds.isEmpty()) return;
+
+        const size = bounds.getSize(new THREE.Vector3());
+        const center = bounds.getCenter(new THREE.Vector3());
+        const horizontalSpan = Math.max(size.x, size.z * 0.9);
+        const stageScale = Math.max(1.25, horizontalSpan * 1.25);
+        let floorY = bounds.min.y - 0.07;
+        let anchorX = center.x;
+        let anchorZ = center.z;
+
+        const leftAnkle = playerModel.parts.leftAnkle as THREE.Object3D | undefined;
+        const rightAnkle = playerModel.parts.rightAnkle as THREE.Object3D | undefined;
+        if (leftAnkle && rightAnkle) {
+            const leftPos = new THREE.Vector3();
+            const rightPos = new THREE.Vector3();
+            leftAnkle.getWorldPosition(leftPos);
+            rightAnkle.getWorldPosition(rightPos);
+            const feetFloorY = Math.min(leftPos.y, rightPos.y) - 0.095;
+            floorY = Math.max(floorY, feetFloorY);
+            anchorX = (leftPos.x + rightPos.x) * 0.5;
+            anchorZ = (leftPos.z + rightPos.z) * 0.5;
+        }
+
+        stage.position.set(anchorX, floorY, anchorZ);
+        stage.scale.set(stageScale * 1.8, stageScale * 1.8, 1);
+        if (shadowStage) {
+            shadowStage.position.set(anchorX, floorY + 0.002, anchorZ);
+            shadowStage.scale.setScalar(stageScale * 1.7);
+        }
+
+        const keyLight = keyLightRef.current;
+        if (keyLight) {
+            keyLight.target.position.set(anchorX, floorY + size.y * 0.45, anchorZ);
+            keyLight.target.updateMatrixWorld();
+
+            const shadowCam = keyLight.shadow.camera as THREE.OrthographicCamera;
+            const casterRadius = Math.max(size.x, size.z, 0.9);
+            const radius = casterRadius * 3.4 + 2.0;
+            shadowCam.left = -radius;
+            shadowCam.right = radius;
+            shadowCam.top = radius;
+            shadowCam.bottom = -radius;
+            shadowCam.near = 0.1;
+            shadowCam.far = Math.max(40, size.y * 14);
+            shadowCam.updateProjectionMatrix();
+        }
+    };
 
     const frameModel = () => {
         const camera = cameraRef.current;
         const playerModel = modelRef.current;
-        const stage = stageRef.current;
-        const shadowStage = shadowStageRef.current;
         if (!camera || !playerModel) return;
 
         const bounds = new THREE.Box3().setFromObject(playerModel.group);
@@ -255,8 +349,8 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         const maxDim = Math.max(size.x, size.y, size.z);
         const fitHeightDistance = maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)));
         const fitWidthDistance = fitHeightDistance / Math.max(camera.aspect, 0.75);
-        const distance = Math.max(fitHeightDistance, fitWidthDistance) * 1.35;
-        const nextTarget = new THREE.Vector3(center.x, center.y + size.y * 0.04, center.z);
+        const distance = Math.max(fitHeightDistance, fitWidthDistance) * 1.55;
+        const nextTarget = getFocusTarget(playerModel, cameraFocusRef.current, bounds);
 
         const currentTarget = controlsRef.current
             ? controlsRef.current.target.clone()
@@ -265,7 +359,12 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         const direction = offset.lengthSq() > 0.000001
             ? offset.normalize()
             : defaultOrbitDirectionRef.current;
-        const nextDistance = Math.max(offset.length(), distance);
+        const desiredDistance = offset.lengthSq() > 0.000001 ? offset.length() : orbitStateRef.current.distance;
+        const minDistance = cameraFocusRef.current === 'head' ? 0.65 : cameraFocusRef.current === 'torso' ? 1.05 : 1.35;
+        const maxDistance = Math.max(distance * 1.8, 5.5);
+        const nextDistance = controlsRef.current
+            ? THREE.MathUtils.clamp(desiredDistance, minDistance, maxDistance)
+            : distance;
 
         orbitStateRef.current.target.copy(nextTarget);
         orbitStateRef.current.distance = nextDistance;
@@ -278,16 +377,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             controlsRef.current.update();
         }
 
-        if (stage) {
-            const stageScale = Math.max(size.x, size.z) * 1.05;
-            const floorY = bounds.min.y - 0.07;
-            stage.position.set(center.x, floorY, center.z);
-            stage.scale.set(stageScale * 1.8, stageScale * 1.8, 1);
-            if (shadowStage) {
-                shadowStage.position.set(center.x, floorY + 0.002, center.z);
-                shadowStage.scale.setScalar(stageScale * 0.98);
-            }
-        }
+        syncStageToModel();
     };
 
     useEffect(() => {
@@ -300,7 +390,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         scene.background = null;
 
         const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 100);
-        camera.position.set(0.2, 1.4, 3.8);
+        camera.position.set(0.24, 1.5, 4.4);
         camera.lookAt(0, 1.15, 0);
         cameraRef.current = camera;
 
@@ -324,7 +414,10 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         controls.enablePan = true;
         controls.rotateSpeed = 0.9;
         controls.panSpeed = 0.85;
-        controls.enableZoom = false;
+        controls.enableZoom = true;
+        controls.zoomSpeed = 0.9;
+        controls.minDistance = 0.55;
+        controls.maxDistance = 8.5;
         controls.screenSpacePanning = true;
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.ROTATE,
@@ -340,10 +433,13 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         const keyLight = new THREE.DirectionalLight(0xfff1d6, 2.2);
         keyLight.position.set(3.5, 4.5, 5);
         keyLight.castShadow = true;
-        keyLight.shadow.mapSize.width = 1024;
-        keyLight.shadow.mapSize.height = 1024;
-        keyLight.shadow.bias = -0.0008;
+        keyLight.shadow.mapSize.width = 2048;
+        keyLight.shadow.mapSize.height = 2048;
+        keyLight.shadow.bias = -0.00035;
+        keyLight.shadow.normalBias = 0.02;
         scene.add(keyLight);
+        scene.add(keyLight.target);
+        keyLightRef.current = keyLight;
 
         const fillLight = new THREE.DirectionalLight(0x8db4ff, 0.9);
         fillLight.position.set(-4, 2, 3);
@@ -355,10 +451,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
         dirLight.position.set(0, -1, 2);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 512;
-        dirLight.shadow.mapSize.height = 512;
-        dirLight.shadow.bias = -0.001;
+        dirLight.castShadow = false;
         scene.add(dirLight);
 
         const stage = new THREE.Mesh(
@@ -374,23 +467,45 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         scene.add(stage);
         stageRef.current = stage;
 
-        const shadowStage = new THREE.Mesh(
-            new THREE.CircleGeometry(1.45, 48),
-            new THREE.ShadowMaterial({ opacity: 0.18, color: 0x000000 }),
-        );
-        shadowStage.rotation.x = -Math.PI / 2;
-        shadowStage.receiveShadow = true;
-        scene.add(shadowStage);
-        shadowStageRef.current = shadowStage;
+        shadowStageRef.current = null;
 
         const playerModel = new PlayerModel(configRef.current);
         playerModel.group.rotation.y = 0.18;
+        playerModel.group.visible = showPlayerMeshRef.current;
         scene.add(playerModel.group);
 
         sceneRef.current = scene;
         modelRef.current = playerModel;
         rendererRef.current = renderer;
         frameModel();
+
+        const handleKeyDown = (event: KeyboardEvent) => {
+            const active = document.activeElement as HTMLElement | null;
+            const tag = active?.tagName;
+            const isEditing = !!active && (
+                active.isContentEditable
+                || tag === 'INPUT'
+                || tag === 'TEXTAREA'
+                || tag === 'SELECT'
+            );
+            if (isEditing || event.repeat) return;
+
+            const key = event.key.toLowerCase();
+            if (key === 'v') {
+                const currentIndex = CAMERA_FOCUS_ORDER.indexOf(cameraFocusRef.current);
+                cameraFocusRef.current = CAMERA_FOCUS_ORDER[(currentIndex + 1) % CAMERA_FOCUS_ORDER.length];
+                frameModel();
+            } else if (key === 'g') {
+                showPlayerMeshRef.current = !showPlayerMeshRef.current;
+                if (modelRef.current) {
+                    modelRef.current.group.visible = showPlayerMeshRef.current;
+                    if (showPlayerMeshRef.current) {
+                        frameModel();
+                    }
+                }
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
 
         const clock = new THREE.Clock();
         const mockPlayer = {
@@ -514,6 +629,8 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                 .multiplyScalar(isRunning ? 2.4 : 1.2);
             playerModel.update(dt, velocity);
             controls.update();
+            orbitStateRef.current.target.copy(controls.target);
+            orbitStateRef.current.distance = camera.position.distanceTo(controls.target);
             renderer.render(scene, camera);
         };
 
@@ -537,6 +654,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             controlsRef.current?.dispose();
             controlsRef.current = null;
             renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
+            window.removeEventListener('keydown', handleKeyDown);
             if (rendererRef.current && containerRef.current) {
                 containerRef.current.removeChild(rendererRef.current.domElement);
                 rendererRef.current.dispose();
@@ -544,6 +662,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             cameraRef.current = null;
             stageRef.current = null;
             shadowStageRef.current = null;
+            keyLightRef.current = null;
         };
     }, []);
 
@@ -551,7 +670,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         configRef.current = config;
         if (modelRef.current) {
             modelRef.current.sync(config, !!manualInputRef.current.combat);
-            frameModel();
+            syncStageToModel();
         }
     }, [config]);
 

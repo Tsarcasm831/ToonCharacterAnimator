@@ -103,7 +103,7 @@ export class ChainLeggings {
                 const bulge = PantsBulgeBuilder.build(mat, {
                     position: { x: 0, y: -0.097, z: 0.1 },
                     scale: { x: 0.84, y: 0.8, z: 0.6 },
-                    rotationX: -0.12
+                    rotationX: 0.12
                 });
                 bulge.name = 'chainLeggingsBulge';
                 parts.pelvis.add(bulge);

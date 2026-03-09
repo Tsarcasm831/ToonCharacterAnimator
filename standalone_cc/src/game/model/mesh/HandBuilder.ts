@@ -20,9 +20,9 @@ export class HandBuilder {
         const sideMult = isLeft ? -1 : 1; 
 
         // 1. PALM (Metacarpals)
-        const palmW = 0.08;
+        const palmW = 0.08 * 1.2;
         const palmH = 0.09;
-        const palmD = 0.03;
+        const palmD = 0.03 * 1.2;
         
         // Sculpted Rounded Box
         const palmGeo = new THREE.BoxGeometry(palmW, palmH, palmD, 4, 4, 2);

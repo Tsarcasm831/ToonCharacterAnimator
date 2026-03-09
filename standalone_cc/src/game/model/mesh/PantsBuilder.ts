@@ -149,7 +149,7 @@ export class PantsBuilder {
                 const bMesh = PantsBulgeBuilder.build(mat, {
                     position: { x: 0, y: -0.092, z: 0.103 },
                     scale: { x: 0.88, y: 0.84, z: 0.64 },
-                    rotationX: -0.14
+                    rotationX: 0.14
                 });
                 parts.pelvis.add(bMesh);
                 meshes.push(bMesh);

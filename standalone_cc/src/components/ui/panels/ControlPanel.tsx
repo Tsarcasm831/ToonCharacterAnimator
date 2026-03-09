@@ -26,6 +26,7 @@ interface ControlPanelProps {
     onRedo: () => void;
     canUndo: boolean;
     canRedo: boolean;
+    zoomLevel: number;
 }
 
 type TabKey = 'settings' | 'environment' | 'actions' | 'body' | 'outfit' | 'face' | 'rigging' | 'eq_rigging' | 'randomize' | 'loadouts';
@@ -44,7 +45,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     onUndo,
     onRedo,
     canUndo,
-    canRedo
+    canRedo,
+    zoomLevel
 }) => {
     const [isOpen, setIsOpen] = useState(() =>
         typeof window !== 'undefined' ? !window.matchMedia('(max-width: 1024px)').matches : true
@@ -136,6 +138,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
                         {/* Global Controls at Bottom of Nav */}
                         <div className="p-6 border-t border-white/5 bg-black/20 space-y-3">
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
+                                <span>Zoom</span>
+                                <span className="text-blue-400">{zoomLevel}%</span>
+                            </div>
                             {/* Undo/Redo Controls */}
                             <div className="flex gap-2">
                                 <button

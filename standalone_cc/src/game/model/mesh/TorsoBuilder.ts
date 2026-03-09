@@ -63,7 +63,7 @@ export class TorsoBuilder {
         const crotchGeo = new THREE.SphereGeometry(torsoRadiusBottom * 0.55, 16, 12, 0, Math.PI*2, Math.PI/2, Math.PI/2);
         crotchGeo.scale(1, 0.7, 0.7);
         const crotchMesh = new THREE.Mesh(crotchGeo, matCrotch);
-        crotchMesh.position.y = -pelvisHeight + 0.014;
+        crotchMesh.position.y = -pelvisHeight + 0.03;
         pelvis.add(crotchMesh);
         
         // UNDERWEAR (Briefs - Main Body)
@@ -79,20 +79,20 @@ export class TorsoBuilder {
         const uCrotch = new THREE.Mesh(crotchGeo, materials.underwear);
         // Slightly larger and aligned with pelvis bottom cap to remove seam
         uCrotch.scale.set(1.03, 1.02, 1.01);
-        uCrotch.position.y = -pelvisHeight + 0.013;
+        uCrotch.position.y = -pelvisHeight + 0.029;
         underwearBottom.add(uCrotch);
 
         // Male Bulge (Underwear)
         // Use CapsuleGeometry for a more realistic, elongated shape
-        const bulgeRadius = 0.042;
-        const bulgeLength = 0.04;
+        const bulgeRadius = 0.032;
+        const bulgeLength = 0.026;
         const bulgeGeo = new THREE.CapsuleGeometry(bulgeRadius, bulgeLength, 4, 8);
         
         const maleBulge = new THREE.Mesh(bulgeGeo, materials.underwear);
         // Positioned higher up on the pelvis front face
         // Default position, will be overridden by Scaler
-        maleBulge.position.set(0, -0.075, 0.13); 
-        maleBulge.rotation.x = -0.15;
+        maleBulge.position.set(0, -0.056, 0.116); 
+        maleBulge.rotation.x = -0.08;
         maleBulge.castShadow = true;
         maleBulge.visible = false;
         underwearBottom.add(maleBulge);
