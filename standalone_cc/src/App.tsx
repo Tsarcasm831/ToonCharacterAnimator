@@ -55,6 +55,7 @@ function App() {
   const [manualInput, setManualInput] = useState<Partial<PlayerInput>>(DEFAULT_INPUT);
   const [isDeadUI, setIsDeadUI] = useState(false);
   const [movementMode, setMovementMode] = useState<MovementMode>('idle');
+  const [zoomLevel, setZoomLevel] = useState(50);
 
   const applyMovementMode = (mode: MovementMode) => {
     setMovementMode(mode);
@@ -85,7 +86,7 @@ function App() {
   return (
     <div className="w-screen h-screen bg-slate-950 overflow-hidden text-slate-50 flex flex-col relative">
       <div className="absolute inset-0">
-         <PlayerPreview config={config} manualInput={manualInput} />
+         <PlayerPreview config={config} manualInput={manualInput} onZoomChange={setZoomLevel} />
       </div>
       
       <ControlPanel
@@ -103,6 +104,7 @@ function App() {
           onRedo={() => console.log('Redo')}
           canUndo={false}
           canRedo={false}
+          zoomLevel={zoomLevel}
       />
     </div>
   )

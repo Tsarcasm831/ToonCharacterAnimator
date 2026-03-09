@@ -643,7 +643,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   showBrain: false,
   brainSize: 1.0,
   debugHead: false,
-  showChakraNetwork: true,
+  showChakraNetwork: false,
   chakraNetworkColor: '#6ed8ff',
   chakraNetworkIntensity: 1.6,
 };

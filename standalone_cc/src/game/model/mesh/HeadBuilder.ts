@@ -379,9 +379,6 @@ export class HeadBuilder {
             eyeRing.position.z = 0.002;
             eyeContainer.add(eyeRing);
 
-            const eyeTearNode = chakraNode(0.0045);
-            eyeTearNode.position.set(side * -0.012, -0.018, eyeRadius * 0.9);
-            eyeContainer.add(eyeTearNode);
         }
 
         // Nose
@@ -441,12 +438,6 @@ export class HeadBuilder {
             new THREE.Vector3(0.038, -0.006, 0.015),
         ], 0.0033);
         maxilla.add(maxillaNet);
-
-        const philtrum = chakraPath([
-            new THREE.Vector3(0, 0.014, 0.018),
-            new THREE.Vector3(0, -0.004, 0.024),
-        ], 0.003);
-        maxilla.add(philtrum);
 
         const jawLine = chakraPath([
             new THREE.Vector3(-0.05, 0.02, 0.088),

@@ -116,7 +116,7 @@ export class HideBreeches {
                 const bulge = PantsBulgeBuilder.build(mat, {
                     position: { x: 0, y: -0.095, z: 0.105 },
                     scale: { x: 0.9, y: 0.88, z: 0.68 },
-                    rotationX: -0.16
+                    rotationX: 0.16
                 });
                 bulge.name = 'hideBreechesBulge';
                 parts.pelvis.add(bulge);

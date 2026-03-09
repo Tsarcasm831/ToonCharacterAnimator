@@ -11,7 +11,6 @@ import { WeaponAction } from '../../../game/animator/actions/WeaponAction';
 import { UnarmedPunchAction } from '../../../game/animator/actions/UnarmedPunchAction';
 import { WaveAction } from '../../../game/animator/actions/WaveAction';
 import { LeftHandWaveAction } from '../../../game/animator/actions/LeftHandWaveAction';
-import { ChakraNetwork } from '../../../game/effects/ChakraNetwork';
 
 interface PlayerPreviewProps {
     config: PlayerConfig;
@@ -91,29 +90,6 @@ const applyPlayerRenderMode = (playerModel: PlayerModel, mode: PlayerRenderMode)
             return;
         }
         setWireframeOnMaterial(mesh.material, wireframe);
-    });
-
-    // Hide hair only in wire stage (G toggle), then restore prior state on exit.
-    playerModel.group.traverse((obj) => {
-        const isHairPart = obj.name === 'HairCap'
-            || obj.name === 'HairInstanced'
-            || obj.name.startsWith('HairCover_');
-        if (!isHairPart) return;
-
-        const previewKey = '__previewHairVisible';
-        const userData = obj.userData as Record<string, unknown>;
-        if (wireframe) {
-            if (typeof userData[previewKey] !== 'boolean') {
-                userData[previewKey] = obj.visible;
-            }
-            obj.visible = false;
-            return;
-        }
-
-        if (typeof userData[previewKey] === 'boolean') {
-            obj.visible = userData[previewKey] as boolean;
-            delete userData[previewKey];
-        }
     });
 };
 
@@ -360,7 +336,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
     const controlsRef = useRef<OrbitControls | null>(null);
     const skyDomeRef = useRef<THREE.Mesh | null>(null);
     const skyTextureRef = useRef<THREE.Texture | null>(null);
-    const chakraNetworkRef = useRef<ChakraNetwork | null>(null);
     const frameIdRef = useRef<number>(0);
     const configRef = useRef<PlayerConfig>(config);
     const manualInputRef = useRef<Partial<PlayerInput>>(manualInput);
@@ -624,10 +599,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         playerModel.group.rotation.y = 0.18;
         applyPlayerRenderMode(playerModel, playerRenderModeRef.current);
         scene.add(playerModel.group);
-        const chakraNetwork = new ChakraNetwork(scene);
-        chakraNetwork.setAppearance(configRef.current.chakraNetworkColor, configRef.current.chakraNetworkIntensity);
-        chakraNetwork.setVisible(configRef.current.showChakraNetwork);
-        chakraNetworkRef.current = chakraNetwork;
 
         sceneRef.current = scene;
         modelRef.current = playerModel;
@@ -655,6 +626,9 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                     const currentIndex = PLAYER_RENDER_MODE_ORDER.indexOf(playerRenderModeRef.current);
                     playerRenderModeRef.current = PLAYER_RENDER_MODE_ORDER[(currentIndex + 1) % PLAYER_RENDER_MODE_ORDER.length];
                     applyPlayerRenderMode(modelRef.current, playerRenderModeRef.current);
+                    if (playerRenderModeRef.current !== 'missing') {
+                        frameModel();
+                    }
                 }
             }
         };
@@ -789,9 +763,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             playerModel.group.position.y = isWearingShoes ? 0.015 : 0;
 
             playerModel.update(dt, velocity);
-            if (configRef.current.showChakraNetwork) {
-                chakraNetwork.update(dt, playerModel);
-            }
 
             if (!userAdjustedCameraRef.current) {
                 const startupDistance = distanceFromZoomPercent(INITIAL_ZOOM_PERCENT);
@@ -855,8 +826,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                 skyTextureRef.current.dispose();
                 skyTextureRef.current = null;
             }
-            chakraNetworkRef.current?.dispose();
-            chakraNetworkRef.current = null;
         };
     }, []);
 
@@ -867,8 +836,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             applyPlayerRenderMode(modelRef.current, playerRenderModeRef.current);
             syncStageToModel();
         }
-        chakraNetworkRef.current?.setAppearance(config.chakraNetworkColor, config.chakraNetworkIntensity);
-        chakraNetworkRef.current?.setVisible(config.showChakraNetwork);
     }, [config]);
 
     useEffect(() => {

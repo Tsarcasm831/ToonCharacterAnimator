@@ -59,7 +59,7 @@ export class PantsBulgeBuilder {
         mesh.castShadow = true;
         mesh.position.set(position.x, position.y, position.z);
         mesh.scale.set(scale.x, scale.y, scale.z);
-        mesh.rotation.x = options.rotationX ?? -0.12;
+        mesh.rotation.x = options.rotationX ?? 0.12;
 
         return mesh;
     }

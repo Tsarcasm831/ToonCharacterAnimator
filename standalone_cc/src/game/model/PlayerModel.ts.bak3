@@ -185,12 +185,23 @@ export class PlayerModel {
         });
     }
 
+    private updateChakraNetwork(enabled: boolean) {
+        const headGroup = this.parts.head as THREE.Group;
+        if (!headGroup) return;
+        headGroup.traverse((obj) => {
+            if (obj.userData?.isChakraNetwork) {
+                obj.visible = enabled;
+            }
+        });
+    }
+
     sync(config: PlayerConfig, isCombatStance: boolean = false) {
         this.materials.sync(config);
         if (config.debugHead !== this.lastDebugHead) {
             this.updateHeadDebug(config.debugHead);
             this.lastDebugHead = config.debugHead;
         }
+        this.updateChakraNetwork(config.showChakraNetwork);
         
         this.bodyMorpher.morph(config, isCombatStance);
         this.equipmentManager.updateEquipment(config);
