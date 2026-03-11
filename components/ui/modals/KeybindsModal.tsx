@@ -10,47 +10,52 @@ const CATEGORIES = [
     {
         title: "Movement",
         binds: [
-            { keys: ["W", "A", "S", "D"], label: "Movement" },
+            { keys: ["W", "A", "S", "D", "Arrows"], label: "Move" },
             { keys: ["Shift"], label: "Run" },
             { keys: ["Space"], label: "Jump" },
+            { keys: ["X"], label: "Crouch" },
             { keys: ["V"], label: "POV Mode" },
-            { keys: ["X"], label: "Camera Focus Cycle" },
+            { keys: ["Z"], label: "Camera Focus Cycle" },
         ]
     },
     {
         title: "Combat & Action",
         binds: [
             { keys: ["LMB"], label: "Attack / Cast (Fishing)" },
-            { keys: ["R"], label: "Cast Fireball" },
             { keys: ["C"], label: "Combat Stance" },
             { keys: ["E"], label: "Interact / Talk" },
-            { keys: ["F"], label: "Pick Up / Skin" },
+            { keys: ["F", "P"], label: "Pick Up / Skin" },
+            { keys: ["Q"], label: "Cast Fireball" },
             { keys: ["L"], label: "Summon Skill" },
-            { keys: ["1-8"], label: "Equip Hotbar Slot" },
         ]
     },
     {
-        title: "Building",
+        title: "Inventory & Slots",
         binds: [
-            { keys: ["B"], label: "Toggle Build Mode" },
-            { keys: ["T"], label: "Rotate Ghost (Build Mode)" },
-            { keys: ["LMB"], label: "Place Structure" },
-        ]
-    },
-    {
-        title: "System & Debug",
-        binds: [
-            { keys: ["`"], label: "Toggle this list" },
             { keys: ["I"], label: "Inventory" },
-            { keys: ["Q"], label: "Quest Log" },
-            { keys: ["M"], label: "Land Map" },
+            { keys: ["1-0", "-", "=", "Backspace"], label: "Equip Hotbar Slot" },
+            { keys: ["O"], label: "Quest Log" },
+            { keys: ["`"], label: "Open This Help" },
+        ]
+    },
+    {
+        title: "World, Build & Debug",
+        binds: [
+            { keys: ["M"], label: "World / Travel Map" },
+            { keys: [","], label: "Area Map Modal" },
+            { keys: ["Escape"], label: "Close Map / End Combat Turn" },
+            { keys: ["B"], label: "Toggle Build Mode" },
+            { keys: ["R"], label: "Rotate Ghost (Build Mode)" },
+            { keys: ["Enter"], label: "Place Structure" },
+            { keys: ["."], label: "Toggle Builder Log" },
             { keys: ["T"], label: "World Grid Overlay" },
             { keys: ["U"], label: "Obstacle Hitboxes" },
             { keys: ["G"], label: "Player Hitboxes" },
-            { keys: ["J"], label: "Skeleton Mode" },
+            { keys: ["J"], label: "Chakra Mode (3-Stage)" },
             { keys: ["H"], label: "Hands Debug" },
             { keys: ["K"], label: "Die / Ragdoll" },
-            { keys: ["]"], label: "Teleport to Town" },
+            { keys: ["]"], label: "Teleport to Town (SingleBiome)" },
+            { keys: ["Y", "N"], label: "Hive Debug (SingleBiome)" },
         ]
     }
 ];

@@ -11,6 +11,7 @@ import LoadingScreen from '../overlays/LoadingScreen';
 import { MobileControls } from '../hud/MobileControls';
 import { DialogueOverlay } from '../overlays/DialogueOverlay';
 import { GameHUD } from '../hud/GameHUD';
+import { ChakraNodeDebuggerSidebar, type ChakraDebuggerSidebarEntry, type ChakraSidebarHoverTarget } from '../modals/ChakraNodeDebuggerSidebar';
 import { BuilderUI } from '../panels/BuilderUI';
 import { BuilderLog } from '../panels/BuilderLog';
 import { ControlPanel } from '../panels/ControlPanel';
@@ -75,6 +76,16 @@ export const Game: React.FC = () => {
     const [isSceneInitializing, setIsSceneInitializing] = React.useState(false);
     const mountSceneTimeout = React.useRef<number | null>(null);
     const visualReadyTimeout = React.useRef<number | null>(null);
+    const viewportRef = React.useRef<HTMLDivElement | null>(null);
+    const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
+    const [chakraNodeLegend, setChakraNodeLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
+    const [chakraConnectionLegend, setChakraConnectionLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
+    const chakraNodeLegendSignatureRef = React.useRef('');
+    const chakraSidebarVisibleRef = React.useRef(false);
+    const chakraHoverTargetRef = React.useRef<ChakraSidebarHoverTarget | null>(null);
+    const chakraArrowPathRef = React.useRef<SVGPathElement | null>(null);
+    const chakraProjectVecRef = React.useRef(new THREE.Vector3());
+    const chakraCameraDirRef = React.useRef(new THREE.Vector3());
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
     const selectedLandRef = React.useRef(selectedLand);
@@ -100,14 +111,12 @@ export const Game: React.FC = () => {
         }
     }, [gameState, shouldMountScene, isSceneInitializing]);
 
-    // Safety fallback: if loading any scene hangs, force completion after a timeout
+    // Safety watchdog: surface hung loading in console without force-finishing.
     React.useEffect(() => {
         if (gameState === 'LOADING' && (!isEnvironmentBuilt || !isVisualLoadingDone) && shouldMountScene) {
             const t = setTimeout(() => {
-                console.warn(`[Game.tsx] Safety fallback: Forcefully finishing loading for ${activeScene} scene`);
-                if (!isEnvironmentBuilt) setIsEnvironmentBuilt(true);
-                if (!isVisualLoadingDone) setIsVisualLoadingDone(true);
-            }, 5000);
+                console.warn(`[Game.tsx] Loading is still in progress for ${activeScene} scene after 30s.`);
+            }, 30000);
             return () => clearTimeout(t);
         }
     }, [gameState, activeScene, isEnvironmentBuilt, isVisualLoadingDone, shouldMountScene]);
@@ -188,6 +197,18 @@ export const Game: React.FC = () => {
         setInteractionProgress(prog); 
     };
 
+    const hideChakraHoverArrow = React.useCallback(() => {
+        const arrowPath = chakraArrowPathRef.current;
+        if (!arrowPath) return;
+        arrowPath.style.opacity = '0';
+        arrowPath.setAttribute('d', '');
+    }, []);
+
+    const handleChakraSidebarHover = React.useCallback((target: ChakraSidebarHoverTarget | null) => {
+        chakraHoverTargetRef.current = target;
+        if (!target) hideChakraHoverArrow();
+    }, [hideChakraHoverArrow]);
+
     // Sync hotbar selection with character selected item
     React.useEffect(() => {
         const selectedItem = inventory[selectedSlot];
@@ -225,6 +246,9 @@ export const Game: React.FC = () => {
         return () => {
             if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
             if (visualReadyTimeout.current) window.clearTimeout(visualReadyTimeout.current);
+            chakraNodeLegendSignatureRef.current = '';
+            chakraSidebarVisibleRef.current = false;
+            chakraHoverTargetRef.current = null;
             // Cleanup game instance and 3D resources on unmount
             if (gameInstance.current) {
                 // Dispose of Three.js resources if the game instance has a dispose method
@@ -237,6 +261,21 @@ export const Game: React.FC = () => {
             }
         };
     }, []);
+
+    React.useEffect(() => {
+        const game = gameInstance.current;
+        if (!game) return;
+        if (config.showChakraNetwork && game.player.isDebugHands) {
+            game.player.toggleHandsDebug();
+        }
+    }, [config.showChakraNetwork, gameInstance]);
+
+    React.useEffect(() => {
+        if (!showChakraNodeSidebar) {
+            chakraHoverTargetRef.current = null;
+            hideChakraHoverArrow();
+        }
+    }, [showChakraNodeSidebar, hideChakraHoverArrow]);
 
     const handleMapToggle = (pos: THREE.Vector3) => {
         setPlayerPosForMap(pos);
@@ -273,6 +312,13 @@ export const Game: React.FC = () => {
 
     const onGameReady = (game: any) => {
         gameInstance.current = game;
+        setShowChakraNodeSidebar(false);
+        setChakraNodeLegend([]);
+        setChakraConnectionLegend([]);
+        chakraNodeLegendSignatureRef.current = '';
+        chakraSidebarVisibleRef.current = false;
+        chakraHoverTargetRef.current = null;
+        hideChakraHoverArrow();
         // Bind game callbacks here if needed, or rely on game observing state?
         // The previous implementation bound callbacks to the game instance.
         // We should replicate that or ensure the game instance reads from context/props updates.
@@ -285,6 +331,15 @@ export const Game: React.FC = () => {
         game.inputManager.onToggleKeybinds = uiState.toggleKeybinds;
         game.inputManager.onToggleQuestLog = uiState.toggleQuestLog;
         game.inputManager.onToggleBuilderLog = uiState.toggleBuilderLog;
+        game.inputManager.onToggleSkeletonMode = () => {
+            game.player.toggleSkeletonMode();
+            const showChakraNetwork = !!game.player.config.showChakraNetwork;
+            setConfig(prev => (
+                prev.showChakraNetwork === showChakraNetwork
+                    ? prev
+                    : { ...prev, showChakraNetwork }
+            ));
+        };
         game.inputManager.onToggleGrid = () => setShowGrid(prev => !prev);
         game.inputManager.onTeleportToTown = () => {
             if (activeSceneRef.current !== 'singleBiome') return;
@@ -339,6 +394,97 @@ export const Game: React.FC = () => {
             setGameState('LOADING');
             setTimeout(() => setActiveScene('town'), 100);
         };
+
+        const previousOnUpdate = game.onUpdate;
+        game.onUpdate = (dt: number) => {
+            previousOnUpdate?.(dt);
+            const player = game.player;
+            if (!player) return;
+
+            const sidebarVisible = typeof player.isChakraDebugSidebarActive === 'function'
+                ? !!player.isChakraDebugSidebarActive()
+                : false;
+
+            if (chakraSidebarVisibleRef.current !== sidebarVisible) {
+                chakraSidebarVisibleRef.current = sidebarVisible;
+                setShowChakraNodeSidebar(sidebarVisible);
+                if (!sidebarVisible) {
+                    chakraNodeLegendSignatureRef.current = '';
+                    setChakraNodeLegend([]);
+                    setChakraConnectionLegend([]);
+                    chakraHoverTargetRef.current = null;
+                    hideChakraHoverArrow();
+                }
+            }
+
+            if (!sidebarVisible) {
+                hideChakraHoverArrow();
+                return;
+            }
+
+            const nodeLegend = (typeof player.getChakraNodeLegend === 'function'
+                ? player.getChakraNodeLegend()
+                : []) as ChakraDebuggerSidebarEntry[];
+            const connectionLegend = (typeof player.getChakraConnectionLegend === 'function'
+                ? player.getChakraConnectionLegend()
+                : []) as ChakraDebuggerSidebarEntry[];
+            const signature = [
+                nodeLegend.map(entry => `${entry.id}:${entry.name}:${entry.color}`).join('|'),
+                connectionLegend.map(entry => `${entry.id}:${entry.name}:${entry.color}`).join('|')
+            ].join('||');
+            if (signature !== chakraNodeLegendSignatureRef.current) {
+                chakraNodeLegendSignatureRef.current = signature;
+                setChakraNodeLegend(nodeLegend);
+                setChakraConnectionLegend(connectionLegend);
+            }
+
+            const hoverTarget = chakraHoverTargetRef.current;
+            if (!hoverTarget) {
+                hideChakraHoverArrow();
+                return;
+            }
+
+            const worldPoint = typeof player.getChakraDebugWorldPoint === 'function'
+                ? player.getChakraDebugWorldPoint(hoverTarget.kind, hoverTarget.id)
+                : null;
+            if (!worldPoint) {
+                hideChakraHoverArrow();
+                return;
+            }
+
+            const camera = game.renderManager?.camera as THREE.PerspectiveCamera | undefined;
+            const rendererElement = game.renderManager?.renderer?.domElement as HTMLCanvasElement | undefined;
+            const viewportElement = viewportRef.current;
+            const arrowPath = chakraArrowPathRef.current;
+            if (!camera || !rendererElement || !viewportElement || !arrowPath) return;
+
+            camera.getWorldDirection(chakraCameraDirRef.current);
+            const toPoint = worldPoint.clone().sub(camera.position);
+            if (toPoint.dot(chakraCameraDirRef.current) <= 0) {
+                hideChakraHoverArrow();
+                return;
+            }
+
+            chakraProjectVecRef.current.copy(worldPoint).project(camera);
+            const rendererRect = rendererElement.getBoundingClientRect();
+            const viewportRect = viewportElement.getBoundingClientRect();
+
+            const screenX = rendererRect.left + ((chakraProjectVecRef.current.x + 1) * 0.5 * rendererRect.width);
+            const screenY = rendererRect.top + (((1 - chakraProjectVecRef.current.y) * 0.5) * rendererRect.height);
+            const clampedScreenX = Math.min(rendererRect.right - 8, Math.max(rendererRect.left + 8, screenX));
+            const clampedScreenY = Math.min(rendererRect.bottom - 8, Math.max(rendererRect.top + 8, screenY));
+
+            const startX = hoverTarget.clientX - viewportRect.left;
+            const startY = hoverTarget.clientY - viewportRect.top;
+            const endX = clampedScreenX - viewportRect.left;
+            const endY = clampedScreenY - viewportRect.top;
+            const controlOffset = Math.max(36, Math.min(180, Math.abs(endX - startX) * 0.4));
+            const d = `M ${startX.toFixed(1)} ${startY.toFixed(1)} C ${(startX + controlOffset).toFixed(1)} ${startY.toFixed(1)} ${(endX - controlOffset * 0.45).toFixed(1)} ${endY.toFixed(1)} ${endX.toFixed(1)} ${endY.toFixed(1)}`;
+
+            arrowPath.setAttribute('d', d);
+            arrowPath.setAttribute('stroke', hoverTarget.color);
+            arrowPath.style.opacity = (chakraProjectVecRef.current.z < -1 || chakraProjectVecRef.current.z > 1) ? '0.45' : '1';
+        };
     };
 
     const handleExport = () => {
@@ -359,7 +505,7 @@ export const Game: React.FC = () => {
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-start">
-            <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
+            <div ref={viewportRef} className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
                     {gameState === 'MENU' ? (
                         <>
@@ -490,6 +636,31 @@ export const Game: React.FC = () => {
                             
                             {showGlobalHUD && (
                                 <>
+                                    <svg className="absolute inset-0 z-[63] pointer-events-none" aria-hidden>
+                                        <defs>
+                                            <marker id="chakraHoverArrowHead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth">
+                                                <path d="M0,0 L8,4 L0,8 z" fill="context-stroke" />
+                                            </marker>
+                                        </defs>
+                                        <path
+                                            ref={chakraArrowPathRef}
+                                            d=""
+                                            fill="none"
+                                            stroke="#67e8f9"
+                                            strokeWidth="2.25"
+                                            strokeLinecap="round"
+                                            markerEnd="url(#chakraHoverArrowHead)"
+                                            style={{ opacity: 0, transition: 'opacity 120ms ease-out' }}
+                                        />
+                                    </svg>
+
+                                    <ChakraNodeDebuggerSidebar 
+                                        isOpen={showChakraNodeSidebar} 
+                                        nodes={chakraNodeLegend} 
+                                        connections={chakraConnectionLegend}
+                                        onHoverTarget={handleChakraSidebarHover}
+                                    />
+
                                     <GameHUD 
                                         activeScene={activeScene}
                                         currentBiome={currentBiome}

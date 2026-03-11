@@ -36,6 +36,10 @@ import { PlayerConfig } from '../../types';
 
 export class EntityManager {
     public scene: THREE.Scene;
+    // Temporary toggle to reduce scene noise while working on gameplay.
+    private readonly autoAnimalSpawnsEnabled = false;
+    // Temporary toggle: keep only merchant NPCs visible in world scenes.
+    private readonly merchantsOnlyNpcMode = true;
     
     // Static Scene Entities (Dev Scene)
     public npc: NPC;
@@ -106,8 +110,10 @@ export class EntityManager {
         this.archer = new Archer(this.scene, new THREE.Vector3(-5, 0, 4));
         this.mage = new Mage(this.scene, new THREE.Vector3(0, 0, 15), '#6366f1');
         this.bandit = new Bandit(this.scene, new THREE.Vector3(10, 0, 5));
-        this.wolf = new Wolf(this.scene, new THREE.Vector3(40, 0, -40));
-        environment?.addObstacle(this.wolf.hitbox);
+        if (this.autoAnimalSpawnsEnabled) {
+            this.wolf = new Wolf(this.scene, new THREE.Vector3(40, 0, -40));
+            environment?.addObstacle(this.wolf.hitbox);
+        }
 
         // Spawn one of each animal and NPC type for testing
         const spawnOffset = new THREE.Vector3(10, 0, 10);
@@ -118,17 +124,19 @@ export class EntityManager {
             return pos;
         };
 
-        // Animals
-        this.spawnAnimalGroup('spider', 1, environment, nextPos());
-        this.spawnAnimalGroup('bear', 1, environment, nextPos());
-        this.spawnAnimalGroup('yeti', 1, environment, nextPos());
-        this.spawnAnimalGroup('owl', 1, environment, nextPos());
-        this.spawnAnimalGroup('deer', 1, environment, nextPos());
-        this.spawnAnimalGroup('chicken', 1, environment, nextPos());
-        this.spawnAnimalGroup('pig', 1, environment, nextPos());
-        this.spawnAnimalGroup('sheep', 1, environment, nextPos());
-        this.spawnAnimalGroup('lizard', 1, environment, nextPos());
-        this.spawnAnimalGroup('horse', 1, environment, nextPos());
+        if (this.autoAnimalSpawnsEnabled) {
+            // Animals
+            this.spawnAnimalGroup('spider', 1, environment, nextPos());
+            this.spawnAnimalGroup('bear', 1, environment, nextPos());
+            this.spawnAnimalGroup('yeti', 1, environment, nextPos());
+            this.spawnAnimalGroup('owl', 1, environment, nextPos());
+            this.spawnAnimalGroup('deer', 1, environment, nextPos());
+            this.spawnAnimalGroup('chicken', 1, environment, nextPos());
+            this.spawnAnimalGroup('pig', 1, environment, nextPos());
+            this.spawnAnimalGroup('sheep', 1, environment, nextPos());
+            this.spawnAnimalGroup('lizard', 1, environment, nextPos());
+            this.spawnAnimalGroup('horse', 1, environment, nextPos());
+        }
 
         // NPCs
         const cleric = new Cleric(this.scene, nextPos()); this.clerics.push(cleric);
@@ -181,11 +189,13 @@ export class EntityManager {
         }
         moveEntity(this.guard, new THREE.Vector3(6, 0, 10), Math.PI);
 
-        if (!this.chickens.length) {
-            this.spawnAnimalGroup('chicken', 2, environment, new THREE.Vector3(-2, 0, -2));
-        }
-        if (!this.pigs.length) {
-            this.spawnAnimalGroup('pig', 1, environment, new THREE.Vector3(4, 0, -4));
+        if (this.autoAnimalSpawnsEnabled) {
+            if (!this.chickens.length) {
+                this.spawnAnimalGroup('chicken', 2, environment, new THREE.Vector3(-2, 0, -2));
+            }
+            if (!this.pigs.length) {
+                this.spawnAnimalGroup('pig', 1, environment, new THREE.Vector3(4, 0, -4));
+            }
         }
     }
 
@@ -597,6 +607,14 @@ export class EntityManager {
                 ...this.combatArchers
             ].filter(e => !!e);
         } else if (sceneName === 'dev') {
+            if (this.merchantsOnlyNpcMode) {
+                return [
+                    this.blacksmith,
+                    this.shopkeeper,
+                    this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs,
+                    ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses
+                ].filter(e => !!e);
+            }
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit,
                 this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
@@ -605,11 +623,24 @@ export class EntityManager {
                 ...this.berserkers, ...this.rogues, ...this.warlocks
             ].filter(e => !!e);
         } else if (sceneName === 'town') {
+            if (this.merchantsOnlyNpcMode) {
+                return [
+                    this.blacksmith, this.shopkeeper,
+                    ...this.chickens, ...this.pigs
+                ].filter(e => !!e);
+            }
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard,
                 ...this.chickens, ...this.pigs
             ].filter(e => !!e);
         } else if (sceneName === 'land') {
+            if (this.merchantsOnlyNpcMode) {
+                return [
+                    this.blacksmith, this.shopkeeper,
+                    this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs,
+                    ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses
+                ].filter(e => !!e);
+            }
             return [
                 this.npc, this.blacksmith, this.shopkeeper, this.guard,
                 this.wolf, ...this.bears, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs,

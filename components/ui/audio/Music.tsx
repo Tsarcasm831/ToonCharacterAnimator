@@ -266,6 +266,7 @@ const ALBUMS: Album[] = [
         genre: 'Tavern Music',
         coverColor: 'bg-gradient-to-br from-amber-600 to-orange-700',
         coverImage: '/assets/images/albums/GreyMatterTavern.png',
+        spotifyUrl: 'https://open.spotify.com/album/747WdTf78nh7fKYeN0CtUT?si=9eEP4-4SSDSe67375ElCeA',
         tracks: [
             {
                 id: 'success-the-obsession',
