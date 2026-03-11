@@ -26,34 +26,39 @@ export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onOpenTravel
 
     return (
         <div className="absolute top-4 md:top-8 left-0 w-full px-4 md:px-6 z-10 pointer-events-none flex flex-row items-start justify-between">
-            <div className="flex gap-2 pointer-events-auto">
-                <button 
-                    onClick={onOpenTravel}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 hover:bg-blue-600/80 transition-all shadow-xl"
-                >
-                    <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Travel</span>
-                </button>
-                <button 
-                    onClick={onToggleBestiary}
-                    className="px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 hover:bg-red-600/80 transition-all shadow-xl"
-                >
-                    <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Bestiary</span>
-                </button>
-                {isSingleBiome && (
+            <div className="pointer-events-auto">
+                <div className="flex gap-2">
                     <button 
-                        onClick={onChangeLand}
-                        className="px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 hover:bg-green-600/80 transition-all shadow-xl"
+                        onClick={onOpenTravel}
+                        className="px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 hover:bg-blue-600/80 transition-all shadow-xl"
                     >
-                        <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Change Land</span>
+                        <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Travel</span>
                     </button>
-                )}
-                {showShop && (
                     <button 
-                        className="px-3 md:px-4 py-1.5 md:py-2 bg-purple-600/60 backdrop-blur-md rounded-full border border-purple-400/30 hover:bg-purple-600/80 transition-all shadow-xl animate-[fadeIn_0.5s_ease-out]"
+                        onClick={onToggleBestiary}
+                        className="px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 hover:bg-red-600/80 transition-all shadow-xl"
                     >
-                        <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Shop</span>
+                        <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Bestiary</span>
                     </button>
-                )}
+                    {isSingleBiome && (
+                        <button 
+                            onClick={onChangeLand}
+                            className="px-3 md:px-4 py-1.5 md:py-2 bg-black/60 backdrop-blur-md rounded-full border border-white/10 hover:bg-green-600/80 transition-all shadow-xl"
+                        >
+                            <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Change Land</span>
+                        </button>
+                    )}
+                    {showShop && (
+                        <button 
+                            className="px-3 md:px-4 py-1.5 md:py-2 bg-purple-600/60 backdrop-blur-md rounded-full border border-purple-400/30 hover:bg-purple-600/80 transition-all shadow-xl animate-[fadeIn_0.5s_ease-out]"
+                        >
+                            <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-white">Shop</span>
+                        </button>
+                    )}
+                </div>
+                <p className="mt-1 pl-1 text-[9px] md:text-[10px] font-bold tracking-widest uppercase text-white/60">
+                    Press <kbd className="mx-1 rounded border border-white/20 bg-black/40 px-1.5 py-0.5 font-black text-white">{'`'}</kbd> for help
+                </p>
             </div>
 
             {biome && (

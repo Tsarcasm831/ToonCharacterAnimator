@@ -48,6 +48,7 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
                 <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Base Outfit Template</label>
                     <select 
+                        aria-label="Base outfit template"
                         value={config.outfit} 
                         onChange={(e) => handleOutfitChange(e.target.value as OutfitType)} 
                         className="w-full p-3 bg-black/40 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest text-white outline-none focus:border-blue-500/50 transition-all appearance-none cursor-pointer"

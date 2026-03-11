@@ -47,7 +47,6 @@ export class SceneManager {
         if (sceneName === 'dev') {
             if (!this.environment) {
                 this.environment = new Environment(this.scene);
-                this.environment.buildAsync();
             }
         } else if (sceneName === 'singleBiome') {
             if (!this.singleBiomeEnvironment) {
@@ -228,11 +227,6 @@ export class SceneManager {
             this.player.locomotion.velocity.set(0,0,0);
             this.player.locomotion.jumpVelocity = 0;
             this.player.locomotion.isJumping = false;
-            
-            // For singleBiome, we wait for updateSingleBiomeLand to trigger onEnvironmentReady
-            if (sceneName !== 'dev' && sceneName !== 'singleBiome') {
-                this.onEnvironmentReady?.();
-            }
         }
     }
     

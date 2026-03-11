@@ -49,7 +49,7 @@ export const LandSelectionModal: React.FC<LandSelectionModalProps> = ({ isOpen, 
         
         <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {landsWithCities.map((land) => (
-            <button
+            <button type="button"
               key={land.id}
               onClick={() => onSelect(land)}
               className="group relative flex flex-col items-start p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-blue-500/20 hover:border-blue-500/50 transition-all duration-200 text-left"

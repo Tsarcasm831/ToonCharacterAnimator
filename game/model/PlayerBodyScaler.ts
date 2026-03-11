@@ -109,6 +109,51 @@ export class PlayerBodyScaler {
             parts.brain.scale.set(bS, bS, bS);
         }
 
+        // Organs
+        if (parts.organs) {
+            parts.organs.visible = config.showOrgans;
+        }
+        if (parts.bladder) {
+            parts.bladder.visible = config.showOrgans;
+        }
+
+        // Toggle Body Visibility based on Organs/Brain toggle
+        const hideBody = config.showOrgans;
+        
+        // Helper to toggle visibility of meshes within a group, but keep the group itself visible
+        // so children (like organs attached to torso) aren't hidden.
+        const toggleMeshes = (obj: THREE.Object3D | undefined, visible: boolean) => {
+            if (!obj) return;
+            if (obj instanceof THREE.Mesh) {
+                obj.visible = visible;
+            } else if (obj instanceof THREE.Group) {
+                // If it's a specific limb/part group, we might just want to toggle its direct meshes
+                // to avoid hiding nested mounts/organs.
+                obj.children.forEach(child => {
+                    if (child.name !== 'Organs' && child.name !== 'Bladder' && child !== parts.head && child !== parts.neck) {
+                        toggleMeshes(child, visible);
+                    }
+                });
+            }
+        };
+
+        // We hide the mesh surfaces so we can see inside
+        if (parts.torso) toggleMeshes(parts.torso, !hideBody);
+        if (parts.pelvis) toggleMeshes(parts.pelvis, !hideBody);
+        if (parts.neck) toggleMeshes(parts.neck, !hideBody);
+        
+        if (parts.chest) parts.chest.visible = config.bodyType === 'female' && !hideBody;
+        if (parts.maleChest) parts.maleChest.visible = config.bodyType === 'male' && !hideBody;
+        
+        if (parts.buttocks) toggleMeshes(parts.buttocks, !hideBody);
+        if (parts.underwearBottom) toggleMeshes(parts.underwearBottom, !hideBody);
+        
+        // Hide limbs
+        if (parts.rightThigh) toggleMeshes(parts.rightThigh, !hideBody);
+        if (parts.leftThigh) toggleMeshes(parts.leftThigh, !hideBody);
+        if (parts.rightArm) toggleMeshes(parts.rightArm, !hideBody);
+        if (parts.leftArm) toggleMeshes(parts.leftArm, !hideBody);
+
         // Buttocks Material & Underwear Visibility
         if (parts.buttocks && this.registry.buttockCheeks.length > 0) {
             parts.buttocks.children.forEach((container: THREE.Group, i: number) => {

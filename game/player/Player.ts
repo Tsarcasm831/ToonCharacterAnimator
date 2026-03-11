@@ -8,7 +8,7 @@ import { PlayerCombat } from './PlayerCombat';
 import { PlayerInteraction } from './PlayerInteraction';
 import { PlayerDebug } from './PlayerDebug';
 import { ParticleManager } from '../managers/ParticleManager';
-import { ChakraNetwork } from '../vfx/ChakraNetwork';
+import { ChakraNetwork, type ChakraConnectionLegendEntry, type ChakraDebugTargetKind, type ChakraNodeLegendEntry } from '../vfx/ChakraNetwork';
 import { PlayerInventory } from './PlayerInventory';
 import { PlayerStatusHandler } from './PlayerStatusHandler';
 import { PlayerCameraHandler } from './PlayerCameraHandler';
@@ -63,7 +63,8 @@ export class Player {
     // Debug
     isDebugHitbox: boolean = false;
     isDebugHands: boolean = false;
-    isSkeletonMode: boolean = false;
+    private chakraDebugStage: 0 | 1 | 2 = 0;
+    private isBaseVisible: boolean = true;
 
     private lastOutfit: OutfitType | null = null;
     private wasDeadKeyPressed: boolean = false;
@@ -98,28 +99,68 @@ export class Player {
         return this.inventory.addItem(itemName, count, skipHotbar); 
     }
     
-    toggleHitbox() {
-        this.isDebugHitbox = !this.isDebugHitbox;
+    private setHitboxDebug(enabled: boolean) {
+        if (this.isDebugHitbox === enabled) return;
+        this.isDebugHitbox = enabled;
         PlayerDebug.updateHitboxVisuals(this);
-        // Also update the obstacle-style visuals for the player to ensure color consistency
+        // Also update the obstacle-style visuals for the player to ensure color consistency.
         PlayerDebug.updateObstacleHitboxVisuals([this.mesh], this.isDebugHitbox);
     }
 
-    toggleSkeletonMode() {
-        this.isSkeletonMode = !this.isSkeletonMode;
-        this.model.group.visible = !this.isSkeletonMode;
-        if (this.isSkeletonMode) {
-            this.isDebugHitbox = true;
-        }
-        PlayerDebug.updateHitboxVisuals(this);
-    }
-
-    toggleHandsDebug() {
-        this.isDebugHands = !this.isDebugHands;
+    private setHandsDebug(enabled: boolean) {
+        if (this.isDebugHands === enabled) return;
+        this.isDebugHands = enabled;
         PlayerDebug.toggleHandDebugMode(this);
     }
 
+    toggleHitbox() {
+        // Hands-only mode hides most meshes, so disable it before enabling full hitbox view.
+        if (!this.isDebugHitbox && this.isDebugHands) {
+            this.setHandsDebug(false);
+        }
+        this.setHitboxDebug(!this.isDebugHitbox);
+    }
+
+    toggleSkeletonMode() {
+        // Kept method name for compatibility with existing input command wiring.
+        const nextStage = ((this.chakraDebugStage + 1) % 3) as 0 | 1 | 2;
+        if (nextStage !== 0 && this.isDebugHands) {
+            this.setHandsDebug(false);
+        }
+        this.chakraDebugStage = nextStage;
+        this.config.showChakraNetwork = this.chakraDebugStage !== 0;
+    }
+
+    isChakraDebugSidebarActive(): boolean {
+        return this.isBaseVisible && this.chakraDebugStage === 2 && !this.isDebugHands;
+    }
+
+    getChakraNodeLegend(): ChakraNodeLegendEntry[] {
+        return this.chakra.getNodeDebugLegend();
+    }
+
+    getChakraConnectionLegend(): ChakraConnectionLegendEntry[] {
+        return this.chakra.getConnectionDebugLegend();
+    }
+
+    getChakraDebugWorldPoint(kind: ChakraDebugTargetKind, id: string): THREE.Vector3 | null {
+        return this.chakra.getDebugWorldPoint(kind, id);
+    }
+
+    toggleHandsDebug() {
+        const enableHandsOnlyMode = !this.isDebugHands;
+        if (enableHandsOnlyMode) {
+            // Hands-only mode should not stack with other debug visual layers.
+            this.setHitboxDebug(false);
+            this.chakra.setDebugColorMode(false);
+            this.chakra.setVisible(false);
+            this.model.group.visible = this.isBaseVisible;
+        }
+        this.setHandsDebug(enableHandsOnlyMode);
+    }
+
     setVisible(visible: boolean) {
+        this.isBaseVisible = visible;
         this.model.group.visible = visible;
     }
 
@@ -221,16 +262,18 @@ export class Player {
         this.animator.animate(this, dt, isMoving, input, environment.obstacles);
 
         // 6. Visual Effects
-        this.chakra.setVisible(this.isSkeletonMode);
-        if (this.isSkeletonMode) {
+        const showChakraNetwork = this.isBaseVisible && this.chakraDebugStage !== 0 && !this.isDebugHands;
+        const hidePlayerSkinForChakra = this.isBaseVisible && this.chakraDebugStage === 2 && !this.isDebugHands;
+        this.model.group.visible = this.isBaseVisible && !hidePlayerSkinForChakra;
+        this.chakra.setDebugColorMode(showChakraNetwork && this.chakraDebugStage === 2);
+        this.chakra.setVisible(showChakraNetwork);
+        if (showChakraNetwork) {
             this.chakra.update(dt, this.model);
         }
 
         // 7. Debug Visuals
         if (this.isDebugHitbox) {
-            if (this.isSkeletonMode) {
-                this.model.group.updateMatrixWorld(true);
-            }
+            this.model.group.updateMatrixWorld(true);
             PlayerDebug.updateHitboxVisuals(this);
         }
     }
@@ -244,6 +287,12 @@ export class Player {
     }
 
     private syncConfig() {
+        if (!this.config.showChakraNetwork && this.chakraDebugStage !== 0) {
+            this.chakraDebugStage = 0;
+        } else if (this.config.showChakraNetwork && this.chakraDebugStage === 0) {
+            this.chakraDebugStage = 1;
+        }
+
         if (this.lastOutfit !== this.config.outfit) {
             this.lastOutfit = this.config.outfit;
         }

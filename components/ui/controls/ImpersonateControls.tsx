@@ -145,7 +145,7 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {NPC_PRESETS.map((npc) => (
-                    <button
+                    <button type="button"
                         key={npc.name}
                         onClick={() => applyPreset(npc)}
                         className="relative group overflow-hidden bg-slate-800 border border-slate-700 hover:border-white/30 rounded-xl p-4 text-left transition-all hover:shadow-xl active:scale-95"

@@ -11,6 +11,7 @@ import LoadingScreen from '../overlays/LoadingScreen';
 import { MobileControls } from '../hud/MobileControls';
 import { DialogueOverlay } from '../overlays/DialogueOverlay';
 import { GameHUD } from '../hud/GameHUD';
+import { ChakraNodeDebuggerSidebar, type ChakraNodeSidebarEntry } from '../modals/ChakraNodeDebuggerSidebar';
 import { BuilderUI } from '../panels/BuilderUI';
 import { BuilderLog } from '../panels/BuilderLog';
 import { ControlPanel } from '../panels/ControlPanel';
@@ -18,6 +19,7 @@ import * as THREE from 'three';
 import { CITIES } from '../../../data/lands/cities';
 import { getTownWallCenters } from '../../../game/environment/townWalls';
 import { useIsMobileDevice } from '../../../hooks/useIsMobileDevice';
+import { useUndoRedo } from '../../../hooks/useUndoRedo';
 
 export const Game: React.FC = () => {
     const isMobileDevice = useIsMobileDevice();
@@ -34,6 +36,9 @@ export const Game: React.FC = () => {
     const { activeScene, gameState, setGameState, setActiveScene } = gameStateContext;
     const { config, setConfig, manualInput, setManualInput } = playerState;
     const { inventory, bench, setInventory } = inventoryState;
+
+    // Undo/Redo functionality
+    const { undo, redo, canUndo, canRedo } = useUndoRedo(config, setConfig);
     const { 
         dialogue, 
         selectedSlot, setSelectedSlot,
@@ -68,11 +73,13 @@ export const Game: React.FC = () => {
     // Gate scene mounting so the loading screen can paint before heavy initialization begins
     const [shouldMountScene, setShouldMountScene] = React.useState(false);
     const [lastScene, setLastScene] = React.useState<string | null>(null);
-    const [isVideoStable, setIsVideoStable] = React.useState(false);
-    const [isVideoFinished, setIsVideoFinished] = React.useState(false);
     const [isSceneInitializing, setIsSceneInitializing] = React.useState(false);
     const mountSceneTimeout = React.useRef<number | null>(null);
     const visualReadyTimeout = React.useRef<number | null>(null);
+    const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
+    const [chakraNodeLegend, setChakraNodeLegend] = React.useState<ChakraNodeSidebarEntry[]>([]);
+    const chakraNodeLegendSignatureRef = React.useRef('');
+    const chakraSidebarVisibleRef = React.useRef(false);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
     const selectedLandRef = React.useRef(selectedLand);
@@ -98,14 +105,12 @@ export const Game: React.FC = () => {
         }
     }, [gameState, shouldMountScene, isSceneInitializing]);
 
-    // Safety fallback: if loading any scene hangs, force completion after a timeout
+    // Safety watchdog: surface hung loading in console without force-finishing.
     React.useEffect(() => {
         if (gameState === 'LOADING' && (!isEnvironmentBuilt || !isVisualLoadingDone) && shouldMountScene) {
             const t = setTimeout(() => {
-                console.warn(`[Game.tsx] Safety fallback: Forcefully finishing loading for ${activeScene} scene`);
-                if (!isEnvironmentBuilt) setIsEnvironmentBuilt(true);
-                if (!isVisualLoadingDone) setIsVisualLoadingDone(true);
-            }, 5000);
+                console.warn(`[Game.tsx] Loading is still in progress for ${activeScene} scene after 30s.`);
+            }, 30000);
             return () => clearTimeout(t);
         }
     }, [gameState, activeScene, isEnvironmentBuilt, isVisualLoadingDone, shouldMountScene]);
@@ -140,14 +145,12 @@ export const Game: React.FC = () => {
     };
 
     // Handlers
-    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInDev: boolean = false, startInTown: boolean = false) => {
+    const handleEnterWorld = (startInCombat: boolean = false, startInLand: boolean = false, startInDev: boolean = false, startInTown: boolean = false, startInSingleBiome: boolean = false) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
         setGameState('LOADING');
         setShouldMountScene(false);
-        setIsVideoStable(false);
-        setIsVideoFinished(false);
         setIsSceneInitializing(false);
         if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
         if (visualReadyTimeout.current) window.clearTimeout(visualReadyTimeout.current);
@@ -159,6 +162,8 @@ export const Game: React.FC = () => {
           setActiveScene('land');
         } else if (startInCombat) {
           setActiveScene('combat');
+        } else if (startInSingleBiome) {
+          setActiveScene('singleBiome');
         } else {
           setActiveScene('dev');
         }
@@ -169,7 +174,12 @@ export const Game: React.FC = () => {
     };
 
     const handleEnvironmentReady = () => {
+        console.log(`[Game.tsx] Environment ready for scene: ${activeSceneRef.current}`);
         setIsEnvironmentBuilt(true);
+        // Ensure visual loading also proceeds immediately if we are switching scenes
+        if (gameState === 'LOADING') {
+            scheduleVisualLoadingDone();
+        }
     };
 
     const handleStartPlaying = () => {
@@ -218,6 +228,8 @@ export const Game: React.FC = () => {
         return () => {
             if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
             if (visualReadyTimeout.current) window.clearTimeout(visualReadyTimeout.current);
+            chakraNodeLegendSignatureRef.current = '';
+            chakraSidebarVisibleRef.current = false;
             // Cleanup game instance and 3D resources on unmount
             if (gameInstance.current) {
                 // Dispose of Three.js resources if the game instance has a dispose method
@@ -230,6 +242,14 @@ export const Game: React.FC = () => {
             }
         };
     }, []);
+
+    React.useEffect(() => {
+        const game = gameInstance.current;
+        if (!game) return;
+        if (config.showChakraNetwork && game.player.isDebugHands) {
+            game.player.toggleHandsDebug();
+        }
+    }, [config.showChakraNetwork, gameInstance]);
 
     const handleMapToggle = (pos: THREE.Vector3) => {
         setPlayerPosForMap(pos);
@@ -251,6 +271,10 @@ export const Game: React.FC = () => {
         if (gameInstance.current) gameInstance.current.player.isTalking = false;
     };
 
+    const handleRotationUpdate = React.useCallback((rotation: number) => {
+        setPlayerRotation((prev) => (Math.abs(prev - rotation) < 0.01 ? prev : rotation));
+    }, [setPlayerRotation]);
+
     const onShowEnemies = () => {
         setIsEnemiesModalOpen(true);
     };
@@ -262,6 +286,10 @@ export const Game: React.FC = () => {
 
     const onGameReady = (game: any) => {
         gameInstance.current = game;
+        setShowChakraNodeSidebar(false);
+        setChakraNodeLegend([]);
+        chakraNodeLegendSignatureRef.current = '';
+        chakraSidebarVisibleRef.current = false;
         // Bind game callbacks here if needed, or rely on game observing state?
         // The previous implementation bound callbacks to the game instance.
         // We should replicate that or ensure the game instance reads from context/props updates.
@@ -274,6 +302,15 @@ export const Game: React.FC = () => {
         game.inputManager.onToggleKeybinds = uiState.toggleKeybinds;
         game.inputManager.onToggleQuestLog = uiState.toggleQuestLog;
         game.inputManager.onToggleBuilderLog = uiState.toggleBuilderLog;
+        game.inputManager.onToggleSkeletonMode = () => {
+            game.player.toggleSkeletonMode();
+            const showChakraNetwork = !!game.player.config.showChakraNetwork;
+            setConfig(prev => (
+                prev.showChakraNetwork === showChakraNetwork
+                    ? prev
+                    : { ...prev, showChakraNetwork }
+            ));
+        };
         game.inputManager.onToggleGrid = () => setShowGrid(prev => !prev);
         game.inputManager.onTeleportToTown = () => {
             if (activeSceneRef.current !== 'singleBiome') return;
@@ -306,7 +343,7 @@ export const Game: React.FC = () => {
         game.onTradeTrigger = () => uiState.setIsTradeOpen(true);
         game.onShopkeeperTrigger = () => uiState.setIsShopkeeperChatOpen(true);
         game.onForgeTrigger = () => uiState.setIsForgeOpen(true);
-        game.onRotationUpdate = (r: number) => setPlayerRotation(r);
+        game.onRotationUpdate = handleRotationUpdate;
         game.onShowCharacterStats = (stats: any, name: string) => {
             if (stats) uiState.setStatsForModal(stats);
             else uiState.setStatsForModal(config.stats);
@@ -327,6 +364,37 @@ export const Game: React.FC = () => {
             setIsCombatActive(false);
             setGameState('LOADING');
             setTimeout(() => setActiveScene('town'), 100);
+        };
+
+        const previousOnUpdate = game.onUpdate;
+        game.onUpdate = (dt: number) => {
+            previousOnUpdate?.(dt);
+            const player = game.player;
+            if (!player) return;
+
+            const sidebarVisible = typeof player.isChakraDebugSidebarActive === 'function'
+                ? !!player.isChakraDebugSidebarActive()
+                : false;
+
+            if (chakraSidebarVisibleRef.current !== sidebarVisible) {
+                chakraSidebarVisibleRef.current = sidebarVisible;
+                setShowChakraNodeSidebar(sidebarVisible);
+                if (!sidebarVisible) {
+                    chakraNodeLegendSignatureRef.current = '';
+                    setChakraNodeLegend([]);
+                }
+            }
+
+            if (!sidebarVisible) return;
+
+            const legend = (typeof player.getChakraNodeLegend === 'function'
+                ? player.getChakraNodeLegend()
+                : []) as ChakraNodeSidebarEntry[];
+            const signature = legend.map(entry => `${entry.name}:${entry.color}`).join('|');
+            if (signature !== chakraNodeLegendSignatureRef.current) {
+                chakraNodeLegendSignatureRef.current = signature;
+                setChakraNodeLegend(legend);
+            }
         };
     };
 
@@ -379,7 +447,7 @@ export const Game: React.FC = () => {
                                             }}
                                             onInteractionUpdate={handleInteractionUpdate}
                                             onToggleQuestLog={uiState.toggleQuestLog}
-                                            onRotationUpdate={setPlayerRotation}
+                                            onRotationUpdate={handleRotationUpdate}
                                             onAttackHit={(type, count) => {
                                                 addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
                                             }}
@@ -479,6 +547,8 @@ export const Game: React.FC = () => {
                             
                             {showGlobalHUD && (
                                 <>
+                                    <ChakraNodeDebuggerSidebar isOpen={showChakraNodeSidebar} nodes={chakraNodeLegend} />
+
                                     <GameHUD 
                                         activeScene={activeScene}
                                         currentBiome={currentBiome}
@@ -507,7 +577,7 @@ export const Game: React.FC = () => {
                                     
                                     <BuilderLog />
 
-                                    <ControlPanel 
+                                    <ControlPanel
                                         config={config}
                                         manualInput={manualInput}
                                         isDeadUI={isDeadUI}
@@ -517,6 +587,10 @@ export const Game: React.FC = () => {
                                         triggerAction={triggerAction}
                                         onExport={handleExport}
                                         onSpawnAnimals={handleSpawnAnimals}
+                                        onUndo={undo}
+                                        onRedo={redo}
+                                        canUndo={canUndo}
+                                        canRedo={canRedo}
                                     />
                                 </>
                             )}
@@ -525,7 +599,6 @@ export const Game: React.FC = () => {
                                 isVisible={gameState === 'LOADING'}
                                 isSystemReady={isSystemReady}
                                 onFinished={handleStartPlaying}
-                                onVideoStable={() => setIsVideoStable(true)}
                                 isLoadingScene={isSceneInitializing || !isSystemReady}
                             />
                             

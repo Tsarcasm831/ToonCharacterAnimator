@@ -33,7 +33,7 @@ export const SpawnAnimalsModal: React.FC<SpawnAnimalsModalProps> = ({ isOpen, on
                         <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Spawn Wildlife</h2>
                         <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Populate the world with creatures</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white">
+                    <button type="button" onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
@@ -51,13 +51,13 @@ export const SpawnAnimalsModal: React.FC<SpawnAnimalsModalProps> = ({ isOpen, on
                             <h3 className="text-white font-black uppercase tracking-widest text-sm mb-4">{animal.name}</h3>
                             
                             <div className="grid grid-cols-2 gap-2 w-full mt-auto">
-                                <button 
+                                <button type="button" 
                                     onClick={() => onSpawn(animal.id, 1)}
                                     className="py-2 rounded-lg bg-slate-700 text-white text-[10px] font-black uppercase tracking-tighter hover:bg-blue-600 transition-colors"
                                 >
                                     Spawn 1
                                 </button>
-                                <button 
+                                <button type="button" 
                                     onClick={() => onSpawn(animal.id, 5)}
                                     className="py-2 rounded-lg bg-blue-600 text-white text-[10px] font-black uppercase tracking-tighter hover:bg-blue-500 transition-colors shadow-lg"
                                 >
@@ -69,7 +69,7 @@ export const SpawnAnimalsModal: React.FC<SpawnAnimalsModalProps> = ({ isOpen, on
                 </div>
 
                 <div className="p-4 border-t border-white/5 bg-slate-800/30 flex justify-center">
-                    <button onClick={onClose} className="px-8 py-2 bg-white text-black font-black uppercase tracking-widest text-xs rounded-full hover:bg-blue-400 hover:text-white transition-all active:scale-95">
+                    <button type="button" onClick={onClose} className="px-8 py-2 bg-white text-black font-black uppercase tracking-widest text-xs rounded-full hover:bg-blue-400 hover:text-white transition-all active:scale-95">
                         Close
                     </button>
                 </div>

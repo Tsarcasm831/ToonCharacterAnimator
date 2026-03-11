@@ -11,7 +11,7 @@ interface ControlSectionProps {
 export const ControlSection: React.FC<ControlSectionProps> = ({ title, isOpen, onToggle, children }) => {
     return (
         <div className="bg-white/50 rounded-xl p-3 border border-white/60 shadow-sm">
-            <button 
+            <button type="button" 
                 onClick={onToggle}
                 className="w-full flex justify-between items-center py-2 px-1 text-xs font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200 hover:text-blue-600 transition-colors mb-3"
             >

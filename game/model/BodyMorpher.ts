@@ -60,6 +60,8 @@ export class BodyMorpher {
     private lastGloveConfigHash: string = '';
     private lastShoeState: boolean | null = null;
     private lastHairHash: string = '';
+    private organViewShellMat: THREE.MeshBasicMaterial;
+    private organViewOriginalMaterials = new Map<string, THREE.Material | THREE.Material[]>();
 
     constructor(parts: any, materials: PlayerMaterials, arrays: {
         forefootGroups: THREE.Group[],
@@ -93,6 +95,13 @@ export class BodyMorpher {
         this.buttockCheeks = arrays.buttockCheeks;
         this.upperLip = arrays.upperLip;
         this.lowerLip = arrays.lowerLip;
+        this.organViewShellMat = new THREE.MeshBasicMaterial({
+            color: 0x9fd8ff,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.22,
+            depthWrite: false
+        });
     }
 
     morph(config: PlayerConfig, isCombatStance: boolean = false) {
@@ -189,6 +198,71 @@ export class BodyMorpher {
             const bS = config.brainSize;
             this.parts.brain.scale.set(bS, bS, bS);
         }
+
+        if (this.parts.organs) {
+            this.parts.organs.visible = config.showOrgans;
+        }
+        
+        if (this.parts.bladder) {
+            this.parts.bladder.visible = config.showOrgans;
+        }
+
+        // Toggle Body Visibility based on Organs toggle
+        const hideBody = config.showOrgans;
+        
+        // Helper to toggle visibility of meshes within a group, but keep the group itself visible
+        // so children (like organs attached to torso) aren't hidden.
+        const toggleMeshes = (obj: THREE.Object3D | undefined, visible: boolean) => {
+            if (!obj) return;
+            if (obj instanceof THREE.Mesh) {
+                obj.visible = visible;
+            } else if (obj instanceof THREE.Group) {
+                // If it's a specific limb/part group, we might just want to toggle its direct meshes
+                // to avoid hiding nested mounts/organs.
+                obj.children.forEach(child => {
+                    if (child.name !== 'Organs' && child.name !== 'Bladder' && child !== this.parts.head && child !== this.parts.neck && child !== this.parts.brain && child.name !== 'Brain') {
+                        toggleMeshes(child, visible);
+                    }
+                });
+            }
+        };
+
+        // We hide the mesh surfaces so we can see inside
+        if (this.parts.torso) toggleMeshes(this.parts.torso, !hideBody);
+        if (this.parts.pelvis) toggleMeshes(this.parts.pelvis, !hideBody);
+        if (this.parts.neck) toggleMeshes(this.parts.neck, !hideBody);
+        if (this.parts.head) toggleMeshes(this.parts.head, !hideBody);
+        if (this.parts.maxilla) toggleMeshes(this.parts.maxilla, !hideBody);
+        if (this.parts.jaw) toggleMeshes(this.parts.jaw, !hideBody);
+        if (this.parts.jawMesh) toggleMeshes(this.parts.jawMesh, !hideBody);
+        if (this.parts.faceGroup) toggleMeshes(this.parts.faceGroup, !hideBody);
+        if (this.parts.nose) toggleMeshes(this.parts.nose, !hideBody);
+        if (this.upperLip) toggleMeshes(this.upperLip, !hideBody);
+        if (this.lowerLip) toggleMeshes(this.lowerLip, !hideBody);
+        if (this.parts.ears) toggleMeshes(this.parts.ears, !hideBody);
+        
+        if (this.parts.head) {
+            const hairCap = this.parts.head.getObjectByName('HairCap');
+            const hairInstanced = this.parts.head.getObjectByName('HairInstanced');
+            if (hairCap) hairCap.visible = !hideBody && config.hairStyle !== 'bald' && !hairInstanced;
+            
+            if (hairInstanced) hairInstanced.visible = !hideBody && config.hairStyle !== 'bald';
+        }
+
+        if (this.parts.chest) this.parts.chest.visible = isFemale && !hideBody;
+        if (this.parts.maleChest) this.parts.maleChest.visible = !isFemale && !hideBody;
+        
+        if (this.parts.buttocks) toggleMeshes(this.parts.buttocks, !hideBody);
+        if (this.parts.underwearBottom) toggleMeshes(this.parts.underwearBottom, !hideBody);
+        
+        // Hide limbs
+        if (this.parts.rightThigh) toggleMeshes(this.parts.rightThigh, !hideBody);
+        if (this.parts.leftThigh) toggleMeshes(this.parts.leftThigh, !hideBody);
+        if (this.parts.rightArm) toggleMeshes(this.parts.rightArm, !hideBody);
+        if (this.parts.leftArm) toggleMeshes(this.parts.leftArm, !hideBody);
+
+        // Keep a transparent anatomical shell for torso during organ view.
+        this.setTorsoOrganShell(hideBody);
 
         // --- BUTTOCKS LOGIC ---
         if (this.parts.buttocks && this.buttockCheeks.length > 0) {
@@ -368,6 +442,58 @@ export class BodyMorpher {
         }
     }
 
+    private isDescendantOf(obj: THREE.Object3D, ancestor: THREE.Object3D | null | undefined): boolean {
+        if (!ancestor) return false;
+        let current: THREE.Object3D | null = obj;
+        while (current) {
+            if (current === ancestor) return true;
+            current = current.parent;
+        }
+        return false;
+    }
+
+    private shouldSkipTorsoShell(obj: THREE.Object3D): boolean {
+        const excludedRoots = [
+            this.parts.organs,
+            this.parts.bladder,
+            this.parts.chest,
+            this.parts.maleChest,
+            this.parts.buttocks,
+            this.parts.underwearBottom
+        ] as Array<THREE.Object3D | undefined>;
+
+        return excludedRoots.some(root => this.isDescendantOf(obj, root));
+    }
+
+    private setTorsoOrganShell(enabled: boolean) {
+        const torsoRoot = this.parts.torso as THREE.Object3D | undefined;
+        if (!torsoRoot) return;
+
+        if (!enabled) {
+            torsoRoot.traverse(obj => {
+                if (!(obj instanceof THREE.Mesh)) return;
+                const original = this.organViewOriginalMaterials.get(obj.uuid);
+                if (!original) return;
+                obj.material = original;
+                this.organViewOriginalMaterials.delete(obj.uuid);
+            });
+            if (this.organViewOriginalMaterials.size > 0) {
+                this.organViewOriginalMaterials.clear();
+            }
+            return;
+        }
+
+        torsoRoot.traverse(obj => {
+            if (!(obj instanceof THREE.Mesh)) return;
+            if (this.shouldSkipTorsoShell(obj)) return;
+            if (!this.organViewOriginalMaterials.has(obj.uuid)) {
+                this.organViewOriginalMaterials.set(obj.uuid, obj.material);
+            }
+            obj.material = this.organViewShellMat;
+            obj.visible = true;
+        });
+    }
+
     private updateShirt(config: PlayerConfig) {
         const hash = `${config.outfit}_${config.shirtColor}_${config.bodyType}_${config.equipment.shirt}_${config.equipment.quiltedArmor}_${config.equipment.leatherArmor}_${config.equipment.heavyLeatherArmor}_${config.equipment.ringMail}_${config.equipment.plateMail}_${config.equipment.leatherDoublet}`;
         if (hash === this.lastShirtConfigHash) return;
@@ -535,12 +661,9 @@ export class BodyMorpher {
         if (hash === this.lastHairHash) return;
         this.lastHairHash = hash;
 
+        const hasInstancedHair = HairBuilder.build(this.parts, config, this.materials.hair);
         const hairCap = this.parts.head?.getObjectByName('HairCap');
-        if (hairCap) {
-            hairCap.visible = config.hairStyle !== 'bald';
-        }
-
-        HairBuilder.build(this.parts, config, this.materials.hair);
+        if (hairCap) hairCap.visible = config.hairStyle !== 'bald' && !hasInstancedHair;
     }
 
     private updateCape(config: PlayerConfig) {

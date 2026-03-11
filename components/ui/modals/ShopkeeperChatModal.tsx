@@ -25,13 +25,13 @@ export const ShopkeeperChatModal: React.FC<ShopkeeperChatModalProps> = ({
                     </p>
                 </div>
                 <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-3">
-                    <button
+                    <button type="button"
                         onClick={onClose}
                         className="px-5 py-2 rounded-full text-xs font-black uppercase tracking-widest bg-slate-700 text-slate-200 hover:bg-slate-600 transition-all"
                     >
                         Cancel
                     </button>
-                    <button
+                    <button type="button"
                         onClick={onTrade}
                         className="px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest bg-purple-500 text-white hover:bg-purple-400 transition-all shadow-lg"
                     >

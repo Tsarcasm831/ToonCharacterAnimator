@@ -73,7 +73,7 @@ export const BuilderUI: React.FC<BuilderUIProps> = ({ activeType, onSelectType }
             {/* Part Selection */}
             <div className="flex gap-2 p-3 bg-white/10 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl overflow-x-auto max-w-full no-scrollbar">
                 {BUILD_PARTS.map((part) => (
-                    <button
+                    <button type="button"
                         key={part.id}
                         onClick={() => handleSelectType(part.id)}
                         className={`group relative flex flex-col items-center justify-center min-w-[5rem] h-20 rounded-xl transition-all duration-300 ${

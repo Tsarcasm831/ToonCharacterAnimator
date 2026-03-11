@@ -1,0 +1,341 @@
+
+import * as THREE from 'three';
+import type { PlayerConfig } from '../../../../types';
+
+const GLOBAL_PATTERN_SCALE = 3.5;
+
+export class RobeBuilder {
+    static build(parts: any, config: PlayerConfig) {
+        // Only build if a robe is equipped
+        if (!config.equipment.robe) return null;
+
+        // --- TEXTURE GENERATION ---
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        const baseColor = config.robeColor || '#2d3c50'; 
+        const trimColor = config.robeTrimColor || '#d4af37'; 
+        
+        // Base Fabric
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(0, 0, 512, 512);
+
+        // Fabric Weave Noise
+        ctx.globalAlpha = 0.08;
+        for(let i=0; i<8000; i++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#000000' : '#ffffff';
+            ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 4); // Vertical weave
+        }
+
+        // Center Trim (The opening of the robe)
+        ctx.globalAlpha = 1.0;
+        ctx.fillStyle = trimColor;
+        const trimWidth = 40;
+        // Front opening trim
+        ctx.fillRect(256 - trimWidth/2, 0, trimWidth, 512); 
+        // Bottom hem
+        ctx.fillRect(0, 512 - 40, 512, 40);
+
+        const robeTex = new THREE.CanvasTexture(canvas);
+        robeTex.wrapS = THREE.RepeatWrapping;
+        robeTex.wrapT = THREE.RepeatWrapping;
+
+        const robeMat = new THREE.MeshToonMaterial({ 
+            map: robeTex,
+            side: THREE.DoubleSide // Important for open sleeves/skirt
+        });
+
+        const trimMat = new THREE.MeshStandardMaterial({
+            color: trimColor,
+            roughness: 0.6,
+            metalness: 0.3
+        });
+        
+        const sashMat = new THREE.MeshStandardMaterial({ 
+            color: baseColor, 
+            roughness: 1.0
+        });
+
+        const scaleUVs = (mesh: THREE.Mesh, radius: number, height: number) => {
+            const geo = mesh.geometry;
+            const uvAttribute = geo.attributes.uv;
+            if (!uvAttribute) return;
+            const uScale = (2 * Math.PI * radius) * GLOBAL_PATTERN_SCALE;
+            const vScale = height * GLOBAL_PATTERN_SCALE;
+            for (let i = 0; i < uvAttribute.count; i++) {
+                uvAttribute.setXY(i, uvAttribute.getX(i) * uScale, uvAttribute.getY(i) * vScale);
+            }
+            uvAttribute.needsUpdate = true;
+        };
+
+        const createdMeshes: THREE.Object3D[] = [];
+        const layerScale = 1.12; // Keep the robe fitted over the body instead of ballooning outward
+
+        // --- UPPER BODY (Torso) ---
+        const torsoRadiusTop = 0.305;
+        const torsoRadiusBottom = 0.315;
+        const robeLen = 0.61;
+        const torsoDepthScale = 0.74;
+
+        const robeTorsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, robeLen, 32, 8, false); // Closed top for better blending
+        robeTorsoGeo.scale(layerScale, 1, torsoDepthScale * layerScale);
+        
+        // Vertices Manipulation: Open the front slightly (V-Shape)
+        const pos = robeTorsoGeo.attributes.position;
+        const v = new THREE.Vector3();
+        
+        for(let i=0; i<pos.count; i++) {
+            v.fromBufferAttribute(pos, i);
+            
+            // Adjust breast area for females (Must be larger than ShirtBuilder deformation)
+            if (config.bodyType === 'female') {
+                const breastY = 0.15;
+                const breastX = 0.11;
+                const radius = 0.18; // Wider radius than shirt
+                const amount = 0.095; // Push out more than shirt
+
+                if (v.z > 0) {
+                    const distL = Math.sqrt(Math.pow(v.x - breastX, 2) + Math.pow(v.y - breastY, 2));
+                    const distR = Math.sqrt(Math.pow(v.x + breastX, 2) + Math.pow(v.y - breastY, 2));
+                    
+                    let push = 0;
+                    if (distL < radius) push = Math.cos((distL/radius) * (Math.PI/2));
+                    else if (distR < radius) push = Math.cos((distR/radius) * (Math.PI/2));
+                    
+                    if (push > 0) {
+                        v.z += push * amount; 
+                        v.y -= push * 0.01;
+                    }
+                }
+            }
+
+            // Create a front neckline without dropping the whole top shell too far.
+            if (v.z > 0 && v.y > robeLen / 2 - 0.16) {
+                const t = (v.y - (robeLen / 2 - 0.16)) / 0.16;
+                const centerBias = Math.max(0, 1.0 - Math.abs(v.x) / 0.14);
+                v.y -= centerBias * t * 0.08;
+                v.z -= centerBias * t * 0.03;
+            }
+
+            // Slight shoulder broadening to meet the sleeve root cleanly.
+            if (v.y > robeLen / 2 - 0.16) {
+                const t = (v.y - (robeLen / 2 - 0.16)) / 0.16;
+                v.x *= 1.0 + t * 0.035;
+                v.z *= 1.0 + t * 0.015;
+            }
+
+            // Taper the top back in so the collar sits around the neck instead of flaring.
+            if (v.y > robeLen/2 - 0.08) {
+                const t = (v.y - (robeLen/2 - 0.08)) / 0.08;
+                v.x *= (1.0 - t * 0.12);
+                v.z *= (1.0 - t * 0.1);
+            }
+
+            // Give the lower torso a small overlap into the skirt, but keep it fitted.
+            if (v.y < -robeLen / 2 + 0.18) {
+                const t = (-robeLen / 2 + 0.18 - v.y) / 0.18;
+                v.x *= 1.0 + t * 0.035;
+                v.z *= 1.0 + t * 0.02;
+            }
+
+            pos.setXYZ(i, v.x, v.y, v.z);
+        }
+        robeTorsoGeo.computeVertexNormals();
+
+        const robeTorso = new THREE.Mesh(robeTorsoGeo, robeMat);
+        robeTorso.position.y = parts.torso?.position?.y ?? 0.38;
+        robeTorso.castShadow = true;
+        
+        scaleUVs(robeTorso, torsoRadiusBottom * layerScale, robeLen);
+        parts.torsoContainer.add(robeTorso);
+        createdMeshes.push(robeTorso);
+
+        // --- SHOULDER MANTLE ---
+        // A dedicated mantle prevents the shirt from poking through the upper chest/shoulder area.
+        const mantleHeight = 0.16;
+        const mantleTopRad = torsoRadiusTop * layerScale * 1.03;
+        const mantleBottomRad = mantleTopRad * 1.16;
+        const mantleGeo = new THREE.CylinderGeometry(
+            mantleTopRad,
+            mantleBottomRad,
+            mantleHeight,
+            32,
+            1,
+            true,
+            Math.PI * 0.16,
+            Math.PI * 1.68
+        );
+        mantleGeo.scale(1, 1, torsoDepthScale * 1.02);
+
+        const mantlePos = mantleGeo.attributes.position;
+        const mv = new THREE.Vector3();
+        for (let i = 0; i < mantlePos.count; i++) {
+            mv.fromBufferAttribute(mantlePos, i);
+            if (mv.y > 0) {
+                const t = mv.y / (mantleHeight / 2);
+                mv.x *= 0.96 - t * 0.04;
+                mv.z *= 0.98 - t * 0.03;
+            }
+            if (mv.z > 0) {
+                const frontBias = Math.max(0, 1.0 - Math.abs(mv.x) / (mantleBottomRad * 0.72));
+                mv.y -= frontBias * 0.03;
+                mv.z -= frontBias * 0.015;
+            }
+            mantlePos.setXYZ(i, mv.x, mv.y, mv.z);
+        }
+        mantleGeo.computeVertexNormals();
+
+        const mantle = new THREE.Mesh(mantleGeo, robeMat);
+        mantle.position.set(0, robeLen / 2 - 0.03, 0);
+        robeTorso.add(mantle);
+        createdMeshes.push(mantle);
+        scaleUVs(mantle, mantleBottomRad, mantleHeight);
+
+        // Visible shoulder caps that sit over the sleeve roots.
+        [-1, 1].forEach((side) => {
+            const capGeo = new THREE.SphereGeometry(0.14, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.5);
+            capGeo.scale(1.35, 0.55, 1.0);
+            const shoulderCap = new THREE.Mesh(capGeo, robeMat);
+            shoulderCap.position.set(side * 0.285, robeLen / 2 - 0.045, 0.01);
+            shoulderCap.rotation.z = -side * 0.22;
+            shoulderCap.rotation.y = side * 0.08;
+            robeTorso.add(shoulderCap);
+            createdMeshes.push(shoulderCap);
+            scaleUVs(shoulderCap, 0.14, 0.14);
+        });
+
+        // Collar/Neck Trim - decorative ring around the neckline
+        const collarRadius = torsoRadiusTop * layerScale * 0.3;
+        const collarGeo = new THREE.TorusGeometry(collarRadius, 0.02, 8, 32);
+        collarGeo.scale(1, 1, torsoDepthScale * 0.9);
+        
+        const collar = new THREE.Mesh(collarGeo, trimMat);
+        collar.rotation.x = Math.PI / 2;
+        collar.position.set(0, robeLen / 2 + 0.03, -0.01);
+        robeTorso.add(collar);
+        createdMeshes.push(collar);
+
+        // --- SASH (BELT) ---
+        // Thick cloth belt to hide the seam between upper/lower and cinch the waist
+        const sashGeo = new THREE.TorusGeometry(torsoRadiusBottom * layerScale * 0.97, 0.065, 8, 36);
+        sashGeo.scale(1, 1, torsoDepthScale);
+        
+        const sash = new THREE.Mesh(sashGeo, sashMat);
+        sash.position.y = -robeLen/2 + 0.07;
+        sash.rotation.x = Math.PI/2;
+        robeTorso.add(sash);
+        createdMeshes.push(sash);
+
+
+        // --- WIDE SLEEVES ---
+        const armPairs = [{ arm: parts.rightArm }, { arm: parts.leftArm }];
+        armPairs.forEach(({ arm }) => {
+            if (!arm) return;
+            // Wizard sleeve: Narrow at shoulder, wide at wrist
+            const sLen = 0.36;
+            const sRadTop = 0.135;
+            const sRadBot = 0.185;
+
+            const sleeveGeo = new THREE.CylinderGeometry(sRadTop, sRadBot, sLen, 16, 1, true);
+            sleeveGeo.translate(0, -sLen * 0.45 + 0.005, 0);
+
+            const sleeve = new THREE.Mesh(sleeveGeo, robeMat);
+            sleeve.castShadow = true;
+            sleeve.position.set(0, 0.02, 0);
+            
+            scaleUVs(sleeve, (sRadTop+sRadBot)/2, sLen);
+            arm.add(sleeve);
+            createdMeshes.push(sleeve);
+        });
+
+
+        // --- LOWER ROBE (SKIRT) ---
+        // Attached to Pelvis. 
+        // Improved design with better coverage and flow
+        if (parts.pelvis) {
+            const skirtLen = 0.68;
+            const skirtTopRad = torsoRadiusBottom * layerScale * 0.92;
+            const skirtBotRad = skirtTopRad * 1.3;
+
+            // Full cylinder skirt with front slit for leg movement
+            const skirtGeo = new THREE.CylinderGeometry(
+                skirtTopRad, 
+                skirtBotRad, 
+                skirtLen, 
+                32, 
+                6, 
+                true, // open ended
+                0.4, // thetaStart (smaller gap)
+                Math.PI * 2 - 0.8 // thetaLength (larger coverage)
+            );
+            skirtGeo.scale(1, 1, torsoDepthScale);
+
+            // Add slight wave to bottom edge for natural fabric look
+            const skirtPos = skirtGeo.attributes.position;
+            const sv = new THREE.Vector3();
+            for (let i = 0; i < skirtPos.count; i++) {
+                sv.fromBufferAttribute(skirtPos, i);
+                // Only affect bottom half
+                if (sv.y < 0) {
+                    const t = Math.abs(sv.y) / (skirtLen / 2);
+                    // Add wave based on angle
+                    const angle = Math.atan2(sv.z, sv.x);
+                    sv.y -= Math.sin(angle * 4) * 0.02 * t;
+                }
+                skirtPos.setXYZ(i, sv.x, sv.y, sv.z);
+            }
+            skirtGeo.computeVertexNormals();
+
+            const skirt = new THREE.Mesh(skirtGeo, robeMat);
+            skirt.name = 'RobeSkirt';
+            skirt.position.y = -skirtLen/2 + 0.06;
+            skirt.castShadow = true;
+
+            scaleUVs(skirt, skirtBotRad, skirtLen);
+            parts.pelvis.add(skirt);
+            createdMeshes.push(skirt);
+
+            // Front panel/tabard - wider and with trim
+            const tabardWidth = 0.28;
+            const tabardLen = skirtLen * 0.94;
+            const tabardGeo = new THREE.PlaneGeometry(tabardWidth, tabardLen, 4, 8);
+            
+            // Add slight curve to tabard
+            const tabPos = tabardGeo.attributes.position;
+            const tv = new THREE.Vector3();
+            for (let i = 0; i < tabPos.count; i++) {
+                tv.fromBufferAttribute(tabPos, i);
+                // Curve outward at bottom
+                const t = (tv.y + tabardLen/2) / tabardLen;
+                tv.z = (1 - t) * 0.08;
+                // Slight taper at bottom
+                tv.x *= 0.85 + t * 0.15;
+                tabPos.setXYZ(i, tv.x, tv.y, tv.z);
+            }
+            tabardGeo.computeVertexNormals();
+            
+            const tabard = new THREE.Mesh(tabardGeo, robeMat);
+            tabard.position.set(0, -tabardLen/2 + 0.06, skirtTopRad * torsoDepthScale + 0.015);
+            tabard.rotation.x = -0.06;
+            parts.pelvis.add(tabard);
+            createdMeshes.push(tabard);
+
+            // Trim on tabard edges
+            const trimGeo = new THREE.BoxGeometry(0.02, tabardLen, 0.01);
+            const leftTrim = new THREE.Mesh(trimGeo, trimMat);
+            leftTrim.position.set(-tabardWidth/2, 0, 0.01);
+            tabard.add(leftTrim);
+            createdMeshes.push(leftTrim);
+            
+            const rightTrim = new THREE.Mesh(trimGeo, trimMat);
+            rightTrim.position.set(tabardWidth/2, 0, 0.01);
+            tabard.add(rightTrim);
+            createdMeshes.push(rightTrim);
+        }
+
+        return { meshes: createdMeshes };
+    }
+}

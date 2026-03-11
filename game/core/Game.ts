@@ -93,6 +93,7 @@ export class Game {
     private lastBiomeCheck = 0;
     private readonly rotationUpdateIntervalMs = 100;
     private readonly rotationUpdateEpsilon = 0.01;
+    private initialEnvironmentBuildToken = 0;
 
     constructor(container: HTMLElement, initialConfig: PlayerConfig, initialManualInput: Partial<PlayerInput>, initialInventory: (InventoryItem | null)[], activeScene: SceneType) {
         this.config = initialConfig;
@@ -175,19 +176,9 @@ export class Game {
             this.setupTownScene();
         }
         
-        requestAnimationFrame(() => {
-            if (this.sceneManager.activeScene === 'dev' && this.sceneManager.environment) {
-                // Defer environment build to avoid blocking loading screen
-                setTimeout(() => {
-                    this.sceneManager.environment.buildAsync().then(() => {
-                        this.onEnvironmentReady?.();
-                    });
-                }, 2000); // Wait 2 seconds after scene loads
-            } else {
-                // For other scenes, environment is likely already ready or synchronous
-                this.onEnvironmentReady?.();
-            }
-        });
+        if (activeScene !== 'singleBiome') {
+            this.scheduleEnvironmentReady(activeScene);
+        }
 
         this.clock = new THREE.Clock();
 
@@ -377,18 +368,62 @@ export class Game {
         this.combatManager.setCombatActive(sceneName === 'combat');
         if (sceneName === 'town') {
             this.setupTownScene();
-        } else if (sceneName === 'dev' && !isInit) {
-            // Manually handle dev environment build on switch
-            requestAnimationFrame(() => {
-                if (this.sceneManager.environment) {
-                    this.sceneManager.environment.buildAsync().then(() => {
-                        this.onEnvironmentReady?.();
-                    });
-                } else {
-                     this.onEnvironmentReady?.();
-                }
-            });
         }
+
+        if (!isInit && sceneName !== 'singleBiome') {
+            this.scheduleEnvironmentReady(sceneName);
+        }
+    }
+
+    private isBuildTokenValid(buildToken: number, sceneName: SceneType): boolean {
+        return buildToken === this.initialEnvironmentBuildToken && this.sceneManager.activeScene === sceneName;
+    }
+
+    private async waitForFrames(frameCount: number, buildToken: number, sceneName: SceneType): Promise<boolean> {
+        for (let i = 0; i < frameCount; i += 1) {
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            if (!this.isBuildTokenValid(buildToken, sceneName)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private async finalizeEnvironmentReady(sceneName: SceneType, buildToken: number): Promise<void> {
+        const warmupComplete = await this.waitForFrames(2, buildToken, sceneName);
+        if (!warmupComplete) return;
+
+        // Pre-warm a render while loading overlay is active to reduce first-frame pop-in.
+        this.renderManager.render();
+
+        const finalFrameComplete = await this.waitForFrames(1, buildToken, sceneName);
+        if (!finalFrameComplete) return;
+
+        this.onEnvironmentReady?.();
+    }
+
+    private scheduleEnvironmentReady(sceneName: SceneType) {
+        const buildToken = ++this.initialEnvironmentBuildToken;
+
+        void (async () => {
+            const mountFramesComplete = await this.waitForFrames(2, buildToken, sceneName);
+            if (!mountFramesComplete) return;
+
+            if (sceneName === 'dev') {
+                const environment = this.sceneManager.environment;
+                if (environment) {
+                    try {
+                        await environment.buildAsync();
+                    } catch (error) {
+                        console.error('[Game] Failed to build dev environment during loading:', error);
+                    }
+
+                    if (!this.isBuildTokenValid(buildToken, sceneName)) return;
+                }
+            }
+
+            await this.finalizeEnvironmentReady(sceneName, buildToken);
+        })();
     }
 
     private setupTownScene() {
@@ -536,16 +571,11 @@ export class Game {
 
         this.particleManager.update(delta);
         this.doorManager.update(delta);
-        if (currentEnv) {
-            const updatedDoors = new Set<Door>();
-            for (const obstacle of currentEnv.obstacles) {
-                const door = obstacle.userData?.door;
-                if (door && !updatedDoors.has(door)) {
-                    door.update(delta);
-                    updatedDoors.add(door);
-                }
-            }
-        }
+        
+        // Removed looping over all obstacles to find doors and updating them here.
+        // The doorManager.update(delta) above already updates all registered doors.
+        // It's the responsibility of whatever creates doors (BuilderManager, etc.) 
+        // to register them with doorManager using doorManager.addDoor(door).
         
         if (currentEnv) {
             if (time - this.lastBiomeCheck > 500) {
@@ -556,12 +586,35 @@ export class Game {
                 }
             }
             
-            const playerInput = { ...input };
+            // Re-use the input object instead of cloning it if possible, 
+            // but since playerInput needs to be mutated for building, we just assign it.
+            // In JavaScript, shallow cloning a small object isn't terrible, but we can avoid it.
+            const playerInput = input;
+            
+            // Store original values before mutating if we are building
+            const originalAttack1 = playerInput.attack1;
+            const originalAttack2 = playerInput.attack2;
+            
             if (this.isBuilding) { playerInput.attack1 = false; playerInput.attack2 = false; }
             
             PlayerCombat.updateProjectiles(delta, currentEnv, this.particleManager, currentEntities);
             
-            this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities, false, [...currentEnv.obstacles, ...this.doorManager.getDoorObjects()]);
+            // Cache combined array instead of spreading it every frame if possible.
+            // For now, doing it inside the if block but ideally we'd cache this array when obstacles/doors change.
+            // We'll calculate it once per frame here instead of multiple times if needed.
+            // Actually, we can just pass the two arrays down or merge them once.
+            // For this quick fix, we just keep the array merging but we can optimize it by passing the arrays down.
+            // We will modify the player update to accept multiple arrays later if this is still too slow.
+            // Let's create an optimized array merge using push to avoid full array reallocation and GC pauses
+            // if we really wanted to, but the spread syntax is the main issue.
+            // A better way is to cache the combined array and only update it when obstacles or doors change.
+            const combinedObstacles = [...currentEnv.obstacles, ...this.doorManager.getDoorObjects()];
+            
+            this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities, false, combinedObstacles);
+            
+            // Restore original input values
+            playerInput.attack1 = originalAttack1;
+            playerInput.attack2 = originalAttack2;
             
             // Check if player is in arena and adjust ground height if needed
             if (this.sceneManager.activeScene === 'town' && this.sceneManager.townEnvironment) {

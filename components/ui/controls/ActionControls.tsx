@@ -34,9 +34,28 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
         if (!setConfig || !config) return;
         setConfig(prev => ({ ...prev, [key]: !prev[key] }));
     };
+    const [showHelp, setShowHelp] = React.useState(false);
 
     return (
         <div className="space-y-3">
+            <div className="rounded-xl border border-gray-200 bg-white/70 p-2.5">
+                <button
+                    type="button"
+                    onClick={() => setShowHelp((prev) => !prev)}
+                    aria-expanded={showHelp}
+                    className="w-full flex items-center justify-between text-left"
+                >
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-700">Actions Help</span>
+                    <span className="text-[10px] font-mono text-gray-500">{showHelp ? 'Hide' : 'Show'}</span>
+                </button>
+                {showHelp && (
+                    <div className="mt-2 space-y-1 text-[10px] leading-relaxed text-gray-500">
+                        <p><span className="font-bold text-gray-700">Walk/Run:</span> Toggles sprint movement state.</p>
+                        <p><span className="font-bold text-gray-700">Combat Mode:</span> Enables combat stance and combat input handling.</p>
+                        <p><span className="font-bold text-gray-700">Summon:</span> Disabled while carrying a selected inventory item.</p>
+                    </div>
+                )}
+            </div>
             <div className="grid grid-cols-2 gap-2">
                 <ToggleButton 
                     label={manualInput.isRunning ? 'Running' : 'Walk / Run'}
@@ -57,6 +76,7 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
                     activeColor="red"
                 />
                 <button 
+                    type="button"
                     onMouseDown={() => setManualInput(prev => ({...prev, jump: true}))} 
                     onMouseUp={() => setManualInput(prev => ({...prev, jump: false}))} 
                     onMouseLeave={() => setManualInput(prev => ({...prev, jump: false}))} 

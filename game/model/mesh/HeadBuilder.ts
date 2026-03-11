@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { PlayerMaterials } from '../PlayerMaterials';
 import { BrainBuilder } from './BrainBuilder';
+import { EarBuilder } from './EarBuilder';
 
 export class HeadBuilder {
     static build(materials: PlayerMaterials, arrays: any) {
@@ -371,6 +372,9 @@ export class HeadBuilder {
         });
 
         // We return the specific lip meshes so PlayerModel can find them easily
-        return { head, headMount, maxilla, jaw, jawMesh, faceGroup, nose, brain, upperLip, lowerLip };
+        const ears = EarBuilder.build(materials);
+        head.add(ears);
+
+        return { head, headMount, maxilla, jaw, jawMesh, faceGroup, nose, brain, upperLip, lowerLip, ears };
     }
 }

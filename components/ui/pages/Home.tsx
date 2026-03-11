@@ -158,6 +158,7 @@ export const Home: React.FC = () => {
                         <video
                             ref={(el) => { videoRefs.current[index] = el; }}
                             src={src}
+                            aria-hidden="true"
                             autoPlay
                             muted
                             playsInline
@@ -183,7 +184,7 @@ export const Home: React.FC = () => {
                             <h1 className="text-4xl font-black tracking-tighter bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent">WELCOME</h1>
                             <div className="space-y-1">
                                 <p className="text-[10px] text-slate-400 uppercase tracking-[0.2em]">Home of</p>
-                                <p className="text-xs text-indigo-300 font-bold uppercase tracking-[0.3em]">RootWraith Studios</p>
+                                <a href="https://www.youtube.com/@lordtsarcasm" target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-300 font-bold uppercase tracking-[0.3em] hover:text-indigo-200 transition-colors">LordTsarcasm YouTube</a>
                                 <p className="text-[10px] text-slate-500 italic tracking-widest">&</p>
                                 <p className="text-xs text-rose-400 font-bold uppercase tracking-[0.3em]">Sairon RPG</p>
                             </div>
@@ -202,10 +203,10 @@ export const Home: React.FC = () => {
                         <div className="flex flex-col items-center space-y-4">
                             <p className="text-slate-400 uppercase tracking-[0.4em] text-xs">The Proving Grounds of</p>
                             <div className="flex items-center space-x-8">
-                                <div className="flex flex-col items-center">
-                                    <span className="text-xl font-bold tracking-[0.3em] text-indigo-300">ROOTWRAITH</span>
-                                    <span className="text-[10px] text-indigo-500/60 uppercase tracking-[0.2em]">Studios</span>
-                                </div>
+                                <a href="https://www.youtube.com/@lordtsarcasm" target="_blank" rel="noopener noreferrer" className="flex flex-col items-center hover:opacity-80 transition-opacity">
+                                    <span className="text-xl font-bold tracking-[0.3em] text-indigo-300">LORDTSARCASM</span>
+                                    <span className="text-[10px] text-indigo-500/60 uppercase tracking-[0.2em]">YouTube</span>
+                                </a>
                                 <div className="h-8 w-[1px] bg-white/10 rotate-12"></div>
                                 <div className="flex flex-col items-center">
                                     <span className="text-xl font-bold tracking-[0.3em] text-rose-500">SAIRON</span>

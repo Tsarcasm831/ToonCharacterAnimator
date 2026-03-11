@@ -1,6 +1,53 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY
+const supabaseUrl = process.env.SUPABASE_URL?.trim()
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY?.trim()
+const isSupabaseEnabled = Boolean(supabaseUrl && supabaseAnonKey)
 
-export const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
+type DisabledQueryResult<T> = Promise<{ data: T; error: null }>
+type MusicAnalyticsRow = {
+  track_id?: string
+  track_title?: string
+  track_artist?: string
+  play_count?: number
+  last_played?: string
+}
+type DisabledSupabaseClient = {
+  from: (..._args: unknown[]) => {
+    select: (..._args: unknown[]) => {
+      eq: (..._args: unknown[]) => {
+        maybeSingle: (..._args: unknown[]) => DisabledQueryResult<MusicAnalyticsRow | null>
+      }
+      order: (..._args: unknown[]) => {
+        limit: (..._args: unknown[]) => DisabledQueryResult<MusicAnalyticsRow[]>
+      }
+    }
+    update: (..._args: unknown[]) => {
+      eq: (..._args: unknown[]) => DisabledQueryResult<null>
+    }
+    insert: (..._args: unknown[]) => DisabledQueryResult<null>
+  }
+}
+
+const resolved = <T>(data: T): DisabledQueryResult<T> => Promise.resolve({ data, error: null })
+
+const createDisabledSupabaseClient = (): DisabledSupabaseClient => ({
+  from: () => ({
+    select: () => ({
+      eq: () => ({
+        maybeSingle: () => resolved(null)
+      }),
+      order: () => ({
+        limit: () => resolved([])
+      })
+    }),
+    update: () => ({
+      eq: () => resolved(null)
+    }),
+    insert: () => resolved(null)
+  })
+})
+
+export const supabase: DisabledSupabaseClient = isSupabaseEnabled
+  ? (createClient(supabaseUrl!, supabaseAnonKey!) as unknown as DisabledSupabaseClient)
+  : createDisabledSupabaseClient()

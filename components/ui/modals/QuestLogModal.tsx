@@ -25,7 +25,7 @@ export const QuestLogModal: React.FC<QuestLogModalProps> = ({ isOpen, onClose, q
             <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Quest Log</h2>
             <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Your journey's record</p>
           </div>
-          <button 
+          <button type="button" 
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
           >
@@ -41,7 +41,7 @@ export const QuestLogModal: React.FC<QuestLogModalProps> = ({ isOpen, onClose, q
               <div className="p-8 text-center text-slate-500 text-xs font-bold uppercase">No quests found</div>
             ) : (
               quests.map((q) => (
-                <button
+                <button type="button"
                   key={q.id}
                   onClick={() => setSelectedQuestId(q.id)}
                   className={`w-full text-left p-4 border-b border-white/5 transition-all hover:bg-white/5 ${selectedQuestId === q.id ? 'bg-blue-600/20 border-l-4 border-l-blue-500' : ''}`}
@@ -90,7 +90,7 @@ export const QuestLogModal: React.FC<QuestLogModalProps> = ({ isOpen, onClose, q
                 <div className="pt-4 border-t border-white/5">
                   <h3 className="text-yellow-400 text-[10px] font-black uppercase tracking-[0.2em] mb-2">Reward</h3>
                   {selectedQuest.status === 'completed' && !selectedQuest.rewardClaimed ? (
-                    <button 
+                    <button type="button" 
                       onClick={() => onClaimReward(selectedQuest.id)}
                       className="w-full bg-yellow-500 hover:bg-yellow-400 text-black font-black uppercase tracking-[0.1em] py-4 rounded-xl shadow-[0_0_20px_rgba(234,179,8,0.3)] transition-all active:scale-95 flex items-center justify-center gap-3 group"
                     >
@@ -121,7 +121,7 @@ export const QuestLogModal: React.FC<QuestLogModalProps> = ({ isOpen, onClose, q
 
         {/* Footer */}
         <div className="p-4 border-t border-white/5 bg-slate-800/30 flex justify-center">
-          <button 
+          <button type="button" 
             onClick={onClose}
             className="px-8 py-2 bg-white text-black font-black uppercase tracking-widest text-xs rounded-full hover:bg-blue-400 hover:text-white transition-all shadow-lg active:scale-95"
           >

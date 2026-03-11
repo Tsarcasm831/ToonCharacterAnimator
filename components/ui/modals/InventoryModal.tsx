@@ -295,7 +295,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     {/* Right-aligned Tabs */}
                     <div className="flex gap-1 absolute right-4 top-4">
                         {TABS.map(tab => (
-                            <button
+                            <button type="button"
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`
@@ -311,7 +311,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                     </div>
                     
                     {/* Close Button */}
-                    <button onClick={onClose} className="absolute top-2 right-2 text-stone-600 hover:text-amber-500 transition-colors z-10">
+                    <button type="button" onClick={onClose} className="absolute top-2 right-2 text-stone-600 hover:text-amber-500 transition-colors z-10">
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
@@ -338,7 +338,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                             <div className="flex justify-between"><span>DEF</span><span className="text-blue-400">{stats.DEF}</span></div>
                             
                             {/* {onUpdateSlotLayouts && (
-                                <button 
+                                <button type="button" 
                                     onClick={toggleEditMode}
                                     className={`mt-4 w-full py-1 text-[10px] font-bold border transition-colors ${isEditMode ? 'bg-amber-600 border-amber-400 text-white' : 'bg-stone-800 border-stone-600 text-stone-400 hover:text-amber-500'}`}
                                 >
@@ -346,7 +346,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                                 </button>
                             )} */}
                             {isEditMode && (
-                                <button 
+                                <button type="button" 
                                     onClick={() => onUpdateSlotLayouts({})}
                                     className="mt-1 w-full py-1 text-[10px] font-bold bg-red-900/40 border border-red-800/60 text-red-400 hover:bg-red-800/60 transition-colors"
                                 >
@@ -500,7 +500,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                                     );
                                 })}
                             </div>
-                            <button 
+                            <button type="button" 
                                 onClick={() => setShowLayoutModal(false)}
                                 className="mt-6 w-full py-2 bg-amber-900/40 border border-amber-700/50 text-amber-400 hover:bg-amber-800/60 transition-colors uppercase tracking-widest text-sm"
                             >

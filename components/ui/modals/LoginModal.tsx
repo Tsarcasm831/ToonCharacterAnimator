@@ -42,7 +42,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     <h2 className="text-2xl font-black text-white uppercase tracking-tighter">
                         {activeTab === 'login' ? 'Access Terminal' : 'New Identity'}
                     </h2>
-                    <button 
+                    <button type="button" 
                         onClick={onClose}
                         className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
                     >
@@ -52,7 +52,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
                 {/* Tabs */}
                 <div className="flex border-b border-white/5">
-                    <button
+                    <button type="button"
                         onClick={() => setActiveTab('login')}
                         className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
                             activeTab === 'login' 
@@ -62,7 +62,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     >
                         Login
                     </button>
-                    <button
+                    <button type="button"
                         onClick={() => setActiveTab('register')}
                         className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
                             activeTab === 'register' 
@@ -77,7 +77,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                 {/* Body */}
                 <div className="p-8 space-y-6">
                     {/* Google Login */}
-                    <button
+                    <button type="button"
                         onClick={handleGoogleLogin}
                         className="w-full py-3 px-4 bg-white text-slate-900 rounded-lg font-bold flex items-center justify-center gap-3 hover:bg-slate-100 transition-colors"
                     >

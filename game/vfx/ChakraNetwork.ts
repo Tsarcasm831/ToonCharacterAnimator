@@ -84,15 +84,33 @@ interface OrbData {
     color: THREE.Color;
 }
 
+export interface ChakraNodeLegendEntry {
+    id: string;
+    name: string;
+    color: string;
+}
+
+export interface ChakraConnectionLegendEntry {
+    id: string;
+    name: string;
+    color: string;
+}
+
+export type ChakraDebugTargetKind = 'node' | 'connection';
+
 export class ChakraNetwork {
     private scene: THREE.Scene;
     private initialized = false;
     private beamMesh: THREE.InstancedMesh | null = null;
     private orbMesh: THREE.InstancedMesh | null = null;
+    private debugColorMode = false;
 
     private links: LinkData[] = [];
     private orbs: OrbData[] = [];
     private addedOrbs = new Set<string>();
+    private debugObjectLabels = new Map<string, string>();
+    private defaultLinkColors: THREE.Color[] = [];
+    private defaultOrbColors: THREE.Color[] = [];
 
     private _dummy = new THREE.Object3D();
     private _posA = new THREE.Vector3();
@@ -107,8 +125,81 @@ export class ChakraNetwork {
         this.scene = scene;
     }
 
+    private makeUniqueDebugColor(index: number): THREE.Color {
+        // Golden-angle hue stepping gives stable, well-spread colors.
+        const hue = (((index * 0.61803398875) % 1) + 1) % 1;
+        return new THREE.Color().setHSL(hue, 0.9, 0.55);
+    }
+
+    private applyInstanceColors() {
+        if (this.beamMesh) {
+            for (let i = 0; i < this.links.length; i++) {
+                const color = this.debugColorMode
+                    ? this.makeUniqueDebugColor(i)
+                    : (this.defaultLinkColors[i] ?? this.links[i].color);
+                this.beamMesh.setColorAt(i, color);
+            }
+            if (this.beamMesh.instanceColor) this.beamMesh.instanceColor.needsUpdate = true;
+        }
+
+        if (this.orbMesh) {
+            for (let i = 0; i < this.orbs.length; i++) {
+                const color = this.debugColorMode
+                    ? this.makeUniqueDebugColor(this.links.length + i)
+                    : (this.defaultOrbColors[i] ?? this.orbs[i].color);
+                this.orbMesh.setColorAt(i, color);
+            }
+            if (this.orbMesh.instanceColor) this.orbMesh.instanceColor.needsUpdate = true;
+        }
+    }
+
+    private toTitleCaseLabel(raw: string): string {
+        return raw
+            .replace(/[_-]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .replace(/\b\w/g, (m) => m.toUpperCase());
+    }
+
+    private setDebugLabel(target: THREE.Object3D, label?: string) {
+        if (!label) return;
+        const normalized = label.trim();
+        if (!normalized) return;
+        const existing = this.debugObjectLabels.get(target.uuid);
+        if (!existing || existing.startsWith('Node ')) {
+            this.debugObjectLabels.set(target.uuid, normalized);
+        }
+    }
+
+    private buildDebugNodeName(target: THREE.Object3D, index: number): string {
+        const explicitLabel = this.debugObjectLabels.get(target.uuid);
+        if (explicitLabel) return explicitLabel;
+
+        if (target.name) {
+            const lower = target.name.toLowerCase();
+            if (lower === 'chakra_toe_tip') {
+                const parentLabel = target.parent ? this.debugObjectLabels.get(target.parent.uuid) : '';
+                if (parentLabel) return `${parentLabel} Tip`;
+                return 'Toe Tip';
+            }
+            return this.toTitleCaseLabel(target.name);
+        }
+
+        const path: string[] = [];
+        let cursor: THREE.Object3D | null = target;
+        let depth = 0;
+        while (cursor && depth < 6) {
+            const trimmedName = cursor.name.trim();
+            if (trimmedName) path.unshift(trimmedName);
+            cursor = cursor.parent;
+            depth++;
+        }
+        if (path.length === 0) return `Node ${index + 1}`;
+        return path.slice(-3).map((part) => this.toTitleCaseLabel(part)).join(' / ');
+    }
+
     private initInstancedMeshes(maxLinks: number, maxOrbs: number) {
-        const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
+        const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true);
         beamGeo.rotateX(Math.PI / 2);
         
         const beamMat = new THREE.ShaderMaterial({
@@ -120,7 +211,9 @@ export class ChakraNetwork {
             },
             transparent: true,
             blending: THREE.AdditiveBlending,
-            depthWrite: false
+            depthWrite: false,
+            depthTest: false,
+            side: THREE.DoubleSide
         });
 
         this.beamMesh = new THREE.InstancedMesh(beamGeo, beamMat, maxLinks);
@@ -139,7 +232,9 @@ export class ChakraNetwork {
             },
             transparent: true,
             blending: THREE.AdditiveBlending,
-            depthWrite: false
+            depthWrite: false,
+            depthTest: false,
+            side: THREE.DoubleSide
         });
 
         this.orbMesh = new THREE.InstancedMesh(orbGeo, orbMat, maxOrbs);
@@ -149,24 +244,57 @@ export class ChakraNetwork {
         this.scene.add(this.orbMesh);
     }
 
-    private addChain(chain: THREE.Object3D[], colorHex: number, withOrbs: boolean = true) {
+    private addChain(chain: THREE.Object3D[], colorHex: number, withOrbs: boolean = true, labels?: string[]) {
         const color = new THREE.Color(colorHex);
         for (let i = 0; i < chain.length - 1; i++) {
             const start = chain[i];
             const end = chain[i+1];
             if (!start || !end) continue;
+            if (labels?.[i]) this.setDebugLabel(start, labels[i]);
+            if (labels?.[i + 1]) this.setDebugLabel(end, labels[i + 1]);
             this.links.push({ start, end, color });
             if (withOrbs) {
-                this.addOrb(start, color);
-                if (i === chain.length - 2) this.addOrb(end, color);
+                this.addOrb(start, color, labels?.[i]);
+                if (i === chain.length - 2) this.addOrb(end, color, labels?.[i + 1]);
             }
         }
     }
 
-    private addOrb(target: THREE.Object3D, color: THREE.Color) {
+    private addOrb(target: THREE.Object3D, color: THREE.Color, label?: string) {
+        this.setDebugLabel(target, label);
         if (this.addedOrbs.has(target.uuid)) return;
         this.addedOrbs.add(target.uuid);
         this.orbs.push({ target, color });
+    }
+
+    private getToeNameByIndex(index: number): string {
+        const names = ['Big Toe', 'Second Toe', 'Middle Toe', 'Fourth Toe', 'Pinky Toe'];
+        return names[index] ?? `Toe ${index + 1}`;
+    }
+
+    private getFingerNameByIndex(index: number): string {
+        const names = ['Index Finger', 'Middle Finger', 'Ring Finger', 'Pinky Finger'];
+        return names[index] ?? `Finger ${index + 1}`;
+    }
+
+    private getFingerJointLabels(side: 'Left' | 'Right', fingerName: string): string[] {
+        return [
+            `${side} Wrist`,
+            `${side} ${fingerName} Proximal`,
+            `${side} ${fingerName} Distal`,
+            `${side} ${fingerName} Tip`
+        ];
+    }
+
+    private getToeJointLabels(prefix: string, toeUnit: THREE.Object3D): string[] {
+        const side = prefix === 'left' ? 'Left' : 'Right';
+        const toeIndex = typeof toeUnit.userData?.index === 'number' ? toeUnit.userData.index : -1;
+        const toeName = this.getToeNameByIndex(toeIndex);
+        return [
+            `${side} Forefoot`,
+            `${side} ${toeName} Base`,
+            `${side} ${toeName} Tip`
+        ];
     }
 
     private getFingerJoints(fingerGroup: THREE.Group, wrist: THREE.Object3D): THREE.Object3D[] {
@@ -184,17 +312,39 @@ export class ChakraNetwork {
         return joints;
     }
 
+    private getToeJoints(toeUnit: THREE.Object3D, forefoot: THREE.Object3D): THREE.Object3D[] {
+        const joints: THREE.Object3D[] = [forefoot, toeUnit];
+        const toeMesh = toeUnit.children.find(c => c instanceof THREE.Mesh) as THREE.Mesh | undefined;
+        if (!toeMesh) return joints;
+
+        let tip = toeMesh.children.find(c => c.name === 'chakra_toe_tip');
+        if (!tip) {
+            tip = new THREE.Object3D();
+            tip.name = 'chakra_toe_tip';
+            toeMesh.add(tip);
+        }
+
+        if (!toeMesh.geometry.boundingBox) {
+            toeMesh.geometry.computeBoundingBox();
+        }
+        const tipZ = toeMesh.geometry.boundingBox?.max.z ?? 0.02;
+        tip.position.set(0, 0, tipZ);
+        joints.push(tip);
+        return joints;
+    }
+
     private traverseFoot(shin: THREE.Object3D, ankle: THREE.Object3D, prefix: string, color: number) {
+        const side = prefix === 'left' ? 'Left' : 'Right';
         const anchor = shin.children.find(c => c.name === `${prefix}_foot_anchor`);
         if (!anchor) return;
-        this.addChain([ankle, anchor], color, true);
+        this.addChain([ankle, anchor], color, true, [`${side} Ankle`, `${side} Foot Anchor`]);
         const heel = anchor.children.find(c => c.name === `${prefix}_heel`);
-        if (heel) this.addChain([anchor, heel], color, true);
+        if (heel) this.addChain([anchor, heel], color, true, [`${side} Foot Anchor`, `${side} Heel`]);
         const forefoot = anchor.children.find(c => c.name === `${prefix}_forefoot`);
         if (forefoot) {
-            this.addChain([anchor, forefoot], color, true);
+            this.addChain([anchor, forefoot], color, true, [`${side} Foot Anchor`, `${side} Forefoot`]);
             forefoot.children.forEach(c => {
-                if (c.type === 'Group') this.addChain([forefoot, c], color, false);
+                if (c.type === 'Group') this.addChain(this.getToeJoints(c, forefoot), color, false, this.getToeJointLabels(prefix, c));
             });
         }
     }
@@ -203,51 +353,155 @@ export class ChakraNetwork {
         this.links = [];
         this.orbs = [];
         this.addedOrbs.clear();
+        this.debugObjectLabels.clear();
         const parts = model.parts;
         const C_BASE_BLUE = 0x000088;
         
         if (parts.hips && parts.torsoContainer && parts.neck && parts.head) {
-            this.addChain([parts.hips, parts.torsoContainer, parts.neck, parts.head], C_BASE_BLUE, true);
+            this.addChain(
+                [parts.hips, parts.torsoContainer, parts.neck, parts.head],
+                C_BASE_BLUE,
+                true,
+                ['Hips', 'Torso Core', 'Neck', 'Head']
+            );
         }
         if (parts.leftArm && parts.leftForeArm && parts.leftHand) {
-            this.addChain([parts.topCap || parts.neck, parts.leftArm, parts.leftForeArm, parts.leftHand], C_BASE_BLUE, true);
+            this.addChain(
+                [parts.topCap || parts.neck, parts.leftArm, parts.leftForeArm, parts.leftHand],
+                C_BASE_BLUE,
+                true,
+                ['Upper Chest', 'Left Shoulder', 'Left Elbow', 'Left Wrist']
+            );
         }
         if (parts.rightArm && parts.rightForeArm && parts.rightHand) {
-            this.addChain([parts.topCap || parts.neck, parts.rightArm, parts.rightForeArm, parts.rightHand], C_BASE_BLUE, true);
+            this.addChain(
+                [parts.topCap || parts.neck, parts.rightArm, parts.rightForeArm, parts.rightHand],
+                C_BASE_BLUE,
+                true,
+                ['Upper Chest', 'Right Shoulder', 'Right Elbow', 'Right Wrist']
+            );
         }
         if (parts.leftThigh && parts.leftShin && parts.leftAnkle) {
-            this.addChain([parts.hips, parts.leftThigh, parts.leftShin, parts.leftAnkle], C_BASE_BLUE, true);
+            this.addChain(
+                [parts.hips, parts.leftThigh, parts.leftShin, parts.leftAnkle],
+                C_BASE_BLUE,
+                true,
+                ['Hips', 'Left Thigh', 'Left Shin', 'Left Ankle']
+            );
             this.traverseFoot(parts.leftShin, parts.leftAnkle, 'left', C_BASE_BLUE);
         }
         if (parts.rightThigh && parts.rightShin && parts.rightAnkle) {
-            this.addChain([parts.hips, parts.rightThigh, parts.rightShin, parts.rightAnkle], C_BASE_BLUE, true);
+            this.addChain(
+                [parts.hips, parts.rightThigh, parts.rightShin, parts.rightAnkle],
+                C_BASE_BLUE,
+                true,
+                ['Hips', 'Right Thigh', 'Right Shin', 'Right Ankle']
+            );
             this.traverseFoot(parts.rightShin, parts.rightAnkle, 'right', C_BASE_BLUE);
         }
         if (model.rightFingers && parts.rightHand) {
-            if (model.rightThumb) this.addChain(this.getFingerJoints(model.rightThumb, parts.rightHand), C_BASE_BLUE, false);
-            model.rightFingers.forEach(f => this.addChain(this.getFingerJoints(f, parts.rightHand), C_BASE_BLUE, false));
+            if (model.rightThumb) {
+                this.addChain(
+                    this.getFingerJoints(model.rightThumb, parts.rightHand),
+                    C_BASE_BLUE,
+                    false,
+                    this.getFingerJointLabels('Right', 'Thumb')
+                );
+            }
+            model.rightFingers.forEach((f, index) => {
+                this.addChain(
+                    this.getFingerJoints(f, parts.rightHand),
+                    C_BASE_BLUE,
+                    false,
+                    this.getFingerJointLabels('Right', this.getFingerNameByIndex(index))
+                );
+            });
         }
         if (model.leftFingers && parts.leftHand) {
-            if (model.leftThumb) this.addChain(this.getFingerJoints(model.leftThumb, parts.leftHand), C_BASE_BLUE, false);
-            model.leftFingers.forEach(f => this.addChain(this.getFingerJoints(f, parts.leftHand), C_BASE_BLUE, false));
+            if (model.leftThumb) {
+                this.addChain(
+                    this.getFingerJoints(model.leftThumb, parts.leftHand),
+                    C_BASE_BLUE,
+                    false,
+                    this.getFingerJointLabels('Left', 'Thumb')
+                );
+            }
+            model.leftFingers.forEach((f, index) => {
+                this.addChain(
+                    this.getFingerJoints(f, parts.leftHand),
+                    C_BASE_BLUE,
+                    false,
+                    this.getFingerJointLabels('Left', this.getFingerNameByIndex(index))
+                );
+            });
         }
 
+        this.defaultLinkColors = this.links.map(link => link.color.clone());
+        this.defaultOrbColors = this.orbs.map(orb => orb.color.clone());
         this.initInstancedMeshes(this.links.length, this.orbs.length);
-
-        if (this.beamMesh) {
-            for (let i = 0; i < this.links.length; i++) this.beamMesh.setColorAt(i, this.links[i].color);
-            if (this.beamMesh.instanceColor) this.beamMesh.instanceColor.needsUpdate = true;
-        }
-        if (this.orbMesh) {
-            for (let i = 0; i < this.orbs.length; i++) this.orbMesh.setColorAt(i, this.orbs[i].color);
-            if (this.orbMesh.instanceColor) this.orbMesh.instanceColor.needsUpdate = true;
-        }
+        this.applyInstanceColors();
         this.initialized = true;
     }
 
     setVisible(visible: boolean) {
         if (this.beamMesh) this.beamMesh.visible = visible;
         if (this.orbMesh) this.orbMesh.visible = visible;
+    }
+
+    setDebugColorMode(enabled: boolean) {
+        if (this.debugColorMode === enabled) return;
+        this.debugColorMode = enabled;
+        this.applyInstanceColors();
+    }
+
+    getNodeDebugLegend(): ChakraNodeLegendEntry[] {
+        if (!this.initialized) return [];
+        const duplicateCounter = new Map<string, number>();
+        return this.orbs.map((orb, i) => {
+            const baseName = this.buildDebugNodeName(orb.target, i);
+            const duplicateIndex = (duplicateCounter.get(baseName) ?? 0) + 1;
+            duplicateCounter.set(baseName, duplicateIndex);
+            const name = duplicateIndex === 1 ? baseName : `${baseName} (${duplicateIndex})`;
+            const color = this.debugColorMode
+                ? this.makeUniqueDebugColor(this.links.length + i)
+                : (this.defaultOrbColors[i] ?? orb.color);
+            return { id: `node-${i}`, name, color: `#${color.getHexString()}` };
+        });
+    }
+
+    getConnectionDebugLegend(): ChakraConnectionLegendEntry[] {
+        if (!this.initialized) return [];
+        return this.links.map((link, i) => {
+            const fromName = this.buildDebugNodeName(link.start, i * 2);
+            const toName = this.buildDebugNodeName(link.end, i * 2 + 1);
+            const color = this.debugColorMode
+                ? this.makeUniqueDebugColor(i)
+                : (this.defaultLinkColors[i] ?? link.color);
+            return {
+                id: `connection-${i}`,
+                name: `${fromName} -> ${toName}`,
+                color: `#${color.getHexString()}`
+            };
+        });
+    }
+
+    getDebugWorldPoint(kind: ChakraDebugTargetKind, id: string): THREE.Vector3 | null {
+        const prefix = kind === 'node' ? 'node-' : 'connection-';
+        if (!id.startsWith(prefix)) return null;
+        const index = Number(id.slice(prefix.length));
+        if (!Number.isInteger(index) || index < 0) return null;
+
+        if (kind === 'node') {
+            const orb = this.orbs[index];
+            if (!orb) return null;
+            return orb.target.getWorldPosition(new THREE.Vector3());
+        }
+
+        const link = this.links[index];
+        if (!link) return null;
+        const start = link.start.getWorldPosition(new THREE.Vector3());
+        const end = link.end.getWorldPosition(new THREE.Vector3());
+        return start.lerp(end, 0.5);
     }
 
     update(dt: number, model: PlayerModel) {
@@ -286,7 +540,7 @@ export class ChakraNetwork {
                 } else {
                     this._dummy.position.lerpVectors(this._posA, this._posB, 0.5);
                     this._dummy.lookAt(this._posB);
-                    const thickness = Math.min(0.02, dist * 0.1);
+                    const thickness = Math.max(0.005, Math.min(0.02, dist * 0.1));
                     this._dummy.scale.set(thickness, thickness, dist);
                 }
                 this._dummy.updateMatrix();
@@ -315,5 +569,8 @@ export class ChakraNetwork {
         this.links = [];
         this.orbs = [];
         this.addedOrbs.clear();
+        this.debugObjectLabels.clear();
+        this.defaultLinkColors = [];
+        this.defaultOrbColors = [];
     }
 }

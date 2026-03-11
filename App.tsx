@@ -8,7 +8,6 @@ import { Shop } from './components/ui/pages/Shop';
 import { GlobalModals } from './components/ui/modals/GlobalModals';
 import { LandMapModal } from './components/ui/modals/LandMapModal';
 import { MusicProvider } from './contexts/MusicContext';
-import { MusicFooter } from './components/ui/audio/MusicFooter';
 
 import { useGlobalState } from './contexts/GlobalContext';
 
@@ -74,8 +73,6 @@ const App: React.FC = () => {
             playerPos={playerPosForMap}
           />
         </div>
-
-        <MusicFooter activePage={activePage} />
       </div>
     </MusicProvider>
   );

@@ -6,21 +6,23 @@ If you're an agent operating on this repo, follow this document **exactly**.
 
 ---
 
-## 1) Backup Before You Edit (MANDATORY)
+## 1) Backup Before You Edit (MANDATORY FOR COMPLEX CHANGES)
 
-**Any time you need to make changes to an existing file:**
+**Any time you need to make complex changes, major refactors, or risky file operations:**
 1. Create a `.bak` copy of the original **before editing**
 2. Proceed with the changes you were planning
 
-This rule exists to prevent data loss and make it easy to revert changes quickly.
+This rule exists to prevent data loss and make it easy to revert changes quickly during significant modifications.
 
-✅ Required:
+*Note: For simple, isolated tweaks (e.g., fixing a typo, resolving a minor lint error, or adding a console log), creating a `.bak` file is not strictly required. Built-in undo and version control are sufficient for these minor edits.*
+
+✅ Required for complex changes:
 - `cp path/to/file.ext path/to/file.ext.bak`
 
 ❌ Not allowed:
-- Editing a file directly without a backup first  
-- Assuming git will save you  
-- Skipping backups "just this once"
+- Undertaking major refactors or multi-file changes without backups
+- Assuming git will save you during risky or complex operations
+- Skipping backups for complex edits "just this once”
 
 > If a `.bak` already exists, create a new one using a suffix:
 - `file.ext.bak2`
@@ -141,7 +143,7 @@ Bash can be dangerous because:
 
 Follow these every time:
 
-- Always create `.bak` files before major edits
+- Always create `.bak` files before major or complex edits
 - Test operations on non-critical files first
 - Use absolute paths to avoid working directory confusion
 - Verify file existence before operations
@@ -151,10 +153,10 @@ Follow these every time:
 
 # Recommended Safe Workflow
 
-Use this sequence unless there’s a strong reason not to:
+Use this sequence for major changes unless there’s a strong reason not to:
 
 1. Locate the file you plan to edit  
-2. Create a backup (`.bak`)  
+2. If the change is complex, create a backup (`.bak`)  
 3. Read the file contents  
 4. Apply edits (`edit` or `multi_edit`)  
 5. Fix lint issues immediately  

@@ -31,14 +31,14 @@ export const BuilderLog: React.FC = () => {
                     <h3 className="font-bold text-white uppercase tracking-wider text-sm">Builder Log</h3>
                 </div>
                 <div className="flex gap-2">
-                    <button 
+                    <button type="button" 
                         onClick={clearBuilderLogs}
                         className="p-1.5 hover:bg-white/10 rounded text-xs text-white/60 hover:text-white transition-colors"
                         title="Clear Logs"
                     >
                         Clear
                     </button>
-                    <button 
+                    <button type="button" 
                         onClick={toggleBuilderLog}
                         className="p-1.5 hover:bg-white/10 rounded text-xs text-white/60 hover:text-white transition-colors"
                     >
