@@ -3,35 +3,100 @@ import * as THREE from 'three';
 import { PlayerConfig } from '../../../types';
 
 export class HairBuilder {
-    static build(parts: any, config: PlayerConfig, material: THREE.Material) {
+    private static strandAlphaMap: THREE.CanvasTexture | null = null;
+
+    private static getStrandAlphaMap(): THREE.Texture | null {
+        if (typeof document === 'undefined') return null;
+        if (this.strandAlphaMap) return this.strandAlphaMap;
+
+        const width = 32;
+        const height = 128;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
+
+        const img = ctx.createImageData(width, height);
+        const data = img.data;
+        const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+        const smoothstep = (edge0: number, edge1: number, x: number) => {
+            const t = clamp01((x - edge0) / (edge1 - edge0));
+            return t * t * (3 - 2 * t);
+        };
+
+        for (let y = 0; y < height; y++) {
+            const v = y / (height - 1); // 0=root, 1=tip
+            for (let x = 0; x < width; x++) {
+                const u = x / (width - 1);
+                const center = 1 - Math.abs(u - 0.5) * 2;
+                const profile = Math.pow(clamp01(center), 1.7);
+                const rootFade = smoothstep(0.0, 0.06, v);
+                const tipFade = 1.0 - smoothstep(0.72, 1.0, v);
+                const micro = 0.88 + Math.sin(v * 80 + u * 23) * 0.08;
+                const alpha = clamp01(profile * rootFade * tipFade * micro);
+                const value = Math.floor(alpha * 255);
+                const idx = (y * width + x) * 4;
+                data[idx] = value;
+                data[idx + 1] = value;
+                data[idx + 2] = value;
+                data[idx + 3] = 255;
+            }
+        }
+
+        ctx.putImageData(img, 0, 0);
+        this.strandAlphaMap = new THREE.CanvasTexture(canvas);
+        this.strandAlphaMap.wrapS = THREE.ClampToEdgeWrapping;
+        this.strandAlphaMap.wrapT = THREE.ClampToEdgeWrapping;
+        this.strandAlphaMap.minFilter = THREE.LinearMipmapLinearFilter;
+        this.strandAlphaMap.magFilter = THREE.LinearFilter;
+        this.strandAlphaMap.generateMipmaps = true;
+        return this.strandAlphaMap;
+    }
+
+    static build(parts: any, config: PlayerConfig, material: THREE.Material): boolean {
         const head = parts.head;
+        if (!head) return false;
+
         const existing = head.getObjectByName('HairInstanced');
         if (existing) {
             head.remove(existing);
-            (existing as THREE.InstancedMesh).geometry.dispose();
+            if (existing instanceof THREE.InstancedMesh) {
+                existing.geometry.dispose();
+                if (Array.isArray(existing.material)) existing.material.forEach(m => m.dispose());
+                else if (existing.material) existing.material.dispose();
+            }
         }
 
-        if (config.hairStyle === 'bald') return;
+        if (config.hairStyle === 'bald') return false;
 
         const hairCapGroup = head.getObjectByName('HairCap');
-        if (!hairCapGroup) return;
+        if (!hairCapGroup) return false;
 
         const emitters: THREE.Mesh[] = [];
         hairCapGroup.traverse((c: any) => {
             if (c.isMesh) emitters.push(c);
         });
 
-        if (emitters.length === 0) return;
+        if (emitters.length === 0) return false;
 
-        // Optimization: Further reduce hair count for character performance
-        const HAIR_COUNT = 800;
-        const hairLen = 0.055; 
-        const hairThick = 0.005; 
+        // Instanced cards keep draw calls low while still reading as many strands.
+        const HAIR_COUNT = 560;
+        const hairLen = 0.058;
+        const cardWidth = 0.0115;
 
-        const hairGeo = new THREE.CylinderGeometry(0.001, hairThick, hairLen, 3, 2, false);
+        const hairGeo = new THREE.PlaneGeometry(cardWidth, hairLen, 1, 4);
         hairGeo.translate(0, hairLen / 2, 0);
 
-        const hairMat = material.clone();
+        const hairMat = material.clone() as THREE.MeshToonMaterial;
+        hairMat.side = THREE.DoubleSide;
+        hairMat.transparent = true;
+        hairMat.opacity = 0.98;
+        hairMat.alphaTest = 0.38;
+        hairMat.depthWrite = false;
+        hairMat.alphaMap = this.getStrandAlphaMap();
+        hairMat.vertexColors = true;
+
         const uInertia = { value: new THREE.Vector3(0, 0, 0) };
         const uGravity = { value: new THREE.Vector3(0, -0.01, 0) };
         const uSpeed = { value: 0.0 };
@@ -55,33 +120,50 @@ export class HairBuilder {
                 `
                 #include <begin_vertex>
                 float h = clamp(position.y / ${hairLen.toFixed(4)}, 0.0, 1.0);
-                float bendFactor = h * h * (3.0 - 2.0 * h); 
+                float bendFactor = h * h * (3.0 - 2.0 * h);
                 vec3 displacement = (uHairInertia + uGravity) * bendFactor;
-                float speedInfluence = pow(uSpeed * 0.2, 0.6); 
-                float wave1 = sin(uTime * 4.0 + position.y * 50.0 + position.x * 100.0) * 0.003;
-                float wave2 = cos(uTime * 18.0 + position.z * 150.0) * 0.0015;
-                float totalFlutter = (wave1 + wave2) * speedInfluence * h;
+                float speedInfluence = pow(max(uSpeed, 0.0) * 0.22, 0.62);
+                float seed = fract(sin(dot(instanceMatrix[3].xyz, vec3(12.9898, 78.233, 37.719))) * 43758.5453123);
+                float wave1 = sin(uTime * (3.5 + seed * 2.0) + position.y * 42.0 + seed * 6.2831) * (0.0018 + seed * 0.0014);
+                float wave2 = cos(uTime * 11.0 + position.y * 27.0 + position.x * 55.0 + seed * 9.1) * 0.001;
+                float totalFlutter = (wave1 + wave2) * (0.5 + speedInfluence) * h;
                 displacement.x += totalFlutter;
                 displacement.z += totalFlutter * 0.7;
-                displacement.y -= speedInfluence * 0.01 * h;
+                displacement.y -= speedInfluence * 0.005 * h;
                 transformed += displacement;
                 `
             );
         };
+        (hairMat as any).customProgramCacheKey = () => 'hair-card-instanced-v3';
+        hairMat.needsUpdate = true;
 
         const instancedMesh = new THREE.InstancedMesh(hairGeo, hairMat, HAIR_COUNT);
         instancedMesh.name = 'HairInstanced';
         instancedMesh.instanceMatrix.setUsage(THREE.StaticDrawUsage);
-        instancedMesh.castShadow = true;
-        instancedMesh.frustumCulled = true;
+        instancedMesh.castShadow = false;
+        instancedMesh.receiveShadow = false;
+        instancedMesh.frustumCulled = false;
 
         const dummy = new THREE.Object3D();
-        const _position = new THREE.Vector3();
-        const _normal = new THREE.Vector3();
-        const _target = new THREE.Vector3();
+        const up = new THREE.Vector3(0, 1, 0);
+        const position = new THREE.Vector3();
+        const normal = new THREE.Vector3();
+        const target = new THREE.Vector3();
+        const quat = new THREE.Quaternion();
+        const twist = new THREE.Quaternion();
+        const a = new THREE.Vector3();
+        const b = new THREE.Vector3();
+        const c = new THREE.Vector3();
+        const na = new THREE.Vector3();
+        const nb = new THREE.Vector3();
+        const nc = new THREE.Vector3();
+        const edge1 = new THREE.Vector3();
+        const edge2 = new THREE.Vector3();
+        const tempColor = new THREE.Color();
+        const baseColor = (hairMat.color ? hairMat.color.clone() : new THREE.Color(0x3e2723));
 
         let totalArea = 0;
-        const emitterData: { mesh: THREE.Mesh, area: number }[] = [];
+        const emitterData: { mesh: THREE.Mesh; area: number; normalMatrix: THREE.Matrix3 }[] = [];
 
         emitters.forEach(mesh => {
             const geo = mesh.geometry;
@@ -89,8 +171,7 @@ export class HairBuilder {
             const idx = geo.index;
             const count = idx ? idx.count : pos.count;
             let area = 0;
-            const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
-            const temp1 = new THREE.Vector3(), temp2 = new THREE.Vector3();
+            const normalMatrix = new THREE.Matrix3().getNormalMatrix(mesh.matrix);
             
             for (let i = 0; i < count; i += 3) {
                 if (idx) {
@@ -102,13 +183,13 @@ export class HairBuilder {
                     b.fromBufferAttribute(pos, i+1);
                     c.fromBufferAttribute(pos, i+2);
                 }
-                temp1.subVectors(b, a);
-                temp2.subVectors(c, a);
-                temp1.cross(temp2);
-                area += 0.5 * temp1.length();
+                edge1.subVectors(b, a);
+                edge2.subVectors(c, a);
+                edge1.cross(edge2);
+                area += 0.5 * edge1.length();
             }
             totalArea += area;
-            emitterData.push({ mesh, area }); 
+            emitterData.push({ mesh, area, normalMatrix });
         });
 
         let hairsGenerated = 0;
@@ -142,30 +223,55 @@ export class HairBuilder {
                 if (r1 + r2 > 1) { r1 = 1 - r1; r2 = 1 - r2; }
                 const r3 = 1 - r1 - r2;
 
-                _position.set(0,0,0);
-                _position.addScaledVector(new THREE.Vector3().fromBufferAttribute(pos, iA), r1);
-                _position.addScaledVector(new THREE.Vector3().fromBufferAttribute(pos, iB), r2);
-                _position.addScaledVector(new THREE.Vector3().fromBufferAttribute(pos, iC), r3);
+                a.fromBufferAttribute(pos, iA).applyMatrix4(data.mesh.matrix);
+                b.fromBufferAttribute(pos, iB).applyMatrix4(data.mesh.matrix);
+                c.fromBufferAttribute(pos, iC).applyMatrix4(data.mesh.matrix);
+                position.set(0,0,0);
+                position.addScaledVector(a, r1);
+                position.addScaledVector(b, r2);
+                position.addScaledVector(c, r3);
 
-                _normal.set(0,0,0);
-                _normal.addScaledVector(new THREE.Vector3().fromBufferAttribute(norm, iA), r1);
-                _normal.addScaledVector(new THREE.Vector3().fromBufferAttribute(norm, iB), r2);
-                _normal.addScaledVector(new THREE.Vector3().fromBufferAttribute(norm, iC), r3);
-                _normal.normalize();
+                na.fromBufferAttribute(norm, iA).applyMatrix3(data.normalMatrix).normalize();
+                nb.fromBufferAttribute(norm, iB).applyMatrix3(data.normalMatrix).normalize();
+                nc.fromBufferAttribute(norm, iC).applyMatrix3(data.normalMatrix).normalize();
+                normal.set(0,0,0);
+                normal.addScaledVector(na, r1);
+                normal.addScaledVector(nb, r2);
+                normal.addScaledVector(nc, r3);
+                normal.normalize();
 
-                dummy.position.copy(_position);
-                _target.copy(_position).add(_normal);
-                dummy.lookAt(_target);
-                dummy.rotateX(Math.PI / 2);
-                dummy.rotateX((random() - 0.5) * 0.3);
-                dummy.rotateZ((random() - 0.5) * 0.3);
-                const s = 0.9 + random() * 0.2;
-                dummy.scale.set(s, s * (0.8 + random() * 0.4), s);
+                dummy.position.copy(position).addScaledVector(normal, 0.0016);
+                target.copy(position).add(normal);
+                dummy.lookAt(target);
+
+                quat.setFromUnitVectors(up, normal);
+                twist.setFromAxisAngle(normal, random() * Math.PI * 2);
+                quat.multiply(twist);
+                dummy.quaternion.copy(quat);
+                dummy.rotateX(0.18 + random() * 0.26);
+
+                const widthScale = 0.7 + random() * 0.6;
+                const lengthScale = 0.78 + random() * 0.5;
+                dummy.scale.set(widthScale, lengthScale, 1);
                 dummy.updateMatrix();
+
                 instancedMesh.setMatrixAt(hairsGenerated, dummy.matrix);
+                const tone = 0.84 + random() * 0.24;
+                tempColor.copy(baseColor).multiplyScalar(tone);
+                instancedMesh.setColorAt(hairsGenerated, tempColor);
                 hairsGenerated++;
             }
         });
+
+        if (hairsGenerated === 0) {
+            hairGeo.dispose();
+            hairMat.dispose();
+            return false;
+        }
+
+        instancedMesh.count = hairsGenerated;
+        instancedMesh.instanceMatrix.needsUpdate = true;
+        if (instancedMesh.instanceColor) instancedMesh.instanceColor.needsUpdate = true;
 
         instancedMesh.onBeforeRender = () => {
             const m = instancedMesh.material as any;
@@ -178,5 +284,6 @@ export class HairBuilder {
         instancedMesh.userData.uInertia = uInertia;
         instancedMesh.userData.uGravity = uGravity;
         instancedMesh.userData.uSpeed = uSpeed;
+        return true;
     }
 }

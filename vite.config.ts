@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
         outDir: 'dist',
         // Keep /assets for public files; put bundled assets elsewhere to avoid collisions.
         assetsDir: 'static',
-        sourcemap: true,
+        sourcemap: false,
         minify: 'terser',
         copyPublicDir: true,
         rollupOptions: {

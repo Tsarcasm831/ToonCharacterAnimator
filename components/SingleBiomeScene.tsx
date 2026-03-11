@@ -69,8 +69,6 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
       });
       const wallCenters = getTownWallCenters(selectedLand, CITIES);
       game.sceneManager.singleBiomeEnvironment?.setTownWallCenters(wallCenters);
-      // Ensure we call onEnvironmentReady when loading a selected land
-      if (onEnvironmentReady) onEnvironmentReady();
     } else {
       // Default to Land 23 (Land of Ghosts) for testing the Hive Mind
       console.log("SingleBiomeScene: Defaulting to Land 23");
@@ -83,8 +81,6 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
       game.sceneManager.singleBiomeEnvironment?.setTownWallCenters(wallCenters);
       
       // uiState.setIsLandSelectionOpen(true);
-      // Ensure we call onEnvironmentReady when falling back to default land
-      if (onEnvironmentReady) onEnvironmentReady();
     }
     
     // Disable environment systems if needed, but SingleBiomeEnvironment handles its own build
@@ -125,12 +121,12 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
         setIsWorldMapOpen(prev => !prev);
       }
 
-      if (e.code === 'KeyH') {
+      if (e.code === 'KeyY') {
          const env = gameRef.current?.sceneManager.singleBiomeEnvironment;
          if (env?.hiveController) {
-             if (env.hiveController.isSwarmMode) {
-                 env.hiveController.reform();
-                 console.log("Hive reforming!");
+              if (env.hiveController.isSwarmMode) {
+                  env.hiveController.reform();
+                  console.log("Hive reforming!");
              } else {
                  env.hiveController.shatter();
                  console.log("Hive shattering!");
@@ -138,11 +134,11 @@ const SingleBiomeScene: React.FC<SceneProps> = ({
          }
       }
 
-      if (e.code === 'KeyJ') {
+      if (e.code === 'KeyN') {
          const env = gameRef.current?.sceneManager.singleBiomeEnvironment;
          if (env?.hiveController) {
-             env.hiveController.isRolling = !env.hiveController.isRolling;
-             console.log("Hive rolling:", env.hiveController.isRolling);
+              env.hiveController.isRolling = !env.hiveController.isRolling;
+              console.log("Hive rolling:", env.hiveController.isRolling);
          }
       }
 

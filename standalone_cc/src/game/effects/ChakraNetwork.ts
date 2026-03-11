@@ -190,6 +190,27 @@ export class ChakraNetwork {
         return joints;
     }
 
+    private getToeJoints(toeUnit: THREE.Object3D, forefoot: THREE.Object3D): THREE.Object3D[] {
+        const joints: THREE.Object3D[] = [forefoot, toeUnit];
+        const toeMesh = toeUnit.children.find(c => c instanceof THREE.Mesh) as THREE.Mesh | undefined;
+        if (!toeMesh) return joints;
+
+        let tip = toeMesh.children.find(c => c.name === 'chakra_toe_tip');
+        if (!tip) {
+            tip = new THREE.Object3D();
+            tip.name = 'chakra_toe_tip';
+            toeMesh.add(tip);
+        }
+
+        if (!toeMesh.geometry.boundingBox) {
+            toeMesh.geometry.computeBoundingBox();
+        }
+        const tipZ = toeMesh.geometry.boundingBox?.max.z ?? 0.02;
+        tip.position.set(0, 0, tipZ);
+        joints.push(tip);
+        return joints;
+    }
+
     private traverseFoot(shin: THREE.Object3D, ankle: THREE.Object3D, prefix: string, color: number) {
         const anchor = shin.children.find(c => c.name === `${prefix}_foot_anchor`);
         if (!anchor) return;
@@ -200,7 +221,7 @@ export class ChakraNetwork {
         if (forefoot) {
             this.addChain([anchor, forefoot], color, true);
             forefoot.children.forEach(c => {
-                if (c.type === 'Group') this.addChain([forefoot, c], color, false);
+                if (c.type === 'Group') this.addChain(this.getToeJoints(c, forefoot), color, false);
             });
         }
     }

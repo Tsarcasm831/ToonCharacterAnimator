@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { PlayerConfig } from '../../../types';
-import { Slider, ColorPicker } from '../panels/CommonControls';
+import { Slider, ColorPicker, ToggleButton } from '../panels/CommonControls';
 
 interface FaceControlsProps {
     config: PlayerConfig;
@@ -18,15 +18,25 @@ export const FaceControls: React.FC<FaceControlsProps> = ({ config, setConfig })
         setConfig(prev => ({ ...prev, showBrain: !prev.showBrain }));
     };
     
+    const toggleOrgans = () => {
+        setConfig(prev => ({ ...prev, showOrgans: !prev.showOrgans }));
+    };
+
     const toggleDebugHead = () => {
         setConfig(prev => ({ ...prev, debugHead: !prev.debugHead }));
+    };
+
+    const toggleChakraNetwork = () => {
+        setConfig(prev => ({ ...prev, showChakraNetwork: !prev.showChakraNetwork }));
     };
 
     return (
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={toggleBrain} aria-pressed={config.showBrain} className={`py-1 text-xs font-bold rounded border ${config.showBrain ? 'bg-pink-100 border-pink-500 text-pink-800' : 'bg-white border-gray-200 text-gray-400'}`}>Brain</button>
-                <button type="button" onClick={toggleDebugHead} aria-pressed={config.debugHead} className={`py-1 text-xs font-bold rounded border ${config.debugHead ? 'bg-purple-100 border-purple-500 text-purple-800' : 'bg-white border-gray-200 text-gray-400'}`}>Debug Mask</button>
+                <ToggleButton label="Brain" isActive={config.showBrain} onClick={toggleBrain} activeColor="pink" />
+                <ToggleButton label="Organs" isActive={config.showOrgans} onClick={toggleOrgans} activeColor="red" />
+                <ToggleButton label="Debug Mask" isActive={config.debugHead} onClick={toggleDebugHead} activeColor="purple" />
+                <ToggleButton label="Chakra Net" isActive={config.showChakraNetwork} onClick={toggleChakraNetwork} activeColor="blue" />
             </div>
             {config.showBrain && <Slider label="Brain Size" value={config.brainSize} min={0.5} max={2.0} step={0.1} onChange={(v) => handleConfigChange('brainSize', v)} />}
             

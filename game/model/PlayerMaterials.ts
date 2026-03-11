@@ -87,6 +87,17 @@ export class PlayerMaterials {
     underwear: THREE.MeshToonMaterial;
     hair: THREE.MeshToonMaterial;
     brain: THREE.MeshPhysicalMaterial;
+    
+    // Organs
+    heart: THREE.MeshPhysicalMaterial;
+    lungs: THREE.MeshPhysicalMaterial;
+    liver: THREE.MeshPhysicalMaterial;
+    stomach: THREE.MeshPhysicalMaterial;
+    pancreas: THREE.MeshPhysicalMaterial;
+    spleen: THREE.MeshPhysicalMaterial;
+    kidneys: THREE.MeshPhysicalMaterial;
+    bladder: THREE.MeshPhysicalMaterial;
+    gallbladder: THREE.MeshPhysicalMaterial;
 
     constructor(config: PlayerConfig) {
         this.skin = new THREE.MeshToonMaterial({ color: config.skinColor, transparent: true, opacity: 1.0 });
@@ -117,6 +128,26 @@ export class PlayerMaterials {
             transparent: true,
             opacity: 1.0
         });
+
+        // Organ Materials
+        const baseOrganProps = {
+            roughness: 0.3,
+            metalness: 0.05,
+            clearcoat: 0.9,
+            clearcoatRoughness: 0.2,
+            transparent: true,
+            opacity: 1.0
+        };
+
+        this.heart = new THREE.MeshPhysicalMaterial({ ...baseOrganProps, color: 0xcc3333 }); // Deep red
+        this.lungs = new THREE.MeshPhysicalMaterial({ ...baseOrganProps, color: 0xdd9999, roughness: 0.5, clearcoat: 0.4 }); // Lighter pinkish, less shiny
+        this.liver = new THREE.MeshPhysicalMaterial({ ...baseOrganProps, color: 0x6b2b2b }); // Dark brownish red
+        this.stomach = new THREE.MeshPhysicalMaterial({ ...baseOrganProps, color: 0xcca3a3 }); // Pale pinkish tan
+        this.pancreas = new THREE.MeshPhysicalMaterial({ ...baseOrganProps, color: 0xddccaa, roughness: 0.6 }); // Yellowish tan, bumpy texture look
+        this.spleen = new THREE.MeshPhysicalMaterial({ ...baseOrganProps, color: 0x552233 }); // Purplish dark red
+        this.kidneys = new THREE.MeshPhysicalMaterial({ ...baseOrganProps, color: 0x883333 }); // Reddish brown
+        this.bladder = new THREE.MeshPhysicalMaterial({ ...baseOrganProps, color: 0xddccbb, clearcoat: 0.6 }); // Pale yellowish
+        this.gallbladder = new THREE.MeshPhysicalMaterial({ ...baseOrganProps, color: 0x336633, clearcoat: 1.0 }); // Deep greenish
         
         this.sync(config);
     }
@@ -125,7 +156,9 @@ export class PlayerMaterials {
         const materials = [
             this.skin, this.shirt, this.pants, this.boots, 
             this.sclera, this.iris, this.pupil, this.lip, 
-            this.underwear, this.hair, this.brain
+            this.underwear, this.hair, this.brain,
+            this.heart, this.lungs, this.liver, this.stomach,
+            this.pancreas, this.spleen, this.kidneys, this.bladder, this.gallbladder
         ];
         
         materials.forEach(mat => {
@@ -177,7 +210,9 @@ export class PlayerMaterials {
         const mats = [
             this.skin, this.shirt, this.pants, this.boots, 
             this.sclera, this.iris, this.pupil, this.lip, 
-            this.underwear, this.hair, this.brain
+            this.underwear, this.hair, this.brain,
+            this.heart, this.lungs, this.liver, this.stomach,
+            this.pancreas, this.spleen, this.kidneys, this.bladder, this.gallbladder
         ];
         mats.forEach(m => {
             if (m.bumpMap) m.bumpMap.dispose();

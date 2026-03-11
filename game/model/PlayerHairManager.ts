@@ -32,14 +32,11 @@ export class PlayerHairManager {
         this.lastHairHash = hash;
         
         const head = this.partsRegistry.parts.head;
+        const hasInstancedHair = HairBuilder.build(this.partsRegistry.parts, config, this.materials.hair);
         if (head) {
             const hairCap = head.getObjectByName('HairCap');
-            if (hairCap) {
-                hairCap.visible = config.hairStyle !== 'bald';
-            }
+            if (hairCap) hairCap.visible = config.hairStyle !== 'bald' && !hasInstancedHair;
         }
-        
-        HairBuilder.build(this.partsRegistry.parts, config, this.materials.hair);
     }
 
     updatePhysics(dt: number, rootVelocity: THREE.Vector3) {

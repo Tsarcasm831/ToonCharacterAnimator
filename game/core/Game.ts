@@ -176,7 +176,9 @@ export class Game {
             this.setupTownScene();
         }
         
-        this.scheduleEnvironmentReady(activeScene);
+        if (activeScene !== 'singleBiome') {
+            this.scheduleEnvironmentReady(activeScene);
+        }
 
         this.clock = new THREE.Clock();
 
@@ -373,32 +375,55 @@ export class Game {
         }
     }
 
+    private isBuildTokenValid(buildToken: number, sceneName: SceneType): boolean {
+        return buildToken === this.initialEnvironmentBuildToken && this.sceneManager.activeScene === sceneName;
+    }
+
+    private async waitForFrames(frameCount: number, buildToken: number, sceneName: SceneType): Promise<boolean> {
+        for (let i = 0; i < frameCount; i += 1) {
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            if (!this.isBuildTokenValid(buildToken, sceneName)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private async finalizeEnvironmentReady(sceneName: SceneType, buildToken: number): Promise<void> {
+        const warmupComplete = await this.waitForFrames(2, buildToken, sceneName);
+        if (!warmupComplete) return;
+
+        // Pre-warm a render while loading overlay is active to reduce first-frame pop-in.
+        this.renderManager.render();
+
+        const finalFrameComplete = await this.waitForFrames(1, buildToken, sceneName);
+        if (!finalFrameComplete) return;
+
+        this.onEnvironmentReady?.();
+    }
+
     private scheduleEnvironmentReady(sceneName: SceneType) {
         const buildToken = ++this.initialEnvironmentBuildToken;
 
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                if (buildToken !== this.initialEnvironmentBuildToken) return;
-                if (this.sceneManager.activeScene !== sceneName) return;
+        void (async () => {
+            const mountFramesComplete = await this.waitForFrames(2, buildToken, sceneName);
+            if (!mountFramesComplete) return;
 
-                if (sceneName !== 'dev') {
-                    this.onEnvironmentReady?.();
-                    return;
-                }
-
+            if (sceneName === 'dev') {
                 const environment = this.sceneManager.environment;
-                if (!environment) {
-                    this.onEnvironmentReady?.();
-                    return;
-                }
+                if (environment) {
+                    try {
+                        await environment.buildAsync();
+                    } catch (error) {
+                        console.error('[Game] Failed to build dev environment during loading:', error);
+                    }
 
-                void environment.buildAsync().then(() => {
-                    if (buildToken !== this.initialEnvironmentBuildToken) return;
-                    if (this.sceneManager.activeScene !== sceneName) return;
-                    this.onEnvironmentReady?.();
-                });
-            });
-        });
+                    if (!this.isBuildTokenValid(buildToken, sceneName)) return;
+                }
+            }
+
+            await this.finalizeEnvironmentReady(sceneName, buildToken);
+        })();
     }
 
     private setupTownScene() {
