@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
+import { PlayerConfig } from '../../../../types';
 
 const GLOBAL_PATTERN_SCALE = 3.5;
 
@@ -84,4 +84,3 @@ export class SkirtBuilder {
         return { meshes: createdMeshes };
     }
 }
-

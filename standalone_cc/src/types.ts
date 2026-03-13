@@ -2,7 +2,7 @@
 export type ActiveScene = 'dev' | 'land' | 'combat' | 'world' | 'mp' | 'singleBiome' | 'town';
 
 export type BodyVariant = 'average' | 'muscular' | 'slim' | 'heavy';
-export type OutfitType = 'nude' | 'naked' | 'peasant' | 'warrior' | 'ranger' | 'knight' | 'noble' | 'mage';
+export type OutfitType = 'nude' | 'naked' | 'peasant' | 'warrior' | 'noble';
 export type WeaponStance = 'side' | 'shoulder';
 export type HairStyle = 'bald' | 'crew';
 
@@ -288,13 +288,12 @@ export interface FaceProportionsConfig {
   lowerLipOffsetY: number;
   lowerLipOffsetZ: number;
 
-  // Brain/Debug
+  // Brain/Debug/Organs
   showBrain: boolean;
+  showOrgans: boolean;
   brainSize: number;
   debugHead: boolean;
   showChakraNetwork: boolean;
-  chakraNetworkColor: string;
-  chakraNetworkIntensity: number;
 }
 
 export interface AccessoryRiggingConfig {
@@ -641,9 +640,8 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   bulgeScale: 1.0,
 
   showBrain: false,
+  showOrgans: false,
   brainSize: 1.0,
   debugHead: false,
   showChakraNetwork: false,
-  chakraNetworkColor: '#6ed8ff',
-  chakraNetworkIntensity: 1.6,
 };

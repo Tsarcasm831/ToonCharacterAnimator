@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
+import { PlayerConfig } from '../../../../types';
 
 export class CapeBuilder {
     static build(parts: any, config: PlayerConfig): { meshes: THREE.Object3D[] } | null {
@@ -47,11 +47,11 @@ export class CapeBuilder {
         const backSurfaceZ = -(torsoRadiusTop * torsoDepthScale) - armorBulkOffset;
 
         // --- 3. THE CAPE MESH ---
-        const capeWidthTop = 0.26;
-        const capeWidthBottom = 0.9;
-        const capeLength = 1.18;
-        const segW = 14;
-        const segH = 26;
+        const capeWidthTop = 0.35; // Neck width
+        const capeWidthBottom = 1.0; // Flared bottom
+        const capeLength = 1.25;
+        const segW = 12;
+        const segH = 24;
 
         const capeGeo = new THREE.PlaneGeometry(capeWidthBottom, capeLength, segW, segH);
         const pos = capeGeo.attributes.position;
@@ -65,32 +65,42 @@ export class CapeBuilder {
             // Note: PlaneGeometry default center is 0,0. Let's remap logic.
             const t = 0.5 - (v.y / capeLength); // 0 at top, 1 at bottom
             
-            // 1. Trapezoid taper (narrow at neck, wider at bottom)
-            const widthScale = THREE.MathUtils.lerp(capeWidthTop / capeWidthBottom, 1.0, t);
-            v.x *= widthScale;
+            // 1. Tapering (Trapezoid shape)
+            // Interpolate width from top to bottom
+            const currentWidthScale = THREE.MathUtils.lerp(capeWidthTop / capeWidthBottom, 1.0, t);
+            v.x *= currentWidthScale;
 
-            const absX = Math.abs(v.x);
-            const maxX = Math.max(0.0001, (capeWidthBottom * widthScale) * 0.5);
-            const edgeN = THREE.MathUtils.clamp(absX / maxX, 0, 1);
+            // 2. The "Over the Shoulder" Curve
+            // We want the top to curve forward (Z+) to rest on traps, then fall back (Z-)
+            
+            // Base Z is the back of the armor
+            let zPos = backSurfaceZ - 0.02; // Slight air gap
 
-            // 2. Keep entire cape behind the torso.
-            let zPos = backSurfaceZ - 0.06;
-
-            // At the very top, pull center in toward neck while keeping edges back.
-            if (t < 0.14) {
-                const neckT = (0.14 - t) / 0.14;
-                zPos += (1.0 - edgeN) * neckT * 0.016;
-                zPos -= edgeN * neckT * 0.012;
-                v.y += (1.0 - edgeN) * neckT * 0.02;
+            if (t < 0.15) {
+                // Top 15% curves forward to meet the neck/shoulders
+                // 0.0 = Neck, 0.15 = Shoulder Blade drop off
+                const neckFactor = (0.15 - t) / 0.15; // 1 at top, 0 at shoulder
+                zPos += Math.sin(neckFactor * Math.PI * 0.5) * 0.12; 
+                
+                // Lift Y slightly at the neck for "bunching"
+                v.y += neckFactor * 0.05;
             } else {
-                // Lower cloth falls away from body.
-                zPos -= Math.pow(t - 0.14, 1.35) * 0.12;
+                // Gravity takes over below the shoulders
+                // Add a slight curve outward at the bottom for dramatic effect
+                zPos -= Math.pow(t - 0.15, 2) * 0.2; 
             }
 
-            // 3. Mild folds that grow toward the bottom.
-            const fold = Math.sin((v.x / maxX) * Math.PI * 3.5 + t * 4.2) * (0.006 + t * 0.016);
-            const centerDip = (1.0 - edgeN) * Math.sin(t * Math.PI) * 0.008;
-            v.z = zPos + fold - centerDip;
+            // 3. Folds and Ripples
+            // Sine wave based on X creates vertical folds
+            // We dampen the folds at the top (tight against neck) and amplify at bottom
+            const foldAmp = 0.04 * t; 
+            const foldFreq = 12.0;
+            const fold = Math.sin(v.x * foldFreq) * foldAmp;
+            
+            // 4. Wind/Motion Sway (Static for now, but lively)
+            const sway = Math.sin(t * 3) * 0.05;
+
+            v.z = zPos + fold - sway;
 
             pos.setXYZ(i, v.x, v.y, v.z);
         }
@@ -100,7 +110,7 @@ export class CapeBuilder {
         const capeMesh = new THREE.Mesh(capeGeo, capeMat);
         // Position relative to torso container:
         // Plane center is (0,0,0). Top of plane needs to be at shoulderLevel
-        capeMesh.position.set(0, shoulderLevelY - (capeLength / 2) + 0.01, -0.03);
+        capeMesh.position.set(0, shoulderLevelY - (capeLength/2) + 0.05, 0);
         capeMesh.castShadow = true;
         parts.torsoContainer.add(capeMesh);
         createdMeshes.push(capeMesh);
@@ -108,33 +118,23 @@ export class CapeBuilder {
 
         // --- 4. THE COLLAR (Folded cloth around neck) ---
         // Hides the transition between cape and neck
-        const collarLeft = new THREE.Vector3(-0.115, shoulderLevelY + 0.018, backSurfaceZ + 0.012);
-        const collarMid = new THREE.Vector3(0, shoulderLevelY + 0.038, backSurfaceZ + 0.002);
-        const collarRight = new THREE.Vector3(0.115, shoulderLevelY + 0.018, backSurfaceZ + 0.012);
-        const collarCurve = new THREE.CatmullRomCurve3([collarLeft, collarMid, collarRight]);
+        const collarCurve = new THREE.CatmullRomCurve3([
+            new THREE.Vector3(-0.16, shoulderLevelY + 0.04, backSurfaceZ + 0.06), // Left Shoulder
+            new THREE.Vector3(0, shoulderLevelY + 0.06, backSurfaceZ + 0.04),     // Back Neck (High)
+            new THREE.Vector3(0.16, shoulderLevelY + 0.04, backSurfaceZ + 0.06),  // Right Shoulder
+        ]);
         
-        const collarGeo = new THREE.TubeGeometry(collarCurve, 12, 0.032, 8, false);
+        const collarGeo = new THREE.TubeGeometry(collarCurve, 12, 0.04, 8, false);
         const collar = new THREE.Mesh(collarGeo, capeMat);
         parts.torsoContainer.add(collar);
         createdMeshes.push(collar);
 
-        const collarCapGeo = new THREE.SphereGeometry(0.032, 10, 8);
-        const leftCollarCap = new THREE.Mesh(collarCapGeo, capeMat);
-        leftCollarCap.position.copy(collarLeft);
-        parts.torsoContainer.add(leftCollarCap);
-        createdMeshes.push(leftCollarCap);
-
-        const rightCollarCap = new THREE.Mesh(collarCapGeo, capeMat);
-        rightCollarCap.position.copy(collarRight);
-        parts.torsoContainer.add(rightCollarCap);
-        createdMeshes.push(rightCollarCap);
-
 
         // --- 5. ATTACHMENT CHAINS (Front) ---
         // Clasps (Buttons on the chest/clavicle)
-        const claspSpread = 0.115;
-        const claspY = shoulderLevelY + 0.003;
-        const claspZ = chestSurfaceZ + 0.008;
+        const claspSpread = 0.14;
+        const claspY = shoulderLevelY - 0.06;
+        const claspZ = chestSurfaceZ + 0.01;
 
         const claspGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.01, 16);
         claspGeo.rotateX(Math.PI / 2);
@@ -147,12 +147,11 @@ export class CapeBuilder {
             createdMeshes.push(clasp);
 
             // Connect Clasp to Cape (Over the shoulder straps)
-            const collarAnchor = side < 0 ? collarLeft : collarRight;
             const strapGeo = new THREE.TubeGeometry(
                 new THREE.CatmullRomCurve3([
                     new THREE.Vector3(side * claspSpread, claspY, claspZ), // Front
-                    new THREE.Vector3(side * 0.13, shoulderLevelY + 0.045, chestSurfaceZ + 0.012),
-                    new THREE.Vector3(collarAnchor.x, collarAnchor.y, collarAnchor.z + 0.001)
+                    new THREE.Vector3(side * 0.18, shoulderLevelY + 0.05, 0), // Top Shoulder (Peak)
+                    new THREE.Vector3(side * 0.12, shoulderLevelY, backSurfaceZ + 0.05) // Back connect
                 ]), 
                 8, 0.01, 6, false
             );
@@ -164,7 +163,7 @@ export class CapeBuilder {
         // The Chain Hanging between clasps
         const chainCurve = new THREE.CatmullRomCurve3([
             new THREE.Vector3(-claspSpread, claspY, claspZ + 0.01),
-            new THREE.Vector3(0, claspY - 0.045, claspZ + 0.015), // Keep the chain close to the shirt cap instead of floating
+            new THREE.Vector3(0, claspY - 0.1, claspZ + 0.025), // Hangs down with gravity
             new THREE.Vector3(claspSpread, claspY, claspZ + 0.01)
         ]);
         const chainGeo = new THREE.TubeGeometry(chainCurve, 16, 0.008, 6, false);

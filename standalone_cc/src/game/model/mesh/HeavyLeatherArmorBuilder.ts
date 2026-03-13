@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../types';
 
 const LEATHER_MAIN = '#6d4c41'; // Medium Brown
 const LEATHER_DARK = '#4e342e'; // Dark Brown
@@ -236,4 +236,3 @@ export class HeavyLeatherArmorBuilder {
         return { meshes: createdMeshes, refs };
     }
 }
-

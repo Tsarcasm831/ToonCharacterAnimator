@@ -122,7 +122,10 @@ export class InputManager {
         if (this.checkTrigger(e.code, InputCommand.ToggleInventory)) this.onToggleInventory?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleQuestLog)) this.onToggleQuestLog?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleWorldMap)) this.onToggleWorldMap?.();
-        if (this.checkTrigger(e.code, InputCommand.ToggleKeybinds)) this.onToggleKeybinds?.();
+        if (this.checkTrigger(e.code, InputCommand.ToggleKeybinds)) {
+            e.preventDefault();
+            this.onToggleKeybinds?.();
+        }
         if (this.checkTrigger(e.code, InputCommand.ToggleHitbox)) this.onToggleHitbox?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleObstacleHitboxes)) this.onToggleObstacleHitboxes?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleCamera)) this.onToggleCamera?.();
@@ -227,7 +230,9 @@ export class InputManager {
             attack2: isAttack2,
             interact: !!(this.isCommandActive(InputCommand.Interact) || this.manualInput.interact),
             combat: !!(this.isCommandActive(InputCommand.CombatStance) || this.manualInput.combat),
-            toggleFirstPerson: !!(this.isCommandActive(InputCommand.ToggleFirstPerson) || this.manualInput.toggleFirstPerson),
+            // Keyboard toggle is handled as a one-shot trigger in handleKeyDown.
+            // Keep this field manual-only so we don't double-toggle in Game.animate().
+            toggleFirstPerson: !!this.manualInput.toggleFirstPerson,
             wave: !!(this.isCommandActive(InputCommand.Wave) || this.manualInput.wave),
             leftHandWave: !!(this.isCommandActive(InputCommand.LeftHandWave) || this.manualInput.leftHandWave),
             summon: !!(this.isCommandActive(InputCommand.Summon) || this.manualInput.summon),

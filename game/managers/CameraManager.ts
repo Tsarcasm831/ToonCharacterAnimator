@@ -20,10 +20,9 @@ export class CameraManager {
     private readonly tempHeadPos = new THREE.Vector3();
     private readonly tempForward = new THREE.Vector3();
     private readonly tempCamDir = new THREE.Vector3();
-    private readonly tempLookAt = new THREE.Vector3();
-    private readonly axisX = new THREE.Vector3(1, 0, 0);
-    private readonly axisY = new THREE.Vector3(0, 1, 0);
-    private readonly camDirBase = new THREE.Vector3(0, 0, 1);
+    private readonly fpvEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+    private lastMouseX: number | null = null;
+    private lastMouseY: number | null = null;
     
     // Previous State for TPV smoothing
     private prevTargetPos = new THREE.Vector3();
@@ -52,6 +51,8 @@ export class CameraManager {
             // Initialize Yaw/Pitch from current player rotation
             this.fpvYaw = this.player.mesh.rotation.y; 
             this.fpvPitch = 0;
+            this.lastMouseX = null;
+            this.lastMouseY = null;
             
             this.renderManager.renderer.domElement.requestPointerLock();
         } else {
@@ -62,6 +63,8 @@ export class CameraManager {
             if (document.pointerLockElement === this.renderManager.renderer.domElement) {
                 document.exitPointerLock();
             }
+            this.lastMouseX = null;
+            this.lastMouseY = null;
             
             // Show head again
             if (this.player.model.parts.head) this.player.model.parts.head.visible = true;
@@ -72,33 +75,58 @@ export class CameraManager {
         }
     }
 
+    private applyFirstPersonLookDelta(deltaX: number, deltaY: number, sensitivity: number) {
+        this.fpvYaw -= deltaX * sensitivity;
+        this.fpvPitch += deltaY * sensitivity;
+        const limit = Math.PI / 2 - 0.1;
+        this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
+    }
+
     public handleMouseMove(e: MouseEvent) {
-        if (this.isFirstPerson && document.pointerLockElement === this.renderManager.renderer.domElement) {
-            const sensitivity = 0.002;
-            this.fpvYaw -= e.movementX * sensitivity;
-            this.fpvPitch -= e.movementY * sensitivity;
-            const limit = Math.PI / 2 - 0.1;
-            this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
+        if (!this.isFirstPerson) return;
+
+        const canvas = this.renderManager.renderer.domElement;
+        const isPointerLocked = document.pointerLockElement === canvas;
+
+        if (isPointerLocked) {
+            this.applyFirstPersonLookDelta(e.movementX, e.movementY, 0.002);
+            return;
         }
+
+        // Fallback when pointer lock is unavailable: derive deltas from cursor position.
+        if (this.lastMouseX === null || this.lastMouseY === null) {
+            this.lastMouseX = e.clientX;
+            this.lastMouseY = e.clientY;
+            return;
+        }
+
+        const deltaX = e.clientX - this.lastMouseX;
+        const deltaY = e.clientY - this.lastMouseY;
+        this.lastMouseX = e.clientX;
+        this.lastMouseY = e.clientY;
+        this.applyFirstPersonLookDelta(deltaX, deltaY, 0.003);
     }
 
     public handleJoystickLook(joyLook: {x: number, y: number}, delta: number) {
-        if (joyLook.x !== 0 || joyLook.y !== 0) {
-            const joySensitivity = 2.5 * delta;
-            if (this.isFirstPerson) {
-                this.fpvYaw -= joyLook.x * joySensitivity; 
-                this.fpvPitch += joyLook.y * joySensitivity; 
-                const limit = Math.PI / 2 - 0.1;
-                this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
-            } else {
-                const offset = new THREE.Vector3().subVectors(this.renderManager.camera.position, this.renderManager.controls.target);
-                const spherical = new THREE.Spherical().setFromVector3(offset);
-                spherical.theta -= joyLook.x * joySensitivity; 
-                spherical.phi -= joyLook.y * joySensitivity;
-                spherical.makeSafe(); 
-                offset.setFromSpherical(spherical);
-                this.renderManager.camera.position.copy(this.renderManager.controls.target).add(offset);
-            }
+        const deadZone = 0.12;
+        const lookX = Math.abs(joyLook.x) > deadZone ? joyLook.x : 0;
+        const lookY = Math.abs(joyLook.y) > deadZone ? joyLook.y : 0;
+        if (lookX === 0 && lookY === 0) return;
+
+        const joySensitivity = 2.5 * delta;
+        if (this.isFirstPerson) {
+            this.fpvYaw -= lookX * joySensitivity;
+            this.fpvPitch -= lookY * joySensitivity;
+            const limit = Math.PI / 2 - 0.1;
+            this.fpvPitch = Math.max(-limit, Math.min(limit, this.fpvPitch));
+        } else {
+            const offset = new THREE.Vector3().subVectors(this.renderManager.camera.position, this.renderManager.controls.target);
+            const spherical = new THREE.Spherical().setFromVector3(offset);
+            spherical.theta -= lookX * joySensitivity; 
+            spherical.phi -= lookY * joySensitivity;
+            spherical.makeSafe(); 
+            offset.setFromSpherical(spherical);
+            this.renderManager.camera.position.copy(this.renderManager.controls.target).add(offset);
         }
     }
 
@@ -160,12 +188,12 @@ export class CameraManager {
                 this.player.mesh.getWorldDirection(this.tempForward);
                 this.tempHeadPos.addScaledVector(this.tempForward, 0.2); 
                 
-                this.renderManager.controls.target.copy(this.tempHeadPos);
-                this.tempCamDir.copy(this.camDirBase).applyAxisAngle(this.axisX, this.fpvPitch).applyAxisAngle(this.axisY, this.fpvYaw);
-                
                 this.renderManager.camera.position.copy(this.tempHeadPos);
-                this.tempLookAt.copy(this.tempHeadPos).add(this.tempCamDir);
-                this.renderManager.camera.lookAt(this.tempLookAt);
+                this.fpvEuler.set(-this.fpvPitch, this.fpvYaw + Math.PI, 0);
+                this.renderManager.camera.quaternion.setFromEuler(this.fpvEuler);
+
+                this.tempCamDir.set(0, 0, -1).applyQuaternion(this.renderManager.camera.quaternion);
+                this.renderManager.controls.target.copy(this.tempHeadPos).add(this.tempCamDir);
             } else {
                 // TPV Logic
                 this.prevTargetPos.copy(this.renderManager.controls.target);

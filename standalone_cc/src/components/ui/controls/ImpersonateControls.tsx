@@ -1,7 +1,6 @@
 
 import React from 'react';
-import { DEFAULT_CONFIG } from '../../../types';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig, DEFAULT_CONFIG } from '../../../types';
 
 interface ImpersonateControlsProps {
     setConfig: React.Dispatch<React.SetStateAction<PlayerConfig>>;
@@ -169,4 +168,3 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
         </div>
     );
 };
-

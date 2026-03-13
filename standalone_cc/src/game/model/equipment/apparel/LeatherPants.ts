@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
-import { PantsBulgeBuilder } from '../../mesh/PantsBulgeBuilder';
+import { PlayerConfig } from '../../../../types';
 
 const GLOBAL_PATTERN_SCALE = 3.5;
 
@@ -91,17 +90,6 @@ export class LeatherPants {
             belt.position.y = -0.02;
             parts.pelvis.add(belt);
             meshes.push(belt);
-
-            if (config.bodyType === 'male') {
-                const bulge = PantsBulgeBuilder.build(mat, {
-                    position: { x: 0, y: -0.098, z: 0.102 },
-                    scale: { x: 0.9, y: 0.86, z: 0.66 },
-                    rotationX: 0.16
-                });
-                bulge.name = 'leatherPantsBulge';
-                parts.pelvis.add(bulge);
-                meshes.push(bulge);
-            }
         }
 
         // --- Legs (Thighs and Shins) ---

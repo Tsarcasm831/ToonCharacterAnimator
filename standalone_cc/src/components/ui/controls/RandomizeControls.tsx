@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import type { PlayerConfig } from '../../../types';
-import RandomizationPresets from '../../../utils/RandomizationPresets';
-import type { PresetTheme } from '../../../utils/RandomizationPresets';
+import { PlayerConfig } from '../../../types';
+import RandomizationPresets, { PresetTheme } from '../../../utils/RandomizationPresets';
 
 interface RandomizeControlsProps {
   config: PlayerConfig;
@@ -161,4 +160,3 @@ const RandomizeControls: React.FC<RandomizeControlsProps> = ({ config, setConfig
 };
 
 export default RandomizeControls;
-

@@ -7,7 +7,7 @@ import { HandBuilder } from './mesh/HandBuilder';
 import { FootBuilder } from './mesh/FootBuilder';
 import { ShoeBuilder } from './mesh/ShoeBuilder';
 import { createSegment } from './mesh/MeshUtils';
-import type { PlayerConfig } from '../../types';
+import { PlayerConfig } from '../../types';
 
 export class PlayerMeshBuilder {
     static build(materials: PlayerMaterials, config: PlayerConfig) {
@@ -212,4 +212,3 @@ export class PlayerMeshBuilder {
         return { group, parts, arrays };
     }
 }
-

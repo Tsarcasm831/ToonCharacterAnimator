@@ -73,7 +73,11 @@ export class RenderManager {
     }
 
     render() {
-        this.controls.update();
+        // OrbitControls can still mutate camera transforms while disabled if update()
+        // is called, which breaks first-person camera orientation.
+        if (this.controls.enabled) {
+            this.controls.update();
+        }
         this.renderer.render(this.scene, this.camera);
     }
 

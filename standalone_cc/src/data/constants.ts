@@ -1,4 +1,4 @@
-import type { BodyVariant, PlayerConfig, OutfitType, ItemData } from '../types';
+import { BodyVariant, PlayerConfig, OutfitType, ItemData } from '../types';
 
 export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
   average: {
@@ -72,37 +72,15 @@ export const OUTFIT_PRESETS: Record<OutfitType, Partial<PlayerConfig>> = {
   },
   warrior: {
     outfit: 'warrior',
-    equipment: { helm: true, shoulders: true, shield: true, shirt: true, leatherDoublet: false, pants: true, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, gloves: false, cape: false, belt: true, skirt: false, skullcap: false, shorts: false },
+    equipment: { helm: true, shoulders: true, shield: true, shirt: true, leatherDoublet: false, pants: true, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: true, shoes: true, mask: true, hood: true, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, gloves: false, cape: false, belt: true, skirt: false, skullcap: false, shorts: false },
     shirtColor: '#607d8b',
     pantsColor: '#37474f'
-  },
-  ranger: {
-    outfit: 'ranger',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: true, leatherDoublet: false, pants: false, hideBreeches: false, leatherPants: true, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: false, shoes: true, mask: false, hood: true, quiltedArmor: false, leatherArmor: true, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: false, blacksmithApron: false, mageHat: false, bracers: true, gloves: false, cape: true, belt: true, skirt: false, skullcap: false, shorts: false },
-    shirtColor: '#556b2f',
-    pantsColor: '#4e342e',
-    robeColor: '#6b8e23',
-    hoodColor: '#556b2f'
-  },
-  knight: {
-    outfit: 'knight',
-    equipment: { helm: true, shoulders: true, shield: true, shirt: false, leatherDoublet: false, pants: false, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: true, warlordLegPlates: false, greaves: true, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: true, robe: false, blacksmithApron: false, mageHat: false, bracers: true, gloves: true, cape: false, belt: true, skirt: false, skullcap: false, shorts: false },
-    shirtColor: '#90a4ae',
-    pantsColor: '#455a64'
   },
   noble: {
     outfit: 'noble',
     equipment: { helm: false, shoulders: false, shield: false, shirt: true, leatherDoublet: false, pants: true, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: false, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false, mageHat: false, bracers: false, gloves: false, cape: true, belt: true, skirt: false, skullcap: false, shorts: false },
     shirtColor: '#3f51b5',
     pantsColor: '#1a237e'
-  },
-  mage: {
-    outfit: 'mage',
-    equipment: { helm: false, shoulders: false, shield: false, shirt: false, leatherDoublet: false, pants: false, hideBreeches: false, leatherPants: false, chainLeggings: false, plateLeggings: false, warlordLegPlates: false, greaves: false, shoes: true, mask: false, hood: false, quiltedArmor: false, leatherArmor: false, heavyLeatherArmor: false, ringMail: false, plateMail: false, robe: true, blacksmithApron: false, mageHat: true, bracers: false, gloves: false, cape: true, belt: true, skirt: false, skullcap: false, shorts: false },
-    shirtColor: '#5e35b1',
-    pantsColor: '#311b92',
-    robeColor: '#4527a0',
-    robeTrimColor: '#d1c4e9'
   }
 };
 

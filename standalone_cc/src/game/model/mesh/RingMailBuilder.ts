@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../types';
 
 const RING_COLOR_LIGHT = '#606060';
 const RING_COLOR_DARK = '#202020';
@@ -164,4 +164,3 @@ export class RingMailBuilder {
         return { meshes: createdMeshes, refs };
     }
 }
-

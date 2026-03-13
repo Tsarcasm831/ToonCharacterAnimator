@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { playerModelResetFeet } from '../AnimationUtils';
 
 export class PickupAction {
-    static animate(player: any, parts: any, _dt: number, damp: number) {
+    static animate(player: any, parts: any, dt: number, damp: number) {
         const bend = Math.sin((player.pickUpTime / 1.2) * Math.PI);
         const lerp = THREE.MathUtils.lerp;
         const pickupDamp = damp * 2;

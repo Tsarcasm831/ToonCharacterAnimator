@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
-import { PantsBulgeBuilder } from '../../mesh/PantsBulgeBuilder';
+import { PlayerConfig } from '../../../../types';
 
 const GLOBAL_PATTERN_SCALE = 4.0;
 
@@ -98,17 +97,6 @@ export class ChainLeggings {
             buckle.position.set(0, -0.02, 0.22);
             parts.pelvis.add(buckle);
             meshes.push(buckle);
-
-            if (config.bodyType === 'male') {
-                const bulge = PantsBulgeBuilder.build(mat, {
-                    position: { x: 0, y: -0.097, z: 0.1 },
-                    scale: { x: 0.84, y: 0.8, z: 0.6 },
-                    rotationX: 0.12
-                });
-                bulge.name = 'chainLeggingsBulge';
-                parts.pelvis.add(bulge);
-                meshes.push(bulge);
-            }
         }
 
         // --- Armored Legs ---

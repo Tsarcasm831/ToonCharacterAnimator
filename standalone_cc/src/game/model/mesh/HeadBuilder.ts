@@ -2,26 +2,10 @@
 import * as THREE from 'three';
 import { PlayerMaterials } from '../PlayerMaterials';
 import { BrainBuilder } from './BrainBuilder';
+import { EarBuilder } from './EarBuilder';
 
 export class HeadBuilder {
     static build(materials: PlayerMaterials, arrays: any) {
-        const markChakra = <T extends THREE.Object3D>(obj: T) => {
-            obj.userData.isChakraNetwork = true;
-            obj.traverse((child) => {
-                child.userData.isChakraNetwork = true;
-            });
-            return obj;
-        };
-
-        const chakraNode = (radius: number = 0.0055) => {
-            return markChakra(new THREE.Mesh(new THREE.SphereGeometry(radius, 10, 10), materials.chakra));
-        };
-
-        const chakraPath = (points: THREE.Vector3[], radius: number = 0.0038) => {
-            const curve = new THREE.CatmullRomCurve3(points);
-            return markChakra(new THREE.Mesh(new THREE.TubeGeometry(curve, 20, radius, 8, false), materials.chakra));
-        };
-
         const headRadius = 0.21;
         const headGeo = new THREE.SphereGeometry(headRadius, 64, 64);
         const posAttribute = headGeo.attributes.position;
@@ -215,33 +199,53 @@ export class HeadBuilder {
         head.add(brain);
 
 
-        // === LIP HELPER ===
-        const lipC = (pts: THREE.Vector3[], r: number, name: string) => {
+        // === LIP HELPER (TAPERED, NON-SAUSAGE PROFILE) ===
+        const createRealisticLip = (pts: THREE.Vector3[], r: number, name: string, flattenZ = 0.5) => {
             const group = new THREE.Group();
             group.name = name;
 
-            // 1. Tube Body
-            const curve = new THREE.CatmullRomCurve3(pts);
-            const tubeGeo = new THREE.TubeGeometry(curve, 20, r, 8, false);
+            const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+            const tubularSegments = 40;
+            const radialSegments = 12;
+            const tubeGeo = new THREE.TubeGeometry(curve, tubularSegments, r, radialSegments, false);
+
+            // Taper each ring from ends to center while preserving the lip centerline.
+            const tPos = tubeGeo.attributes.position;
+            const tVec = new THREE.Vector3();
+            const ringCenter = new THREE.Vector3();
+            const vertsPerRing = radialSegments + 1;
+
+            for (let ring = 0; ring <= tubularSegments; ring++) {
+                ringCenter.set(0, 0, 0);
+                const ringStart = ring * vertsPerRing;
+                for (let j = 0; j < vertsPerRing; j++) {
+                    const idx = ringStart + j;
+                    ringCenter.x += tPos.getX(idx);
+                    ringCenter.y += tPos.getY(idx);
+                    ringCenter.z += tPos.getZ(idx);
+                }
+                ringCenter.multiplyScalar(1 / vertsPerRing);
+
+                const u = ring / tubularSegments;
+                const taper = Math.sin(u * Math.PI);
+                const ringScale = 0.55 + 0.45 * Math.sqrt(Math.max(0, taper));
+
+                for (let j = 0; j < vertsPerRing; j++) {
+                    const idx = ringStart + j;
+                    tVec.fromBufferAttribute(tPos, idx);
+                    tVec.sub(ringCenter).multiplyScalar(ringScale).add(ringCenter);
+                    tPos.setXYZ(idx, tVec.x, tVec.y, tVec.z);
+                }
+            }
+            tPos.needsUpdate = true;
+            tubeGeo.computeVertexNormals();
+
             const tube = new THREE.Mesh(tubeGeo, materials.lip);
             tube.castShadow = true;
             group.add(tube);
-            
-            // 2. End Caps (Spheres) to make it solid
-            const capGeo = new THREE.SphereGeometry(r, 8, 8);
-            
-            const startCap = new THREE.Mesh(capGeo, materials.lip);
-            startCap.position.copy(pts[0]);
-            group.add(startCap);
 
-            const endCap = new THREE.Mesh(capGeo, materials.lip);
-            endCap.position.copy(pts[pts.length - 1]);
-            group.add(endCap);
-            
-            // Default Transform
-            group.scale.set(1, 1, 0.5); 
-            group.rotation.x = -0.2; 
-            
+            group.scale.set(1, 1, flattenZ);
+             
             return group;
         };
 
@@ -250,20 +254,28 @@ export class HeadBuilder {
         maxilla.position.set(0, -0.075, 0.18); 
         head.add(maxilla);
 
-        const maxillaGeo = new THREE.BoxGeometry(0.12, 0.05, 0.06, 8, 6, 6);
+        const maxillaGeo = new THREE.BoxGeometry(0.12, 0.05, 0.06, 12, 12, 6);
         const mPos = maxillaGeo.attributes.position;
         for(let i=0; i<mPos.count; i++) {
             vertex.fromBufferAttribute(mPos, i);
             let x = vertex.x, y = vertex.y, z = vertex.z;
             const nx = x / 0.06, ny = y / 0.025;
-            
+
+            // Philtrum groove above upper lip.
+            if (y > -0.01 && z > 0.02) {
+                const philtrumWidth = 0.015;
+                if (Math.abs(x) < philtrumWidth) {
+                    const dip = Math.cos((x / philtrumWidth) * Math.PI * 0.5);
+                    z -= dip * 0.0045;
+                }
+            }
+             
             if (z > 0) z -= (x*x) * 4.0;
             if (y > 0) { const t = Math.pow(ny, 2); z -= t * 0.025; x *= (1.0 - t * 0.15); }
             if (y < 0) { const t = Math.pow(Math.abs(ny), 2); z -= t * 0.015; x *= (1.0 - t * 0.05); }
             const rSq = nx*nx + ny*ny;
             if (z > 0 && rSq > 0.5) z -= (rSq - 0.5) * 0.025;
             if (z < 0) { x *= 1.25; y *= 1.25; }
-            if (z > 0 && y > -0.01 && Math.abs(x) < 0.015) z -= Math.cos((x / 0.015) * (Math.PI / 2)) * 0.0025;
             mPos.setXYZ(i, x, y, z);
         }
         maxillaGeo.computeVertexNormals();
@@ -272,15 +284,15 @@ export class HeadBuilder {
         maxillaMesh.castShadow = true;
         maxilla.add(maxillaMesh);
 
-        // --- UPPER LIP ATTACHED TO MAXILLA ---
-        // Curved points to match maxilla surface (parabolic Z drop off)
+        // --- UPPER LIP ATTACHED TO MAXILLA (5-POINT CUPID'S BOW) ---
         const upperLipPts = [
-            new THREE.Vector3(-0.045, -0.01, -0.035), // Curved back deeper
-            new THREE.Vector3(0, 0.004, 0.008),       // Center peak (Cupid's bow)
-            new THREE.Vector3(0.045, -0.01, -0.035)   // Curved back deeper
+            new THREE.Vector3(-0.05, -0.015, -0.02),
+            new THREE.Vector3(-0.015, 0.005, 0.01),
+            new THREE.Vector3(0, -0.002, 0.012),
+            new THREE.Vector3(0.015, 0.005, 0.01),
+            new THREE.Vector3(0.05, -0.015, -0.02)
         ];
-        const upperLip = lipC(upperLipPts, 0.006, 'upperLip');
-        // Position at bottom edge of maxilla mesh
+        const upperLip = createRealisticLip(upperLipPts, 0.009, 'upperLip', 0.5);
         upperLip.position.set(0, -0.028, 0.025);
         maxilla.add(upperLip);
 
@@ -317,16 +329,15 @@ export class HeadBuilder {
         jaw.add(jawMesh);
 
         // --- LOWER LIP ATTACHED TO JAW ---
-        // Significantly curved to match the mandibular arch
         const lowerLipPts = [
-            new THREE.Vector3(-0.038, 0.01, -0.018), // Back corners
-            new THREE.Vector3(0, -0.005, 0.012),     // Center dip (Pout)
-            new THREE.Vector3(0.038, 0.01, -0.018)   // Back corners
+            new THREE.Vector3(-0.048, 0.012, -0.015),
+            new THREE.Vector3(-0.02, -0.008, 0.015),
+            new THREE.Vector3(0, -0.01, 0.018),
+            new THREE.Vector3(0.02, -0.008, 0.015),
+            new THREE.Vector3(0.048, 0.012, -0.015)
         ];
-        const lowerLip = lipC(lowerLipPts, 0.007, 'lowerLip');
-        // Positioned relative to Jaw Group origin (which rotates)
-        // Jaw Mesh is at (0, -0.05, 0.04). Lip needs to be above that and forward.
-        lowerLip.position.set(0, 0.02, 0.12);
+        const lowerLip = createRealisticLip(lowerLipPts, 0.01, 'lowerLip', 0.5);
+        lowerLip.position.set(0, 0.035, 0.11);
         jaw.add(lowerLip);
 
         const faceGroup = new THREE.Group();
@@ -371,14 +382,6 @@ export class HeadBuilder {
             topLid.rotation.x = -0.7; botLid.rotation.x = 0.7;  
             eyeContainer.add(topLid); eyeContainer.add(botLid);
             arrays.eyelids.push(topLid); arrays.eyelids.push(botLid);
-
-            const eyeRing = markChakra(new THREE.Mesh(
-                new THREE.TorusGeometry(eyeRadius * 1.22, 0.004, 8, 24),
-                materials.chakra
-            ));
-            eyeRing.position.z = 0.002;
-            eyeContainer.add(eyeRing);
-
         }
 
         // Nose
@@ -395,62 +398,10 @@ export class HeadBuilder {
             ala.position.set(s * 0.02, -0.015, 0.01); ala.scale.set(1.2, 0.8, 1); nose.add(ala);
         });
 
-        const browArc = chakraPath([
-            new THREE.Vector3(-0.11, 0.012, 0.12),
-            new THREE.Vector3(-0.055, 0.03, 0.137),
-            new THREE.Vector3(0, 0.038, 0.144),
-            new THREE.Vector3(0.055, 0.03, 0.137),
-            new THREE.Vector3(0.11, 0.012, 0.12),
-        ]);
-        faceGroup.add(browArc);
-
-        const browNode = chakraNode(0.006);
-        browNode.position.set(0, 0.038, 0.144);
-        faceGroup.add(browNode);
-
-        [-1, 1].forEach((side) => {
-            const cheekLine = chakraPath([
-                new THREE.Vector3(side * 0.1, 0.006, 0.12),
-                new THREE.Vector3(side * 0.082, -0.03, 0.138),
-                new THREE.Vector3(side * 0.058, -0.072, 0.152),
-            ], 0.0033);
-            faceGroup.add(cheekLine);
-
-            const cheekNode = chakraNode(0.0048);
-            cheekNode.position.set(side * 0.058, -0.072, 0.152);
-            faceGroup.add(cheekNode);
-        });
-
-        const noseBridge = chakraPath([
-            new THREE.Vector3(0, 0.045, -0.002),
-            new THREE.Vector3(0, 0.014, 0.01),
-            new THREE.Vector3(0, -0.012, 0.02),
-        ], 0.0036);
-        nose.add(noseBridge);
-
-        const noseTipNode = chakraNode(0.005);
-        noseTipNode.position.set(0, -0.016, 0.022);
-        nose.add(noseTipNode);
-
-        const maxillaNet = chakraPath([
-            new THREE.Vector3(-0.038, -0.006, 0.015),
-            new THREE.Vector3(0, 0.002, 0.028),
-            new THREE.Vector3(0.038, -0.006, 0.015),
-        ], 0.0033);
-        maxilla.add(maxillaNet);
-
-        const jawLine = chakraPath([
-            new THREE.Vector3(-0.05, 0.02, 0.088),
-            new THREE.Vector3(0, 0.014, 0.122),
-            new THREE.Vector3(0.05, 0.02, 0.088),
-        ], 0.0036);
-        jaw.add(jawLine);
-
-        const jawNode = chakraNode(0.0055);
-        jawNode.position.set(0, 0.014, 0.122);
-        jaw.add(jawNode);
-
         // We return the specific lip meshes so PlayerModel can find them easily
-        return { head, headMount, maxilla, jaw, jawMesh, faceGroup, nose, brain, upperLip, lowerLip };
+        const ears = EarBuilder.build(materials);
+        head.add(ears);
+
+        return { head, headMount, maxilla, jaw, jawMesh, faceGroup, nose, brain, upperLip, lowerLip, ears };
     }
 }

@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../types';
 
 const METAL_COLOR = '#8a9197';
 const METAL_DARK = '#5a6066';
@@ -322,4 +322,3 @@ export class PlateMailBuilder {
         return { meshes: createdMeshes, refs };
     }
 }
-

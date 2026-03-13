@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
-import { PantsBulgeBuilder } from '../../mesh/PantsBulgeBuilder';
+import { PlayerConfig } from '../../../../types';
 
 const GLOBAL_PATTERN_SCALE = 3.5;
 
@@ -111,17 +110,6 @@ export class HideBreeches {
             pouch.position.set(0.2, -0.05, 0.05);
             parts.pelvis.add(pouch);
             meshes.push(pouch);
-
-            if (config.bodyType === 'male') {
-                const bulge = PantsBulgeBuilder.build(mat, {
-                    position: { x: 0, y: -0.095, z: 0.105 },
-                    scale: { x: 0.9, y: 0.88, z: 0.68 },
-                    rotationX: 0.16
-                });
-                bulge.name = 'hideBreechesBulge';
-                parts.pelvis.add(bulge);
-                meshes.push(bulge);
-            }
         }
 
         // --- Legs ---

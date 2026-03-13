@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../types';
+import { PlayerConfig } from '../../types';
 import { PlayerEquipment } from './PlayerEquipment';
 
 export class EquipmentManager {
@@ -89,4 +89,3 @@ export class EquipmentManager {
         }
     }
 }
-
