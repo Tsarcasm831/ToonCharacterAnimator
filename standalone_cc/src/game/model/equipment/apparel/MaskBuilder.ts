@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
+import { PlayerConfig } from '../../../../types';
 
 export class MaskBuilder {
     static build(config: PlayerConfig): THREE.Group {
@@ -62,4 +62,3 @@ export class MaskBuilder {
         return group;
     }
 }
-

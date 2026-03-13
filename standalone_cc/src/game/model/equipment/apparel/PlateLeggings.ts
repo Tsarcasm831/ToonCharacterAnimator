@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
+import { PlayerConfig } from '../../../../types';
 
 const GLOBAL_PATTERN_SCALE = 2.0;
 
@@ -121,4 +121,3 @@ export class PlateLeggings {
         return meshes;
     }
 }
-

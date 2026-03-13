@@ -1,7 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../types';
-import { PantsBulgeBuilder } from './PantsBulgeBuilder';
+import { PlayerConfig } from '../../../types';
 
 const GLOBAL_PATTERN_SCALE = 3.5;
 
@@ -111,12 +110,11 @@ export class ShortsBuilder {
             });
 
             if (config.bodyType === 'male') {
-                const bMesh = PantsBulgeBuilder.build(mat, {
-                    position: { x: 0, y: -0.088, z: 0.1 },
-                    scale: { x: 0.8, y: 0.78, z: 0.58 },
-                    rotationX: 0.1
-                });
+                const bGeo = new THREE.CapsuleGeometry(0.046, 0.042, 4, 8);
+                const bMesh = new THREE.Mesh(bGeo, mat);
                 bMesh.name = 'shortsBulge';
+                bMesh.castShadow = true;
+                bMesh.position.set(0, -0.075, 0.13);
                 parts.pelvis.add(bMesh);
                 meshes.push(bMesh);
             }

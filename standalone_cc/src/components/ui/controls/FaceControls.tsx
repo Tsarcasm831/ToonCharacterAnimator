@@ -1,6 +1,6 @@
 
 import React from 'react';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../types';
 import { Slider, ColorPicker, ToggleButton } from '../panels/CommonControls';
 
 interface FaceControlsProps {
@@ -18,6 +18,10 @@ export const FaceControls: React.FC<FaceControlsProps> = ({ config, setConfig })
         setConfig(prev => ({ ...prev, showBrain: !prev.showBrain }));
     };
     
+    const toggleOrgans = () => {
+        setConfig(prev => ({ ...prev, showOrgans: !prev.showOrgans }));
+    };
+
     const toggleDebugHead = () => {
         setConfig(prev => ({ ...prev, debugHead: !prev.debugHead }));
     };
@@ -30,16 +34,11 @@ export const FaceControls: React.FC<FaceControlsProps> = ({ config, setConfig })
         <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
                 <ToggleButton label="Brain" isActive={config.showBrain} onClick={toggleBrain} activeColor="pink" />
+                <ToggleButton label="Organs" isActive={config.showOrgans} onClick={toggleOrgans} activeColor="red" />
                 <ToggleButton label="Debug Mask" isActive={config.debugHead} onClick={toggleDebugHead} activeColor="purple" />
-                <ToggleButton label="Chakra Net" isActive={config.showChakraNetwork} onClick={toggleChakraNetwork} activeColor="blue" className="col-span-2" />
+                <ToggleButton label="Chakra Net" isActive={config.showChakraNetwork} onClick={toggleChakraNetwork} activeColor="blue" />
             </div>
             {config.showBrain && <Slider label="Brain Size" value={config.brainSize} min={0.5} max={2.0} step={0.1} onChange={(v) => handleConfigChange('brainSize', v)} />}
-            {config.showChakraNetwork && (
-                <div className="space-y-2">
-                    <ColorPicker label="Chakra Color" value={config.chakraNetworkColor} onChange={(v) => handleConfigChange('chakraNetworkColor', v)} />
-                    <Slider label="Chakra Glow" value={config.chakraNetworkIntensity} min={0.2} max={3.0} step={0.1} onChange={(v) => handleConfigChange('chakraNetworkIntensity', v)} />
-                </div>
-            )}
             
             <div className="space-y-2">
                 <ColorPicker label="Eyes" value={config.eyeColor} onChange={(v) => handleConfigChange('eyeColor', v)} />

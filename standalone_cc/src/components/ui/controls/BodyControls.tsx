@@ -1,6 +1,6 @@
 
 import React from 'react';
-import type { PlayerConfig, BodyVariant } from '../../../types';
+import { PlayerConfig, BodyVariant } from '../../../types';
 import { BODY_PRESETS } from '../../../data/constants';
 import { ColorPicker, ToggleButton } from '../panels/CommonControls';
 
@@ -76,4 +76,3 @@ export const BodyControls: React.FC<BodyControlsProps> = ({ config, setConfig })
         </div>
     );
 };
-

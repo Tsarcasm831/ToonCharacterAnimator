@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../types';
 
 const QUILTED_COLOR = '#4a3728'; 
 const QUILTED_STITCH = '#2a1f16';
@@ -233,4 +233,3 @@ export class QuiltedArmorBuilder {
         return { meshes: createdMeshes, refs };
     }
 }
-

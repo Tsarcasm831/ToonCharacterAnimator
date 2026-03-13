@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { PlayerConfig, OutfitType } from '../../types';
+import { PlayerConfig, OutfitType } from '../../types';
 import { PlayerMaterials } from './PlayerMaterials';
 import { PlayerEquipment } from './PlayerEquipment';
 import { PlayerMeshBuilder } from './PlayerMeshBuilder';

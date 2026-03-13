@@ -5,7 +5,8 @@ export class BrainBuilder {
     static build(materials: PlayerMaterials): THREE.Group {
         // === BRAIN ===
         const brain = new THREE.Group();
-        brain.position.set(0.35, 0.06, 0); 
+        // Position it centered inside the head
+        brain.position.set(0, 0.06, 0); 
         brain.visible = false;
 
         // 1. CEREBRUM (Hemispheres)

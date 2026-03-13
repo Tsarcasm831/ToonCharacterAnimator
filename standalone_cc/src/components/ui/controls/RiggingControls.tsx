@@ -1,6 +1,6 @@
 
 import React from 'react';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../types';
 import { Slider } from '../panels/CommonControls';
 
 interface RiggingControlsProps {
@@ -104,4 +104,3 @@ export const RiggingControls: React.FC<RiggingControlsProps> = ({ config, setCon
         </div>
     );
 };
-

@@ -44,7 +44,7 @@ export const SkeletonLegend: React.FC = () => {
                     </div>
                 ))}
             </div>
-            <p className="mt-3 text-[9px] text-gray-400 text-center border-t border-gray-200 pt-2">Press 'J' to Toggle Mode</p>
+            <p className="mt-3 text-[9px] text-gray-400 text-center border-t border-gray-200 pt-2">Press 'G' to Toggle Hitbox Skeleton</p>
         </div>
     );
 };

@@ -1,14 +1,15 @@
+
 import * as THREE from 'three';
 import { playerModelResetFeet } from '../AnimationUtils';
 
 export class LeftHandWaveAction {
-    static animate(player: any, parts: any, _dt: number, damp: number) {
+    static animate(player: any, parts: any, dt: number, damp: number) {
         const t = player.leftHandWaveTimer;
         const lerp = THREE.MathUtils.lerp;
         const sin = Math.sin;
-
+        
         const waveSpeed = 7;
-
+        
         const poseWaveHand = (isRight: boolean) => {
             const fingers = isRight ? player.model.rightFingers : player.model.leftFingers;
             const thumb = isRight ? player.model.rightThumb : player.model.leftThumb;
@@ -18,7 +19,7 @@ export class LeftHandWaveAction {
                 fingers.forEach((f: any) => {
                     const prox = f.children.find((c: any) => c.name === 'proximal');
                     if (prox) {
-                        prox.rotation.x = lerp(prox.rotation.x, 0.0, poseDamp);
+                        prox.rotation.x = lerp(prox.rotation.x, 0.0, poseDamp); // Flat hand
                     }
                 });
             }
@@ -31,41 +32,63 @@ export class LeftHandWaveAction {
         };
 
         if (t < 0.5) {
+            // === PHASE 1: RAISE FOREARM ===
             const raiseDamp = damp * 6;
-            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.4, raiseDamp);
-            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 1.4, raiseDamp);
+            
+            // Upper Arm: Out to side and slightly forward
+            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.4, raiseDamp); 
+            parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 1.4, raiseDamp); 
             parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0.2, raiseDamp);
-            parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -1.6, raiseDamp);
+            
+            // Forearm: Bend up significantly (elbow vertical-ish)
+            parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -1.6, raiseDamp); 
             parts.leftForeArm.rotation.z = lerp(parts.leftForeArm.rotation.z, 0, raiseDamp);
-            parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI / 2, raiseDamp);
+            
+            // Hand: Palm forward/slight tilt
+            parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, raiseDamp);
             parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, -0.2, raiseDamp);
-            parts.head.rotation.y = lerp(parts.head.rotation.y, 0.4, raiseDamp);
+
+            // Look at hand
+            parts.head.rotation.y = lerp(parts.head.rotation.y, 0.4, raiseDamp); 
             poseWaveHand(false);
+
         } else if (t < 2.0) {
+            // === PHASE 2: WIPER WAVE ===
             const waveTime = t - 0.5;
             const wave = sin(waveTime * waveSpeed);
             const activeDamp = damp * 10;
-            parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.4, activeDamp);
+
+            // Stable Upper Arm & Elbow
             parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 1.4, activeDamp);
             parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -1.6, activeDamp);
+
+            // THE WAVE: Rotate Upper Arm Y (Internal/External rotation)
+            // This sweeps the vertical forearm left and right
             parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0.2 + wave * 0.4, activeDamp);
-            parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI / 2, activeDamp);
+            
+            // Keep palm facing forward relative to camera/viewer
+            parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, activeDamp);
             parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, -0.2 + wave * 0.1, activeDamp);
+
+            // Head tracks center
             parts.head.rotation.y = lerp(parts.head.rotation.y, 0.4, damp);
             parts.head.rotation.z = lerp(parts.head.rotation.z, wave * 0.05, damp);
             poseWaveHand(false);
+
         } else {
+            // === PHASE 3: LOWER ===
             const lowerDamp = damp * 6;
             parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, 0, lowerDamp);
             parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.15, lowerDamp);
             parts.leftArm.rotation.y = lerp(parts.leftArm.rotation.y, 0, lowerDamp);
             parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.15, lowerDamp);
-            parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI / 2, lowerDamp);
+            parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI/2, lowerDamp);
             parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, 0, lowerDamp);
+            
             parts.head.rotation.y = lerp(parts.head.rotation.y, 0, lowerDamp);
             parts.head.rotation.z = lerp(parts.head.rotation.z, 0, lowerDamp);
         }
-
+        
         playerModelResetFeet(parts, damp);
     }
 }

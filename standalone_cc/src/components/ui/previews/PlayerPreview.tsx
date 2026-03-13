@@ -1,554 +1,43 @@
+
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { PlayerConfig, PlayerInput } from '../../../types';
 import { PlayerModel } from '../../../game/model/PlayerModel';
 import { IdleAction } from '../../../game/animator/actions/IdleAction';
-import { MovementAction } from '../../../../../game/animator/actions/MovementAction';
-import { SummonAction } from '../../../../../game/animator/actions/SummonAction';
-import { PickupAction } from '../../../game/animator/actions/PickupAction';
-import { WeaponAction } from '../../../game/animator/actions/WeaponAction';
-import { UnarmedPunchAction } from '../../../game/animator/actions/UnarmedPunchAction';
-import { WaveAction } from '../../../game/animator/actions/WaveAction';
-import { LeftHandWaveAction } from '../../../game/animator/actions/LeftHandWaveAction';
-import { ChakraNetwork } from '../../../game/effects/ChakraNetwork';
 
 interface PlayerPreviewProps {
     config: PlayerConfig;
-    manualInput: Partial<PlayerInput>;
+    manualInput?: Partial<PlayerInput>;
     onZoomChange?: (zoom: number) => void;
 }
 
-type CameraFocusKey = 'torso' | 'head' | 'feet';
-const CAMERA_FOCUS_ORDER: CameraFocusKey[] = ['torso', 'head', 'feet'];
-type PlayerRenderMode = 'normal' | 'wire' | 'missing';
-const PLAYER_RENDER_MODE_ORDER: PlayerRenderMode[] = ['normal', 'wire', 'missing'];
-
-type ActionTimers = {
-    attack1: number;
-    attack2: number;
-    interact: number;
-    isPickingUp: number;
-    wave: number;
-    leftHandWave: number;
-    summon: number;
-    fireball: number;
-    toggleFirstPerson: number;
-};
-
-type DeathState = {
-    active: boolean;
-    deathTime: number;
-    fallDir: 1 | -1;
-    side: 1 | -1;
-    twist: number;
-};
-
-const ACTION_DURATIONS: Record<keyof ActionTimers, number> = {
-    attack1: 1.8,
-    attack2: 1.8,
-    interact: 0.28,
-    isPickingUp: 1.2,
-    wave: 3.0,
-    leftHandWave: 2.7,
-    summon: 6.0,
-    fireball: 0.7,
-    toggleFirstPerson: 0.22,
-};
-
-const clamp01 = (v: number) => THREE.MathUtils.clamp(v, 0, 1);
-const ZOOM_MIN_DISTANCE = 0.55;
-const ZOOM_MAX_DISTANCE = 8.5;
-const INITIAL_ZOOM_PERCENT = 50;
-const distanceFromZoomPercent = (zoom: number) => {
-    const normalized = THREE.MathUtils.clamp(zoom, 0, 100) / 100;
-    return ZOOM_MIN_DISTANCE + (1 - normalized) * (ZOOM_MAX_DISTANCE - ZOOM_MIN_DISTANCE);
-};
-const zoomPercentFromDistance = (distance: number) => {
-    const normalized = (THREE.MathUtils.clamp(distance, ZOOM_MIN_DISTANCE, ZOOM_MAX_DISTANCE) - ZOOM_MIN_DISTANCE)
-        / (ZOOM_MAX_DISTANCE - ZOOM_MIN_DISTANCE);
-    return Math.round(100 - normalized * 100);
-};
-
-const setWireframeOnMaterial = (material: THREE.Material, wireframe: boolean) => {
-    const wireframeMaterial = material as THREE.Material & { wireframe?: boolean };
-    if (typeof wireframeMaterial.wireframe === 'boolean') {
-        wireframeMaterial.wireframe = wireframe;
-        wireframeMaterial.needsUpdate = true;
-    }
-};
-
-const applyPlayerRenderMode = (playerModel: PlayerModel, mode: PlayerRenderMode) => {
-    const isVisible = mode !== 'missing';
-    const wireframe = mode === 'wire';
-    playerModel.group.visible = isVisible;
-
-    playerModel.group.traverse((obj) => {
-        const mesh = obj as THREE.Mesh;
-        if (!mesh.isMesh || !mesh.material) return;
-        if (Array.isArray(mesh.material)) {
-            mesh.material.forEach((material) => setWireframeOnMaterial(material, wireframe));
-            return;
-        }
-        setWireframeOnMaterial(mesh.material, wireframe);
-    });
-
-    // Hide hair only in wire stage (G toggle), then restore prior state on exit.
-    playerModel.group.traverse((obj) => {
-        const isHairPart = obj.name === 'HairCap'
-            || obj.name === 'HairInstanced'
-            || obj.name.startsWith('HairCover_');
-        if (!isHairPart) return;
-
-        const previewKey = '__previewHairVisible';
-        const userData = obj.userData as Record<string, unknown>;
-        if (wireframe) {
-            if (typeof userData[previewKey] !== 'boolean') {
-                userData[previewKey] = obj.visible;
-            }
-            obj.visible = false;
-            return;
-        }
-
-        if (typeof userData[previewKey] === 'boolean') {
-            obj.visible = userData[previewKey] as boolean;
-            delete userData[previewKey];
-        }
-    });
-};
-
-const createSkyTexture = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, '#9ec8ff');
-    grad.addColorStop(0.45, '#b9d8ff');
-    grad.addColorStop(1, '#f1f7ff');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Cloud bands
-    for (let i = 0; i < 40; i++) {
-        const x = Math.random() * canvas.width;
-        const y = 90 + Math.random() * 260;
-        const rx = 70 + Math.random() * 180;
-        const ry = 20 + Math.random() * 55;
-        const alpha = 0.03 + Math.random() * 0.08;
-        ctx.beginPath();
-        ctx.ellipse(x, y, rx, ry, Math.random() * Math.PI, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-        ctx.fill();
-    }
-
-    // Fine grain so the sky reads as textured instead of flat.
-    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = image.data;
-    for (let i = 0; i < data.length; i += 4) {
-        const n = (Math.random() - 0.5) * 8;
-        data[i] = THREE.MathUtils.clamp(data[i] + n, 0, 255);
-        data[i + 1] = THREE.MathUtils.clamp(data[i + 1] + n, 0, 255);
-        data[i + 2] = THREE.MathUtils.clamp(data[i + 2] + n, 0, 255);
-    }
-    ctx.putImageData(image, 0, 0);
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.ClampToEdgeWrapping;
-    tex.repeat.set(1, 1);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    tex.needsUpdate = true;
-    return tex;
-};
-
-const closeEyes = (model: PlayerModel) => {
-    model.eyelids.forEach((lid, index) => {
-        lid.rotation.x = index % 2 === 0 ? -0.05 : 0.05;
-    });
-};
-
-const getActionDuration = (config: PlayerConfig, key: keyof ActionTimers) => {
-    if (key === 'attack1' || key === 'attack2') {
-        if (!config.selectedItem) {
-            return key === 'attack1' ? 0.68 : 0.72;
-        }
-
-        if (config.selectedItem === 'Sword') return 0.6;
-        if (config.selectedItem === 'Knife') return 0.4;
-        if (config.selectedItem === 'Staff') return 0.7;
-        return 0.9;
-    }
-
-    return ACTION_DURATIONS[key];
-};
-
-const startAction = (timers: ActionTimers, key: keyof ActionTimers, config: PlayerConfig) => {
-    timers[key] = Math.max(timers[key], getActionDuration(config, key));
-};
-
-const updateActionTimers = (timers: ActionTimers, dt: number) => {
-    (Object.keys(timers) as Array<keyof ActionTimers>).forEach((key) => {
-        timers[key] = Math.max(0, timers[key] - dt);
-    });
-};
-
-const applyJumpOverlay = (
-    parts: any,
-    dt: number,
-    jumpStateRef: { current: { isJumping: boolean; jumpVel: number; jumpOffset: number } },
-    jumpPressed: boolean,
-) => {
-    const jump = jumpStateRef.current;
-    const lerp = THREE.MathUtils.lerp;
-
-    if (jumpPressed && !jump.isJumping) {
-        jump.isJumping = true;
-        jump.jumpVel = 2.7;
-        jump.jumpOffset = 0.001;
-    }
-
-    if (jump.isJumping) {
-        jump.jumpVel += -10.8 * dt;
-        jump.jumpOffset += jump.jumpVel * dt;
-        if (jump.jumpOffset <= 0) {
-            jump.jumpOffset = 0;
-            jump.jumpVel = 0;
-            jump.isJumping = false;
-        }
-    }
-
-    if (jump.jumpOffset > 0) {
-        parts.hips.position.y += jump.jumpOffset;
-        parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, -0.45, 0.28);
-        parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, -0.45, 0.28);
-        parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.9, 0.28);
-        parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.9, 0.28);
-        parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.35, 0.2);
-        parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.35, 0.2);
-    }
-};
-
-const applyActionOverlay = (parts: any, timers: ActionTimers) => {
-    const lerp = THREE.MathUtils.lerp;
-
-    if (timers.interact > 0) {
-        const alpha = Math.sin((1 - timers.interact / ACTION_DURATIONS.interact) * Math.PI);
-        parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.85 * alpha, 0.35);
-        parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -1.05 * alpha, 0.35);
-    }
-
-    if (timers.wave > 0) {
-        const p = 1 - timers.wave / ACTION_DURATIONS.wave;
-        const wave = Math.sin(p * Math.PI * 6) * 0.32;
-        parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.95, 0.25);
-        parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.75, 0.25);
-        parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, wave, 0.35);
-    }
-
-    if (timers.leftHandWave > 0) {
-        const p = 1 - timers.leftHandWave / ACTION_DURATIONS.leftHandWave;
-        const wave = Math.sin(p * Math.PI * 6) * 0.32;
-        parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -1.95, 0.25);
-        parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -0.75, 0.25);
-        parts.leftHand.rotation.z = lerp(parts.leftHand.rotation.z, -wave, 0.35);
-    }
-
-    if (timers.summon > 0 || timers.fireball > 0) {
-        const duration = timers.summon > 0 ? ACTION_DURATIONS.summon : ACTION_DURATIONS.fireball;
-        const remain = Math.max(timers.summon, timers.fireball);
-        const alpha = Math.sin((1 - remain / duration) * Math.PI);
-        parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -0.65 * alpha, 0.22);
-        parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -0.65 * alpha, 0.22);
-        parts.leftForeArm.rotation.x = lerp(parts.leftForeArm.rotation.x, -1.1 * alpha, 0.22);
-        parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -1.1 * alpha, 0.22);
-        parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, Math.sin(alpha * Math.PI) * 0.22, 0.2);
-    }
-
-    if (timers.toggleFirstPerson > 0) {
-        const alpha = Math.sin((1 - timers.toggleFirstPerson / ACTION_DURATIONS.toggleFirstPerson) * Math.PI);
-        parts.head.rotation.x += alpha * 0.18;
-    }
-};
-
-const applyDeathRagdoll = (
-    parts: any,
-    model: PlayerModel,
-    config: PlayerConfig,
-    death: DeathState,
-) => {
-    const lerp = THREE.MathUtils.lerp;
-    const t = death.deathTime;
-    const fallProgress = clamp01(t / 0.62);
-
-    const baseHeight = 0.89 * config.legScale;
-    const groundHeight = 0.22 * config.legScale;
-    const settle = Math.max(0, t - 0.62);
-
-    const bounce = Math.exp(-settle * 5.5) * Math.cos(settle * 14) * 0.06;
-    const targetY = THREE.MathUtils.lerp(baseHeight, groundHeight, fallProgress) + Math.max(0, bounce);
-
-    parts.hips.position.y = lerp(parts.hips.position.y, targetY, 0.28);
-    parts.hips.rotation.x = lerp(parts.hips.rotation.x, death.fallDir * (Math.PI / 2) * fallProgress, 0.26);
-    parts.hips.rotation.y = lerp(parts.hips.rotation.y, death.twist, 0.15);
-    parts.hips.rotation.z = lerp(parts.hips.rotation.z, death.side * 0.35, 0.15);
-
-    const flop = Math.sin(t * 12) * Math.exp(-t * 1.8) * 0.3;
-    parts.leftArm.rotation.x = lerp(parts.leftArm.rotation.x, -1.6 + flop, 0.2);
-    parts.rightArm.rotation.x = lerp(parts.rightArm.rotation.x, -1.5 - flop, 0.2);
-    parts.leftArm.rotation.z = lerp(parts.leftArm.rotation.z, 0.8, 0.18);
-    parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.8, 0.18);
-
-    parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, 0.18 + flop * 0.4, 0.2);
-    parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0.18 - flop * 0.4, 0.2);
-    parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, 0.34, 0.2);
-    parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, -0.34, 0.2);
-    parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, 0.12, 0.2);
-    parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, 0.12, 0.2);
-    parts.neck.rotation.x = lerp(parts.neck.rotation.x, -0.2, 0.2);
-    parts.head.rotation.y = lerp(parts.head.rotation.y, death.side * 0.6, 0.2);
-
-    closeEyes(model);
-};
-
-const getFocusTarget = (playerModel: PlayerModel, focus: CameraFocusKey, bounds: THREE.Box3) => {
-    const target = new THREE.Vector3();
-    const center = bounds.getCenter(new THREE.Vector3());
-
-    if (focus === 'head' && playerModel.parts.head) {
-        playerModel.parts.head.getWorldPosition(target);
-        target.y -= 0.02;
-        return target;
-    }
-
-    if (focus === 'feet') {
-        const leftAnkle = playerModel.parts.leftAnkle as THREE.Object3D | undefined;
-        const rightAnkle = playerModel.parts.rightAnkle as THREE.Object3D | undefined;
-        if (leftAnkle && rightAnkle) {
-            const left = new THREE.Vector3();
-            const right = new THREE.Vector3();
-            leftAnkle.getWorldPosition(left);
-            rightAnkle.getWorldPosition(right);
-            target.copy(left).add(right).multiplyScalar(0.5);
-            target.y = bounds.min.y + 0.12;
-            target.z = center.z;
-            return target;
-        }
-        return new THREE.Vector3(center.x, bounds.min.y + 0.12, center.z);
-    }
-
-    if (playerModel.parts.torsoContainer) {
-        playerModel.parts.torsoContainer.getWorldPosition(target);
-        target.y += 0.16;
-        return target;
-    }
-
-    return center;
-};
-
-export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInput, onZoomChange }) => {
+export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
     const modelRef = useRef<PlayerModel | null>(null);
-    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-    const stageRef = useRef<THREE.Mesh | null>(null);
-    const shadowStageRef = useRef<THREE.Mesh | null>(null);
-    const keyLightRef = useRef<THREE.DirectionalLight | null>(null);
     const controlsRef = useRef<OrbitControls | null>(null);
-    const skyDomeRef = useRef<THREE.Mesh | null>(null);
-    const skyTextureRef = useRef<THREE.Texture | null>(null);
-    const chakraNetworkRef = useRef<ChakraNetwork | null>(null);
     const frameIdRef = useRef<number>(0);
-    const configRef = useRef<PlayerConfig>(config);
-    const manualInputRef = useRef<Partial<PlayerInput>>(manualInput);
-    const prevInputRef = useRef<Partial<PlayerInput>>({});
-    const walkTimeRef = useRef(0);
-    const jumpStateRef = useRef({ isJumping: false, jumpVel: 0, jumpOffset: 0 });
-    const actionTimersRef = useRef<ActionTimers>({
-        attack1: 0,
-        attack2: 0,
-        interact: 0,
-        isPickingUp: 0,
-        wave: 0,
-        leftHandWave: 0,
-        summon: 0,
-        fireball: 0,
-        toggleFirstPerson: 0,
-    });
-    const deathRef = useRef<DeathState>({
-        active: false,
-        deathTime: 0,
-        fallDir: 1,
-        side: 1,
-        twist: 0,
-    });
-
-    const orbitStateRef = useRef({
-        target: new THREE.Vector3(),
-        distance: distanceFromZoomPercent(INITIAL_ZOOM_PERCENT),
-        lastReportedZoom: -1,
-    });
-    const defaultOrbitDirectionRef = useRef(new THREE.Vector3(0.05, 0.12, 1).normalize());
-    const cameraFocusRef = useRef<CameraFocusKey>('torso');
-    const playerRenderModeRef = useRef<PlayerRenderMode>('normal');
-    const initialZoomAppliedRef = useRef(false);
-    const userAdjustedCameraRef = useRef(false);
-
-    const syncStageToModel = () => {
-        const playerModel = modelRef.current;
-        const stage = stageRef.current;
-        const shadowStage = shadowStageRef.current;
-        if (!playerModel || !stage) return;
-
-        const bounds = new THREE.Box3().setFromObject(playerModel.group);
-        if (bounds.isEmpty()) return;
-
-        const size = bounds.getSize(new THREE.Vector3());
-        const center = bounds.getCenter(new THREE.Vector3());
-        const horizontalSpan = Math.max(size.x, size.z * 0.9);
-        const stageScale = THREE.MathUtils.clamp(horizontalSpan * 1.15, 1.3, 2.2);
-        const floorY = 0;
-        let anchorX = center.x;
-        let anchorZ = center.z;
-
-        const leftAnkle = playerModel.parts.leftAnkle as THREE.Object3D | undefined;
-        const rightAnkle = playerModel.parts.rightAnkle as THREE.Object3D | undefined;
-        if (leftAnkle && rightAnkle) {
-            const leftPos = new THREE.Vector3();
-            const rightPos = new THREE.Vector3();
-            leftAnkle.getWorldPosition(leftPos);
-            rightAnkle.getWorldPosition(rightPos);
-            anchorX = (leftPos.x + rightPos.x) * 0.5;
-            anchorZ = (leftPos.z + rightPos.z) * 0.5;
-        }
-
-        stage.position.set(anchorX, floorY, anchorZ);
-        stage.scale.set(stageScale * 1.8, stageScale * 1.8, 1);
-        if (shadowStage) {
-            shadowStage.position.set(anchorX, floorY + 0.002, anchorZ);
-            shadowStage.scale.setScalar(stageScale * 1.7);
-        }
-
-        const keyLight = keyLightRef.current;
-        if (keyLight) {
-            keyLight.target.position.set(anchorX, floorY + size.y * 0.45, anchorZ);
-            keyLight.target.updateMatrixWorld();
-
-            const shadowCam = keyLight.shadow.camera as THREE.OrthographicCamera;
-            const casterRadius = THREE.MathUtils.clamp(Math.max(size.x, size.z), 0.85, 1.7);
-            const radius = casterRadius * 2.6 + 1.8;
-            shadowCam.left = -radius;
-            shadowCam.right = radius;
-            shadowCam.top = radius;
-            shadowCam.bottom = -radius;
-            shadowCam.near = 0.1;
-            shadowCam.far = Math.max(40, size.y * 14);
-            shadowCam.updateProjectionMatrix();
-        }
-    };
-
-    const frameModel = () => {
-        const camera = cameraRef.current;
-        const playerModel = modelRef.current;
-        if (!camera || !playerModel) return;
-
-        const bounds = new THREE.Box3().setFromObject(playerModel.group);
-        if (bounds.isEmpty()) return;
-
-        const size = bounds.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const fitHeightDistance = maxDim / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)));
-        const fitWidthDistance = fitHeightDistance / Math.max(camera.aspect, 0.75);
-        const distance = Math.max(fitHeightDistance, fitWidthDistance) * 1.55;
-        const nextTarget = getFocusTarget(playerModel, cameraFocusRef.current, bounds);
-
-        const currentTarget = controlsRef.current
-            ? controlsRef.current.target.clone()
-            : orbitStateRef.current.target.clone();
-        const offset = camera.position.clone().sub(currentTarget);
-        const direction = offset.lengthSq() > 0.000001
-            ? offset.normalize()
-            : defaultOrbitDirectionRef.current;
-        const desiredDistance = offset.lengthSq() > 0.000001 ? offset.length() : orbitStateRef.current.distance;
-        const minDistance = cameraFocusRef.current === 'head' ? 0.65 : cameraFocusRef.current === 'torso' ? 1.05 : 1.35;
-        const maxDistance = Math.max(distance * 1.8, 5.5);
-        
-        const isFirstFrame = !initialZoomAppliedRef.current;
-        const keepStartupZoom = !userAdjustedCameraRef.current;
-        const nextDistance = (isFirstFrame || keepStartupZoom)
-            ? distanceFromZoomPercent(INITIAL_ZOOM_PERCENT)
-            : controlsRef.current
-                ? THREE.MathUtils.clamp(desiredDistance, minDistance, maxDistance)
-                : distance;
-
-        orbitStateRef.current.target.copy(nextTarget);
-        orbitStateRef.current.distance = nextDistance;
-        camera.position.copy(nextTarget).addScaledVector(direction, nextDistance);
-        camera.lookAt(nextTarget);
-        camera.updateProjectionMatrix();
-
-        if (controlsRef.current) {
-            controlsRef.current.target.copy(nextTarget);
-            controlsRef.current.update();
-        }
-
-        if (isFirstFrame) {
-            initialZoomAppliedRef.current = true;
-        }
-
-        syncStageToModel();
-    };
 
     useEffect(() => {
         if (!containerRef.current) return;
-
-        // Reset orbit state on every mount/effect run so dev re-mounts can't keep stale zoom.
-        initialZoomAppliedRef.current = false;
-        userAdjustedCameraRef.current = false;
-        orbitStateRef.current.target.set(0, 0, 0);
-        orbitStateRef.current.distance = distanceFromZoomPercent(INITIAL_ZOOM_PERCENT);
-        orbitStateRef.current.lastReportedZoom = -1;
-        onZoomChange?.(INITIAL_ZOOM_PERCENT);
 
         const width = containerRef.current.clientWidth;
         const height = containerRef.current.clientHeight;
 
         const scene = new THREE.Scene();
-        scene.background = null;
-
-        const skyTexture = createSkyTexture();
-        if (skyTexture) {
-            const skyDome = new THREE.Mesh(
-                new THREE.SphereGeometry(60, 48, 32),
-                new THREE.MeshBasicMaterial({
-                    map: skyTexture,
-                    side: THREE.BackSide,
-                    depthWrite: false,
-                    fog: false,
-                }),
-            );
-            skyDome.position.set(0, 8, 0);
-            scene.add(skyDome);
-            skyDomeRef.current = skyDome;
-            skyTextureRef.current = skyTexture;
-        }
-
-        const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 100);
-        camera.position.set(0.24, 1.6, 5.3);
-        camera.lookAt(0, 1.15, 0);
-        cameraRef.current = camera;
+        scene.background = null; 
+        
+        const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 100);
+        camera.position.set(0, 0.9, 4.6); 
+        camera.lookAt(0, 0.9, 0);
 
         const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-        renderer.setPixelRatio(1);
+        renderer.setPixelRatio(1); // Performance win in UI
         renderer.setSize(width, height);
-        renderer.outputColorSpace = THREE.SRGBColorSpace;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.05;
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFShadowMap;
+        renderer.shadowMap.type = THREE.PCFShadowMap; 
         containerRef.current.appendChild(renderer.domElement);
         renderer.domElement.style.touchAction = 'none';
         const handleContextMenu = (event: MouseEvent) => event.preventDefault();
@@ -559,259 +48,54 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         controls.dampingFactor = 0.08;
         controls.enableRotate = true;
         controls.enablePan = true;
+        controls.enableZoom = true;
         controls.rotateSpeed = 0.9;
         controls.panSpeed = 0.85;
-        controls.enableZoom = true;
         controls.zoomSpeed = 0.9;
-        controls.minDistance = ZOOM_MIN_DISTANCE;
-        controls.maxDistance = ZOOM_MAX_DISTANCE;
         controls.screenSpacePanning = true;
         controls.mouseButtons = {
             LEFT: THREE.MOUSE.ROTATE,
             MIDDLE: THREE.MOUSE.DOLLY,
             RIGHT: THREE.MOUSE.PAN,
         };
-        controls.target.copy(orbitStateRef.current.target);
+        controls.target.set(0, 0.9, 0);
+        controls.update();
         controlsRef.current = controls;
-        const handleControlsStart = () => {
-            userAdjustedCameraRef.current = true;
-        };
-        controls.addEventListener('start', handleControlsStart);
 
-        const hemiLight = new THREE.HemisphereLight(0xbfd7ff, 0x101626, 1.35);
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
         scene.add(hemiLight);
 
-        const keyLight = new THREE.DirectionalLight(0xfff1d6, 2.2);
-        keyLight.position.set(3.5, 4.5, 5);
-        keyLight.castShadow = true;
-        keyLight.shadow.mapSize.width = 2048;
-        keyLight.shadow.mapSize.height = 2048;
-        keyLight.shadow.bias = -0.00035;
-        keyLight.shadow.normalBias = 0.02;
-        scene.add(keyLight);
-        scene.add(keyLight.target);
-        keyLightRef.current = keyLight;
-
-        const fillLight = new THREE.DirectionalLight(0x8db4ff, 0.9);
-        fillLight.position.set(-4, 2, 3);
-        scene.add(fillLight);
-
-        const rimLight = new THREE.DirectionalLight(0x5d7cff, 1.1);
-        rimLight.position.set(-2.5, 3.2, -4);
-        scene.add(rimLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
-        dirLight.position.set(0, -1, 2);
-        dirLight.castShadow = false;
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
+        dirLight.position.set(2, 2, 5);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 512;
+        dirLight.shadow.mapSize.height = 512;
+        dirLight.shadow.bias = -0.001;
         scene.add(dirLight);
+        
+        const backLight = new THREE.DirectionalLight(0x4455ff, 0.6);
+        backLight.position.set(-2, 2, -5);
+        scene.add(backLight);
 
-        const stage = new THREE.Mesh(
-            new THREE.PlaneGeometry(1, 1),
-            new THREE.MeshStandardMaterial({
-                color: 0xe0e2e7,
-                roughness: 1,
-                metalness: 0.0,
-            }),
-        );
-        stage.rotation.x = -Math.PI / 2;
-        stage.receiveShadow = true;
-        scene.add(stage);
-        stageRef.current = stage;
-
-        shadowStageRef.current = null;
-
-        const playerModel = new PlayerModel(configRef.current);
-        playerModel.group.rotation.y = 0.18;
-        applyPlayerRenderMode(playerModel, playerRenderModeRef.current);
+        const playerModel = new PlayerModel(config);
+        playerModel.group.rotation.y = 0.2;
         scene.add(playerModel.group);
-        const chakraNetwork = new ChakraNetwork(scene);
-        chakraNetwork.setAppearance(configRef.current.chakraNetworkColor, configRef.current.chakraNetworkIntensity);
-        chakraNetwork.setVisible(configRef.current.showChakraNetwork);
-        chakraNetworkRef.current = chakraNetwork;
 
         sceneRef.current = scene;
         modelRef.current = playerModel;
         rendererRef.current = renderer;
-        frameModel();
 
-        const handleKeyDown = (event: KeyboardEvent) => {
-            const active = document.activeElement as HTMLElement | null;
-            const tag = active?.tagName;
-            const isEditing = !!active && (
-                active.isContentEditable
-                || tag === 'INPUT'
-                || tag === 'TEXTAREA'
-                || tag === 'SELECT'
-            );
-            if (isEditing || event.repeat) return;
-
-            const key = event.key.toLowerCase();
-            if (key === 'v') {
-                const currentIndex = CAMERA_FOCUS_ORDER.indexOf(cameraFocusRef.current);
-                cameraFocusRef.current = CAMERA_FOCUS_ORDER[(currentIndex + 1) % CAMERA_FOCUS_ORDER.length];
-                frameModel();
-            } else if (key === 'g') {
-                if (modelRef.current) {
-                    const currentIndex = PLAYER_RENDER_MODE_ORDER.indexOf(playerRenderModeRef.current);
-                    playerRenderModeRef.current = PLAYER_RENDER_MODE_ORDER[(currentIndex + 1) % PLAYER_RENDER_MODE_ORDER.length];
-                    applyPlayerRenderMode(modelRef.current, playerRenderModeRef.current);
-                }
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-
-        const clock = new THREE.Clock();
         const mockPlayer = {
-            config: configRef.current,
+            config: config,
             isCombatStance: false,
-            locomotion: { walkTime: 0, isCrouching: false, lastStepCount: 0 } as any,
-            combat: { isCombatStance: false, punchTimer: 0, axeSwingTimer: 0, punchVariant: 'cross', summonTimer: 0 },
-            pickUpTime: 0,
-            waveTimer: 0,
-            leftHandWaveTimer: 0,
-            scene,
-            mesh: playerModel.group,
             model: playerModel,
         };
 
         const animate = () => {
             frameIdRef.current = requestAnimationFrame(animate);
-            const dt = Math.min(clock.getDelta(), 0.05);
-            const damp = Math.min(0.26, Math.max(0.1, dt * 9));
-            const input = manualInputRef.current;
-            const prevInput = prevInputRef.current;
-            const actionTimers = actionTimersRef.current;
-
-            if (!initialZoomAppliedRef.current) {
-                frameModel();
-            }
-
-            const isDead = !!input.isDead;
-            const isMoving = !!input.x || !!input.y;
-            const isRunning = !!input.isRunning;
-
-            mockPlayer.config = configRef.current;
-            mockPlayer.isCombatStance = !!input.combat;
-            mockPlayer.combat.isCombatStance = !!input.combat;
-            mockPlayer.locomotion.walkTime = walkTimeRef.current;
-            mockPlayer.locomotion.isCrouching = !!input.crouch;
-            (Object.keys(ACTION_DURATIONS) as Array<keyof ActionTimers>).forEach((key) => {
-                if (input[key] && !prevInput[key]) {
-                    startAction(actionTimers, key, configRef.current);
-                }
-            });
-
-            mockPlayer.combat.punchTimer = getActionDuration(configRef.current, 'attack1') - Math.max(actionTimers.attack1, actionTimers.attack2);
-            mockPlayer.combat.axeSwingTimer = getActionDuration(configRef.current, 'attack1') - Math.max(actionTimers.attack1, actionTimers.attack2);
-            mockPlayer.combat.punchVariant = actionTimers.attack2 > actionTimers.attack1 ? 'hook' : 'cross';
-            mockPlayer.combat.summonTimer = getActionDuration(configRef.current, 'summon') - actionTimers.summon;
-            mockPlayer.pickUpTime = getActionDuration(configRef.current, 'isPickingUp') - actionTimers.isPickingUp;
-            mockPlayer.waveTimer = getActionDuration(configRef.current, 'wave') - actionTimers.wave;
-            mockPlayer.leftHandWaveTimer = getActionDuration(configRef.current, 'leftHandWave') - actionTimers.leftHandWave;
-
-            const animationInput: PlayerInput = {
-                x: input.x ?? 0,
-                y: input.y ?? 0,
-                isRunning,
-                jump: !!input.jump,
-                isDead,
-                isPickingUp: !!input.isPickingUp,
-                attack1: !!input.attack1,
-                attack2: !!input.attack2,
-                interact: !!input.interact,
-                combat: !!input.combat,
-                toggleFirstPerson: !!input.toggleFirstPerson,
-                wave: !!input.wave,
-                leftHandWave: !!input.leftHandWave,
-                summon: !!input.summon,
-                toggleBuilder: !!input.toggleBuilder,
-                rotateGhost: !!input.rotateGhost,
-                fireball: !!input.fireball,
-                crouch: !!input.crouch,
-            };
-
-            if (isDead) {
-                if (!deathRef.current.active) {
-                    deathRef.current.active = true;
-                    deathRef.current.deathTime = 0;
-                    deathRef.current.fallDir = Math.random() > 0.5 ? 1 : -1;
-                    deathRef.current.side = Math.random() > 0.5 ? 1 : -1;
-                    deathRef.current.twist = (Math.random() - 0.5) * 0.7;
-                }
-                deathRef.current.deathTime += dt;
-                applyDeathRagdoll(playerModel.parts, playerModel, configRef.current, deathRef.current);
-            } else {
-                if (deathRef.current.active) {
-                    deathRef.current.active = false;
-                    deathRef.current.deathTime = 0;
-                }
-
-                if (isMoving) {
-                    MovementAction.animate(mockPlayer, playerModel.parts, dt, damp, animationInput, false);
-                } else {
-                    IdleAction.animate(mockPlayer, playerModel.parts, damp, false);
-                    if (mockPlayer.locomotion.walkTime !== 0) {
-                        mockPlayer.locomotion.walkTime = 0;
-                        mockPlayer.locomotion.lastStepCount = 0;
-                    }
-                }
-
-                walkTimeRef.current = mockPlayer.locomotion.walkTime;
-                applyJumpOverlay(playerModel.parts, dt, jumpStateRef, !!input.jump);
-                updateActionTimers(actionTimers, dt);
-                if (actionTimers.attack1 > 0 || actionTimers.attack2 > 0) {
-                    if (mockPlayer.config.selectedItem) {
-                        WeaponAction.animate(mockPlayer, playerModel.parts, dt, damp, isMoving);
-                    } else {
-                        UnarmedPunchAction.animate(mockPlayer, playerModel.parts, dt, damp, isMoving);
-                    }
-                }
-                if (actionTimers.wave > 0) {
-                    WaveAction.animate(mockPlayer, playerModel.parts, dt, damp);
-                }
-                if (actionTimers.leftHandWave > 0) {
-                    LeftHandWaveAction.animate(mockPlayer, playerModel.parts, dt, damp);
-                }
-                if (actionTimers.isPickingUp > 0) {
-                    PickupAction.animate(mockPlayer, playerModel.parts, dt, damp);
-                }
-                if (actionTimers.summon > 0) {
-                    SummonAction.animate(mockPlayer, playerModel.parts, dt, damp);
-                }
-                applyActionOverlay(playerModel.parts, actionTimers);
-            }
-
-            prevInputRef.current = { ...input };
-            const velocity = new THREE.Vector3(input.x ?? 0, 0, input.y ?? 0)
-                .multiplyScalar(isRunning ? 2.4 : 1.2);
-
-            const isWearingShoes = configRef.current.equipment?.shoes;
-            playerModel.group.position.y = isWearingShoes ? 0.015 : 0;
-
-            playerModel.update(dt, velocity);
-            if (configRef.current.showChakraNetwork) {
-                chakraNetwork.update(dt, playerModel);
-            }
-
-            if (!userAdjustedCameraRef.current) {
-                const startupDistance = distanceFromZoomPercent(INITIAL_ZOOM_PERCENT);
-                const offset = camera.position.clone().sub(controls.target);
-                const direction = offset.lengthSq() > 0.000001
-                    ? offset.normalize()
-                    : defaultOrbitDirectionRef.current;
-                camera.position.copy(controls.target).addScaledVector(direction, startupDistance);
-            }
-
+            IdleAction.animate(mockPlayer, playerModel.parts, 0.1, false);
+            playerModel.update(0.016, new THREE.Vector3(0,0,0));
             controls.update();
-            orbitStateRef.current.target.copy(controls.target);
-            orbitStateRef.current.distance = camera.position.distanceTo(controls.target);
-
-            const zoomPct = zoomPercentFromDistance(orbitStateRef.current.distance);
-            if (zoomPct !== orbitStateRef.current.lastReportedZoom) {
-                orbitStateRef.current.lastReportedZoom = zoomPct;
-                onZoomChange?.(zoomPct);
-            }
-
             renderer.render(scene, camera);
         };
 
@@ -822,66 +106,31 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             const w = containerRef.current.clientWidth;
             const h = containerRef.current.clientHeight;
             camera.aspect = w / h;
+            camera.updateProjectionMatrix();
             rendererRef.current.setSize(w, h);
-            frameModel();
         };
-
+        
         const resizeObserver = new ResizeObserver(() => handleResize());
-        resizeObserver.observe(containerRef.current!);
+        resizeObserver.observe(containerRef.current);
 
         return () => {
             cancelAnimationFrame(frameIdRef.current);
             resizeObserver.disconnect();
-            controls.removeEventListener('start', handleControlsStart);
             controlsRef.current?.dispose();
             controlsRef.current = null;
             renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
-            window.removeEventListener('keydown', handleKeyDown);
             if (rendererRef.current && containerRef.current) {
                 containerRef.current.removeChild(rendererRef.current.domElement);
                 rendererRef.current.dispose();
             }
-            cameraRef.current = null;
-            stageRef.current = null;
-            shadowStageRef.current = null;
-            keyLightRef.current = null;
-            if (skyDomeRef.current) {
-                scene.remove(skyDomeRef.current);
-                (skyDomeRef.current.geometry as THREE.BufferGeometry).dispose();
-                (skyDomeRef.current.material as THREE.Material).dispose();
-                skyDomeRef.current = null;
-            }
-            if (skyTextureRef.current) {
-                skyTextureRef.current.dispose();
-                skyTextureRef.current = null;
-            }
-            chakraNetworkRef.current?.dispose();
-            chakraNetworkRef.current = null;
         };
     }, []);
 
     useEffect(() => {
-        configRef.current = config;
         if (modelRef.current) {
-            modelRef.current.sync(config, !!manualInputRef.current.combat);
-            applyPlayerRenderMode(modelRef.current, playerRenderModeRef.current);
-            syncStageToModel();
+            modelRef.current.sync(config, false);
         }
-        chakraNetworkRef.current?.setAppearance(config.chakraNetworkColor, config.chakraNetworkIntensity);
-        chakraNetworkRef.current?.setVisible(config.showChakraNetwork);
     }, [config]);
 
-    useEffect(() => {
-        manualInputRef.current = manualInput;
-        if (modelRef.current) {
-            modelRef.current.sync(configRef.current, !!manualInput.combat);
-        }
-    }, [manualInput]);
-
-    return (
-        <div
-            ref={containerRef}
-            className="w-full h-full bg-[#d4dbe8]"
-        />
-    );
+    return <div ref={containerRef} className="w-full h-full" />;
 };

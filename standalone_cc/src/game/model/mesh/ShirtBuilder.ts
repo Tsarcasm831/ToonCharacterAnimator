@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../types';
 import { QuiltedArmorBuilder } from './QuiltedArmorBuilder';
 import { HeavyLeatherArmorBuilder } from './HeavyLeatherArmorBuilder';
 import { RingMailBuilder } from './RingMailBuilder';
@@ -69,10 +69,9 @@ export class ShirtBuilder {
             ctx.setLineDash([]);
         } else {
             const baseColor = config.shirtColor || '#cc0000';
-            const patternColor = config.shirtColor2 || '#ffeb3b';
             ctx.fillStyle = baseColor;
             ctx.fillRect(0, 0, 512, 512);
-            ctx.fillStyle = patternColor;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
             for (let i = 0; i < 512; i+= 128) {
                 ctx.fillRect(i + 40, 0, 40, 512); 
                 ctx.fillRect(0, i + 40, 512, 40); 
@@ -298,4 +297,3 @@ export class ShirtBuilder {
         return { meshes: createdMeshes, refs: shirtRefs };
     }
 }
-

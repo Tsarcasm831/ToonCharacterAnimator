@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
+import { PlayerConfig } from '../../../../types';
 
 export class MageHatBuilder {
     static build(config: PlayerConfig): THREE.Group {
@@ -129,4 +129,3 @@ export class MageHatBuilder {
         return group;
     }
 }
-

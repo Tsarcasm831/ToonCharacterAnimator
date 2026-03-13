@@ -1,6 +1,15 @@
 
 import * as THREE from 'three';
 import { PlayerMaterials } from '../PlayerMaterials';
+import { LungsBuilder } from './LungsBuilder';
+import { HeartBuilder } from './HeartBuilder';
+import { LiverBuilder } from './LiverBuilder';
+import { StomachBuilder } from './StomachBuilder';
+import { PancreasBuilder } from './PancreasBuilder';
+import { SpleenBuilder } from './SpleenBuilder';
+import { KidneysBuilder } from './KidneysBuilder';
+import { BladderBuilder } from './BladderBuilder';
+import { GallbladderBuilder } from './GallbladderBuilder';
 
 export class TorsoBuilder {
     static build(materials: PlayerMaterials, arrays: any) {
@@ -24,11 +33,15 @@ export class TorsoBuilder {
         // Flatten the torso geometry
         const torsoGeo = new THREE.CylinderGeometry(torsoRadiusTop, torsoRadiusBottom, torsoLen, 16);
         torsoGeo.scale(1, 1, torsoDepthScale); // Make it oval
-        const torso = new THREE.Mesh(torsoGeo, matTorso); 
-        torso.position.y = torsoLen / 2 + 0.1; 
-        torso.castShadow = true;
-        torso.userData.baseScale = torso.scale.clone();
+        
+        const torso = new THREE.Group();
+        torso.position.y = torsoLen / 2 + 0.1;
+        torso.userData.baseScale = new THREE.Vector3(1, 1, 1);
         torsoContainer.add(torso);
+
+        const torsoMesh = new THREE.Mesh(torsoGeo, matTorso); 
+        torsoMesh.castShadow = true;
+        torso.add(torsoMesh);
 
         // TOP SECTION: Shoulders & Traps (Unified Slope)
         // We use a wider, flatter sphere to cap the torso, providing a base for the traps
@@ -63,7 +76,7 @@ export class TorsoBuilder {
         const crotchGeo = new THREE.SphereGeometry(torsoRadiusBottom * 0.55, 16, 12, 0, Math.PI*2, Math.PI/2, Math.PI/2);
         crotchGeo.scale(1, 0.7, 0.7);
         const crotchMesh = new THREE.Mesh(crotchGeo, matCrotch);
-        crotchMesh.position.y = -pelvisHeight + 0.03;
+        crotchMesh.position.y = -pelvisHeight + 0.014;
         pelvis.add(crotchMesh);
         
         // UNDERWEAR (Briefs - Main Body)
@@ -79,20 +92,20 @@ export class TorsoBuilder {
         const uCrotch = new THREE.Mesh(crotchGeo, materials.underwear);
         // Slightly larger and aligned with pelvis bottom cap to remove seam
         uCrotch.scale.set(1.03, 1.02, 1.01);
-        uCrotch.position.y = -pelvisHeight + 0.029;
+        uCrotch.position.y = -pelvisHeight + 0.013;
         underwearBottom.add(uCrotch);
 
         // Male Bulge (Underwear)
         // Use CapsuleGeometry for a more realistic, elongated shape
-        const bulgeRadius = 0.032;
-        const bulgeLength = 0.026;
+        const bulgeRadius = 0.042;
+        const bulgeLength = 0.04;
         const bulgeGeo = new THREE.CapsuleGeometry(bulgeRadius, bulgeLength, 4, 8);
         
         const maleBulge = new THREE.Mesh(bulgeGeo, materials.underwear);
         // Positioned higher up on the pelvis front face
         // Default position, will be overridden by Scaler
-        maleBulge.position.set(0, -0.056, 0.116); 
-        maleBulge.rotation.x = -0.08;
+        maleBulge.position.set(0, -0.075, 0.13); 
+        maleBulge.rotation.x = -0.15;
         maleBulge.castShadow = true;
         maleBulge.visible = false;
         underwearBottom.add(maleBulge);
@@ -236,12 +249,70 @@ export class TorsoBuilder {
             }
         });
 
+        // === INTERNAL ORGANS ===
+        const organs = new THREE.Group();
+        organs.name = 'Organs';
+        // Place the organ volume near the torso core and keep it compact.
+        organs.position.set(0, -0.045, 0.02);
+        organs.scale.set(0.86, 0.86, 0.86);
+        // By default, organs are hidden just like the brain
+        organs.visible = false; 
+        torso.add(organs);
+
+        const lungs = LungsBuilder.build(materials);
+        lungs.position.set(0, 0.045, -0.015);
+        organs.add(lungs);
+
+        const heart = HeartBuilder.build(materials);
+        heart.position.set(0.0, 0.018, 0.02);
+        heart.scale.set(0.92, 0.92, 0.92);
+        organs.add(heart);
+
+        const liver = LiverBuilder.build(materials);
+        liver.position.set(-0.045, -0.042, -0.005);
+        liver.scale.set(0.95, 0.95, 0.95);
+        organs.add(liver);
+
+        const stomach = StomachBuilder.build(materials);
+        stomach.position.set(0.055, -0.02, 0.015);
+        stomach.scale.set(0.9, 0.9, 0.9);
+        organs.add(stomach);
+
+        const pancreas = PancreasBuilder.build(materials);
+        pancreas.position.set(0.0, -0.055, -0.03);
+        pancreas.scale.set(0.86, 0.86, 0.86);
+        organs.add(pancreas);
+
+        const spleen = SpleenBuilder.build(materials);
+        spleen.position.set(0.078, -0.016, -0.03);
+        spleen.scale.set(1.05, 1.05, 1.05);
+        organs.add(spleen);
+
+        const kidneys = KidneysBuilder.build(materials);
+        kidneys.position.set(0.0, -0.075, -0.065);
+        kidneys.rotation.x = -0.12;
+        organs.add(kidneys);
+
+        const gallbladder = GallbladderBuilder.build(materials);
+        gallbladder.position.set(-0.05, -0.05, -0.015);
+        organs.add(gallbladder);
+
+        // Bladder goes lower, so we attach it to the pelvis to follow hip movements better
+        const bladder = BladderBuilder.build(materials);
+        bladder.position.set(0, -0.015, 0.03);
+        bladder.visible = false;
+        pelvis.add(bladder);
+
         const neckRadius = 0.11;
         const neckHeight = 0.24;
-        const neck = new THREE.Mesh(new THREE.CapsuleGeometry(neckRadius, neckHeight, 4, 8), matNeck);
+        
+        const neck = new THREE.Group();
         neck.position.y = torsoLen + 0.24;
-        neck.castShadow = true;
         torsoContainer.add(neck);
+
+        const neckMesh = new THREE.Mesh(new THREE.CapsuleGeometry(neckRadius, neckHeight, 4, 8), matNeck);
+        neckMesh.castShadow = true;
+        neck.add(neckMesh);
 
         return {
             hips,
@@ -257,7 +328,17 @@ export class TorsoBuilder {
             braCups,
             braStrap,
             maleChest,
-            neck
+            neck,
+            organs,
+            lungs,
+            heart,
+            liver,
+            stomach,
+            pancreas,
+            spleen,
+            kidneys,
+            gallbladder,
+            bladder
         };
     }
 }

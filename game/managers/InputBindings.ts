@@ -71,7 +71,7 @@ export const DEFAULT_KEYBINDINGS: KeyBindingMap = {
     [InputCommand.ToggleInventory]: ['KeyI'],
     [InputCommand.ToggleQuestLog]: ['KeyO'],
     [InputCommand.ToggleWorldMap]: ['KeyM'],
-    [InputCommand.ToggleKeybinds]: ['Backquote'],
+    [InputCommand.ToggleKeybinds]: ['Tab'],
     [InputCommand.ToggleHitbox]: ['KeyG'],
     [InputCommand.ToggleObstacleHitboxes]: ['KeyU'],
     [InputCommand.ToggleCamera]: ['KeyZ'],

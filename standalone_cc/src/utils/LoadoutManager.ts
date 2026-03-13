@@ -1,4 +1,4 @@
-import type { PlayerConfig } from '../types';
+import { PlayerConfig } from '../types';
 
 const STORAGE_KEY = 'tca_character_loadouts';
 const MAX_LOADOUTS = 20;
@@ -213,4 +213,3 @@ export class LoadoutManager {
 }
 
 export default LoadoutManager;
-

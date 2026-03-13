@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
+import { PlayerConfig } from '../../../../types';
 
 export class HoodBuilder {
     static build(parts: any, config: PlayerConfig): THREE.Mesh {
@@ -98,4 +98,3 @@ export class HoodBuilder {
         return h;
     }
 }
-

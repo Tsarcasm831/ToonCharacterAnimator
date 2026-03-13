@@ -8,7 +8,7 @@ import { MageHatBuilder } from './equipment/apparel/MageHatBuilder';
 import { SkirtBuilder } from './equipment/apparel/SkirtBuilder';
 import { SkullcapBuilder } from './equipment/apparel/SkullcapBuilder';
 import { updateHeldItem as updateHeldItemEquipment } from './equipment/HeldItemEquipment';
-import type { PlayerConfig } from '../../types';
+import { PlayerConfig } from '../../types';
 
 export class PlayerEquipment {
     static updateHeldItem(
@@ -102,4 +102,3 @@ export class PlayerEquipment {
         }
     }
 }
-

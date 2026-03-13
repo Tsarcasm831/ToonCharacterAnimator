@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import type { PlayerConfig, PlayerInput } from '../../../types';
+import { PlayerConfig, PlayerInput } from '../../../types';
 import { SkeletonLegend } from '../controls/SkeletonLegend';
 import { ActionControls } from '../controls/ActionControls';
 import { BodyControls } from '../controls/BodyControls';
@@ -7,6 +8,7 @@ import { OutfitControls } from '../controls/OutfitControls';
 import { FaceControls } from '../controls/FaceControls';
 import { RiggingControls } from '../controls/RiggingControls';
 import { EquipmentRiggingControls } from '../controls/EquipmentRiggingControls';
+import { ImpersonateControls } from '../controls/ImpersonateControls';
 import RandomizeControls from '../controls/RandomizeControls';
 import LoadoutControls from '../controls/LoadoutControls';
 import { Slider } from './CommonControls';
@@ -15,43 +17,40 @@ interface ControlPanelProps {
     config: PlayerConfig;
     manualInput: Partial<PlayerInput>;
     isDeadUI: boolean;
-    movementMode: 'idle' | 'walk' | 'run';
     setConfig: React.Dispatch<React.SetStateAction<PlayerConfig>>;
     setManualInput: React.Dispatch<React.SetStateAction<Partial<PlayerInput>>>;
     handleDeathToggle: () => void;
-    handleMovementToggle: () => void;
     triggerAction: (key: keyof PlayerInput) => void;
     onExport: () => void;
+    onSpawnAnimals?: () => void;
     onUndo: () => void;
     onRedo: () => void;
     canUndo: boolean;
     canRedo: boolean;
-    zoomLevel: number;
+    movementMode?: 'idle' | 'walk' | 'run';
+    handleMovementToggle?: () => void;
+    zoomLevel?: number;
 }
 
-type TabKey = 'settings' | 'environment' | 'actions' | 'body' | 'outfit' | 'face' | 'rigging' | 'eq_rigging' | 'randomize' | 'loadouts';
+type TabKey = 'settings' | 'environment' | 'actions' | 'impersonate' | 'body' | 'outfit' | 'face' | 'rigging' | 'eq_rigging' | 'randomize' | 'loadouts';
 
 export const ControlPanel: React.FC<ControlPanelProps> = ({
     config,
     manualInput,
     isDeadUI,
-    movementMode,
     setConfig,
     setManualInput,
     handleDeathToggle,
-    handleMovementToggle,
     triggerAction,
     onExport,
+    onSpawnAnimals = () => {},
     onUndo,
     onRedo,
     canUndo,
-    canRedo,
-    zoomLevel
+    canRedo
 }) => {
-    const [isOpen, setIsOpen] = useState(() =>
-        typeof window !== 'undefined' ? !window.matchMedia('(max-width: 1024px)').matches : true
-    );
-    const [activeTab, setActiveTab] = useState<TabKey>('outfit');
+    const [isOpen, setIsOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<TabKey>('actions');
     const [isMobileLayout, setIsMobileLayout] = useState(() =>
         typeof window !== 'undefined' ? window.matchMedia('(max-width: 1024px)').matches : false
     );
@@ -72,6 +71,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
     const TABS: { id: TabKey; label: string; icon: string }[] = [
         { id: 'actions', label: 'Actions & Input', icon: '🎮' },
+        { id: 'impersonate', label: 'Impersonate', icon: '🎭' },
         { id: 'randomize', label: 'Randomize', icon: '🎲' },
         { id: 'loadouts', label: 'Loadouts', icon: '💾' },
         { id: 'settings', label: 'Game Settings', icon: '⚙️' },
@@ -90,7 +90,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 <button type="button" 
                     onClick={() => setIsOpen(true)}
                     className="absolute bottom-4 right-4 z-[60] p-4 bg-slate-900/90 backdrop-blur-md shadow-2xl rounded-full border border-white/20 text-white hover:bg-blue-600 hover:border-blue-400 transition-all hover:scale-105 active:scale-95 group"
-                    title="Open Character Lab"
+                    title="Open Studio OS"
                 >
                     <svg className="w-6 h-6 group-hover:rotate-90 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -110,8 +110,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     {!isMobileLayout && (
                     <div className="w-72 h-full bg-slate-950/90 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
                         <div className="p-8 border-b border-white/5">
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Character<span className="text-blue-500">Lab</span></h2>
-                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Preview, wardrobe, proportions</p>
+                            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Studio<span className="text-blue-500">OS</span></h2>
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Workspace Navigation</p>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto py-6 space-y-1 custom-scrollbar">
@@ -138,10 +138,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
                         {/* Global Controls at Bottom of Nav */}
                         <div className="p-6 border-t border-white/5 bg-black/20 space-y-3">
-                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">
-                                <span>Zoom</span>
-                                <span className="text-blue-400">{zoomLevel}%</span>
-                            </div>
                             {/* Undo/Redo Controls */}
                             <div className="flex gap-2">
                                 <button
@@ -201,7 +197,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                             </div>
                             <button type="button" 
                                 onClick={() => setIsOpen(false)}
-                                aria-label="Close Character Lab panel"
+                                aria-label="Close Studio OS panel"
                                 className="p-2 text-slate-500 hover:text-white bg-white/5 hover:bg-red-500/20 rounded-xl transition-all"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -234,14 +230,19 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                 {activeTab === 'actions' && (
                                     <ActionControls 
                                         manualInput={manualInput}
+                                        config={config}
+                                        setConfig={setConfig}
                                         isDeadUI={isDeadUI}
-                                        movementMode={movementMode}
                                         setManualInput={setManualInput}
                                         handleDeathToggle={handleDeathToggle}
-                                        handleMovementToggle={handleMovementToggle}
                                         triggerAction={triggerAction}
                                         onExport={onExport}
+                                        onSpawnAnimals={onSpawnAnimals}
                                     />
+                                )}
+
+                                {activeTab === 'impersonate' && (
+                                    <ImpersonateControls setConfig={setConfig} />
                                 )}
 
                                 {activeTab === 'randomize' && (

@@ -1,5 +1,5 @@
 import { BODY_PRESETS } from '../data/constants';
-import type { BodyVariant, OutfitType, PlayerConfig } from '../types';
+import { BodyVariant, OutfitType, PlayerConfig } from '../types';
 
 export type PresetTheme = 'random' | 'heroic' | 'mystical' | 'rugged' | 'elegant' | 'warrior' | 'mage';
 
@@ -143,13 +143,13 @@ export class RandomizationPresets {
    */
   private static generateOutfit(theme: PresetTheme): OutfitType {
     const outfits: Record<PresetTheme, OutfitType[]> = {
-      heroic: ['warrior', 'knight', 'noble'],
-      mystical: ['mage', 'noble'],
-      rugged: ['peasant', 'ranger', 'naked'],
-      elegant: ['noble', 'mage'],
-      warrior: ['warrior', 'knight', 'ranger'],
-      mage: ['mage', 'noble'],
-      random: ['nude', 'naked', 'peasant', 'warrior', 'ranger', 'knight', 'noble', 'mage']
+      heroic: ['warrior', 'noble'],
+      mystical: ['noble', 'peasant'],
+      rugged: ['peasant', 'naked'],
+      elegant: ['noble', 'peasant'],
+      warrior: ['warrior', 'naked'],
+      mage: ['noble', 'peasant'],
+      random: ['nude', 'naked', 'peasant', 'warrior', 'noble']
     };
 
     return this.randomPick(outfits[theme] ?? outfits.random);

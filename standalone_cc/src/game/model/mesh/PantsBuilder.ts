@@ -1,12 +1,11 @@
 
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../types';
 import { HideBreeches } from '../equipment/apparel/HideBreeches';
 import { LeatherPants } from '../equipment/apparel/LeatherPants';
 import { ChainLeggings } from '../equipment/apparel/ChainLeggings';
 import { PlateLeggings } from '../equipment/apparel/PlateLeggings';
 import { WarlordLegPlates } from '../equipment/apparel/WarlordLegPlates';
-import { PantsBulgeBuilder } from './PantsBulgeBuilder';
 
 const GLOBAL_PATTERN_SCALE = 3.5;
 
@@ -146,11 +145,11 @@ export class PantsBuilder {
             });
 
             if (config.bodyType === 'male') {
-                const bMesh = PantsBulgeBuilder.build(mat, {
-                    position: { x: 0, y: -0.092, z: 0.103 },
-                    scale: { x: 0.88, y: 0.84, z: 0.64 },
-                    rotationX: 0.14
-                });
+                const bGeo = new THREE.CapsuleGeometry(0.046, 0.042, 4, 8);
+                const bMesh = new THREE.Mesh(bGeo, mat);
+                bMesh.name = 'pantsBulge';
+                bMesh.castShadow = true;
+                bMesh.position.set(0, -0.075, 0.13);
                 parts.pelvis.add(bMesh);
                 meshes.push(bMesh);
             }

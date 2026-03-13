@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import type { PlayerConfig } from '../../../types';
-import { LoadoutManager } from '../../../utils/LoadoutManager';
-import type { CharacterLoadout } from '../../../utils/LoadoutManager';
+import { PlayerConfig } from '../../../types';
+import { LoadoutManager, CharacterLoadout } from '../../../utils/LoadoutManager';
 
 interface LoadoutControlsProps {
   config: PlayerConfig;
@@ -9,7 +8,6 @@ interface LoadoutControlsProps {
 }
 
 const LoadoutControls: React.FC<LoadoutControlsProps> = ({ config, setConfig }) => {
-  const loadoutNameInputId = React.useId();
   const [loadouts, setLoadouts] = useState<CharacterLoadout[]>([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [loadoutName, setLoadoutName] = useState('');
@@ -247,12 +245,10 @@ const LoadoutControls: React.FC<LoadoutControlsProps> = ({ config, setConfig }) 
             <h3 className="text-xl font-bold text-purple-300 mb-4">Save Character Loadout</h3>
 
             <div className="mb-4">
-              <label htmlFor={loadoutNameInputId} className="block text-sm font-semibold text-neutral-300 mb-2">
+              <label className="block text-sm font-semibold text-neutral-300 mb-2">
                 Loadout Name
               </label>
               <input
-                id={loadoutNameInputId}
-                name="loadout_name"
                 type="text"
                 value={loadoutName}
                 onChange={(e) => setLoadoutName(e.target.value)}
@@ -296,4 +292,3 @@ const LoadoutControls: React.FC<LoadoutControlsProps> = ({ config, setConfig }) 
 };
 
 export default LoadoutControls;
-

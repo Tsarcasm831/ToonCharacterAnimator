@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../types';
+import { PlayerConfig } from '../../../types';
 
 export class ApronBuilder {
     static build(parts: any, config: PlayerConfig) {
@@ -298,4 +298,3 @@ export class ApronBuilder {
         return { meshes: createdMeshes, group: apronGroup };
     }
 }
-

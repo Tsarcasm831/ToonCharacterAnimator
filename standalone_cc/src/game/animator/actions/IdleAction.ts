@@ -2,22 +2,7 @@
 import * as THREE from 'three';
 import { playerModelResetFeet, animateBreathing, applyFootRot } from '../AnimationUtils';
 
-type BlinkState = {
-    nextBlinkAt: number;
-    blinkStartAt: number | null;
-};
-
 export class IdleAction {
-    private static readonly blinkStates = new WeakMap<object, BlinkState>();
-    private static readonly minBlinkDelayMs = 2000;
-    private static readonly maxBlinkDelayMs = 6000;
-    private static readonly blinkCloseDurationMs = 90;
-    private static readonly blinkOpenDurationMs = 110;
-    private static readonly topLidOpenRotation = -0.7;
-    private static readonly topLidClosedRotation = -0.05;
-    private static readonly bottomLidOpenRotation = 0.7;
-    private static readonly bottomLidClosedRotation = 0.05;
-
     static animate(player: any, parts: any, damp: number, skipRightArm: boolean = false) {
         const t = player.locomotion?.walkTime ?? (Date.now() * 0.002);
         const isMale = player.config.bodyType === 'male';
@@ -31,7 +16,6 @@ export class IdleAction {
 
         // Breathing Effect
         animateBreathing(player, parts, t, 1.0);
-        this.animateBlink(player, damp);
 
         if (isCombatStance) {
             this.animateCombatStance(player, parts, damp, t, skipRightArm);
@@ -197,61 +181,5 @@ export class IdleAction {
             parts.rightArm.rotation.z = lerp(parts.rightArm.rotation.z, -0.15, damp);
             parts.rightForeArm.rotation.x = lerp(parts.rightForeArm.rotation.x, -0.15, damp);
         }
-    }
-
-    private static animateBlink(player: any, _damp: number) {
-        const eyelids = player.model?.eyelids as THREE.Group[] | undefined;
-        if (!eyelids?.length) return;
-
-        const now = Date.now();
-        const key = player.model as object;
-        const state = this.getBlinkState(key, now);
-        const blinkAmount = this.getBlinkAmount(state, now);
-
-        eyelids.forEach((lid, index) => {
-            const isTopLid = index % 2 === 0;
-            const openRotation = isTopLid ? this.topLidOpenRotation : this.bottomLidOpenRotation;
-            const closedRotation = isTopLid ? this.topLidClosedRotation : this.bottomLidClosedRotation;
-            lid.rotation.x = THREE.MathUtils.lerp(openRotation, closedRotation, blinkAmount);
-        });
-    }
-
-    private static getBlinkState(key: object, now: number) {
-        let state = this.blinkStates.get(key);
-        if (!state) {
-            state = {
-                nextBlinkAt: now + this.randomBlinkDelay(),
-                blinkStartAt: null,
-            };
-            this.blinkStates.set(key, state);
-        }
-
-        if (state.blinkStartAt === null && now >= state.nextBlinkAt) {
-            state.blinkStartAt = now;
-        }
-
-        return state;
-    }
-
-    private static getBlinkAmount(state: BlinkState, now: number) {
-        if (state.blinkStartAt === null) return 0;
-
-        const elapsed = now - state.blinkStartAt;
-        if (elapsed <= this.blinkCloseDurationMs) {
-            return elapsed / this.blinkCloseDurationMs;
-        }
-
-        const reopenElapsed = elapsed - this.blinkCloseDurationMs;
-        if (reopenElapsed <= this.blinkOpenDurationMs) {
-            return 1 - (reopenElapsed / this.blinkOpenDurationMs);
-        }
-
-        state.blinkStartAt = null;
-        state.nextBlinkAt = now + this.randomBlinkDelay();
-        return 0;
-    }
-
-    private static randomBlinkDelay() {
-        return this.minBlinkDelayMs + Math.random() * (this.maxBlinkDelayMs - this.minBlinkDelayMs);
     }
 }

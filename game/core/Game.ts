@@ -266,6 +266,9 @@ export class Game {
     }
 
     private onMouseDown(e: MouseEvent) {
+        if (this.cameraManager.isFirstPerson && document.pointerLockElement !== this.renderManager.renderer.domElement) {
+            this.renderManager.renderer.domElement.requestPointerLock();
+        }
         if (this.sceneManager.activeScene === 'combat') {
             this.combatManager.handleMouseDown(e, this.sceneManager.combatEnvironment);
         }

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { PlayerConfig } from '../../../../types';
+import { PlayerConfig } from '../../../../types';
 
 const LEATHER_COLOR = '#3e2723';
 const BUCKLE_COLOR = '#ffd700';
@@ -112,4 +112,3 @@ export class BeltBuilder {
         return { meshes: createdMeshes };
     }
 }
-
