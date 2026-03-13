@@ -219,6 +219,7 @@ export class ChakraNetwork {
         this.beamMesh = new THREE.InstancedMesh(beamGeo, beamMat, maxLinks);
         this.beamMesh.instanceMatrix.setUsage(THREE.StreamDrawUsage);
         this.beamMesh.frustumCulled = false; 
+        this.beamMesh.renderOrder = 999;
         this.beamMesh.visible = false;
         this.scene.add(this.beamMesh);
 
@@ -240,6 +241,7 @@ export class ChakraNetwork {
         this.orbMesh = new THREE.InstancedMesh(orbGeo, orbMat, maxOrbs);
         this.orbMesh.instanceMatrix.setUsage(THREE.StreamDrawUsage);
         this.orbMesh.frustumCulled = false;
+        this.orbMesh.renderOrder = 1000;
         this.orbMesh.visible = false;
         this.scene.add(this.orbMesh);
     }
@@ -331,6 +333,54 @@ export class ChakraNetwork {
         tip.position.set(0, 0, tipZ);
         joints.push(tip);
         return joints;
+    }
+
+    private buildOrganLoop(
+        organ: THREE.Object3D,
+        colorHex: number,
+        label: string,
+        radius: number,
+        numPoints: number,
+        wobbleFreq: number,
+        wobbleAmp: number,
+        tiltX: number = 0,
+        tiltZ: number = 0
+    ) {
+        const waypoints: THREE.Object3D[] = [];
+        const color = new THREE.Color(colorHex);
+
+        for (let i = 0; i < numPoints; i++) {
+            const t = (i / numPoints) * Math.PI * 2;
+            const wp = new THREE.Object3D();
+            wp.name = `chakra_${label.toLowerCase().replace(/\s+/g, '_')}_${i}`;
+
+            let x = radius * Math.cos(t);
+            let y = radius * wobbleAmp * Math.sin(wobbleFreq * t);
+            let z = radius * Math.sin(t);
+
+            if (tiltX) {
+                const c = Math.cos(tiltX), s = Math.sin(tiltX);
+                const ny = y * c - z * s;
+                const nz = y * s + z * c;
+                y = ny; z = nz;
+            }
+            if (tiltZ) {
+                const c = Math.cos(tiltZ), s = Math.sin(tiltZ);
+                const nx = x * c - y * s;
+                const ny = x * s + y * c;
+                x = nx; y = ny;
+            }
+
+            wp.position.set(x, y, z);
+            organ.add(wp);
+            waypoints.push(wp);
+        }
+
+        const closed = [...waypoints, waypoints[0]];
+        const labels = waypoints.map((_, i) => `${label} Loop ${i + 1}`);
+        labels.push(labels[0]);
+        this.addChain(closed, colorHex, false, labels);
+        this.addOrb(organ, color, label);
     }
 
     private traverseFoot(shin: THREE.Object3D, ankle: THREE.Object3D, prefix: string, color: number) {
@@ -434,6 +484,47 @@ export class ChakraNetwork {
                     this.getFingerJointLabels('Left', this.getFingerNameByIndex(index))
                 );
             });
+        }
+
+        // === ORGAN CHAKRA LOOPS ===
+        // Loopy, non-self-intersecting parametric paths around each internal organ.
+        // These are visible even when organs themselves are hidden.
+        const C_BRAIN      = 0x8800ff;
+        const C_HEART      = 0x00ff66;
+        const C_LUNGS      = 0x00aaff;
+        const C_LIVER      = 0xff6600;
+        const C_STOMACH    = 0xffee00;
+        const C_PANCREAS   = 0xffaa00;
+        const C_SPLEEN     = 0xff0088;
+        const C_KIDNEYS    = 0xff4400;
+        const C_GALLBLADDER = 0x00ffaa;
+
+        if (parts.brain) {
+            this.buildOrganLoop(parts.brain, C_BRAIN, 'Brain', 0.12, 12, 3, 0.4, 0.3, 0);
+        }
+        if (parts.heart) {
+            this.buildOrganLoop(parts.heart, C_HEART, 'Heart', 0.09, 10, 2, 0.5, 0, 0.2);
+        }
+        if (parts.lungs) {
+            this.buildOrganLoop(parts.lungs, C_LUNGS, 'Lungs', 0.16, 14, 3, 0.3, 0.2, 0);
+        }
+        if (parts.liver) {
+            this.buildOrganLoop(parts.liver, C_LIVER, 'Liver', 0.11, 10, 2, 0.4, 0, -0.3);
+        }
+        if (parts.stomach) {
+            this.buildOrganLoop(parts.stomach, C_STOMACH, 'Stomach', 0.09, 10, 2, 0.5, -0.2, 0);
+        }
+        if (parts.pancreas) {
+            this.buildOrganLoop(parts.pancreas, C_PANCREAS, 'Pancreas', 0.06, 8, 3, 0.4, 0, 0.4);
+        }
+        if (parts.spleen) {
+            this.buildOrganLoop(parts.spleen, C_SPLEEN, 'Spleen', 0.04, 8, 2, 0.5, 0.3, 0);
+        }
+        if (parts.kidneys) {
+            this.buildOrganLoop(parts.kidneys, C_KIDNEYS, 'Kidneys', 0.07, 10, 3, 0.3, -0.3, 0);
+        }
+        if (parts.gallbladder) {
+            this.buildOrganLoop(parts.gallbladder, C_GALLBLADDER, 'Gallbladder', 0.035, 8, 2, 0.6, 0, -0.4);
         }
 
         this.defaultLinkColors = this.links.map(link => link.color.clone());

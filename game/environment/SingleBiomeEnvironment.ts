@@ -26,6 +26,7 @@ export class SingleBiomeEnvironment {
         this.group = new THREE.Group();
         this.scene.add(this.group);
         this.lightingManager = new LightingManager(scene);
+        this.lightingManager.setShadowCoverage(95);
         this.worldGrid = new WorldGridManager(this.group);
     }
 
@@ -220,11 +221,13 @@ export class SingleBiomeEnvironment {
         const landRadius = Math.sqrt((halfWidth * halfWidth) + (halfDepth * halfDepth));
         const skyRadius = landRadius * 1.2;
         this.lightingManager.setSkySphereRadius(skyRadius);
+        const shadowCoverage = THREE.MathUtils.clamp(landRadius * 0.45, 80, 150);
+        this.lightingManager.setShadowCoverage(shadowCoverage);
     }
 
     update(dt: number, config: PlayerConfig, playerPos: THREE.Vector3) {
         if (!this.group.visible) return;
-        this.lightingManager.update(dt, config);
+        this.lightingManager.update(dt, config, playerPos);
         this.worldGrid.update(playerPos);
         if (this.hiveController) {
             this.hiveController.update(dt, playerPos);

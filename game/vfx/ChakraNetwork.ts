@@ -104,6 +104,7 @@ export class ChakraNetwork {
     private beamMesh: THREE.InstancedMesh | null = null;
     private orbMesh: THREE.InstancedMesh | null = null;
     private debugColorMode = false;
+    private xRayMode = false;
 
     private links: LinkData[] = [];
     private orbs: OrbData[] = [];
@@ -119,7 +120,7 @@ export class ChakraNetwork {
 
     // Performance Throttling
     private updateTimer = 0;
-    private readonly UPDATE_INTERVAL = 1 / 30; // 30 FPS update for VFX
+    private readonly UPDATE_INTERVAL = 0; // 0 = full frame-rate update
 
     constructor(scene: THREE.Scene) {
         this.scene = scene;
@@ -212,7 +213,7 @@ export class ChakraNetwork {
             transparent: true,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
-            depthTest: false,
+            depthTest: true,
             side: THREE.DoubleSide
         });
 
@@ -233,7 +234,7 @@ export class ChakraNetwork {
             transparent: true,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
-            depthTest: false,
+            depthTest: true,
             side: THREE.DoubleSide
         });
 
@@ -242,6 +243,26 @@ export class ChakraNetwork {
         this.orbMesh.frustumCulled = false;
         this.orbMesh.visible = false;
         this.scene.add(this.orbMesh);
+
+        this.applyRenderMode();
+    }
+
+    private applyRenderMode() {
+        if (this.beamMesh) {
+            const mat = this.beamMesh.material as THREE.ShaderMaterial;
+            mat.depthTest = !this.xRayMode;
+            mat.depthWrite = false;
+            mat.needsUpdate = true;
+            this.beamMesh.renderOrder = this.xRayMode ? 999 : 0;
+        }
+
+        if (this.orbMesh) {
+            const mat = this.orbMesh.material as THREE.ShaderMaterial;
+            mat.depthTest = !this.xRayMode;
+            mat.depthWrite = false;
+            mat.needsUpdate = true;
+            this.orbMesh.renderOrder = this.xRayMode ? 1000 : 1;
+        }
     }
 
     private addChain(chain: THREE.Object3D[], colorHex: number, withOrbs: boolean = true, labels?: string[]) {
@@ -331,6 +352,161 @@ export class ChakraNetwork {
         tip.position.set(0, 0, tipZ);
         joints.push(tip);
         return joints;
+    }
+
+    private buildOrganVesselNetwork(
+        organ: THREE.Object3D,
+        colorHex: number,
+        label: string,
+        outerRadius: number,
+        innerRadius: number,
+        organHeight: number,
+        complexity: number,
+        ringPoints: number,
+        wobbleFreq: number,
+        wobbleAmp: number,
+        tiltX: number = 0,
+        tiltZ: number = 0
+    ) {
+        const color = new THREE.Color(colorHex);
+        let wpIdx = 0;
+
+        const makeWP = (x: number, y: number, z: number): THREE.Object3D => {
+            const wp = new THREE.Object3D();
+            wp.name = `chakra_${label.toLowerCase().replace(/\s+/g, '_')}_v${wpIdx++}`;
+            wp.position.set(x, y, z);
+            organ.add(wp);
+            return wp;
+        };
+
+        const applyTilt = (x: number, y: number, z: number): [number, number, number] => {
+            if (tiltX) {
+                const c = Math.cos(tiltX), s = Math.sin(tiltX);
+                const ny = y * c - z * s, nz = y * s + z * c;
+                y = ny; z = nz;
+            }
+            if (tiltZ) {
+                const c = Math.cos(tiltZ), s = Math.sin(tiltZ);
+                const nx = x * c - y * s, ny = x * s + y * c;
+                x = nx; y = ny;
+            }
+            return [x, y, z];
+        };
+
+        // === 1. OUTER MERIDIAN RING (tilted energy field) ===
+        const ringWPs: THREE.Object3D[] = [];
+        for (let i = 0; i < ringPoints; i++) {
+            const t = (i / ringPoints) * Math.PI * 2;
+            const [rx, ry, rz] = applyTilt(
+                outerRadius * Math.cos(t),
+                outerRadius * wobbleAmp * Math.sin(wobbleFreq * t),
+                outerRadius * Math.sin(t)
+            );
+            ringWPs.push(makeWP(rx, ry, rz));
+        }
+        const ringClosed = [...ringWPs, ringWPs[0]];
+        const ringLabels = ringWPs.map((_, i) => `${label} Ring ${i + 1}`);
+        ringLabels.push(ringLabels[0]);
+        this.addChain(ringClosed, colorHex, false, ringLabels);
+
+        // === 2. MAIN VESSEL TRUNK (helix through organ interior) ===
+        const trunkN = 6 + complexity * 3;
+        const helixTwists = 0.8 + complexity * 0.4;
+        const trunkWPs: THREE.Object3D[] = [];
+        for (let i = 0; i < trunkN; i++) {
+            const t = i / (trunkN - 1);
+            const angle = t * Math.PI * 2 * helixTwists;
+            const taper = 1 - 0.25 * Math.sin(t * Math.PI);
+            const x = innerRadius * Math.cos(angle) * taper;
+            const y = -organHeight * 0.5 + t * organHeight;
+            const z = innerRadius * Math.sin(angle) * taper;
+            trunkWPs.push(makeWP(x, y, z));
+        }
+        const trunkLabels = trunkWPs.map((_, i) => `${label} Trunk ${i + 1}`);
+        this.addChain(trunkWPs, colorHex, false, trunkLabels);
+
+        // === 3. ARTERIAL BRANCHES (fork from trunk, curve outward) ===
+        const branchCount = 2 + complexity * 2;
+        const branchLen = 2 + complexity;
+
+        for (let b = 0; b < branchCount; b++) {
+            const forkIdx = Math.min(
+                Math.floor((b + 1) * trunkN / (branchCount + 1)),
+                trunkWPs.length - 1
+            );
+            const forkWP = trunkWPs[forkIdx];
+            const forkPos = forkWP.position;
+            const bAngle = (b / branchCount) * Math.PI * 2 + 0.7;
+            const sign = b % 2 === 0 ? 1 : -1;
+
+            const bWPs: THREE.Object3D[] = [forkWP];
+            const bLabels: string[] = [trunkLabels[forkIdx]];
+
+            for (let j = 1; j <= branchLen; j++) {
+                const frac = j / branchLen;
+                const spread = innerRadius * (0.5 + frac * 1.5);
+                const curveAngle = bAngle + frac * 0.8 * sign;
+                const x = forkPos.x + spread * Math.cos(curveAngle);
+                const y = forkPos.y + organHeight * 0.1 * Math.sin(j * 1.4) * sign;
+                const z = forkPos.z + spread * Math.sin(curveAngle);
+                bWPs.push(makeWP(x, y, z));
+                bLabels.push(`${label} Branch ${b + 1}.${j}`);
+            }
+
+            this.addChain(bWPs, colorHex, false, bLabels);
+
+            // === 4. RETURN LOOPS (branch tip → nearest ring point, forming circulatory loops) ===
+            const tipWP = bWPs[bWPs.length - 1];
+            let nearIdx = 0;
+            let nearDist = Infinity;
+            for (let r = 0; r < ringWPs.length; r++) {
+                const d = tipWP.position.distanceTo(ringWPs[r].position);
+                if (d < nearDist) { nearDist = d; nearIdx = r; }
+            }
+
+            const tp = tipWP.position;
+            const rp = ringWPs[nearIdx].position;
+            const mx = (tp.x + rp.x) * 0.5 + organHeight * 0.08 * Math.sin(b * 2.1);
+            const my = (tp.y + rp.y) * 0.5 + organHeight * 0.12 * Math.cos(b * 1.7);
+            const mz = (tp.z + rp.z) * 0.5 + organHeight * 0.08 * Math.sin(b * 3.3);
+            const returnMid = makeWP(mx, my, mz);
+
+            this.addChain(
+                [tipWP, returnMid, ringWPs[nearIdx]],
+                colorHex, false,
+                [bLabels[bLabels.length - 1], `${label} Return ${b + 1}`, ringLabels[nearIdx]]
+            );
+        }
+
+        // === 5. CAPILLARY SUB-BRANCHES (complexity >= 2: shorter finer paths off trunk) ===
+        if (complexity >= 2) {
+            const subCount = complexity;
+            for (let s = 0; s < subCount; s++) {
+                const sIdx = Math.min(
+                    Math.floor((s + 0.5) * trunkN / (subCount + 1)),
+                    trunkWPs.length - 1
+                );
+                const sPos = trunkWPs[sIdx].position;
+                const sAngle = (s / subCount) * Math.PI * 2 + Math.PI;
+
+                const sWPs: THREE.Object3D[] = [trunkWPs[sIdx]];
+                const sLabels: string[] = [trunkLabels[sIdx]];
+
+                for (let j = 1; j <= 3; j++) {
+                    const frac = j / 3;
+                    const spread = innerRadius * 0.5 * frac;
+                    const x = sPos.x + spread * Math.cos(sAngle + frac * 0.6);
+                    const y = sPos.y + organHeight * 0.06 * Math.sin(j * 1.2);
+                    const z = sPos.z + spread * Math.sin(sAngle + frac * 0.6);
+                    sWPs.push(makeWP(x, y, z));
+                    sLabels.push(`${label} Capillary ${s + 1}.${j}`);
+                }
+
+                this.addChain(sWPs, colorHex, false, sLabels);
+            }
+        }
+
+        this.addOrb(organ, color, label);
     }
 
     private traverseFoot(shin: THREE.Object3D, ankle: THREE.Object3D, prefix: string, color: number) {
@@ -436,6 +612,48 @@ export class ChakraNetwork {
             });
         }
 
+        // === ORGAN CHAKRA LOOPS ===
+        // Loopy, non-self-intersecting parametric paths around each internal organ.
+        // These are visible even when organs themselves are hidden.
+        const C_BRAIN      = 0x8800ff;
+        const C_HEART      = 0x00ff66;
+        const C_LUNGS      = 0x00aaff;
+        const C_LIVER      = 0xff6600;
+        const C_STOMACH    = 0xffee00;
+        const C_PANCREAS   = 0xffaa00;
+        const C_SPLEEN     = 0xff0088;
+        const C_KIDNEYS    = 0xff4400;
+        const C_GALLBLADDER = 0x00ffaa;
+
+        //                                     organ           color   label          oR     iR    hgt  cplx ring wF  wA   tX    tZ
+        if (parts.brain) {
+            this.buildOrganVesselNetwork(parts.brain,       C_BRAIN,      'Brain',       0.12, 0.06, 0.10, 3, 12, 3, 0.4, 0.3,  0);
+        }
+        if (parts.heart) {
+            this.buildOrganVesselNetwork(parts.heart,       C_HEART,      'Heart',       0.09, 0.04, 0.12, 3, 10, 2, 0.5, 0,    0.2);
+        }
+        if (parts.lungs) {
+            this.buildOrganVesselNetwork(parts.lungs,       C_LUNGS,      'Lungs',       0.16, 0.08, 0.16, 3, 14, 3, 0.3, 0.2,  0);
+        }
+        if (parts.liver) {
+            this.buildOrganVesselNetwork(parts.liver,       C_LIVER,      'Liver',       0.11, 0.05, 0.08, 2, 10, 2, 0.4, 0,   -0.3);
+        }
+        if (parts.stomach) {
+            this.buildOrganVesselNetwork(parts.stomach,     C_STOMACH,    'Stomach',     0.09, 0.04, 0.10, 2, 10, 2, 0.5, -0.2, 0);
+        }
+        if (parts.pancreas) {
+            this.buildOrganVesselNetwork(parts.pancreas,    C_PANCREAS,   'Pancreas',    0.06, 0.03, 0.04, 2,  8, 3, 0.4, 0,    0.4);
+        }
+        if (parts.spleen) {
+            this.buildOrganVesselNetwork(parts.spleen,      C_SPLEEN,     'Spleen',      0.04, 0.02, 0.04, 1,  8, 2, 0.5, 0.3,  0);
+        }
+        if (parts.kidneys) {
+            this.buildOrganVesselNetwork(parts.kidneys,     C_KIDNEYS,    'Kidneys',     0.07, 0.035, 0.05, 2, 10, 3, 0.3, -0.3, 0);
+        }
+        if (parts.gallbladder) {
+            this.buildOrganVesselNetwork(parts.gallbladder, C_GALLBLADDER,'Gallbladder',  0.035, 0.015, 0.025, 1, 8, 2, 0.6, 0, -0.4);
+        }
+
         this.defaultLinkColors = this.links.map(link => link.color.clone());
         this.defaultOrbColors = this.orbs.map(orb => orb.color.clone());
         this.initInstancedMeshes(this.links.length, this.orbs.length);
@@ -452,6 +670,12 @@ export class ChakraNetwork {
         if (this.debugColorMode === enabled) return;
         this.debugColorMode = enabled;
         this.applyInstanceColors();
+    }
+
+    setXRayMode(enabled: boolean) {
+        if (this.xRayMode === enabled) return;
+        this.xRayMode = enabled;
+        this.applyRenderMode();
     }
 
     getNodeDebugLegend(): ChakraNodeLegendEntry[] {
@@ -511,9 +735,11 @@ export class ChakraNetwork {
         }
         if (!this.beamMesh?.visible) return;
 
-        this.updateTimer += dt;
-        if (this.updateTimer < this.UPDATE_INTERVAL) return;
-        this.updateTimer = 0;
+        if (this.UPDATE_INTERVAL > 0) {
+            this.updateTimer += dt;
+            if (this.updateTimer < this.UPDATE_INTERVAL) return;
+            this.updateTimer = 0;
+        }
 
         const uTime = performance.now() * 0.001;
         this._posCache.clear();
