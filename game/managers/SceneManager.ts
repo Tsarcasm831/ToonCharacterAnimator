@@ -39,6 +39,7 @@ export class SceneManager {
         this.entityManager = entityManager;
         this.player = player;
         this.activeScene = initialScene;
+        this.renderManager.setBaseLightingEnabled(!this.usesEnvironmentLighting(initialScene));
 
         this.initEnvironment(initialScene);
     }
@@ -65,6 +66,10 @@ export class SceneManager {
                 this.combatEnvironment = new CombatEnvironment(this.scene);
             }
         }
+    }
+
+    private usesEnvironmentLighting(sceneName: SceneType): boolean {
+        return sceneName === 'dev' || sceneName === 'singleBiome' || sceneName === 'town';
     }
 
     private unloadEnvironments(except: SceneType) {
@@ -116,6 +121,7 @@ export class SceneManager {
     public switchScene(sceneName: SceneType, isInit: boolean = false) {
         const previousScene = this.activeScene;
         this.activeScene = sceneName;
+        this.renderManager.setBaseLightingEnabled(!this.usesEnvironmentLighting(sceneName));
         const GRID_CELL_SIZE = 1.3333;
         PlayerUtils.setUseLandTerrain(sceneName === 'land');
         PlayerUtils.setCustomLandPolygon(null);

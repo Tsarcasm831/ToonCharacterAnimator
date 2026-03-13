@@ -153,6 +153,7 @@ export class Player {
             // Hands-only mode should not stack with other debug visual layers.
             this.setHitboxDebug(false);
             this.chakra.setDebugColorMode(false);
+            this.chakra.setXRayMode(false);
             this.chakra.setVisible(false);
             this.model.group.visible = this.isBaseVisible;
         }
@@ -264,8 +265,11 @@ export class Player {
         // 6. Visual Effects
         const showChakraNetwork = this.isBaseVisible && this.chakraDebugStage !== 0 && !this.isDebugHands;
         const hidePlayerSkinForChakra = this.isBaseVisible && this.chakraDebugStage === 2 && !this.isDebugHands;
+        const chakraXRayMode = showChakraNetwork;
+        const chakraDebugColorMode = showChakraNetwork && this.chakraDebugStage === 2;
         this.model.group.visible = this.isBaseVisible && !hidePlayerSkinForChakra;
-        this.chakra.setDebugColorMode(showChakraNetwork && this.chakraDebugStage === 2);
+        this.chakra.setDebugColorMode(chakraDebugColorMode);
+        this.chakra.setXRayMode(chakraXRayMode);
         this.chakra.setVisible(showChakraNetwork);
         if (showChakraNetwork) {
             this.chakra.update(dt, this.model);

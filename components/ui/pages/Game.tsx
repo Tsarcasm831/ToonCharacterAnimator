@@ -1,5 +1,5 @@
 import React from 'react';
-import Scene from '../../Scene';
+import DevScene from '../../DevScene';
 import CombatScene from '../../CombatScene';
 import MPTestScene from '../../MPTestScene';
 import SingleBiomeScene from '../../SingleBiomeScene';
@@ -602,7 +602,7 @@ export const Game: React.FC = () => {
                                             isCombatActive={isCombatActive}
                                         />
                                     ) : (
-                                        <Scene 
+                                        <DevScene 
                                             activeScene={activeScene}
                                             config={config} 
                                             manualInput={manualInput}

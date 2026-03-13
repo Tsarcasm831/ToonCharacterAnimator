@@ -8,6 +8,7 @@ export class LightingManager {
     private hemiLight: THREE.HemisphereLight;
     private skySphere: THREE.Mesh;
     private readonly skyBaseRadius = 150;
+    private shadowCoverage = 90;
     
     private cycleTimer: number = 0;
     private readonly CYCLE_DURATION = 600; 
@@ -33,10 +34,13 @@ export class LightingManager {
         this.sunLight.shadow.mapSize.height = 2048;
         this.sunLight.shadow.camera.near = 0.5;
         this.sunLight.shadow.camera.far = 150;
-        this.sunLight.shadow.camera.left = -50;
-        this.sunLight.shadow.camera.right = 50;
-        this.sunLight.shadow.camera.top = 50;
-        this.sunLight.shadow.camera.bottom = -50;
+        this.sunLight.shadow.camera.left = -this.shadowCoverage;
+        this.sunLight.shadow.camera.right = this.shadowCoverage;
+        this.sunLight.shadow.camera.top = this.shadowCoverage;
+        this.sunLight.shadow.camera.bottom = -this.shadowCoverage;
+        this.sunLight.shadow.bias = -0.00035;
+        this.sunLight.shadow.normalBias = 0.01;
+        this.scene.add(this.sunLight.target);
         this.scene.add(this.sunLight);
     }
 
@@ -62,8 +66,18 @@ export class LightingManager {
         this.scene.add(this.skySphere);
     }
 
-    update(dt: number, config: PlayerConfig) {
-        this.updateDayNight(dt, config);
+    update(dt: number, config: PlayerConfig, focusPosition?: THREE.Vector3) {
+        this.updateDayNight(dt, config, focusPosition);
+    }
+
+    public setShadowCoverage(coverage: number) {
+        this.shadowCoverage = Math.max(40, coverage);
+        const cam = this.sunLight.shadow.camera as THREE.OrthographicCamera;
+        cam.left = -this.shadowCoverage;
+        cam.right = this.shadowCoverage;
+        cam.top = this.shadowCoverage;
+        cam.bottom = -this.shadowCoverage;
+        cam.updateProjectionMatrix();
     }
 
     public setSkySphereRadius(radius: number) {
@@ -75,6 +89,7 @@ export class LightingManager {
     dispose() {
         this.scene.remove(this.hemiLight);
         this.scene.remove(this.sunLight);
+        this.scene.remove(this.sunLight.target);
         this.scene.remove(this.skySphere);
         this.hemiLight.dispose();
         this.sunLight.dispose();
@@ -86,7 +101,7 @@ export class LightingManager {
         }
     }
 
-    private updateDayNight(dt: number, config: PlayerConfig) {
+    private updateDayNight(dt: number, config: PlayerConfig, focusPosition?: THREE.Vector3) {
         if (config.isAutoTime) {
             this.cycleTimer = (this.cycleTimer + dt * config.timeSpeed) % this.CYCLE_DURATION;
             config.timeOfDay = (this.cycleTimer / this.CYCLE_DURATION) * 24.0;
@@ -110,8 +125,12 @@ export class LightingManager {
         const sunY = sunAltitude * 40;
         const sunZ = 20;
 
-        // Update Sun
-        this.sunLight.position.set(sunX, sunY, sunZ);
+        const anchorX = focusPosition?.x ?? 0;
+        const anchorZ = focusPosition?.z ?? 0;
+        this.sunLight.target.position.set(anchorX, 0, anchorZ);
+        this.sunLight.position.set(anchorX + sunX, sunY, anchorZ + sunZ);
+        this.sunLight.target.updateMatrixWorld();
+
         const lightIntensity = Math.max(0, sunAltitude * 0.8 + 0.1);
         this.sunLight.intensity = lightIntensity;
         
@@ -160,4 +179,5 @@ export class LightingManager {
         const hemiIntensity = Math.max(0.1, sunAltitude * 0.5 + 0.3);
         this.hemiLight.intensity = hemiIntensity;
     }
+
 }

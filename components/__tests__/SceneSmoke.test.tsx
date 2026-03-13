@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import Scene from '../Scene';
+import DevScene from '../DevScene';
 import WorldScene from '../WorldScene';
 import TownScene from '../TownScene';
 import CombatScene from '../CombatScene';
@@ -63,10 +63,10 @@ describe('Scene smoke tests', () => {
     globalThis.cancelAnimationFrame = ((id: number) => window.clearTimeout(id)) as typeof cancelAnimationFrame;
   });
 
-  it('renders Scene without crashing', () => {
+  it('renders DevScene without crashing', () => {
     const { container } = render(
       <TestProviders>
-        <Scene {...baseSceneProps} />
+        <DevScene {...baseSceneProps} />
       </TestProviders>
     );
 

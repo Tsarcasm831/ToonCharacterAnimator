@@ -38,6 +38,7 @@ export class Environment {
         
         // Initialize Sub-Managers
         this.lightingManager = new LightingManager(scene);
+        this.lightingManager.setShadowCoverage(90);
         this.terrainManager = new TerrainManager(this.group);
 
         this.debrisSystem = new DebrisSystem(this.group, (logs) => {
@@ -123,7 +124,7 @@ export class Environment {
         this.snowSystem?.update(dt, playerPosition);
         this.worldGrid.update(playerPosition);
         
-        this.lightingManager.update(dt, config);
+        this.lightingManager.update(dt, config, playerPosition);
         this.terrainManager.update(dt);
     }
 

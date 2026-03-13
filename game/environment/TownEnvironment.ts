@@ -30,6 +30,7 @@ export class TownEnvironment {
         this.group.visible = true;
         this.scene.add(this.group);
         this.lightingManager = new LightingManager(this.scene);
+        this.lightingManager.setShadowCoverage(80);
         const halfSize = this.SIZE / 2;
         const totalWidth = this.SIZE + this.ARENA_SIZE;
         const halfTotalWidth = totalWidth / 2;
@@ -171,8 +172,8 @@ export class TownEnvironment {
         return null;
     }
 
-    update(_dt: number, _config: PlayerConfig, _playerPosition: THREE.Vector3) {
-        this.lightingManager.update(_dt, _config);
-        this.worldGrid.update(_playerPosition);
+    update(dt: number, config: PlayerConfig, playerPosition: THREE.Vector3) {
+        this.lightingManager.update(dt, config, playerPosition);
+        this.worldGrid.update(playerPosition);
     }
 }
