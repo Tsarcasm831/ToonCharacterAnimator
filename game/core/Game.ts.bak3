@@ -22,12 +22,6 @@ import { LevelGenerator } from '../builder/LevelGenerator';
 import { DoorManager } from '../environment/DoorManager';
 import { Door } from '../environment/objects/Door';
 
-export interface NpcInteractionResponse {
-    dialogue?: string | null;
-    mode?: 'dialogue' | 'trade' | 'shop' | 'forge';
-    suppressDefault?: boolean;
-}
-
 export class Game {
     public renderManager: RenderManager;
     private clock: THREE.Clock;
@@ -84,7 +78,6 @@ export class Game {
     public onEnvironmentReady?: () => void;
     public onUpdate?: (dt: number) => void;
     public onEnterTown?: () => void;
-    public onNpcInteraction?: (context: { scene: SceneType; target: any }) => NpcInteractionResponse | null | undefined;
     
     // Combat Events
     public onTurnQueueUpdate?: (queue: any[]) => void;
@@ -181,8 +174,6 @@ export class Game {
             this.entityManager.initDevEntities(this.sceneManager.environment, this.config);
         } else if (activeScene === 'town') {
             this.setupTownScene();
-        } else if (activeScene === 'town2') {
-            this.setupTown2Scene();
         }
         
         if (activeScene !== 'singleBiome') {
@@ -381,9 +372,6 @@ export class Game {
         if (sceneName === 'town') {
             this.setupTownScene();
         }
-        if (sceneName === 'town2') {
-            this.setupTown2Scene();
-        }
 
         if (!isInit && sceneName !== 'singleBiome') {
             this.scheduleEnvironmentReady(sceneName);
@@ -445,12 +433,6 @@ export class Game {
         const townEnv = this.sceneManager.townEnvironment;
         if (!townEnv) return;
         this.entityManager.initTownEntities(townEnv, this.config);
-    }
-
-    private setupTown2Scene() {
-        const town2Env = this.sceneManager.town2Environment;
-        if (!town2Env) return;
-        this.entityManager.initTown2Entities(town2Env, this.config);
     }
 
     spawnAnimal(type: string, count: number) {
@@ -676,57 +658,24 @@ export class Game {
         } else if (this.player.canTalk) {
             const target = this.player.talkingTarget;
             const targetName = target?.constructor.name;
-            const customLabel = target?.group?.userData?.interactionLabel;
             
-            const label = customLabel ?? ((targetName === 'Shopkeeper' || target instanceof Shopkeeper)
+            const label = (targetName === 'Shopkeeper' || target instanceof Shopkeeper)
                 ? 'Press E to Chat'
                 : (targetName === 'Blacksmith' || target instanceof Blacksmith)
                     ? 'Press E to Trade'
-                    : 'Press E to Talk');
+                    : 'Press E to Talk';
             
             this.onInteractionUpdate?.(label, null);
             if (input.interact) { 
-                const customResponse = this.onNpcInteraction?.({
-                    scene: this.sceneManager.activeScene,
-                    target
-                });
-                const interactionMode = customResponse?.mode ?? target?.group?.userData?.interactionMode;
-                const dialogue = customResponse?.dialogue ?? target?.group?.userData?.dialogue;
-                const suppressDefault = !!customResponse?.suppressDefault;
-
-                if ((targetName === 'LowLevelCityGuard' || target instanceof LowLevelCityGuard) && !suppressDefault) { 
+                this.player.isTalking = true; 
+                if (targetName === 'LowLevelCityGuard' || target instanceof LowLevelCityGuard) { 
                     target.isLeftHandWaving = true; 
                     target.leftHandWaveTimer = 0; 
-                }
-
-                if (interactionMode === 'trade') {
-                    this.player.isTalking = false;
-                    this.onTradeTrigger?.();
-                } else if (interactionMode === 'shop') {
-                    this.player.isTalking = false;
-                    this.onShopkeeperTrigger?.();
-                } else if (interactionMode === 'forge') {
-                    this.player.isTalking = false;
-                    this.onForgeTrigger?.();
-                } else if (dialogue) {
-                    this.player.isTalking = true;
-                    this.onDialogueTrigger?.(dialogue);
-                } else if (!suppressDefault && (targetName === 'LowLevelCityGuard' || target instanceof LowLevelCityGuard)) {
-                    this.player.isTalking = true;
                     this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); 
                 } 
-                else if (!suppressDefault && (targetName === 'Blacksmith' || target instanceof Blacksmith)) {
-                    this.player.isTalking = false;
-                    this.onTradeTrigger?.();
-                }
-                else if (!suppressDefault && (targetName === 'Shopkeeper' || target instanceof Shopkeeper)) {
-                    this.player.isTalking = false;
-                    this.onShopkeeperTrigger?.();
-                }
-                else {
-                    this.player.isTalking = true;
-                    this.onDialogueTrigger?.("Greetings, traveler.");
-                }
+                else if (targetName === 'Blacksmith' || target instanceof Blacksmith) this.onTradeTrigger?.();
+                else if (targetName === 'Shopkeeper' || target instanceof Shopkeeper) this.onShopkeeperTrigger?.();
+                else this.onDialogueTrigger?.("Greetings, traveler.");
             }
         } else if (this.player.canSkin) this.onInteractionUpdate?.('Press F to Skin', null);
         else {

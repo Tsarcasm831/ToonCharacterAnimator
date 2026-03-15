@@ -70,6 +70,10 @@ export class PlayerModel {
         this.materials = new PlayerMaterials(config);
         const build = PlayerMeshBuilder.build(this.materials, config);
         this.group = build.group;
+        this.group.frustumCulled = false;
+        this.group.traverse((obj) => {
+            obj.frustumCulled = false;
+        });
         this.parts = build.parts;
         this.forefootGroups = build.arrays.forefootGroups;
         this.heelGroups = build.arrays.heelGroups;
