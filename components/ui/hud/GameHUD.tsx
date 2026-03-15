@@ -43,12 +43,17 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     onEndTurn, onWaitTurn, onDefend, isPlayerTurn
 }) => {
     const isCombat = activeScene === 'combat';
+    const showExplorationCompass = activeScene === 'dev'
+        || activeScene === 'land'
+        || activeScene === 'singleBiome'
+        || activeScene === 'town'
+        || activeScene === 'town2';
 
     return (
         <>
             {/* Standard Exploration Header */}
             {!isCombat && <Header biome={currentBiome} activeScene={activeScene} onOpenTravel={onOpenTravel} onToggleBestiary={onToggleBestiary} onChangeLand={onChangeLand} />}
-            {!isCombat && <Compass rotation={playerRotation} />}
+            {showExplorationCompass && <Compass rotation={playerRotation} activeScene={activeScene} />}
             
             {/* Combat HUD Elements */}
             {isCombat && (

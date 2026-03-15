@@ -31,7 +31,6 @@ export const Game: React.FC = () => {
         uiState,
         combatState,
         environmentState,
-        questState,
         gameInstance
     } = useGlobalState();
 
@@ -88,7 +87,6 @@ export const Game: React.FC = () => {
     const chakraArrowPathRef = React.useRef<SVGPathElement | null>(null);
     const chakraProjectVecRef = React.useRef(new THREE.Vector3());
     const chakraCameraDirRef = React.useRef(new THREE.Vector3());
-    const arenaVictoryHandledRef = React.useRef(false);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
     const selectedLandRef = React.useRef(selectedLand);
@@ -101,12 +99,6 @@ export const Game: React.FC = () => {
     React.useEffect(() => {
         activeSceneRef.current = activeScene;
     }, [activeScene]);
-
-    React.useEffect(() => {
-        if (!isCombatActive) {
-            arenaVictoryHandledRef.current = false;
-        }
-    }, [isCombatActive, activeScene]);
 
     // Mount scene immediately when loading starts
     React.useEffect(() => {
@@ -390,35 +382,7 @@ export const Game: React.FC = () => {
         game.onTradeTrigger = () => uiState.setIsTradeOpen(true);
         game.onShopkeeperTrigger = () => uiState.setIsShopkeeperChatOpen(true);
         game.onForgeTrigger = () => uiState.setIsForgeOpen(true);
-        game.onNpcInteraction = ({ scene, target }) => {
-            const actorId = target?.group?.userData?.actorId;
-            if (scene === 'town2' && actorId) {
-                const dialogue = questState.handleTown2Interaction(actorId);
-                if (dialogue) {
-                    return {
-                        dialogue,
-                        mode: 'dialogue',
-                        suppressDefault: true
-                    };
-                }
-            }
-
-            if (target?.group?.userData?.interactionMode) {
-                return {
-                    mode: target.group.userData.interactionMode,
-                    suppressDefault: false
-                };
-            }
-
-            return null;
-        };
         game.onRotationUpdate = handleRotationUpdate;
-        game.onTurnPhaseChange = (phase: string) => {
-            if (phase === 'victory' && !arenaVictoryHandledRef.current) {
-                arenaVictoryHandledRef.current = true;
-                questState.registerCombatVictory();
-            }
-        };
         game.onShowCharacterStats = (stats: any, name: string) => {
             if (stats) uiState.setStatsForModal(stats);
             else uiState.setStatsForModal(config.stats);

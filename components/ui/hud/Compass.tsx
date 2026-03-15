@@ -3,9 +3,10 @@ import React, { useEffect, useState } from 'react';
 
 interface CompassProps {
     rotation: number;
+    activeScene?: string;
 }
 
-export const Compass: React.FC<CompassProps> = ({ rotation }) => {
+export const Compass: React.FC<CompassProps> = ({ rotation, activeScene }) => {
     const [fps, setFps] = useState(0);
 
     useEffect(() => {
@@ -49,13 +50,19 @@ export const Compass: React.FC<CompassProps> = ({ rotation }) => {
         { label: 'NW', angle: 315 },
     ];
 
-    // Landmarks markers recalibrated for the world orientation
-    const landmarks = [
-        { label: 'Timber Wharf', angle: 45 }, 
-        { label: 'Foundry', angle: 135 },      
-        { label: 'Dunes', angle: 270 },         
-        { label: 'Meadows', angle: 0 },        
-    ];
+    const landmarks = activeScene === 'town2'
+        ? [
+            { label: 'North Flats', angle: 0 },
+            { label: 'East Reach', angle: 90 },
+            { label: 'South Flats', angle: 180 },
+            { label: 'West Reach', angle: 270 },
+        ]
+        : [
+            { label: 'Timber Wharf', angle: 45 },
+            { label: 'Foundry', angle: 135 },
+            { label: 'Dunes', angle: 270 },
+            { label: 'Meadows', angle: 0 },
+        ];
 
     return (
         <div className="absolute top-8 left-1/2 -translate-x-1/2 w-64 md:w-96 z-40">

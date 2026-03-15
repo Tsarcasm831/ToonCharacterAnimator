@@ -4,7 +4,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DevScene from '../DevScene';
 import WorldScene from '../WorldScene';
 import TownScene from '../TownScene';
-import Town2Scene from '../Town2Scene';
 import CombatScene from '../CombatScene';
 import { GlobalProvider } from '../../contexts/GlobalContext';
 import { MusicProvider } from '../../contexts/MusicContext';
@@ -88,16 +87,6 @@ describe('Scene smoke tests', () => {
     const { container } = render(
       <TestProviders>
         <TownScene {...baseSceneProps} />
-      </TestProviders>
-    );
-
-    expect(container.querySelector('div.w-full.h-full')).toBeTruthy();
-  });
-
-  it('renders Town2Scene without crashing', () => {
-    const { container } = render(
-      <TestProviders>
-        <Town2Scene {...baseSceneProps} activeScene="town2" />
       </TestProviders>
     );
 

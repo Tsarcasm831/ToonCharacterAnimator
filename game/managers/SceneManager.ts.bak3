@@ -188,14 +188,6 @@ export class SceneManager {
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'town2') {
-            const TOWN2_GRID_SIZE = 1.3333;
-            const TOWN2_MIN_X = -200;
-            const TOWN2_MIN_Z = -100;
-            const spawnCellX = 200;
-            const spawnCellZ = 117;
-            const startX = TOWN2_MIN_X + (spawnCellX + 0.5) * TOWN2_GRID_SIZE;
-            const startZ = TOWN2_MIN_Z + (spawnCellZ + 0.5) * TOWN2_GRID_SIZE;
-
             this.player.show();
             PlayerUtils.setCustomLandPolygon([
                 [-200, -100],
@@ -204,9 +196,9 @@ export class SceneManager {
                 [-200, 100],
             ]);
 
-            this.player.mesh.position.set(startX, 0, startZ);
-            this.renderManager.controls.target.set(startX, 1.7, startZ);
-            this.renderManager.camera.position.set(startX, 5, startZ + 10);
+            this.player.mesh.position.set(0, 0, 0);
+            this.renderManager.controls.target.set(0, 1.7, 0);
+            this.renderManager.camera.position.set(0, 5, 10);
 
             this.renderManager.controls.enableRotate = true;
             this.renderManager.controls.enableZoom = true;

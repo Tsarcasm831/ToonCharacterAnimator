@@ -152,50 +152,38 @@ export class PlayerInteraction {
     private static checkNPCInteraction(player: Player, entities: any[]) {
         player.canTalk = false;
         player.talkingTarget = null;
-        let closestTarget: any = null;
-        let closestDistance = Infinity;
 
         for (const entity of entities) {
             const name = entity.constructor.name;
-            const interactionRadius = entity?.group?.userData?.interactionRadius ?? 2.5;
-            const canTalk = !!entity?.group?.userData?.canTalk;
-            const dist = player.mesh.position.distanceTo(entity.position);
             
             // Check Guards
             if (name === 'LowLevelCityGuard' || entity instanceof LowLevelCityGuard) {
                 if (entity.isInCombat()) continue;
-                if (dist < 2.0 && dist < closestDistance) {
-                    closestDistance = dist;
-                    closestTarget = entity;
+                const dist = player.mesh.position.distanceTo(entity.position);
+                if (dist < 2.0) {
+                    player.canTalk = true;
+                    player.talkingTarget = entity;
+                    break;
                 }
-                continue;
             }
             // Check Blacksmith
             if (name === 'Blacksmith' || entity instanceof Blacksmith) {
-                if (dist < 2.5 && dist < closestDistance) { 
-                    closestDistance = dist;
-                    closestTarget = entity;
+                const dist = player.mesh.position.distanceTo(entity.position);
+                if (dist < 2.5) { 
+                    player.canTalk = true;
+                    player.talkingTarget = entity;
+                    break;
                 }
-                continue;
             }
             // Check Shopkeeper
             if (name === 'Shopkeeper' || entity instanceof Shopkeeper) {
-                if (dist < 2.5 && dist < closestDistance) {
-                    closestDistance = dist;
-                    closestTarget = entity;
+                const dist = player.mesh.position.distanceTo(entity.position);
+                if (dist < 2.5) {
+                    player.canTalk = true;
+                    player.talkingTarget = entity;
+                    break;
                 }
-                continue;
             }
-
-            if (canTalk && dist < interactionRadius && dist < closestDistance) {
-                closestDistance = dist;
-                closestTarget = entity;
-            }
-        }
-
-        if (closestTarget) {
-            player.canTalk = true;
-            player.talkingTarget = closestTarget;
         }
     }
 }

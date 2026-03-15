@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { NPC, NpcBehaviorConfig } from '../entities/npc/friendly/NPC';
+import { NPC } from '../entities/npc/friendly/NPC';
 import { Assassin } from '../entities/npc/enemy/Assassin';
 import { Archer } from '../entities/npc/enemy/Archer';
 import { Mage } from '../entities/npc/enemy/Mage';
@@ -46,8 +46,6 @@ export class EntityManager {
     public blacksmith: Blacksmith;
     public shopkeeper: Shopkeeper;
     public guard: LowLevelCityGuard;
-    public town2Residents: NPC[] = [];
-    public town2Children: NPC[] = [];
     public clerics: Cleric[] = [];
     public knights: Knight[] = [];
     public paladins: Paladin[] = [];
@@ -201,275 +199,6 @@ export class EntityManager {
         }
     }
 
-    initTown2Entities(environment: any | null, _initialConfig: PlayerConfig) {
-        const GRID = 1.3333;
-        const MIN_X = -200;
-        const MIN_Z = -100;
-        const gridPos = (cellX: number, cellZ: number, y: number = 0.05) => new THREE.Vector3(
-            MIN_X + (cellX + 0.5) * GRID,
-            y,
-            MIN_Z + (cellZ + 0.5) * GRID
-        );
-        const pos = gridPos(199, 108);
-
-        const ensureVisible = (entity: any) => {
-            if (entity?.group) entity.group.visible = true;
-            if (entity?.model?.group) entity.model.group.visible = true;
-        };
-
-        const moveEntity = (entity: any, nextPos: THREE.Vector3, rotationY?: number) => {
-            if (!entity) return;
-            entity.position?.copy(nextPos);
-            entity.targetPosition?.copy(nextPos);
-            if (typeof rotationY === 'number') {
-                entity.rotationY = rotationY;
-                entity.targetRotationY = rotationY;
-            }
-            if (entity.group) entity.group.position.copy(nextPos);
-            if (entity.model?.group) entity.model.group.position.set(0, 0, 0);
-            ensureVisible(entity);
-        };
-
-        const configureTownActor = (
-            entity: any,
-            nextPos: THREE.Vector3,
-            rotationY: number,
-            actorId: string,
-            interactionLabel: string,
-            behavior?: NpcBehaviorConfig,
-            options?: { scale?: number; interactionMode?: 'dialogue' | 'trade' | 'shop' }
-        ) => {
-            moveEntity(entity, nextPos, rotationY);
-            if (typeof entity.setBehavior === 'function') {
-                entity.setBehavior({
-                    anchor: nextPos.clone(),
-                    ...behavior
-                });
-            }
-            if (entity.group) {
-                entity.group.scale.setScalar(options?.scale ?? 1);
-                entity.group.userData.canTalk = true;
-                entity.group.userData.actorId = actorId;
-                entity.group.userData.interactionLabel = interactionLabel;
-                entity.group.userData.interactionRadius = 2.8;
-                if (options?.interactionMode) {
-                    entity.group.userData.interactionMode = options.interactionMode;
-                } else {
-                    delete entity.group.userData.interactionMode;
-                }
-            }
-        };
-
-        if (!this.npc) {
-            this.npc = new NPC(this.scene, {
-                bodyType: 'female',
-                bodyVariant: 'slim',
-                outfit: 'noble',
-                hairColor: '#2f1b0c',
-                shirtColor: '#d9c7a2',
-                robeColor: '#8f5f43',
-                robeTrimColor: '#ead7b1',
-                pantsColor: '#4f6272',
-                bootsColor: '#3b2618'
-            }, pos.clone());
-        }
-        configureTownActor(this.npc, pos, Math.PI, 'elder_mara', 'Press E to Talk', {
-            mode: 'idle',
-            lookTarget: gridPos(200, 110)
-        });
-
-        if (!this.blacksmith) {
-            this.blacksmith = new Blacksmith(this.scene, gridPos(174, 97, 0.4));
-        }
-        configureTownActor(
-            this.blacksmith,
-            gridPos(174, 97, 0.4),
-            Math.PI / 2,
-            'blacksmith_vendor',
-            'Press E to Trade',
-            {
-                mode: 'work',
-                lookTarget: gridPos(176, 96, 0.4),
-                gesture: 'interact',
-                gestureCycle: 1.8
-            },
-            { interactionMode: 'trade' }
-        );
-
-        if (!this.shopkeeper) {
-            this.shopkeeper = new Shopkeeper(this.scene, gridPos(182, 107, 0.45));
-        }
-        configureTownActor(
-            this.shopkeeper,
-            gridPos(182, 107, 0.45),
-            Math.PI / 2,
-            'shopkeeper_mira',
-            'Press E to Chat',
-            {
-                mode: 'idle',
-                lookTarget: gridPos(185, 107, 0.45)
-            },
-            { interactionMode: 'shop' }
-        );
-
-        if (!this.guard) {
-            this.guard = new LowLevelCityGuard(this.scene, gridPos(201, 129));
-        }
-        moveEntity(this.guard, gridPos(201, 129), Math.PI);
-        if (this.guard.group) {
-            this.guard.group.userData.canTalk = true;
-            this.guard.group.userData.actorId = 'captain_bren';
-            this.guard.group.userData.interactionLabel = 'Press E to Talk';
-            this.guard.group.userData.interactionRadius = 2.5;
-        }
-
-        const addCreatureObstacle = (entity: any) => {
-            if (!entity?.hitbox) return;
-            if (environment?.addObstacle) {
-                environment.addObstacle(entity.hitbox);
-            } else if (environment?.obstacles) {
-                environment.obstacles.push(entity.hitbox);
-            }
-        };
-
-        if (!this.chickens.length) {
-            const chickenA = new Chicken(this.scene, gridPos(205, 109));
-            const chickenB = new Chicken(this.scene, gridPos(207, 111));
-            const chickenC = new Chicken(this.scene, gridPos(180, 108));
-            this.chickens.push(chickenA, chickenB, chickenC);
-            addCreatureObstacle(chickenA);
-            addCreatureObstacle(chickenB);
-            addCreatureObstacle(chickenC);
-            const chickenD = new Chicken(this.scene, gridPos(191, 110));
-            this.chickens.push(chickenD);
-            addCreatureObstacle(chickenD);
-        }
-
-        if (!this.pigs.length) {
-            const pigA = new Pig(this.scene, gridPos(186, 86));
-            const pigB = new Pig(this.scene, gridPos(188, 88));
-            const pigC = new Pig(this.scene, gridPos(196, 111));
-            this.pigs.push(pigA, pigB, pigC);
-            addCreatureObstacle(pigA);
-            addCreatureObstacle(pigB);
-            addCreatureObstacle(pigC);
-        }
-
-        if (!this.horses.length) {
-            const horse = new Horse(this.scene, gridPos(245, 112, 0.12));
-            const marketHorse = new Horse(this.scene, gridPos(213, 109, 0.12));
-            this.horses.push(horse, marketHorse);
-            addCreatureObstacle(horse);
-            addCreatureObstacle(marketHorse);
-        }
-
-        if (!this.sheeps.length) {
-            const sheepA = new Sheep(this.scene, gridPos(223, 116, 0.05));
-            const sheepB = new Sheep(this.scene, gridPos(226, 118, 0.05));
-            this.sheeps.push(sheepA, sheepB);
-            addCreatureObstacle(sheepA);
-            addCreatureObstacle(sheepB);
-        }
-
-        if (!this.town2Residents.length) {
-            const reeveAnya = new NPC(this.scene, {
-                bodyType: 'female',
-                bodyVariant: 'average',
-                outfit: 'noble',
-                shirtColor: '#8e6c3a',
-                robeColor: '#5b7c5c',
-                robeTrimColor: '#d8c48a',
-                pantsColor: '#4d4337',
-                bootsColor: '#3e2f25'
-            }, gridPos(190, 107));
-            const villagerDoran = new NPC(this.scene, {
-                bodyType: 'male',
-                bodyVariant: 'average',
-                outfit: 'peasant',
-                shirtColor: '#6f7f8c',
-                pantsColor: '#51463b',
-                bootsColor: '#342a24'
-            }, gridPos(206, 105));
-            const villagerSella = new NPC(this.scene, {
-                bodyType: 'female',
-                bodyVariant: 'slim',
-                outfit: 'peasant',
-                shirtColor: '#b08968',
-                pantsColor: '#6d597a',
-                bootsColor: '#3f2b1d'
-            }, gridPos(208, 105));
-            const forgeApprentice = new NPC(this.scene, {
-                bodyType: 'male',
-                bodyVariant: 'average',
-                outfit: 'peasant',
-                shirtColor: '#7a4f2f',
-                pantsColor: '#2e2e2e',
-                bootsColor: '#24160f'
-            }, gridPos(177, 98));
-
-            this.town2Residents.push(reeveAnya, villagerDoran, villagerSella, forgeApprentice);
-        }
-
-        if (!this.town2Children.length) {
-            const lina = new NPC(this.scene, {
-                bodyType: 'female',
-                bodyVariant: 'slim',
-                outfit: 'peasant',
-                shirtColor: '#d58f7e',
-                pantsColor: '#577590',
-                bootsColor: '#3b2618'
-            }, gridPos(194, 111));
-            const toma = new NPC(this.scene, {
-                bodyType: 'male',
-                bodyVariant: 'slim',
-                outfit: 'peasant',
-                shirtColor: '#8ab17d',
-                pantsColor: '#4d5b6a',
-                bootsColor: '#3a2a1b'
-            }, gridPos(197, 113));
-            this.town2Children.push(lina, toma);
-        }
-
-        const [reeveAnya, villagerDoran, villagerSella, forgeApprentice] = this.town2Residents;
-        configureTownActor(reeveAnya, gridPos(190, 107), Math.PI / 2, 'reeve_anya', 'Press E to Talk', {
-            mode: 'roam',
-            speed: 1.25,
-            waypoints: [gridPos(188, 107), gridPos(191, 109), gridPos(194, 106), gridPos(190, 104)],
-            pauseMin: 0.8,
-            pauseMax: 2.2
-        });
-        configureTownActor(villagerDoran, gridPos(206, 105), Math.PI / 2, 'villager_doran', 'Press E to Talk', {
-            mode: 'conversation',
-            lookTarget: gridPos(208, 105)
-        });
-        configureTownActor(villagerSella, gridPos(208, 105), -Math.PI / 2, 'villager_sella', 'Press E to Talk', {
-            mode: 'conversation',
-            lookTarget: gridPos(206, 105)
-        });
-        configureTownActor(forgeApprentice, gridPos(177, 98), Math.PI / 2, 'smith_joric', 'Press E to Talk', {
-            mode: 'work',
-            lookTarget: gridPos(178, 97, 0.4),
-            gesture: 'interact',
-            gestureCycle: 2.1
-        });
-
-        const [lina, toma] = this.town2Children;
-        configureTownActor(lina, gridPos(194, 111), Math.PI / 2, 'lina_child', 'Press E to Talk', {
-            mode: 'roam',
-            speed: 2.2,
-            waypoints: [gridPos(194, 111), gridPos(198, 114), gridPos(201, 111), gridPos(197, 108)],
-            pauseMin: 0.2,
-            pauseMax: 0.9
-        }, { scale: 0.78 });
-        configureTownActor(toma, gridPos(197, 113), Math.PI, 'toma_child', 'Press E to Talk', {
-            mode: 'roam',
-            speed: 2.3,
-            waypoints: [gridPos(197, 113), gridPos(193, 109), gridPos(199, 107), gridPos(202, 112)],
-            pauseMin: 0.2,
-            pauseMax: 1.0
-        }, { scale: 0.76 });
-    }
-
     spawnAllAnimals(environment: Environment | null, origin: THREE.Vector3 = new THREE.Vector3(0, 0, 0)) {
         let row = 0;
         const nextPos = () => new THREE.Vector3(origin.x + row * 3, origin.y, origin.z - row * 2);
@@ -544,7 +273,7 @@ export class EntityManager {
             }
         };
 
-        [this.npc, this.blacksmith, this.shopkeeper, this.guard, ...this.town2Residents, ...this.town2Children, this.assassin, this.archer, this.mage, this.bandit, this.wolf].forEach(hideEntity);
+        [this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit, this.wolf].forEach(hideEntity);
     }
 
     private readonly tempSpawnOffset = new THREE.Vector3();
@@ -769,9 +498,6 @@ export class EntityManager {
         } else if (entity === this.shopkeeper && config.showNPC) {
             this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);
             this.shopkeeper.update(delta, this.tempEyePos, environment as any, skipAnimation);
-        } else if (entity instanceof NPC && config.showNPC) {
-            this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);
-            entity.update(delta, this.tempEyePos, environment as any, skipAnimation);
         } else if (entity === this.guard && config.showGuard) {
             this.guard.update(delta, this.tempPlayerPos, environment as any, enemyTargets, skipAnimation, isCombatActive);
         } else if (entity === this.assassin && config.showAssassin) {
@@ -907,19 +633,6 @@ export class EntityManager {
                 this.npc, this.blacksmith, this.shopkeeper, this.guard,
                 ...this.chickens, ...this.pigs
             ].filter(e => !!e);
-        } else if (sceneName === 'town2') {
-            return [
-                this.npc,
-                this.blacksmith,
-                this.shopkeeper,
-                this.guard,
-                ...this.town2Residents,
-                ...this.town2Children,
-                ...this.chickens,
-                ...this.pigs,
-                ...this.sheeps,
-                ...this.horses
-            ].filter(e => !!e);
         } else if (sceneName === 'land') {
             if (this.merchantsOnlyNpcMode) {
                 return [
@@ -945,7 +658,7 @@ export class EntityManager {
 
     getAllEntities(): any[] {
         return [
-            this.npc, this.blacksmith, this.shopkeeper, this.guard, ...this.town2Residents, ...this.town2Children, this.assassin, this.archer, this.mage, this.bandit,
+            this.npc, this.blacksmith, this.shopkeeper, this.guard, this.assassin, this.archer, this.mage, this.bandit,
             this.wolf, ...this.bears, ...this.wolves, ...this.owls, ...this.yetis, ...this.deers, ...this.chickens, ...this.pigs, 
             ...this.sheeps, ...this.spiders, ...this.imps, ...this.lizards, ...this.horses, 
             ...this.bandits, ...this.clerics, ...this.knights, ...this.paladins, ...this.monks, ...this.rangers, ...this.sentinels,
