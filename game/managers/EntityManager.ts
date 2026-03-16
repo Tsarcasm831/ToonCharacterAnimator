@@ -279,19 +279,17 @@ export class EntityManager {
         });
 
         if (!this.blacksmith) {
-            this.blacksmith = new Blacksmith(this.scene, gridPos(174, 97, 0.4));
+            this.blacksmith = new Blacksmith(this.scene, gridPos(177, 97, 0.05));
         }
         configureTownActor(
             this.blacksmith,
-            gridPos(174, 97, 0.4),
+            gridPos(177, 97, 0.05),
             Math.PI / 2,
             'blacksmith_vendor',
             'Press E to Trade',
             {
                 mode: 'work',
-                lookTarget: gridPos(176, 96, 0.4),
-                gesture: 'interact',
-                gestureCycle: 1.8
+                lookTarget: gridPos(176, 96, 0.05)
             },
             { interactionMode: 'trade' }
         );

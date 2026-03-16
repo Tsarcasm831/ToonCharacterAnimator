@@ -94,9 +94,9 @@ export class Town2Environment {
         this.buildPathPatch(198, 88, 16, 24, 0x575247, 0.025); // Market square
         this.buildPathPatch(181, 101, 17, 3, 0x45413a, 0.021); // West branch to forge/shop
         this.buildPathPatch(206, 101, 9, 3, 0x45413a, 0.021); // East market edge
-        this.buildPathPatch(214, 98, 24, 4, 0x3e4146, 0.021, -0.18); // Training grounds lane
-        this.buildPathPatch(185, 86, 18, 3, 0x45413a, 0.021, 0.14); // Chapel lane
-        this.buildPathPatch(204, 86, 18, 3, 0x45413a, 0.021, -0.12); // Barracks lane
+        this.buildPathPatch(214, 98, 24, 4, 0x3e4146, 0.021); // Training grounds lane
+        this.buildPathPatch(185, 86, 18, 3, 0x45413a, 0.021); // Chapel lane
+        this.buildPathPatch(204, 86, 18, 3, 0x45413a, 0.021); // Barracks lane
         this.buildTrainingGround(224, 84, 40, 28);
     }
 
