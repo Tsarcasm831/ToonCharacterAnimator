@@ -32,6 +32,13 @@ export class MovementAction {
         // Scale animation speed by input magnitude to prevent sliding at low stick tilt
         let speedMult = lerp(isRunning ? 16.2 : 9, 10, strafeBlend);
         if (inputLen < 1.0) speedMult *= inputLen;
+
+        // Optional caller-provided stride cadence tuning (useful for NPC movement speeds).
+        const cadenceScaleRaw = Number.isFinite(player?.locomotionCadenceScale)
+            ? player.locomotionCadenceScale
+            : 1;
+        const cadenceScale = clamp(cadenceScaleRaw, 0.5, 3.0);
+        speedMult *= cadenceScale;
         
         if (isCrouching) {
             speedMult *= 0.6; // Slower animation when crouching

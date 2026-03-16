@@ -65,6 +65,9 @@ export class NPC extends HumanoidEntity {
 
         super(scene, initialPos, finalConfig);
         this.behaviorAnchor = initialPos.clone();
+        // Behavior movement already computes explicit step targets each frame.
+        // Use a high interpolation speed so translation speed matches AI move speed.
+        this.interpolationSpeed = 120;
     }
 
     setBehavior(config: NpcBehaviorConfig) {
@@ -96,6 +99,7 @@ export class NPC extends HumanoidEntity {
         }
 
         this.updateBehavior(dt, environment);
+        const locomotionSpeed = this.behaviorIsMoving ? this.behaviorSpeed : 0;
 
         const distToPlayer = this.position.distanceTo(targetEyePosition);
         if (!this.behaviorLookTarget && !this.behaviorIsMoving && distToPlayer < 4.0) {
@@ -110,18 +114,26 @@ export class NPC extends HumanoidEntity {
 
         this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, distToPlayer < 5.0 ? 1.0 : 0.0, dt * 2.0);
         this.cameraHandler.cameraWorldPosition.copy(targetEyePosition);
+        const useRunGait = locomotionSpeed > 4.5;
+        const cadenceScale = this.behaviorIsMoving
+            ? (useRunGait
+                ? THREE.MathUtils.clamp(locomotionSpeed / 15.3, 0.35, 1.25)
+                : THREE.MathUtils.clamp(locomotionSpeed / 8.5, 0.35, 1.05))
+            : 1;
 
         const animContext = {
             config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
             isCombatStance: false, isJumping: false, isAxeSwing: false, isPunch: false, isPickingUp: false,
             isInteracting: this.behaviorIsInteracting, isWaving: this.behaviorIsWaving, isSkinning: false, isFishing: false, isDragged: false,
+            locomotionCadenceScale: cadenceScale,
             walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false
         };
 
         this.animator.animate(animContext, dt, this.behaviorIsMoving, {
             x: 0,
-            y: this.behaviorIsMoving ? 1 : 0,
-            isRunning: this.behaviorSpeed > 1.8,
+            // MovementAction expects forward input to be negative Y (player-style input space).
+            y: this.behaviorIsMoving ? -1 : 0,
+            isRunning: useRunGait,
             isPickingUp: false,
             isDead: false,
             jump: false
