@@ -57,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({ biome, activeScene, onOpenTravel
                     )}
                 </div>
                 <p className="mt-1 pl-1 text-[9px] md:text-[10px] font-bold tracking-widest uppercase text-white/60">
-                    Press <kbd className="mx-1 rounded border border-white/20 bg-black/40 px-1.5 py-0.5 font-black text-white">{'`'}</kbd> for help
+                    Press <kbd className="mx-1 rounded border border-white/20 bg-black/40 px-1.5 py-0.5 font-black text-white">{'`'}</kbd> or <kbd className="mx-1 rounded border border-white/20 bg-black/40 px-1.5 py-0.5 font-black text-white">Tab</kbd> for help
                 </p>
             </div>
 

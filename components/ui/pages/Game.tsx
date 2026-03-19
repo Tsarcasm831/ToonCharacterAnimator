@@ -5,6 +5,7 @@ import MPTestScene from '../../MPTestScene';
 import SingleBiomeScene from '../../SingleBiomeScene';
 import TownScene from '../../TownScene';
 import Town2Scene from '../../Town2Scene';
+import TDGameScene from '../../TDGameScene';
 import { useGlobalState } from '../../../contexts/GlobalContext';
 import { CombatLogEntry } from '../hud/CombatLog';
 import { MainMenu } from '../menus/MainMenu';
@@ -166,7 +167,8 @@ export const Game: React.FC = () => {
         startInDev: boolean = false,
         startInTown: boolean = false,
         startInSingleBiome: boolean = false,
-        startInTown2: boolean = false
+        startInTown2: boolean = false,
+        startInTdGame: boolean = false
     ) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
@@ -182,6 +184,8 @@ export const Game: React.FC = () => {
           setActiveScene('town');
         } else if (startInTown2) {
           setActiveScene('town2');
+        } else if (startInTdGame) {
+          setActiveScene('tdgame');
         } else if (startInLand) {
           setActiveScene('land');
         } else if (startInCombat) {
@@ -649,6 +653,25 @@ export const Game: React.FC = () => {
                                         />
                                     ) : activeScene === 'town2' ? (
                                         <Town2Scene
+                                            activeScene={activeScene}
+                                            config={config}
+                                            manualInput={manualInput}
+                                            initialInventory={inventory}
+                                            onInventoryUpdate={setInventory}
+                                            onSlotSelect={setSelectedSlot}
+                                            onInteractionUpdate={handleInteractionUpdate}
+                                            onGameReady={onGameReady}
+                                            onEnvironmentReady={() => {
+                                                handleEnvironmentReady();
+                                                scheduleVisualLoadingDone();
+                                            }}
+                                            onToggleWorldMap={handleMapToggle}
+                                            onToggleQuestLog={uiState.toggleQuestLog}
+                                            showGrid={showGrid}
+                                            isCombatActive={isCombatActive}
+                                        />
+                                    ) : activeScene === 'tdgame' ? (
+                                        <TDGameScene
                                             activeScene={activeScene}
                                             config={config}
                                             manualInput={manualInput}
