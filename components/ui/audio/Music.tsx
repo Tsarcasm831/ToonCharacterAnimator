@@ -3,6 +3,7 @@ import { Music as MusicIcon, Play, Pause, Volume2, VolumeX, SkipForward, SkipBac
 import { useMusic } from '../../../contexts/MusicContext';
 import { useIsIphoneLayout } from '../../../hooks/useIsIphoneLayout';
 import { supabase } from '../../../lib/supabase';
+import { AUTO_GENERATED_FEATURED_TRACKS, AUTO_GENERATED_SINGLE_ALBUMS } from './autoSingles.generated';
 
 interface Track {
     id: string;
@@ -581,7 +582,8 @@ const ALBUMS: Album[] = [
                 fileUrl: '/assets/musicshrunk/singles/The Witching Hour.opus'
             }
         ]
-    }
+    },
+    ...AUTO_GENERATED_SINGLE_ALBUMS
 ];
 
 // ---------------------------------------------------------------------------
@@ -628,6 +630,7 @@ const FEATURED_TRACKS: FeaturedTrack[] = [
         accentColor: 'from-lime-600 via-emerald-700 to-slate-900',
         tagline: 'Dark, crawling tension in motion',
     },
+    ...AUTO_GENERATED_FEATURED_TRACKS
 ];
 
 const resolveFeatured = (ft: FeaturedTrack): { track: Track; album: Album } | null => {
@@ -757,16 +760,18 @@ export const MusicView: React.FC = () => {
         return aRank - bRank;
     });
 
+    const isFeaturedTrackPlaying = isPlaying && !!currentTrack && FEATURED_TRACKS.some(ft => ft.trackId === currentTrack.id);
+
     // Featured carousel auto-rotation
     useEffect(() => {
-        if (featuredPaused) return;
+        if (featuredPaused || isFeaturedTrackPlaying) return;
         featuredTimerRef.current = setInterval(() => {
             setFeaturedIndex(prev => (prev + 1) % FEATURED_TRACKS.length);
         }, 12000);
         return () => {
             if (featuredTimerRef.current) clearInterval(featuredTimerRef.current);
         };
-    }, [featuredPaused]);
+    }, [featuredPaused, isFeaturedTrackPlaying]);
 
     const goFeatured = (dir: 1 | -1) => {
         setFeaturedIndex(prev => (prev + dir + FEATURED_TRACKS.length) % FEATURED_TRACKS.length);
@@ -1150,7 +1155,7 @@ export const MusicView: React.FC = () => {
                                 </div>
 
                                 {/* Auto-rotation progress bar */}
-                                {!featuredPaused && (
+                                {!featuredPaused && !isFeaturedTrackPlaying && (
                                     <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-white/5">
                                         <div
                                             className="h-full bg-purple-500/60 rounded-full"

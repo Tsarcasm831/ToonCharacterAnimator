@@ -141,7 +141,7 @@ export class Town2Environment {
         this.placeTownWall(212, 80, 4, 0);
         this.placeTownWall(216, 80, 4, 0);
         this.placeTownWall(220, 80, 4, 0);
-        this.buildOuterPerimeterPalisade(152, 264, 72, 144);
+        this.buildOuterPerimeterWalls(152, 266, 72, 142);
 
         const { group: barrelA, obstacle: barrelObstacleA } = ObjectFactory.createBarrel(new THREE.Vector3(this.cellCenterToWorldX(201, 1), 0, this.cellCenterToWorldZ(99, 1)));
         this.group.add(barrelA);
@@ -169,16 +169,60 @@ export class Town2Environment {
         this.buildHistoricQuarter();
     }
 
-    private buildOuterPerimeterPalisade(minCellX: number, maxCellX: number, minCellZ: number, maxCellZ: number) {
-        for (let x = minCellX; x <= maxCellX - 4; x += 4) {
-            this.placeTownWall(x, minCellZ, 4, 0);
-            this.placeTownWall(x, maxCellZ - 1, 4, 0);
-        }
+    private buildOuterPerimeterWalls(minCellX: number, maxCellX: number, minCellZ: number, maxCellZ: number) {
+        const minWorldX = this.cellStartToWorldX(minCellX);
+        const maxWorldX = this.cellStartToWorldX(maxCellX);
+        const minWorldZ = this.cellStartToWorldZ(minCellZ);
+        const maxWorldZ = this.cellStartToWorldZ(maxCellZ);
 
-        for (let z = minCellZ; z <= maxCellZ - 4; z += 4) {
-            this.placeTownWall(minCellX, z, 1, Math.PI / 2);
-            this.placeTownWall(maxCellX - 1, z, 1, Math.PI / 2);
-        }
+        const perimeterWidth = Math.max(this.GRID_SIZE, maxWorldX - minWorldX);
+        const perimeterDepth = Math.max(this.GRID_SIZE, maxWorldZ - minWorldZ);
+        const centerX = (minWorldX + maxWorldX) * 0.5;
+        const centerZ = (minWorldZ + maxWorldZ) * 0.5;
+        const wallHeight = 5.2;
+        const wallThickness = 0.9;
+        const wallY = wallHeight * 0.5;
+        const wallMat = new THREE.MeshStandardMaterial({
+            color: 0x8f775f,
+            roughness: 0.92,
+            metalness: 0.03
+        });
+
+        const registerWall = (mesh: THREE.Mesh) => {
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            mesh.userData = { ...mesh.userData, type: 'hard', structureType: 'tdgame_perimeter_wall' };
+            this.group.add(mesh);
+            this.addObstacle(mesh);
+        };
+
+        const northWall = new THREE.Mesh(
+            new THREE.BoxGeometry(perimeterWidth + wallThickness, wallHeight, wallThickness),
+            wallMat.clone()
+        );
+        northWall.position.set(centerX, wallY, minWorldZ + wallThickness * 0.5);
+        registerWall(northWall);
+
+        const southWall = new THREE.Mesh(
+            new THREE.BoxGeometry(perimeterWidth + wallThickness, wallHeight, wallThickness),
+            wallMat.clone()
+        );
+        southWall.position.set(centerX, wallY, maxWorldZ - wallThickness * 0.5);
+        registerWall(southWall);
+
+        const westWall = new THREE.Mesh(
+            new THREE.BoxGeometry(wallThickness, wallHeight, perimeterDepth - wallThickness),
+            wallMat.clone()
+        );
+        westWall.position.set(minWorldX + wallThickness * 0.5, wallY, centerZ);
+        registerWall(westWall);
+
+        const eastWall = new THREE.Mesh(
+            new THREE.BoxGeometry(wallThickness, wallHeight, perimeterDepth - wallThickness),
+            wallMat.clone()
+        );
+        eastWall.position.set(maxWorldX - wallThickness * 0.5, wallY, centerZ);
+        registerWall(eastWall);
     }
 
     private getCellPosition(cellX: number, cellZ: number, y: number = 0, widthCells: number = 1, depthCells: number = 1) {

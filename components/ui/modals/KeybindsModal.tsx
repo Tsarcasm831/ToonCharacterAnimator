@@ -35,7 +35,7 @@ const CATEGORIES = [
             { keys: ["I"], label: "Inventory" },
             { keys: ["1-0", "-", "=", "Backspace"], label: "Equip Hotbar Slot" },
             { keys: ["O"], label: "Quest Log" },
-            { keys: ["Tab"], label: "Open This Help" },
+             { keys: ["`", "Tab"], label: "Open This Help" },
         ]
     },
     {
