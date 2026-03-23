@@ -96,7 +96,6 @@ export class Game {
     public onEnvironmentReady?: () => void;
     public onUpdate?: (dt: number) => void;
     public onEnterTown?: () => void;
-    public onEnterTown2?: () => void;
     public onNpcInteraction?: (context: { scene: SceneType; target: any }) => NpcInteractionResponse | null | undefined;
     
     // Combat Events
@@ -326,36 +325,6 @@ export class Game {
     }
 
     private handleTownEntry(input: PlayerInput): boolean {
-        if (this.sceneManager.activeScene === 'land') {
-            if (!this.onEnterTown2 || !this.sceneManager.landEnvironment) {
-                this.enterTownTriggered = false;
-                return false;
-            }
-
-            const landEntry = this.sceneManager.landEnvironment.getTown2EntryZone?.();
-            if (!landEntry) {
-                this.enterTownTriggered = false;
-                return false;
-            }
-
-            const dx = this.player.mesh.position.x - landEntry.position.x;
-            const dz = this.player.mesh.position.z - landEntry.position.z;
-            const inRange = (dx * dx + dz * dz) <= (landEntry.radius * landEntry.radius);
-
-            if (!inRange) {
-                this.enterTownTriggered = false;
-                return false;
-            }
-
-            this.onInteractionUpdate?.('Press E to Enter Town2', null);
-            if (input.interact && !this.enterTownTriggered) {
-                this.enterTownTriggered = true;
-                this.onEnterTown2();
-            }
-
-            return true;
-        }
-
         if (this.sceneManager.activeScene !== 'singleBiome' || !this.onEnterTown) {
             this.enterTownTriggered = false;
             return false;

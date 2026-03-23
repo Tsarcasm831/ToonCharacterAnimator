@@ -50,16 +50,20 @@ void main() {
 `;
 
 export const SKY_VERTEX_SHADER = `
-varying vec3 vSkyDir;
+varying vec3 vWorldPosition;
+varying vec3 vViewDir;
 
 void main() {
-    vSkyDir = normalize(position);
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPosition.xyz;
+    vViewDir = normalize(vWorldPosition);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
 
 export const SKY_FRAGMENT_SHADER = `
-varying vec3 vSkyDir;
+varying vec3 vWorldPosition;
+varying vec3 vViewDir;
 
 uniform vec3 topColor;
 uniform vec3 bottomColor;
@@ -68,12 +72,12 @@ uniform vec3 sunPos;
 uniform float sunSize;
 
 void main() {
-    float h = vSkyDir.y;
+    float h = vViewDir.y;
     
     float gradientFactor = max(pow(max(h + 0.1, 0.0), 0.8), 0.0);
     vec3 skyColor = mix(bottomColor, topColor, gradientFactor);
     
-    float sunIntensity = dot(vSkyDir, normalize(sunPos));
+    float sunIntensity = dot(vViewDir, normalize(sunPos));
     float sunGlow = pow(max(sunIntensity, 0.0), 120.0) * 1.5;
     float sunDisk = smoothstep(sunSize, sunSize + 0.005, sunIntensity);
     

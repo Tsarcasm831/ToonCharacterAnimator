@@ -38,7 +38,7 @@ export class Town2Environment {
         const halfWidth = this.WIDTH * 0.5;
         const halfDepth = this.DEPTH * 0.5;
         const landRadius = Math.sqrt((halfWidth * halfWidth) + (halfDepth * halfDepth));
-        this.lightingManager.setSkySphereRadius(Math.max(landRadius * 0.8, 150));
+        this.lightingManager.setSkySphereRadius(landRadius * 1.4);
         this.worldGrid = new WorldGridManager(this.group, {
             bounds: {
                 minX: -this.WIDTH / 2,

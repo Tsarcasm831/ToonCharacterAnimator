@@ -194,7 +194,7 @@ export const Game: React.FC = () => {
         } else if (startInSingleBiome) {
           setActiveScene('singleBiome');
         } else {
-          setActiveScene('town2');
+          setActiveScene('dev');
         }
         // Defer mounting the scene to next tick to allow loading UI to paint
         mountSceneTimeout.current = window.setTimeout(() => {

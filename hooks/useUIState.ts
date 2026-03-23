@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { EntityStats } from '../types';
+import type { DialogueContent } from '../game/core/Game';
 
 export function useUIState() {
   const [notification, setNotification] = useState<string | null>(null);
@@ -16,7 +17,7 @@ export function useUIState() {
   const [isSpawnModalOpen, setIsSpawnModalOpen] = useState(false);
   const [isEnemiesModalOpen, setIsEnemiesModalOpen] = useState(false);
   const [isCharacterStatsOpen, setIsCharacterStatsOpen] = useState(false);
-  const [dialogue, setDialogue] = useState<string | null>(null);
+  const [dialogue, setDialogue] = useState<string | DialogueContent | null>(null);
   const [statsForModal, setStatsForModal] = useState<EntityStats | null>(null);
   const [statsUnitName, setStatsUnitName] = useState<string>('Hero');
   const [selectedSlot, setSelectedSlot] = useState(0);
