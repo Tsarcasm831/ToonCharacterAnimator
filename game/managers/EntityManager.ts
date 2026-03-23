@@ -317,7 +317,7 @@ export class EntityManager {
         if (this.guard.group) {
             this.guard.group.userData.canTalk = true;
             this.guard.group.userData.actorId = 'captain_bren';
-            this.guard.group.userData.interactionLabel = 'Press E to Talk';
+            this.guard.group.userData.interactionLabel = 'Press E to Talk to Captain Bren';
             this.guard.group.userData.interactionRadius = 2.5;
         }
 

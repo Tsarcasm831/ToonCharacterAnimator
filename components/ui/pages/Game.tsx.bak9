@@ -194,7 +194,7 @@ export const Game: React.FC = () => {
         } else if (startInSingleBiome) {
           setActiveScene('singleBiome');
         } else {
-          setActiveScene('town2');
+          setActiveScene('dev');
         }
         // Defer mounting the scene to next tick to allow loading UI to paint
         mountSceneTimeout.current = window.setTimeout(() => {
@@ -342,9 +342,8 @@ export const Game: React.FC = () => {
 
             if (choiceId === 'explore_wilderness') {
                 setDialogue(null);
-                setIsTravelOpen(false);
+                setIsTravelOpen(true);
                 if (gameInstance.current) gameInstance.current.player.isTalking = false;
-                handleEnterWorld(false, true);
             }
         }
     };
@@ -488,13 +487,6 @@ export const Game: React.FC = () => {
             setIsCombatActive(false);
             setGameState('LOADING');
             setTimeout(() => setActiveScene('town'), 100);
-        };
-        game.onEnterTown2 = () => {
-            setIsEnvironmentBuilt(false);
-            setIsVisualLoadingDone(false);
-            setIsCombatActive(false);
-            setGameState('LOADING');
-            setTimeout(() => setActiveScene('town2'), 100);
         };
 
         const previousOnUpdate = game.onUpdate;

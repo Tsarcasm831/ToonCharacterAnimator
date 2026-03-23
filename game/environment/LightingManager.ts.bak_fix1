@@ -8,7 +8,6 @@ export class LightingManager {
     private hemiLight: THREE.HemisphereLight;
     private skySphere: THREE.Mesh;
     private readonly skyBaseRadius = 150;
-    private readonly skyMaxRadius = 190;
     private shadowCoverage = 90;
     
     private cycleTimer: number = 0;
@@ -82,7 +81,7 @@ export class LightingManager {
     }
 
     public setSkySphereRadius(radius: number) {
-        const safeRadius = THREE.MathUtils.clamp(radius, this.skyBaseRadius, this.skyMaxRadius);
+        const safeRadius = Math.max(radius, this.skyBaseRadius);
         const scale = safeRadius / this.skyBaseRadius;
         this.skySphere.scale.set(scale, scale, scale);
     }
@@ -110,11 +109,6 @@ export class LightingManager {
             this.cycleTimer = (config.timeOfDay / 24.0) * this.CYCLE_DURATION;
         }
 
-        const anchorX = focusPosition?.x ?? 0;
-        const anchorY = focusPosition?.y ?? 0;
-        const anchorZ = focusPosition?.z ?? 0;
-        this.skySphere.position.set(anchorX, anchorY, anchorZ);
-
         const cyclePercent = this.cycleTimer / this.CYCLE_DURATION;
 
         let sunAltitude = 0;
@@ -131,6 +125,8 @@ export class LightingManager {
         const sunY = sunAltitude * 40;
         const sunZ = 20;
 
+        const anchorX = focusPosition?.x ?? 0;
+        const anchorZ = focusPosition?.z ?? 0;
         this.sunLight.target.position.set(anchorX, 0, anchorZ);
         this.sunLight.position.set(anchorX + sunX, sunY, anchorZ + sunZ);
         this.sunLight.target.updateMatrixWorld();

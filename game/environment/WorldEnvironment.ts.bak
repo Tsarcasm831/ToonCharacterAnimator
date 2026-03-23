@@ -9,8 +9,6 @@ export class WorldEnvironment {
     private scene: THREE.Scene;
     private mesh: THREE.Mesh | null = null;
     public obstacles: THREE.Object3D[] = [];
-    private town2EntryPoint: THREE.Vector3 | null = null;
-    private readonly town2EntryRadius = 8;
     
     constructor(scene: THREE.Scene) {
         this.scene = scene;
@@ -42,7 +40,6 @@ export class WorldEnvironment {
         if (this.mesh) {
             this.mesh = null;
         }
-        this.town2EntryPoint = null;
         this.obstacles = [];
     }
 
@@ -168,31 +165,11 @@ export class WorldEnvironment {
         );
         if (!yureigakure) return;
 
-        const mapped = landCoordsToWorld(yureigakure.x, yureigakure.y);
-        const towardCenter = new THREE.Vector2(-mapped.x, -mapped.z);
-        if (towardCenter.lengthSq() > 0.0001) {
-            towardCenter.normalize();
-        }
-
-        const inwardOffset = 14;
-        const centerX = mapped.x + towardCenter.x * inwardOffset;
-        const centerZ = mapped.z + towardCenter.y * inwardOffset;
-        const groundY = getLandHeightAt(centerX, centerZ);
-        const outpostCenter = new THREE.Vector3(centerX, groundY, centerZ);
-
-        const outpost = this.createOutpost(outpostCenter);
+        const { x, z } = landCoordsToWorld(yureigakure.x, yureigakure.y);
+        const groundY = getLandHeightAt(x, z);
+        const outpost = this.createOutpost(new THREE.Vector3(x, groundY, z));
         this.group.add(outpost.group);
         outpost.obstacles.forEach((obstacle) => this.obstacles.push(obstacle));
-
-        this.town2EntryPoint = outpostCenter.clone();
-    }
-
-    public getTown2EntryZone(): { position: THREE.Vector3; radius: number } | null {
-        if (!this.town2EntryPoint) return null;
-        return {
-            position: this.town2EntryPoint.clone(),
-            radius: this.town2EntryRadius
-        };
     }
 
     private createOutpost(center: THREE.Vector3): { group: THREE.Group; obstacles: THREE.Mesh[] } {
