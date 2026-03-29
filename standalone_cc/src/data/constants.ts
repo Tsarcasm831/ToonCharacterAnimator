@@ -5,7 +5,7 @@ export const BODY_PRESETS: Record<BodyVariant, Partial<PlayerConfig>> = {
     torsoWidth: 1.0, torsoHeight: 1.0, 
     armScale: 1.0, legScale: 1.0, 
     headScale: 1.0, footWidth: 1.0, 
-    neckHeight: 0.6, neckThickness: 0.7,
+    neckHeight: 0.7, neckThickness: 0.7,
     chinSize: 0.7, chinLength: 1.0,
     buttScale: 0.75,
     shirtColor: '#cc0000',

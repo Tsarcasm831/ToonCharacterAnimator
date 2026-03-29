@@ -384,6 +384,20 @@ export interface PlayerConfig extends
   AccessoryRiggingConfig,
   ClothingRiggingConfig
 {
+  impersonationModel?:
+    | 'humanoid'
+    | 'wolf'
+    | 'bear'
+    | 'yeti'
+    | 'owl'
+    | 'deer'
+    | 'chicken'
+    | 'pig'
+    | 'sheep'
+    | 'spider'
+    | 'lizard'
+    | 'horse'
+    | 'imp';
   equipment: EquipmentState;
   selectedItem: string | null;
   stats: EntityStats;
@@ -426,6 +440,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
     skullcap: false,
     shorts: false,
   },
+  impersonationModel: 'humanoid',
   selectedItem: null,
   weaponStance: 'side',
 

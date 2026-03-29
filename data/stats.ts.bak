@@ -27,21 +27,6 @@ export const CLASS_STATS: Record<string, EntityStats> = {
     mana: 0, maxMana: 100, xp: 0, maxXp: 1000, strength: 18, dexterity: 8, defense: 6, 
     evasion: 4, damage: 25, soak: 4, attackSpeed: 0.7, range: 1.0
   },
-  barbarian: {
-    health: 155, maxHealth: 155, chakra: 45, maxChakra: 45,
-    mana: 0, maxMana: 40, xp: 0, maxXp: 1000, strength: 17, dexterity: 10, defense: 8,
-    evasion: 6, damage: 23, soak: 4, attackSpeed: 0.8, range: 1.0
-  },
-  bard: {
-    health: 100, maxHealth: 100, chakra: 75, maxChakra: 75,
-    mana: 55, maxMana: 95, xp: 0, maxXp: 1000, strength: 8, dexterity: 13, defense: 9,
-    evasion: 11, damage: 13, soak: 2, attackSpeed: 0.9, range: 3.0
-  },
-  druid: {
-    health: 110, maxHealth: 110, chakra: 85, maxChakra: 85,
-    mana: 70, maxMana: 110, xp: 0, maxXp: 1000, strength: 9, dexterity: 12, defense: 10,
-    evasion: 10, damage: 15, soak: 2, attackSpeed: 0.8, range: 3.5
-  },
   mage: {
     health: 85, maxHealth: 85, chakra: 100, maxChakra: 100,
     mana: 50, maxMana: 120, xp: 0, maxXp: 1000, strength: 6, dexterity: 10, defense: 5, 
@@ -86,15 +71,5 @@ export const CLASS_STATS: Record<string, EntityStats> = {
     health: 130, maxHealth: 130, chakra: 40, maxChakra: 40,
     mana: 0, maxMana: 50, xp: 0, maxXp: 1000, strength: 13, dexterity: 7, defense: 22, 
     evasion: 1, damage: 12, soak: 8, attackSpeed: 0.5, range: 1.0
-  },
-  sorcerer: {
-    health: 95, maxHealth: 95, chakra: 95, maxChakra: 95,
-    mana: 85, maxMana: 130, xp: 0, maxXp: 1000, strength: 7, dexterity: 11, defense: 6,
-    evasion: 11, damage: 24, soak: 1, attackSpeed: 0.6, range: 3.5
-  },
-  wizard: {
-    health: 90, maxHealth: 90, chakra: 105, maxChakra: 105,
-    mana: 95, maxMana: 140, xp: 0, maxXp: 1000, strength: 6, dexterity: 10, defense: 6,
-    evasion: 10, damage: 23, soak: 1, attackSpeed: 0.5, range: 3.5
   }
 };
