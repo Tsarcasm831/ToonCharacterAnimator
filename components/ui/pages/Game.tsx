@@ -357,6 +357,10 @@ export const Game: React.FC = () => {
         setIsEnemiesModalOpen(true);
     };
 
+    const handleOpenStandaloneCC = React.useCallback(() => {
+        window.open('/standalone_cc/index.html', '_blank', 'noopener,noreferrer');
+    }, []);
+
     const onSelectStructure = (type: any) => {
         environmentState.setActiveStructure(type);
         if (gameInstance.current) gameInstance.current.setBuildingType(type);
@@ -611,7 +615,13 @@ export const Game: React.FC = () => {
                 <div className="absolute inset-0">
                     {gameState === 'MENU' ? (
                         <>
-                            <MainMenu onStart={handleEnterWorld} onShowEnemies={onShowEnemies} isMobile={isMobileDevice} showVideoBackground={true} />
+                            <MainMenu
+                                onStart={handleEnterWorld}
+                                onShowEnemies={onShowEnemies}
+                                onOpenStandaloneCC={handleOpenStandaloneCC}
+                                isMobile={isMobileDevice}
+                                showVideoBackground={true}
+                            />
                             {/* Mobile notice hidden as it is obscured by animator 3D logo */}
                             {/* {isMobileDevice && (
                                 <div className="absolute inset-0 z-[120] flex items-end justify-center p-6 pointer-events-none">

@@ -277,7 +277,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-red-700",
         config: {
             ...CREATURE_MORPHS.demon,
-            impersonationModel: 'imp',
             bodyType: 'male', bodyVariant: 'slim', outfit: 'naked', skinColor: '#8b1f1f',
             hairStyle: 'bald',
             shirtColor: '#2a0a0a', pantsColor: '#120707', bootsColor: '#1f0f0f',
@@ -291,7 +290,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-zinc-900",
         config: {
             ...CREATURE_MORPHS.arachnid,
-            impersonationModel: 'spider',
             bodyType: 'male', bodyVariant: 'slim', outfit: 'naked', skinColor: '#141414',
             hairStyle: 'bald',
             shirtColor: '#101010', pantsColor: '#060606', bootsColor: '#080808',
@@ -319,7 +317,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-amber-900",
         config: {
             ...CREATURE_MORPHS.brute,
-            impersonationModel: 'bear',
             bodyType: 'male', bodyVariant: 'heavy', outfit: 'naked', skinColor: '#6b3f1f',
             hairStyle: 'crew', hairColor: '#3f2a18',
             shirtColor: '#5a3b1a', pantsColor: '#3b2a18', bootsColor: '#2b1f14',
@@ -333,7 +330,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-slate-300",
         config: {
             ...CREATURE_MORPHS.titan,
-            impersonationModel: 'yeti',
             bodyType: 'male', bodyVariant: 'heavy', outfit: 'naked', skinColor: '#dce7ef',
             hairStyle: 'crew', hairColor: '#f8fafc',
             shirtColor: '#cbd5e1', pantsColor: '#94a3b8', bootsColor: '#64748b',
@@ -347,7 +343,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-amber-500",
         config: {
             ...CREATURE_MORPHS.watcher,
-            impersonationModel: 'owl',
             bodyType: 'female', bodyVariant: 'slim', outfit: 'naked', skinColor: '#e2c38b',
             hairStyle: 'crew', hairColor: '#7c5a34',
             shirtColor: '#8b6b44', pantsColor: '#6f4f31', bootsColor: '#4d3522',
@@ -361,7 +356,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-yellow-700",
         config: {
             ...CREATURE_MORPHS.grazer,
-            impersonationModel: 'deer',
             bodyType: 'female', bodyVariant: 'slim', outfit: 'naked', skinColor: '#b88247',
             hairStyle: 'crew', hairColor: '#7b4f2a',
             shirtColor: '#8a5a2f', pantsColor: '#5c3a21', bootsColor: '#3f2918',
@@ -375,7 +369,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-yellow-300",
         config: {
             ...CREATURE_MORPHS.fowl,
-            impersonationModel: 'chicken',
             bodyType: 'female', bodyVariant: 'slim', outfit: 'naked', skinColor: '#f3e4bf',
             hairStyle: 'crew', hairColor: '#d97706',
             shirtColor: '#fff7e0', pantsColor: '#f1f5f9', bootsColor: '#b45309',
@@ -389,7 +382,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-rose-400",
         config: {
             ...CREATURE_MORPHS.forager,
-            impersonationModel: 'pig',
             bodyType: 'male', bodyVariant: 'heavy', outfit: 'naked', skinColor: '#f2a3b3',
             hairStyle: 'bald',
             shirtColor: '#f7b2c1', pantsColor: '#e78fa5', bootsColor: '#9d174d',
@@ -403,7 +395,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-slate-200",
         config: {
             ...CREATURE_MORPHS.wool,
-            impersonationModel: 'sheep',
             bodyType: 'female', bodyVariant: 'average', outfit: 'naked', skinColor: '#f8f5ef',
             hairStyle: 'crew', hairColor: '#ffffff',
             shirtColor: '#f1f5f9', pantsColor: '#e2e8f0', bootsColor: '#94a3b8',
@@ -417,7 +408,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-green-700",
         config: {
             ...CREATURE_MORPHS.reptile,
-            impersonationModel: 'lizard',
             bodyType: 'male', bodyVariant: 'slim', outfit: 'naked', skinColor: '#4d7c0f',
             hairStyle: 'bald',
             shirtColor: '#3f6212', pantsColor: '#365314', bootsColor: '#1f3b08',
@@ -431,7 +421,6 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         color: "bg-amber-700",
         config: {
             ...CREATURE_MORPHS.mount,
-            impersonationModel: 'horse',
             bodyType: 'male', bodyVariant: 'muscular', outfit: 'naked', skinColor: '#8b5e3c',
             hairStyle: 'crew', hairColor: '#2f1b12',
             shirtColor: '#6f4e37', pantsColor: '#5a3e2b', bootsColor: '#2f1b12',

@@ -288,10 +288,12 @@ export interface FaceProportionsConfig {
   lowerLipOffsetY: number;
   lowerLipOffsetZ: number;
 
-  // Brain/Debug
+  // Brain/Debug/Organs
   showBrain: boolean;
+  showOrgans: boolean;
   brainSize: number;
   debugHead: boolean;
+  showChakraNetwork: boolean;
 }
 
 export interface AccessoryRiggingConfig {
@@ -638,6 +640,8 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   bulgeScale: 1.0,
 
   showBrain: false,
+  showOrgans: false,
   brainSize: 1.0,
   debugHead: false,
+  showChakraNetwork: false,
 };

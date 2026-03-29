@@ -8,11 +8,12 @@ import { X } from 'lucide-react';
 interface MainMenuProps {
     onStart: (startInCombat: boolean, startInLand: boolean, startInDev: boolean, startInTown: boolean, startInSingleBiome: boolean, startInTown2: boolean, startInTdGame: boolean) => void;
     onShowEnemies: () => void;
+    onOpenStandaloneCC: () => void;
     isMobile?: boolean;
     showVideoBackground?: boolean;
 }
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMobile = false, showVideoBackground = false }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, onOpenStandaloneCC, isMobile = false, showVideoBackground = false }) => {
     const [startInCombat, setStartInCombat] = React.useState(false);
     const [startInLand, setStartInLand] = React.useState(false);
     const [startInDev, setStartInDev] = React.useState(false);
@@ -57,6 +58,14 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, isMo
                             className="px-8 py-2 bg-white/5 text-white font-black text-xs uppercase tracking-widest rounded-full border border-white/10 hover:bg-white/15 hover:border-white/30 transition-all shadow-[0_0_20px_rgba(255,255,255,0.08)]"
                         >
                             Open World Map
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={onOpenStandaloneCC}
+                            className="px-8 py-2 bg-white/5 text-white font-black text-xs uppercase tracking-widest rounded-full border border-white/10 hover:bg-white/15 hover:border-white/30 transition-all shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+                        >
+                            Open Character Creator
                         </button>
                     </div>
                 )}
