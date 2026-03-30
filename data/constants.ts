@@ -93,6 +93,7 @@ export const ITEM_ICONS: Record<string, string> = {
   'Halberd': '🔱',
   'Fishing Pole': '🎣',
   'Bow': '🏹',
+  'Ranger': '🏹',
   'Shirt': '👕',
   'Quilted Armor': '🧥',
   'Leather Armor': '🥋',

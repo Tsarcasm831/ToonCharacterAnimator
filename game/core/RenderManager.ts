@@ -46,7 +46,7 @@ export class RenderManager {
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         this.controls.target.set(-24, 1.7, 50);
-        this.controls.mouseButtons = { LEFT: null as any, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
+        this.controls.mouseButtons = { LEFT: null as any, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
 
         // Lighting
         this.baseHemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);

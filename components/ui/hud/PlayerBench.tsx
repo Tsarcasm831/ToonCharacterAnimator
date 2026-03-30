@@ -7,9 +7,11 @@ interface PlayerBenchProps {
     inventory: (InventoryItem | null)[];
     selectedSlot: number;
     onSelectSlot: (index: number) => void;
+    onItemDragStart?: (index: number, item: InventoryItem) => void;
+    onItemDragEnd?: () => void;
 }
 
-export const PlayerBench: React.FC<PlayerBenchProps> = ({ inventory, selectedSlot, onSelectSlot }) => {
+export const PlayerBench: React.FC<PlayerBenchProps> = ({ inventory, selectedSlot, onSelectSlot, onItemDragStart, onItemDragEnd }) => {
     const slots = Array.from({ length: 13 });
 
     return (
@@ -20,6 +22,14 @@ export const PlayerBench: React.FC<PlayerBenchProps> = ({ inventory, selectedSlo
                     <div 
                         key={i}
                         onClick={() => onSelectSlot(i)}
+                        draggable={!!item}
+                        onDragStart={(e) => {
+                            if (!item) return;
+                            e.dataTransfer.effectAllowed = 'move';
+                            e.dataTransfer.setData('text/plain', item.name);
+                            onItemDragStart?.(i, item);
+                        }}
+                        onDragEnd={() => onItemDragEnd?.()}
                         className={`relative w-14 h-14 md:w-16 md:h-16 rounded-2xl flex items-center justify-center transition-all duration-300 cursor-pointer overflow-hidden group ${
                             selectedSlot === i 
                             ? 'bg-blue-600/40 border-2 border-blue-400 shadow-[0_0_20px_rgba(59,130,246,0.6),inset_0_0_15px_rgba(59,130,246,0.4)] -translate-y-3' 
