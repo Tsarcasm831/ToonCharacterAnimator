@@ -25,8 +25,8 @@ export class CombatSystem {
             this.onCombatLog?.(`${this.getUnitName(unit)}'s Turn`, 'info');
             this.onTurnChanged?.(unit);
 
-            // Trigger AI if needed
-            if (!unit.isFriendly && this.currentEnvironment) {
+            // Combat runs fully automated after the start button is pressed.
+            if (this.currentEnvironment) {
                 this.aiController.onTurnStart(unit, this.currentEnvironment);
             }
         };
@@ -46,6 +46,11 @@ export class CombatSystem {
 
         // Add enemies
         enemyEntities.forEach(entity => this.addUnit(entity, false));
+
+        if (this.getAliveFriendlyCount() === 0 || this.getAliveEnemyCount() === 0) {
+            this.onCombatLog?.('Combat initialization skipped: missing one side of the encounter.', 'info');
+            return;
+        }
 
         this.onCombatLog?.(`Combat started! ${this.getAliveFriendlyCount()} allies vs ${this.getAliveEnemyCount()} enemies`, 'info');
         
@@ -102,6 +107,7 @@ export class CombatSystem {
         if (this.combatEnded) return;
         
         this.currentEnvironment = environment;
+        environment.clearOccupiedCells();
 
         // Sync grid positions first (always important)
         for (const unit of this.units) {
@@ -368,18 +374,9 @@ export class CombatSystem {
     public getAliveFriendlyCount() { return this.units.filter(u => u.isFriendly && u.isAlive).length; }
     public getAliveEnemyCount() { return this.units.filter(u => !u.isFriendly && u.isAlive).length; }
     public isCombatOver() { return this.combatEnded; }
-    
-    public getUnitByEntity(entity: any): CombatUnit | undefined {
-        return this.units.find(u => u.entity === entity);
-    }
-
-    public getAllUnits(): CombatUnit[] {
-        return this.units;
-    }
-
-    public getActiveUnit(): CombatUnit | null {
-        return this.turnManager.getCurrentUnit();
-    }
+    public getActiveUnit() { return this.turnManager.getCurrentUnit(); }
+    public getUnitByEntity(entity: any) { return this.units.find(u => u.entity === entity) || null; }
+    public getAllUnits() { return this.units; }
 
     public reset() {
         this.units = [];

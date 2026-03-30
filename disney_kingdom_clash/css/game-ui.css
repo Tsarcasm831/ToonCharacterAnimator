@@ -1,0 +1,818 @@
+#game-canvas {
+    display: none;
+}
+
+#game-ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; 
+    display: none; 
+    color: white;
+    font-family: 'Roboto', sans-serif; /* Consistent font */
+    z-index: 101; /* Add z-index to ensure it's on top of canvas, but below modals */
+}
+
+/* --- Top Bar --- */
+#top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px 20px; /* Adjusted padding */
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between; /* Changed from flex-start */
+    align-items: flex-start; /* Changed to align to top */
+    gap: 20px;
+}
+
+/* Generic HUD box style */
+.hud-box-left, .hud-box-center, .hud-box-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(10, 20, 30, 0.8);
+    padding: 8px 15px;
+    border-radius: 25px;
+    border: 2px solid #6a6a8a;
+    pointer-events: auto;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+}
+
+#game-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    max-width: 250px;
+    pointer-events: auto;
+}
+
+#wave-info {
+    flex: 2;
+    justify-content: center;
+    font-size: 1.3em;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+}
+
+#wave-info-coop {
+    flex: 0 0 auto;
+    font-size: 1.1em;
+}
+
+#game-controls {
+    flex: 1;
+    justify-content: flex-end;
+}
+
+#wave-info img,
+#wave-info-coop img {
+    height: 24px;
+    filter: drop-shadow(0 0 3px #000);
+}
+
+.wave-separator {
+    width: 2px;
+    height: 20px;
+    background: #6a6a8a;
+    border-radius: 1px;
+}
+
+#game-controls button {
+    background: rgba(40, 40, 60, 0.8);
+    border: 2px solid #6a6a8a;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    padding: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    transition: all 0.2s ease;
+}
+
+#game-controls button:hover {
+    border-color: #ffc107;
+    transform: scale(1.1);
+}
+
+#game-controls button img {
+    height: 24px;
+    width: 24px;
+}
+
+#game-speed-button span {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+#level-name-display,
+#wave-status {
+    display: flex;
+    gap: 10px;
+    margin-left: 20px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px 20px;
+    border-radius: 15px;
+    border: 1px solid rgba(255,255,255,0.2);
+    pointer-events: auto;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    font-size: 1.8em;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+}
+
+#wave-status img {
+    height: 32px;
+    object-fit: contain;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(10, 20, 30, 0.8);
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 2px solid #6a6a8a;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+}
+
+.stat-item.health-stat {
+    border-color: #c0392b;
+}
+
+.stat-item.mana-stat {
+    border-color: #2980b9;
+}
+
+.stat-item.purified-stat {
+    border-color: #4dff91;
+}
+
+.stat-item img {
+    height: 32px; /* Adjusted size */
+    width: 32px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.stat-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+}
+
+.stat-label {
+    font-size: 0.8em;
+    font-weight: 500;
+    color: #ccc;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+}
+
+.stat-bar {
+    width: 100%;
+    height: 20px;
+    background-color: rgba(0,0,0,0.4);
+    border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.6);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.stat-bar-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: linear-gradient(to bottom, #7fdd7f, #4caf50); /* Green gradient */
+    border-radius: 3px;
+    transition: width 0.2s ease-out;
+}
+
+.stat-bar .stat-value {
+    position: relative;
+    z-index: 1;
+    font-size: 0.8em;
+}
+
+/* --- Bottom Bar --- */
+#bottom-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.7) 50%, transparent 100%);
+    padding: 15px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 15px;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+/* --- Selection Info Panel --- */
+#selection-info {
+    background: rgba(10, 20, 30, 0.85);
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid rgba(135, 206, 250, 0.4);
+    min-height: 110px;
+    width: 100%; /* Allow it to shrink */
+    max-width: 320px; /* Set a max width */
+    flex-shrink: 1;
+    flex-grow: 1;
+    pointer-events: auto;
+    color: #eee;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    order: 1; /* Default order */
+}
+
+#unit-details {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+#unit-details.hidden {
+    display: none;
+}
+
+#selection-prompt {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 110px; 
+    text-align: center;
+    opacity: 0.8;
+    font-style: italic;
+}
+
+#selection-prompt.hidden {
+    display: none;
+}
+
+#unit-info-img {
+    height: 80px;
+    width: 80px;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.3);
+    border: 2px solid #555;
+    object-fit: contain;
+}
+
+#unit-info-text h3 {
+    margin: 0 0 8px 0;
+    color: #ffc107;
+    font-size: 1.2em; /* Slightly larger title */
+    font-family: 'Cinzel', serif; /* More thematic font */
+    word-break: break-word; /* Allow long names to wrap */
+}
+
+#unit-info-text p {
+    margin: 4px 0;
+    font-size: 0.95em;
+    color: #ddd;
+}
+
+#unit-info-text p#unit-info-ability-line {
+    font-size: 0.85em;
+    color: #90e0ef; 
+    font-style: italic;
+    max-width: 180px; /* Wider */
+}
+
+/* --- Controls Bar --- */
+#controls-bar {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end; /* Align to bottom for hero abilities */
+    pointer-events: auto;
+    flex-grow: 1;
+    justify-content: center;
+    order: 2; /* Default order */
+}
+
+#controls-bar button {
+    pointer-events: auto;
+}
+
+button {
+    cursor: pointer;
+    color: white;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-family: 'Roboto', sans-serif;
+}
+
+#controls-bar button {
+    padding: 12px;
+    border-radius: 50%;
+    width: 75px;
+    height: 75px;
+    font-size: 12px;
+    flex-direction: column;
+    gap: 5px;
+    background-color: rgba(40, 40, 60, 0.8);
+    border: 2px solid #6a6a8a;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+}
+
+#controls-bar button:hover:not(:disabled) {
+    border-color: #ffc107;
+    transform: translateY(-5px); /* Changed to Y translation */
+    background-color: rgba(60, 60, 80, 0.9);
+}
+
+#controls-bar button img {
+    height: 32px;
+    object-fit: contain;
+}
+
+#controls-bar button span {
+    font-weight: bold;
+    font-size: 0.75rem;
+}
+
+button:disabled {
+    background-color: #555 !important;
+    border-color: #777 !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none !important;
+}
+
+#ui-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    box-sizing: border-box;
+    display: none;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#stats-bar, #controls-bar, #selection-info {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+/* --- Hero Abilities --- */
+.hero-ability-container {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    justify-content: flex-end; /* Align to the right */
+    flex-grow: 1;
+    order: 3; /* Default order */
+}
+
+.hero-ability {
+    position: relative;
+}
+
+.hero-ability .hero-ability-tooltip {
+    visibility: hidden;
+    width: 220px;
+    background-color: rgba(10, 20, 30, 0.9);
+    color: #fff;
+    text-align: left;
+    border-radius: 6px;
+    padding: 10px;
+    position: absolute;
+    z-index: 1;
+    bottom: 110%; /* Position above the button */
+    left: 50%;
+    margin-left: -110px; /* Center the tooltip */
+    opacity: 0;
+    transition: opacity 0.3s;
+    border: 1px solid rgba(135, 206, 250, 0.4);
+    backdrop-filter: blur(5px);
+    pointer-events: none;
+}
+
+.hero-ability .hero-ability-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: rgba(135, 206, 250, 0.4) transparent transparent transparent;
+}
+
+.hero-ability:hover .hero-ability-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+.hero-ability-tooltip h4 {
+    margin: 0 0 5px 0;
+    color: #ffc107;
+    font-size: 1.1em;
+    font-family: 'Cinzel', serif;
+}
+
+.hero-ability-tooltip p {
+    margin: 0;
+    font-size: 0.9em;
+    color: #ddd;
+    font-family: 'Roboto', sans-serif;
+}
+
+.hero-ability-button {
+    width: 85px !important;
+    height: 85px !important;
+    border: 3px solid #8338ec !important;
+    box-shadow: 0 0 15px rgba(131, 56, 236, 0.5) !important;
+}
+
+.hero-ability-button:hover:not(:disabled) {
+    box-shadow: 0 0 20px rgba(131, 56, 236, 0.8) !important;
+}
+
+.hero-ability-button img {
+    height: 40px !important;
+    object-fit: contain;
+}
+
+.cooldown-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    pointer-events: none;
+    border-radius: 50%;
+    transform-origin: bottom;
+    transform: scaleY(0);
+}
+
+.cooldown-timer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    pointer-events: none;
+    display: none;
+}
+
+#objective-banner {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.3);
+    font-size: 1.2em;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+}
+
+#objective-banner.visible {
+    opacity: 1;
+}
+
+.health-bar-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 60px;
+    height: 8px;
+    background-color: rgba(20, 20, 20, 0.7);
+    border: 1px solid #111;
+    border-radius: 4px;
+    padding: 1px;
+    pointer-events: none;
+    transition: transform 0.1s linear, opacity 0.2s ease-out;
+    opacity: 0; /* Hidden by default, made visible in JS */
+}
+
+.health-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, #7fdd7f, #4caf50); /* Green gradient */
+    border-radius: 3px;
+    transition: width 0.2s ease-out;
+}
+
+#coop-hp-bar-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, #7fdd7f, #4caf50); /* Green gradient */
+    border-radius: 3px;
+    transition: width 0.2s ease-out;
+}
+
+/* --- Co-op UI Styles --- */
+#coop-ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: none;
+    color: white;
+    font-family: 'Roboto', sans-serif;
+    z-index: 101;
+}
+
+#coop-controls {
+    display: flex;
+    justify-content: flex-end;
+    flex: 1;
+    max-width: 250px;
+    pointer-events: auto;
+}
+
+#coop-controls button {
+    background: rgba(40, 40, 60, 0.8);
+    border: 2px solid #6a6a8a;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    padding: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: auto;
+    transition: all 0.2s ease;
+}
+
+#coop-controls button:hover {
+    border-color: #ffc107;
+    transform: scale(1.1);
+}
+
+#coop-controls button img {
+    height: 24px;
+    width: 24px;
+}
+
+#center-info-coop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    pointer-events: auto;
+}
+
+#center-info-coop .stat-item {
+    width: 100%;
+    max-width: 250px;
+    box-sizing: border-box;
+}
+
+#top-bar-coop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 15px 20px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+}
+
+#bottom-bar-coop {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+
+.player-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+    max-width: 250px;
+    pointer-events: auto;
+}
+
+.player-stats-right {
+    align-items: flex-end;
+}
+
+.player-stats-right .stat-item {
+    flex-direction: row-reverse;
+}
+
+.player-controls {
+    pointer-events: auto;
+}
+
+.player-controls .controls-bar {
+    display: flex;
+    gap: 15px;
+    align-items: flex-end;
+}
+
+.player-controls .controls-bar button {
+    pointer-events: auto;
+    padding: 12px;
+    border-radius: 50%;
+    width: 75px;
+    height: 75px;
+    font-size: 12px;
+    flex-direction: column;
+    gap: 5px;
+    background-color: rgba(40, 40, 60, 0.8);
+    border: 2px solid #6a6a8a;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+}
+
+.player-controls .controls-bar button:hover:not(:disabled) {
+    border-color: #ffc107;
+    transform: translateY(-5px);
+    background-color: rgba(60, 60, 80, 0.9);
+}
+
+.player-controls .controls-bar button:disabled {
+    background-color: #555 !important;
+    border-color: #777 !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none !important;
+}
+
+.player-controls .controls-bar button img {
+    height: 32px;
+    object-fit: contain;
+}
+
+.player-controls .controls-bar button span {
+    font-weight: bold;
+    font-size: 0.75rem;
+}
+
+/* --- Responsive Design --- */
+@media (max-width: 1100px) {
+    #bottom-bar {
+        justify-content: center;
+    }
+    #selection-info {
+        order: 2;
+    }
+    #controls-bar {
+        order: 1;
+        width: 100%;
+        justify-content: center;
+    }
+    .hero-ability-container {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Top Bar adjustments */
+    #top-bar {
+        padding: 10px;
+        flex-wrap: wrap; /* Allow wrapping if needed */
+        justify-content: center;
+        gap: 10px;
+    }
+
+    #game-stats, #wave-info {
+        font-size: 1.1em; /* Smaller font */
+        padding: 5px 10px; /* smaller padding */
+        gap: 5px;
+    }
+
+    .stat-item img, #wave-info img {
+        height: 20px; /* Smaller icons */
+    }
+    
+    #wave-info {
+        order: -1; /* Move to the top on mobile */
+        width: 100%;
+        justify-content: center;
+    }
+    
+    #game-controls {
+        display: none; /* Hide settings/speed on mobile for now */
+    }
+
+    /* Bottom Bar overhaul */
+    #bottom-bar {
+        flex-direction: column-reverse; /* Stack controls below selection info */
+        align-items: center; /* Center items horizontally */
+        gap: 10px;
+        padding: 10px;
+        background: linear-gradient(to top, rgba(0,0,0,0.9) 20%, rgba(0,0,0,0.8) 60%, transparent 100%);
+    }
+
+    #selection-info {
+        width: 95%;
+        max-width: 400px;
+        min-height: auto; /* Allow it to shrink */
+        padding: 10px;
+    }
+
+    #unit-details {
+        flex-direction: row; /* Keep it horizontal on mobile, but smaller */
+        gap: 10px;
+        align-items: center;
+    }
+    
+    #unit-info-text {
+        text-align: left;
+    }
+    
+    #unit-info-text h3 {
+        margin-bottom: 5px;
+        font-size: 1em;
+    }
+    
+    #unit-info-text p {
+        margin: 2px 0;
+        font-size: 0.8em;
+    }
+
+    #unit-info-img {
+        width: 60px;
+        height: 60px;
+    }
+    
+    #selection-prompt {
+        height: auto;
+        padding: 20px 0;
+    }
+
+    #controls-bar {
+        width: 100%;
+        justify-content: center; /* Center the buttons */
+        gap: 10px;
+        align-items: flex-end;
+    }
+    
+    /* Make buttons smaller */
+    #controls-bar button {
+        width: 65px;
+        height: 65px;
+    }
+    
+    .hero-ability-button {
+        width: 70px !important;
+        height: 70px !important;
+    }
+    
+    #controls-bar button img {
+        height: 28px;
+    }
+    
+    .hero-ability-button img {
+        height: 32px !important;
+    }
+}

@@ -1,0 +1,212 @@
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Game } from "../game/core/Game";
+import { PlayerConfig, PlayerInput, InventoryItem, EntityStats, TurnPhase } from '../types';
+import { GameHUD } from './ui/hud/GameHUD';
+import { CombatLogEntry } from './ui/hud/CombatLog';
+import { UnitStatsTooltip } from './ui/hud/UnitStatsTooltip';
+import { TurnIndicatorUI } from './ui/hud/TurnIndicatorUI';
+import { useGame } from '../hooks/useGame';
+
+interface TurnQueueUnit {
+    id: string;
+    isFriendly: boolean;
+    name: string;
+    currentInitiative: number;
+    stats: EntityStats;
+}
+
+interface TooltipState {
+    visible: boolean;
+    stats?: EntityStats;
+    unitName?: string;
+    x: number;
+    y: number;
+}
+
+const LOCKED_COMBAT_INPUT: Partial<PlayerInput> = {
+    x: 0,
+    y: 0,
+    isRunning: false,
+    jump: false,
+    isPickingUp: false,
+    attack1: false,
+    attack2: false,
+    interact: false,
+    combat: false,
+    wave: false,
+    leftHandWave: false,
+    summon: false,
+    toggleBuilder: false,
+    rotateGhost: false,
+    fireball: false,
+    crouch: false,
+};
+
+interface CombatSceneProps {
+    config: PlayerConfig;
+    manualInput: Partial<PlayerInput>;
+    bench: (InventoryItem | null)[];
+    onGameReady?: (game: Game) => void;
+    onEnvironmentReady?: () => void;
+    onInteractionUpdate?: (text: string | null, progress: number | null) => void;
+    onToggleQuestLog?: () => void;
+    onRotationUpdate?: (rotation: number) => void;
+    onAttackHit?: (type: string, count: number) => void;
+    isCombatActive: boolean;
+    setIsCombatActive: (active: boolean) => void;
+    combatLog: CombatLogEntry[];
+    showGrid: boolean;
+    setShowGrid: (show: boolean) => void;
+    controlsDisabled?: boolean;
+}
+
+const CombatScene: React.FC<CombatSceneProps> = ({
+    config,
+    manualInput,
+    bench,
+    onGameReady,
+    onEnvironmentReady,
+    onInteractionUpdate,
+    onToggleQuestLog,
+    onRotationUpdate,
+    onAttackHit,
+    isCombatActive,
+    setIsCombatActive,
+    combatLog,
+    showGrid,
+    setShowGrid,
+    controlsDisabled = false,
+}) => {
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0 });
+
+    const [turnQueue, setTurnQueue] = useState<TurnQueueUnit[]>([]);
+    const [currentUnitId, setCurrentUnitId] = useState<string | null>(null);
+    const [turnPhase, setTurnPhase] = useState<TurnPhase>(TurnPhase.INITIATIVE_ROLL);
+
+    const safeManualInput = useMemo<Partial<PlayerInput>>(() => {
+        return {
+            ...manualInput,
+            ...LOCKED_COMBAT_INPUT,
+        };
+    }, [manualInput]);
+
+    const hideTooltip = useCallback(() => {
+        setTooltip((prev) => (prev.visible ? { ...prev, visible: false } : prev));
+    }, []);
+
+    const handleTurnQueueUpdate = useCallback((queue: any[]) => {
+        const uiQueue: TurnQueueUnit[] = queue.map((unit) => ({
+            id: unit.id,
+            isFriendly: unit.isFriendly,
+            name: unit.entity.constructor.name === 'Player' ? 'Hero' : unit.entity.constructor.name,
+            currentInitiative: unit.currentInitiative,
+            stats: unit.stats,
+        }));
+        setTurnQueue(uiQueue);
+    }, []);
+
+    const handleTurnChanged = useCallback((unit: { id: string }) => {
+        setCurrentUnitId(unit.id);
+    }, []);
+
+    const handleTurnPhaseChange = useCallback((phase: TurnPhase) => {
+        setTurnPhase(phase);
+    }, []);
+
+    const handleGameReady = useCallback((game: Game) => {
+        onGameReady?.(game);
+
+        if (game.combatManager) {
+            game.combatManager.onShowTooltip = (stats, name, x, y) => {
+                setTooltip({ visible: true, stats, unitName: name, x: x || 0, y: y || 0 });
+            };
+            game.combatManager.onHideTooltip = hideTooltip;
+        }
+    }, [hideTooltip, onGameReady]);
+
+    const { gameRef, endTurn, waitTurn, defend } = useGame({
+        containerRef,
+        config,
+        manualInput: safeManualInput,
+        initialInventory: [], 
+        activeScene: 'combat',
+        onGameReady: handleGameReady,
+        onEnvironmentReady,
+        onInteractionUpdate,
+        onToggleQuestLog,
+        onRotationUpdate,
+        onAttackHit,
+        controlsDisabled,
+        showGrid,
+        isCombatActive,
+        onTurnQueueUpdate: handleTurnQueueUpdate,
+        onTurnChanged: handleTurnChanged,
+        onTurnPhaseChange: handleTurnPhaseChange,
+    });
+
+    useEffect(() => {
+        if (!isCombatActive) {
+            setTurnQueue([]);
+            setCurrentUnitId(null);
+            setTurnPhase(TurnPhase.INITIATIVE_ROLL);
+            hideTooltip();
+        }
+    }, [hideTooltip, isCombatActive]);
+
+    const isPlayerTurn = turnPhase === TurnPhase.PLAYER_TURN;
+
+    return (
+        <div className="w-full h-full relative" onClick={hideTooltip}>
+            <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />
+            
+            <GameHUD 
+                activeScene="combat"
+                currentBiome={{ name: 'Combat Arena', color: '#ef4444' }}
+                playerRotation={0}
+                inventory={[]}
+                bench={bench}
+                selectedSlot={0}
+                onSelectSlot={() => {}}
+                selectedUnit={gameRef.current?.combatManager?.selectedUnit}
+                interactionText={null}
+                interactionProgress={null}
+                showGrid={showGrid}
+                setShowGrid={setShowGrid}
+                isCombatActive={isCombatActive}
+                setIsCombatActive={setIsCombatActive}
+                stats={config.stats}
+                isFemale={config.bodyType === 'female'}
+                combatLog={combatLog}
+                onOpenTravel={() => {}}
+                onToggleBestiary={() => {}}
+                onEndTurn={endTurn}
+                onWaitTurn={waitTurn}
+                onDefend={defend}
+                isPlayerTurn={isPlayerTurn}
+            />
+
+            {/* Turn Indicator (Only show if combat active) */}
+            {isCombatActive && (
+                <TurnIndicatorUI 
+                    queue={turnQueue}
+                    currentUnitId={currentUnitId}
+                    phase={turnPhase}
+                />
+            )}
+            
+            {/* Unit Stats Tooltip (shown on right-click) */}
+            <UnitStatsTooltip 
+                visible={tooltip.visible}
+                stats={tooltip.stats}
+                unitName={tooltip.unitName}
+                x={tooltip.x}
+                y={tooltip.y}
+            />
+        </div>
+    );
+};
+
+export default CombatScene;

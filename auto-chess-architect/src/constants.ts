@@ -1,0 +1,337 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { Unit, TraitEffect } from './types';
+
+export const BOARD_SIZE = { rows: 8, cols: 8 };
+export const BENCH_SIZE = 8;
+export const SHOP_SIZE = 5;
+
+export const XP_TO_LEVEL: Record<number, number> = {
+  1: 2, 2: 2, 3: 6, 4: 10, 5: 20, 6: 36, 7: 56, 8: 80, 9: 999
+};
+
+export const TRAIT_EFFECTS: Record<string, TraitEffect> = {
+  Warrior: {
+    name: 'Warrior',
+    description: 'Warriors gain bonus Armor.',
+    thresholds: [
+      { count: 3, effect: '+10 Armor', stats: { armor: 10 } },
+      { count: 6, effect: '+20 Armor', stats: { armor: 20 } },
+    ]
+  },
+  Mage: {
+    name: 'Mage',
+    description: 'Mages deal increased spell damage.',
+    thresholds: [
+      { count: 3, effect: '+30% Spell Power', stats: { spellPower: 30 } },
+      { count: 6, effect: '+60% Spell Power', stats: { spellPower: 60 } },
+    ]
+  },
+  Human: {
+    name: 'Human',
+    description: 'Humans have a chance to silence targets on hit.',
+    thresholds: [
+      { count: 2, effect: '10% Silence Chance' },
+      { count: 4, effect: '25% Silence Chance' },
+    ]
+  },
+  Hunter: {
+    name: 'Hunter',
+    description: 'Hunters gain bonus Attack Damage.',
+    thresholds: [
+      { count: 3, effect: '+20% AD', stats: { ad: 20 } }, // In combat engine, we will calculate this as a percentage if needed, or just flat. Let's make it flat for simplicity or handle % in combat. Let's just say +20 AD for now to keep it simple, or we can add a multiplier field. Let's just use flat AD for now.
+      { count: 6, effect: '+40% AD', stats: { ad: 40 } },
+    ]
+  },
+  Elf: {
+    name: 'Elf',
+    description: 'Elves have a chance to evade attacks.',
+    thresholds: [
+      { count: 2, effect: '15% Evasion', stats: { evasion: 15 } },
+      { count: 4, effect: '30% Evasion', stats: { evasion: 30 } },
+    ]
+  },
+  Orc: {
+    name: 'Orc',
+    description: 'Orcs gain bonus maximum Health.',
+    thresholds: [
+      { count: 2, effect: '+200 HP', stats: { maxHp: 200, hp: 200 } },
+      { count: 4, effect: '+400 HP', stats: { maxHp: 400, hp: 400 } },
+    ]
+  },
+  Assassin: {
+    name: 'Assassin',
+    description: 'Assassins have a chance to critically strike.',
+    thresholds: [
+      { count: 3, effect: '10% Crit Chance', stats: { critChance: 10 } },
+      { count: 6, effect: '20% Crit Chance', stats: { critChance: 20 } },
+    ]
+  },
+  Dragon: {
+    name: 'Dragon',
+    description: 'Dragons start combat with bonus Mana.',
+    thresholds: [
+      { count: 2, effect: 'Start with 100 Mana', stats: { mana: 100 } },
+    ]
+  },
+  Undead: {
+    name: 'Undead',
+    description: 'Reduces Armor of all enemies.',
+    thresholds: [
+      { count: 2, effect: '-4 Enemy Armor' }, // This affects enemies, we'll handle it in combat engine
+      { count: 4, effect: '-10 Enemy Armor' },
+    ]
+  }
+};
+
+export const UNITS_DATABASE: Partial<Unit>[] = [
+  {
+    name: 'Knight',
+    cost: 1,
+    traits: ['Warrior', 'Human'],
+    hp: 600,
+    maxHp: 600,
+    mana: 0,
+    maxMana: 100,
+    ad: 50,
+    armor: 5,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 1,
+    attackSpeed: 0.7,
+    starLevel: 1,
+    ability: { name: 'Shield Bash', type: 'buff', damage: 100 },
+  },
+  {
+    name: 'Archer',
+    cost: 1,
+    traits: ['Hunter', 'Elf'],
+    hp: 400,
+    maxHp: 400,
+    mana: 0,
+    maxMana: 100,
+    ad: 45,
+    armor: 0,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 4,
+    attackSpeed: 0.8,
+    starLevel: 1,
+    ability: { name: 'Snipe', type: 'projectile', damage: 300, range: 5 },
+  },
+  {
+    name: 'Mage',
+    cost: 2,
+    traits: ['Mage', 'Human'],
+    hp: 450,
+    maxHp: 450,
+    mana: 0,
+    maxMana: 80,
+    ad: 40,
+    armor: 0,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 3,
+    attackSpeed: 0.6,
+    starLevel: 1,
+    ability: { name: 'Fireball', type: 'aoe', damage: 200, radius: 1 },
+  },
+  {
+    name: 'Warrior',
+    cost: 1,
+    traits: ['Warrior', 'Human'],
+    hp: 650,
+    maxHp: 650,
+    mana: 0,
+    maxMana: 100,
+    ad: 55,
+    armor: 5,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 1,
+    attackSpeed: 0.7,
+    starLevel: 1,
+    ability: { name: 'Cleave', type: 'aoe', damage: 150, radius: 1 },
+  },
+  {
+    name: 'Priest',
+    cost: 2,
+    traits: ['Human', 'Mage'],
+    hp: 400,
+    maxHp: 400,
+    mana: 0,
+    maxMana: 100,
+    ad: 30,
+    armor: 0,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 3,
+    attackSpeed: 0.6,
+    starLevel: 1,
+    ability: { name: 'Heal', type: 'heal', heal: 300 },
+  },
+  {
+    name: 'Orc',
+    cost: 3,
+    traits: ['Warrior', 'Orc'],
+    hp: 1000,
+    maxHp: 1000,
+    mana: 0,
+    maxMana: 120,
+    ad: 60,
+    armor: 10,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 1,
+    attackSpeed: 0.5,
+    starLevel: 1,
+    ability: { name: 'War Cry', type: 'buff' },
+  },
+  {
+    name: 'Elf',
+    cost: 2,
+    traits: ['Hunter', 'Elf'],
+    hp: 450,
+    maxHp: 450,
+    mana: 0,
+    maxMana: 80,
+    ad: 50,
+    armor: 0,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 4,
+    attackSpeed: 0.9,
+    starLevel: 1,
+    ability: { name: 'Volley', type: 'projectile', damage: 200, range: 4 },
+  },
+  {
+    name: 'Human',
+    cost: 1,
+    traits: ['Warrior', 'Human'],
+    hp: 500,
+    maxHp: 500,
+    mana: 0,
+    maxMana: 100,
+    ad: 45,
+    armor: 5,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 1,
+    attackSpeed: 0.8,
+    starLevel: 1,
+    ability: { name: 'Strike', type: 'projectile', damage: 150, range: 1 },
+  },
+  {
+    name: 'Demon',
+    cost: 4,
+    traits: ['Assassin', 'Demon'],
+    hp: 700,
+    maxHp: 700,
+    mana: 0,
+    maxMana: 150,
+    ad: 90,
+    armor: 5,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 1,
+    attackSpeed: 1.0,
+    starLevel: 1,
+    ability: { name: 'Soul Tear', type: 'projectile', damage: 500, range: 1 },
+  },
+  {
+    name: 'Undead',
+    cost: 3,
+    traits: ['Undead', 'Warrior'],
+    hp: 800,
+    maxHp: 800,
+    mana: 0,
+    maxMana: 100,
+    ad: 65,
+    armor: 5,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 1,
+    attackSpeed: 0.6,
+    starLevel: 1,
+    ability: { name: 'Plague', type: 'aoe', damage: 200, radius: 2 },
+  },
+  {
+    name: 'Assassin',
+    cost: 2,
+    traits: ['Assassin', 'Elf'],
+    hp: 500,
+    maxHp: 500,
+    mana: 0,
+    maxMana: 100,
+    ad: 70,
+    armor: 0,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 1,
+    attackSpeed: 0.9,
+    starLevel: 1,
+    ability: { name: 'Backstab', type: 'projectile', damage: 400, range: 1 },
+  },
+  {
+    name: 'Dragon',
+    cost: 4,
+    traits: ['Dragon', 'Mage'],
+    hp: 800,
+    maxHp: 800,
+    mana: 0,
+    maxMana: 100,
+    ad: 80,
+    armor: 5,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 3,
+    attackSpeed: 0.7,
+    starLevel: 1,
+    ability: { name: 'Dragon Breath', type: 'aoe', damage: 250, radius: 2 },
+  },
+  {
+    name: 'Lich',
+    cost: 5,
+    traits: ['Undead', 'Mage'],
+    hp: 900,
+    maxHp: 900,
+    mana: 0,
+    maxMana: 150,
+    ad: 100,
+    armor: 0,
+    spellPower: 100,
+    critChance: 0,
+    evasion: 0,
+    range: 4,
+    attackSpeed: 0.8,
+    starLevel: 1,
+    ability: { name: 'Frost Nova', type: 'aoe', damage: 400, radius: 2 },
+  },
+];
+
+export const LEVEL_PROBABILITIES: Record<number, number[]> = {
+  1: [100, 0, 0, 0, 0],
+  2: [100, 0, 0, 0, 0],
+  3: [75, 25, 0, 0, 0],
+  4: [55, 30, 15, 0, 0],
+  5: [45, 33, 20, 2, 0],
+  6: [30, 40, 25, 5, 0],
+  7: [19, 30, 35, 15, 1],
+  8: [15, 20, 35, 25, 5],
+  9: [10, 15, 30, 30, 15],
+};

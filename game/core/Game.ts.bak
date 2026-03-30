@@ -22,6 +22,23 @@ import { LevelGenerator } from '../builder/LevelGenerator';
 import { DoorManager } from '../environment/DoorManager';
 import { Door } from '../environment/objects/Door';
 
+export interface DialogueChoice {
+    id: string;
+    label: string;
+}
+
+export interface DialogueContent {
+    text: string;
+    actorId?: string;
+    choices?: DialogueChoice[];
+}
+
+export interface NpcInteractionResponse {
+    dialogue?: string | DialogueContent | null;
+    mode?: 'dialogue' | 'trade' | 'shop' | 'forge';
+    suppressDefault?: boolean;
+}
+
 export class Game {
     public renderManager: RenderManager;
     private clock: THREE.Clock;
@@ -63,7 +80,8 @@ export class Game {
     onBiomeUpdate?: (biome: { name: string, color: string }) => void;
     onRotationUpdate?: (rotation: number) => void;
     onToggleWorldMapCallback?: (pos: THREE.Vector3) => void;
-    public onDialogueTrigger?: (content: string) => void;
+    public onDialogueTrigger?: (content: string | DialogueContent) => void;
+
     public onTradeTrigger?: () => void;
     public onShopkeeperTrigger?: () => void;
     public onForgeTrigger?: () => void;
@@ -78,6 +96,8 @@ export class Game {
     public onEnvironmentReady?: () => void;
     public onUpdate?: (dt: number) => void;
     public onEnterTown?: () => void;
+    public onEnterTown2?: () => void;
+    public onNpcInteraction?: (context: { scene: SceneType; target: any }) => NpcInteractionResponse | null | undefined;
     
     // Combat Events
     public onTurnQueueUpdate?: (queue: any[]) => void;
@@ -174,9 +194,13 @@ export class Game {
             this.entityManager.initDevEntities(this.sceneManager.environment, this.config);
         } else if (activeScene === 'town') {
             this.setupTownScene();
+        } else if (activeScene === 'town2') {
+            this.setupTown2Scene();
         }
         
-        this.scheduleEnvironmentReady(activeScene);
+        if (activeScene !== 'singleBiome') {
+            this.scheduleEnvironmentReady(activeScene);
+        }
 
         this.clock = new THREE.Clock();
 
@@ -264,6 +288,9 @@ export class Game {
     }
 
     private onMouseDown(e: MouseEvent) {
+        if (this.cameraManager.isFirstPerson && document.pointerLockElement !== this.renderManager.renderer.domElement) {
+            this.renderManager.renderer.domElement.requestPointerLock();
+        }
         if (this.sceneManager.activeScene === 'combat') {
             this.combatManager.handleMouseDown(e, this.sceneManager.combatEnvironment);
         }
@@ -299,6 +326,36 @@ export class Game {
     }
 
     private handleTownEntry(input: PlayerInput): boolean {
+        if (this.sceneManager.activeScene === 'land') {
+            if (!this.onEnterTown2 || !this.sceneManager.landEnvironment) {
+                this.enterTownTriggered = false;
+                return false;
+            }
+
+            const landEntry = this.sceneManager.landEnvironment.getTown2EntryZone?.();
+            if (!landEntry) {
+                this.enterTownTriggered = false;
+                return false;
+            }
+
+            const dx = this.player.mesh.position.x - landEntry.position.x;
+            const dz = this.player.mesh.position.z - landEntry.position.z;
+            const inRange = (dx * dx + dz * dz) <= (landEntry.radius * landEntry.radius);
+
+            if (!inRange) {
+                this.enterTownTriggered = false;
+                return false;
+            }
+
+            this.onInteractionUpdate?.('Press E to Enter Town2', null);
+            if (input.interact && !this.enterTownTriggered) {
+                this.enterTownTriggered = true;
+                this.onEnterTown2();
+            }
+
+            return true;
+        }
+
         if (this.sceneManager.activeScene !== 'singleBiome' || !this.onEnterTown) {
             this.enterTownTriggered = false;
             return false;
@@ -367,44 +424,76 @@ export class Game {
         if (sceneName === 'town') {
             this.setupTownScene();
         }
+        if (sceneName === 'town2') {
+            this.setupTown2Scene();
+        }
 
         if (!isInit && sceneName !== 'singleBiome') {
             this.scheduleEnvironmentReady(sceneName);
         }
     }
 
+    private isBuildTokenValid(buildToken: number, sceneName: SceneType): boolean {
+        return buildToken === this.initialEnvironmentBuildToken && this.sceneManager.activeScene === sceneName;
+    }
+
+    private async waitForFrames(frameCount: number, buildToken: number, sceneName: SceneType): Promise<boolean> {
+        for (let i = 0; i < frameCount; i += 1) {
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            if (!this.isBuildTokenValid(buildToken, sceneName)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private async finalizeEnvironmentReady(sceneName: SceneType, buildToken: number): Promise<void> {
+        const warmupComplete = await this.waitForFrames(2, buildToken, sceneName);
+        if (!warmupComplete) return;
+
+        // Pre-warm a render while loading overlay is active to reduce first-frame pop-in.
+        this.renderManager.render();
+
+        const finalFrameComplete = await this.waitForFrames(1, buildToken, sceneName);
+        if (!finalFrameComplete) return;
+
+        this.onEnvironmentReady?.();
+    }
+
     private scheduleEnvironmentReady(sceneName: SceneType) {
         const buildToken = ++this.initialEnvironmentBuildToken;
 
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                if (buildToken !== this.initialEnvironmentBuildToken) return;
-                if (this.sceneManager.activeScene !== sceneName) return;
+        void (async () => {
+            const mountFramesComplete = await this.waitForFrames(2, buildToken, sceneName);
+            if (!mountFramesComplete) return;
 
-                if (sceneName !== 'dev') {
-                    this.onEnvironmentReady?.();
-                    return;
-                }
-
+            if (sceneName === 'dev') {
                 const environment = this.sceneManager.environment;
-                if (!environment) {
-                    this.onEnvironmentReady?.();
-                    return;
-                }
+                if (environment) {
+                    try {
+                        await environment.buildAsync();
+                    } catch (error) {
+                        console.error('[Game] Failed to build dev environment during loading:', error);
+                    }
 
-                void environment.buildAsync().then(() => {
-                    if (buildToken !== this.initialEnvironmentBuildToken) return;
-                    if (this.sceneManager.activeScene !== sceneName) return;
-                    this.onEnvironmentReady?.();
-                });
-            });
-        });
+                    if (!this.isBuildTokenValid(buildToken, sceneName)) return;
+                }
+            }
+
+            await this.finalizeEnvironmentReady(sceneName, buildToken);
+        })();
     }
 
     private setupTownScene() {
         const townEnv = this.sceneManager.townEnvironment;
         if (!townEnv) return;
         this.entityManager.initTownEntities(townEnv, this.config);
+    }
+
+    private setupTown2Scene() {
+        const town2Env = this.sceneManager.town2Environment;
+        if (!town2Env) return;
+        this.entityManager.initTown2Entities(town2Env, this.config);
     }
 
     spawnAnimal(type: string, count: number) {
@@ -630,24 +719,57 @@ export class Game {
         } else if (this.player.canTalk) {
             const target = this.player.talkingTarget;
             const targetName = target?.constructor.name;
+            const customLabel = target?.group?.userData?.interactionLabel;
             
-            const label = (targetName === 'Shopkeeper' || target instanceof Shopkeeper)
+            const label = customLabel ?? ((targetName === 'Shopkeeper' || target instanceof Shopkeeper)
                 ? 'Press E to Chat'
                 : (targetName === 'Blacksmith' || target instanceof Blacksmith)
                     ? 'Press E to Trade'
-                    : 'Press E to Talk';
+                    : 'Press E to Talk');
             
             this.onInteractionUpdate?.(label, null);
             if (input.interact) { 
-                this.player.isTalking = true; 
-                if (targetName === 'LowLevelCityGuard' || target instanceof LowLevelCityGuard) { 
+                const customResponse = this.onNpcInteraction?.({
+                    scene: this.sceneManager.activeScene,
+                    target
+                });
+                const interactionMode = customResponse?.mode ?? target?.group?.userData?.interactionMode;
+                const dialogue = customResponse?.dialogue ?? target?.group?.userData?.dialogue;
+                const suppressDefault = !!customResponse?.suppressDefault;
+
+                if ((targetName === 'LowLevelCityGuard' || target instanceof LowLevelCityGuard) && !suppressDefault) { 
                     target.isLeftHandWaving = true; 
                     target.leftHandWaveTimer = 0; 
+                }
+
+                if (interactionMode === 'trade') {
+                    this.player.isTalking = false;
+                    this.onTradeTrigger?.();
+                } else if (interactionMode === 'shop') {
+                    this.player.isTalking = false;
+                    this.onShopkeeperTrigger?.();
+                } else if (interactionMode === 'forge') {
+                    this.player.isTalking = false;
+                    this.onForgeTrigger?.();
+                } else if (dialogue) {
+                    this.player.isTalking = true;
+                    this.onDialogueTrigger?.(dialogue);
+                } else if (!suppressDefault && (targetName === 'LowLevelCityGuard' || target instanceof LowLevelCityGuard)) {
+                    this.player.isTalking = true;
                     this.onDialogueTrigger?.("Greetings, traveler. Keep your weapons sheathed within city limits and we'll have no trouble. The roads are dangerous these days, stay vigilant."); 
                 } 
-                else if (targetName === 'Blacksmith' || target instanceof Blacksmith) this.onTradeTrigger?.();
-                else if (targetName === 'Shopkeeper' || target instanceof Shopkeeper) this.onShopkeeperTrigger?.();
-                else this.onDialogueTrigger?.("Greetings, traveler.");
+                else if (!suppressDefault && (targetName === 'Blacksmith' || target instanceof Blacksmith)) {
+                    this.player.isTalking = false;
+                    this.onTradeTrigger?.();
+                }
+                else if (!suppressDefault && (targetName === 'Shopkeeper' || target instanceof Shopkeeper)) {
+                    this.player.isTalking = false;
+                    this.onShopkeeperTrigger?.();
+                }
+                else {
+                    this.player.isTalking = true;
+                    this.onDialogueTrigger?.("Greetings, traveler.");
+                }
             }
         } else if (this.player.canSkin) this.onInteractionUpdate?.('Press F to Skin', null);
         else {

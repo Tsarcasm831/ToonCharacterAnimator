@@ -195,6 +195,21 @@ export abstract class HumanoidEntity extends BaseEntity {
         this.targetPosition.y = groundHeight;
     }
 
+    protected syncVisualTargets() {
+        this.targetPosition.copy(this.position);
+        this.targetRotationY = this.rotationY;
+    }
+
+    protected captureActualSpeed(dt: number) {
+        if (dt <= 0) return 0;
+        const horizontalDistance = Math.hypot(
+            this.position.x - this.lastFramePos.x,
+            this.position.z - this.lastFramePos.z
+        );
+        this.lastFramePos.copy(this.position);
+        return horizontalDistance / dt;
+    }
+
     protected updateModel(dt: number) {
         // 1. Interpolate position and rotation for smoothness
         const lerpFactor = Math.min(dt * this.interpolationSpeed, 1.0);
@@ -248,5 +263,9 @@ export abstract class HumanoidEntity extends BaseEntity {
         }
         
         this.model.update(dt, moveVelocity);
+
+        if (!this.externalControl) {
+            this.lastFramePos.copy(this.position);
+        }
     }
 }

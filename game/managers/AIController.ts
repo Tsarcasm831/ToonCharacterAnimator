@@ -12,8 +12,6 @@ export class AIController {
     }
 
     public onTurnStart(unit: CombatUnit, environment: CombatEnvironment) {
-        if (unit.isFriendly) return; // AI only controls enemies
-
         console.log(`[AI] Starting turn for ${unit.entity.constructor.name}`);
 
         // Simulate thinking time

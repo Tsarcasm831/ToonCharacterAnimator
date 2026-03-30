@@ -1,0 +1,612 @@
+#main-menu-screen {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: url('../assets/images/ui/menu_background.png');
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: 'Luckiest Guy', cursive;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+}
+
+.main-content-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px;
+    width: 100%;
+    margin-top: -20px; /* Pull content up slightly */
+}
+
+#main-menu-screen > * {
+    position: relative;
+    z-index: 2;
+}
+
+.main-menu-top-bar {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.profile-area {
+    display: flex;
+    align-items: center;
+    background: rgba(0,0,0,0.4);
+    padding: 5px 15px 5px 5px;
+    border-radius: 50px;
+    border: 2px solid #ffc107;
+}
+
+.top-right-cluster {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.profile-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 3px solid white;
+    margin-right: 10px;
+    background-color: #8338ec;
+}
+
+.player-name {
+    font-size: 1.5em;
+    color: white;
+}
+
+.player-level {
+    font-size: 0.9em;
+    color: #ffc107;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.level-progress-bar {
+    width: 60px;
+    height: 8px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.level-progress {
+    width: 60%;
+    height: 100%;
+    background: #ffc107;
+    border-radius: 4px;
+}
+
+.currency-display {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: rgba(0,0,0,0.4);
+    padding: 5px 10px;
+    border-radius: 50px;
+    border: 2px solid #ffc107;
+}
+
+.currency-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.3em;
+}
+
+.currency-item img {
+    height: 35px;
+}
+
+.shop-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.shop-button:hover {
+    transform: scale(1.1);
+}
+
+.shop-button img {
+    height: 40px;
+}
+
+.settings-button-small {
+    background: rgba(0,0,0,0.4);
+    border: 2px solid #ffc107;
+    border-radius: 10px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.settings-button-small:hover {
+    transform: scale(1.1);
+    border-color: white;
+}
+
+#settings-button-main-menu img {
+    height: 30px;
+    width: 30px;
+}
+
+.reward-banner {
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.2s;
+    animation: glow-pulse 2s infinite ease-in-out;
+    display: none; /* Hide by default */
+    align-self: flex-end; /* Align with other items in the cluster */
+    margin-top: 10px;
+}
+
+.reward-banner.visible {
+    display: block;
+}
+
+.reward-banner:hover {
+    transform: scale(1.05);
+}
+
+.reward-scroll-img {
+    height: 80px;
+    filter: drop-shadow(0 0 10px #ffda77);
+}
+
+.reward-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.8em;
+    color: #5d4037;
+    text-shadow: none;
+}
+
+.arena-progress {
+    display: flex;
+    align-items: center;
+    background: rgba(40,20,0,0.5);
+    padding: 10px 20px;
+    border-radius: 15px;
+    border: 2px solid #e67e22;
+    box-shadow: 0 0 15px rgba(230, 126, 34, 0.5);
+    cursor: help;
+}
+
+.arena-badge-img {
+    height: 80px;
+    margin-right: 20px;
+}
+
+.arena-info h3 {
+    margin: 0 0 10px 0;
+    font-size: 1.6em;
+    color: white;
+}
+
+.arena-progress-bar {
+    width: 250px;
+    height: 25px;
+    background-color: #4a2511;
+    border-radius: 20px;
+    border: 2px solid #e67e22;
+    position: relative;
+    padding: 2px;
+}
+
+.arena-progress-fill {
+    width: 45%;
+    height: 100%;
+    background: linear-gradient(90deg, #f1c40f, #f39c12);
+    border-radius: 20px;
+    box-shadow: inset 0 0 5px rgba(255,255,255,0.5);
+}
+
+.arena-trophy-count {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    color: white;
+    font-size: 1.1em;
+}
+.arena-trophy-count img { 
+    height: 20px; 
+    margin-right: 5px; 
+    filter: drop-shadow(1px 1px 1px black); 
+}
+
+.deck-display {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.deck-card {
+    width: 80px;
+    height: 100px;
+    background-color: rgba(100, 80, 150, 0.5);
+    border: 3px solid #8e44ad;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transition: all 0.3s ease;
+    position: relative;
+    cursor: pointer;
+}
+.deck-card:hover {
+    transform: translateY(-10px);
+}
+.deck-card img {
+    width: 90%;
+    height: 90%;
+    object-fit: contain;
+    animation: bounce 3s infinite ease-in-out;
+}
+.deck-card:nth-child(2) img { 
+    animation-delay: 0.2s; 
+}
+.deck-card:nth-child(3) img { 
+    animation-delay: 0s; 
+}
+.deck-card:nth-child(4) img { 
+    animation-delay: 0.4s; 
+}
+.deck-card:nth-child(5) img { 
+    animation-delay: 0.1s; 
+}
+
+
+.deck-tabs {
+    display: flex;
+    gap: 5px;
+    background: rgba(0,0,0,0.4);
+    padding: 5px;
+    border-radius: 20px;
+}
+.deck-tab-button {
+    background: transparent;
+    border: none;
+    color: #ccc;
+    font-family: 'Luckiest Guy', cursive;
+    font-size: 1.1em;
+    padding: 8px 20px;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.deck-tab-button.active {
+    background-color: #8e44ad;
+    color: white;
+}
+
+.deck-tab-button:disabled {
+    color: #888;
+    cursor: not-allowed;
+}
+
+.deck-tab-button:disabled:hover {
+    background: transparent;
+    transform: none;
+}
+
+.deck-tab-button:disabled::after {
+    content: '🔒';
+    font-size: 0.8em;
+    margin-left: 8px;
+    filter: grayscale(1);
+    display: inline-block;
+}
+
+.battle-hub {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    background: rgba(0,0,0,0.3);
+    padding: 20px 30px;
+    border-radius: 20px;
+    border: 2px solid rgba(142, 68, 173, 0.5);
+    box-shadow: 0 0 20px rgba(142, 68, 173, 0.3);
+}
+
+.battle-buttons {
+    display: flex;
+    gap: 30px;
+}
+.battle-button {
+    width: 200px;
+    height: 80px;
+    border-radius: 20px;
+    font-size: 2.5em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    cursor: pointer;
+    border-style: solid;
+    border-width: 4px;
+    transition: all 0.2s ease;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.4);
+}
+.battle-button:hover {
+    transform: scale(1.05);
+}
+.battle-button img {
+    height: 40px;
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5));
+}
+.pvp-button {
+    background: linear-gradient(180deg, #e74c3c, #c0392b);
+    border-color: #f1c40f;
+    color: white;
+}
+.coop-button {
+    background: linear-gradient(180deg, #3498db, #2980b9);
+    border-color: #ecf0f1;
+    color: white;
+}
+.story-button {
+    background: linear-gradient(180deg, #2ecc71, #27ae60);
+    border-color: #f1c40f;
+    color: white;
+    width: 300px;
+}
+
+
+.main-menu-bottom-nav {
+    width: 100%;
+    max-width: 600px;
+    background: rgba(0,0,0,0.6);
+    padding: 10px;
+    border-radius: 30px;
+    border: 2px solid #8e44ad;
+    display: flex;
+    justify-content: space-around;
+}
+
+.nav-button {
+    background: none;
+    border: none;
+    color: #aaa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.8em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.nav-button:hover {
+    color: white;
+}
+.nav-button.active {
+    color: #ffc107;
+}
+
+.nav-button img {
+    height: 35px;
+    object-fit: contain;
+    filter: grayscale(1);
+    transition: all 0.2s ease;
+}
+.nav-button:hover img, .nav-button.active img {
+    filter: grayscale(0);
+    transform: scale(1.1);
+}
+
+#glitches-nav-button img {
+    width: 35px;
+}
+
+.coming-soon-tag {
+    position: absolute;
+    top: -5px;
+    right: -10px;
+    background-color: #e74c3c;
+    color: white;
+    font-size: 0.7em;
+    padding: 2px 4px;
+    border-radius: 5px;
+    transform: rotate(15deg);
+}
+
+@keyframes glow-pulse {
+    0% { 
+        filter: drop-shadow(0 0 5px #ffda77); 
+    }
+    50% { 
+        filter: drop-shadow(0 0 15px #ffda77); 
+    }
+    100% { 
+        filter: drop-shadow(0 0 5px #ffda77); 
+    }
+}
+
+@keyframes bounce {
+    0%, 100% { 
+        transform: translateY(0); 
+    }
+    50% { 
+        transform: translateY(-5px); 
+    }
+}
+
+/* --- Mobile Responsive Design --- */
+@media (max-width: 768px) {
+    #main-menu-screen {
+        padding: 10px;
+        gap: 10px; /* Add gap for vertical spacing */
+        justify-content: flex-start; /* Better distribution */
+        overflow-y: auto;
+        padding-bottom: 80px; /* Space for fixed bottom nav */
+    }
+
+    .main-content-area {
+        gap: 15px;
+        margin-top: 0;
+    }
+
+    /* Top Bar */
+    .main-menu-top-bar {
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .profile-area {
+        order: 1; /* Show profile below currency */
+    }
+
+    .top-right-cluster {
+        order: 0;
+        align-items: center;
+        width: 100%;
+    }
+
+    .currency-display {
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 8px;
+        gap: 10px;
+        border-radius: 15px;
+    }
+
+    .currency-item {
+        font-size: 1.1em;
+    }
+
+    .currency-item img {
+        height: 28px;
+    }
+
+    .settings-button-small, .reward-banner {
+        align-self: center; /* Center these items */
+    }
+    
+    .reward-banner {
+        transform: scale(0.9);
+    }
+    
+    .reward-banner:hover {
+        transform: scale(0.95);
+    }
+
+    /* Arena Progress */
+    .arena-progress {
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px;
+        text-align: center;
+        transform: scale(0.9);
+    }
+
+    .arena-badge-img {
+        margin-right: 0;
+        height: 60px;
+    }
+
+    .arena-info h3 {
+        font-size: 1.3em;
+    }
+
+    .arena-progress-bar {
+        width: 200px;
+        height: 22px;
+    }
+
+    .battle-hub {
+        padding: 15px;
+        gap: 15px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    /* Deck Display */
+    .deck-display {
+        gap: 8px;
+        transform: scale(0.95);
+    }
+    
+    .deck-card {
+        width: 60px;
+        height: 80px;
+    }
+
+    /* Battle Buttons */
+    .battle-buttons {
+        flex-direction: column;
+        gap: 15px;
+        width: 100%;
+        max-width: 280px;
+    }
+
+    .battle-button {
+        width: 100%;
+        font-size: 2em;
+        height: 70px;
+    }
+    
+    .story-button {
+        width: 100%;
+    }
+    
+    /* Bottom Nav */
+    .main-menu-bottom-nav {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        max-width: none;
+        padding: 5px;
+        gap: 5px;
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.3);
+        background: rgba(0,0,0,0.8);
+        backdrop-filter: blur(5px);
+    }
+    
+    .nav-button {
+        font-size: 0.7em;
+        gap: 3px;
+    }
+    
+    .nav-button img {
+        height: 28px;
+    }
+
+    #glitches-nav-button img {
+        width: 28px;
+    }
+}

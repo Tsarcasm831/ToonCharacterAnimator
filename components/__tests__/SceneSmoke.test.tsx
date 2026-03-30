@@ -13,6 +13,16 @@ import { DEFAULT_CONFIG } from '../../types';
 
 vi.mock('../../hooks/useGame', () => ({
   useGame: vi.fn(() => ({
+    gameRef: {
+      current: {
+        combatManager: {
+          selectedUnit: undefined
+        }
+      }
+    },
+    endTurn: vi.fn(),
+    waitTurn: vi.fn(),
+    defend: vi.fn(),
     current: {
       combatManager: {
         selectedUnit: undefined
