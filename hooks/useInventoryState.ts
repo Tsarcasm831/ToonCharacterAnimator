@@ -27,7 +27,11 @@ const getInitialInventory = (): (InventoryItem | null)[] => {
 
 export function useInventoryState() {
   const [inventory, setInventory] = useState<(InventoryItem | null)[]>(getInitialInventory());
-  const [bench, setBench] = useState<(InventoryItem | null)[]>(Array(6).fill(null)); // Bench for units/abilities
+  const [bench, setBench] = useState<(InventoryItem | null)[]>(() => {
+    const initialBench = Array(13).fill(null) as (InventoryItem | null)[];
+    initialBench[0] = { name: 'Ranger', count: 1 }; // Slot 1
+    return initialBench;
+  }); // Bench for units/abilities
   
   // Load slot layouts from localStorage
   const [slotLayouts, setSlotLayouts] = useState<Record<string, any>>(() => {

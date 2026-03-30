@@ -236,20 +236,17 @@ export class SceneManager {
         } else if (sceneName === 'combat') {
             this.player.hide(); // Hide the player model in combat
             this.player.mesh.position.set(0, 0, 0);
-
-            const reservedCells: any[] = [];
-
-            if (this.combatEnvironment) {
-                // Spawn custom encounter: 1 Ranger on green side, 1 Bandit on red side
-                this.entityManager.spawnCombatEncounter('ranger', 1, this.combatEnvironment, reservedCells);
-                this.entityManager.spawnCombatEncounter('bandit', 1, this.combatEnvironment, [...reservedCells, ...this.entityManager.rangers.map(a => this.combatEnvironment!.getGridPosition(a.position)).filter((p): p is {r: number, c: number} => p !== null)]);
-            }
             
             this.player.mesh.rotation.y = Math.PI; 
-            this.renderManager.controls.target.set(0, 0, 0);
-            this.renderManager.camera.position.set(0, 15, 10);
-            this.renderManager.camera.lookAt(0,0,0);
-            this.renderManager.controls.enablePan = false; 
+            this.renderManager.controls.target.set(-0.16410461568110918, 0, 5.734082475602378);
+            this.renderManager.camera.position.set(-0.3337032581374143, 12.039609406014813, 28.56928570429027);
+            this.renderManager.camera.lookAt(
+                -0.16410461568110918,
+                0,
+                5.734082475602378
+            );
+            this.renderManager.controls.update();
+            this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'mp') {
             this.player.show(); // Ensure player is visible
             this.player.mesh.position.set(0, 0, 0);

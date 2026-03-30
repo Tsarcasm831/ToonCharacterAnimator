@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import * as THREE from 'three';
 import { Game } from '../game/core/Game';
 import { PlayerConfig, PlayerInput, InventoryItem } from '../types';
 import { PlayerBench } from './ui/hud/PlayerBench';
@@ -92,9 +91,6 @@ const CombatScene: React.FC<CombatSceneProps> = ({
     const [showCameraPanel, setShowCameraPanel] = useState(false);
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [selectedShopUnit, setSelectedShopUnit] = useState<ShopUnit | null>(null);
-    const [draggedBenchItem, setDraggedBenchItem] = useState<{ index: number; item: InventoryItem } | null>(null);
-    const hoveredDropCellRef = useRef<{ r: number; c: number } | null>(null);
-    const previewMarkerRef = useRef<THREE.Mesh | null>(null);
 
     const safeManualInput = useMemo<Partial<PlayerInput>>(() => {
         return {
@@ -240,124 +236,6 @@ const CombatScene: React.FC<CombatSceneProps> = ({
 
     const selectedBenchItem = bench[selectedBenchSlot];
 
-    const handleBenchItemDragStart = (index: number, item: InventoryItem) => {
-        setDraggedBenchItem({ index, item });
-    };
-
-    const handleBenchItemDragEnd = () => {
-        setDraggedBenchItem(null);
-        hoveredDropCellRef.current = null;
-        if (previewMarkerRef.current) {
-            previewMarkerRef.current.visible = false;
-        }
-    };
-
-    const updateDragPreviewFromScreen = (screenX: number, screenY: number) => {
-        const game = gameRef.current;
-        const arena = game?.sceneManager?.combatEnvironment;
-        const camera = game?.renderManager?.camera;
-        const renderer = game?.renderManager?.renderer;
-        if (!game || !arena || !camera || !renderer) return;
-
-        const rect = renderer.domElement.getBoundingClientRect();
-        const mouse = new THREE.Vector2(
-            ((screenX - rect.left) / rect.width) * 2 - 1,
-            -((screenY - rect.top) / rect.height) * 2 + 1
-        );
-
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouse, camera);
-        const hits = raycaster.intersectObjects(arena.group.children, true);
-        const hexHit = hits.find((hit) => {
-            const object = hit.object;
-            return object.userData?.isHex || object.parent?.userData?.isHex;
-        });
-
-        if (!hexHit) {
-            hoveredDropCellRef.current = null;
-            if (previewMarkerRef.current) previewMarkerRef.current.visible = false;
-            return;
-        }
-
-        const gridPos = arena.getGridPosition(hexHit.point);
-        if (!gridPos) {
-            hoveredDropCellRef.current = null;
-            if (previewMarkerRef.current) previewMarkerRef.current.visible = false;
-            return;
-        }
-
-        hoveredDropCellRef.current = gridPos;
-        const snapped = arena.getWorldPosition(gridPos.r, gridPos.c);
-        const isOccupied = arena.isCellOccupied(gridPos.r, gridPos.c);
-
-        if (previewMarkerRef.current) {
-            previewMarkerRef.current.visible = true;
-            previewMarkerRef.current.position.set(snapped.x, 0.08, snapped.z);
-            const mat = previewMarkerRef.current.material as THREE.MeshBasicMaterial;
-            mat.color.setHex(isOccupied ? 0xdc2626 : 0x06b6d4);
-            mat.opacity = isOccupied ? 0.45 : 0.7;
-        }
-    };
-
-    const handleBoardDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-        if (!draggedBenchItem) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        updateDragPreviewFromScreen(e.clientX, e.clientY);
-    };
-
-    const handleBoardDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        if (!draggedBenchItem) return;
-        e.preventDefault();
-
-        const game = gameRef.current;
-        const cell = hoveredDropCellRef.current;
-        if (!game || !cell) {
-            setDraggedBenchItem(null);
-            return;
-        }
-
-        game.deployCombatBenchUnitAtCell(draggedBenchItem.item.name, cell.r, cell.c);
-        hoveredDropCellRef.current = null;
-        if (previewMarkerRef.current) previewMarkerRef.current.visible = false;
-        setDraggedBenchItem(null);
-    };
-
-    useEffect(() => {
-        const game = gameRef.current;
-        const arena = game?.sceneManager?.combatEnvironment;
-        if (!game || !arena) return;
-
-        if (!previewMarkerRef.current) {
-            const markerGeo = new THREE.RingGeometry(0.7, 1.05, 6);
-            const markerMat = new THREE.MeshBasicMaterial({
-                color: 0x06b6d4,
-                transparent: true,
-                opacity: 0.7,
-                side: THREE.DoubleSide,
-            });
-            const marker = new THREE.Mesh(markerGeo, markerMat);
-            marker.rotation.x = -Math.PI / 2;
-            marker.visible = false;
-            arena.group.add(marker);
-            previewMarkerRef.current = marker;
-        }
-
-        if (!draggedBenchItem && previewMarkerRef.current) {
-            previewMarkerRef.current.visible = false;
-        }
-
-        return () => {
-            if (previewMarkerRef.current) {
-                const marker = previewMarkerRef.current;
-                marker.parent?.remove(marker);
-                marker.geometry.dispose();
-                (marker.material as THREE.Material).dispose();
-                previewMarkerRef.current = null;
-            }
-        };
-    }, [draggedBenchItem, gameRef]);
-
     return (
         <div className="relative h-full w-full overflow-hidden bg-[radial-gradient(circle_at_top,#16324a_0%,#08111d_38%,#04070c_100%)] text-white">
             <div className="pointer-events-none absolute inset-0">
@@ -366,13 +244,7 @@ const CombatScene: React.FC<CombatSceneProps> = ({
                 <div className="absolute inset-y-0 right-0 w-72 bg-gradient-to-l from-slate-950/70 to-transparent" />
             </div>
 
-            <div
-                ref={containerRef}
-                className="absolute inset-0"
-                onContextMenu={(e) => e.preventDefault()}
-                onDragOver={handleBoardDragOver}
-                onDrop={handleBoardDrop}
-            />
+            <div ref={containerRef} className="absolute inset-0" onContextMenu={(e) => e.preventDefault()} />
 
             <div className="pointer-events-none absolute inset-0 z-20 flex flex-col">
                 <div className="pointer-events-auto px-4 pb-3 pt-4 sm:px-6">
@@ -553,13 +425,7 @@ const CombatScene: React.FC<CombatSceneProps> = ({
                             </div>
                         </div>
                         <div className="overflow-x-auto pb-1">
-                            <PlayerBench
-                                inventory={bench}
-                                selectedSlot={selectedBenchSlot}
-                                onSelectSlot={setSelectedBenchSlot}
-                                onItemDragStart={handleBenchItemDragStart}
-                                onItemDragEnd={handleBenchItemDragEnd}
-                            />
+                            <PlayerBench inventory={bench} selectedSlot={selectedBenchSlot} onSelectSlot={setSelectedBenchSlot} />
                         </div>
                     </div>
                 </div>

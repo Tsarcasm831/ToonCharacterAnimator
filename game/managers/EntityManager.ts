@@ -548,6 +548,47 @@ export class EntityManager {
     private readonly tempSpawnOffset = new THREE.Vector3();
     private readonly tempSpawnPos = new THREE.Vector3();
 
+    public spawnCombatUnitAtCell(type: string, arena: CombatEnvironment | null, row: number, col: number, forceIdle: boolean = false): boolean {
+        if (!arena) return false;
+        if (row < 0 || row >= arena.GRID_ROWS || col < 0 || col >= arena.GRID_COLS) return false;
+        if (arena.isCellOccupied(row, col)) return false;
+
+        const snappedPos = arena.getWorldPosition(row, col);
+        const lower = type.toLowerCase();
+        let spawnedUnit: any = null;
+
+        if (lower === 'bandit') {
+            const bandit = new Bandit(this.scene, snappedPos);
+            bandit.rotationY = 0;
+            this.bandits.push(bandit);
+            spawnedUnit = bandit;
+        } else if (lower === 'cleric') {
+            const cleric = new Cleric(this.scene, snappedPos);
+            cleric.rotationY = Math.PI;
+            this.clerics.push(cleric);
+            spawnedUnit = cleric;
+        } else if (lower === 'ranger') {
+            const ranger = new Ranger(this.scene, snappedPos, '#228b22');
+            ranger.rotationY = Math.PI;
+            this.rangers.push(ranger);
+            spawnedUnit = ranger;
+        } else if (lower === 'archer') {
+            const archer = new Archer(this.scene, snappedPos);
+            archer.rotationY = 0;
+            this.combatArchers.push(archer);
+            spawnedUnit = archer;
+        } else {
+            return false;
+        }
+
+        if (spawnedUnit) {
+            (spawnedUnit as any).__forceIdle = forceIdle;
+        }
+
+        arena.setCellOccupied(row, col, true);
+        return true;
+    }
+
     spawnCombatEncounter(type: string, count: number, arena: CombatEnvironment | null, reservedCells: { r: number; c: number }[] = []) {
         if (!arena) return;
         
@@ -580,27 +621,9 @@ export class EntityManager {
             } while (occupied.has(key) && attempts < 50);
             
             occupied.add(key);
-            arena.setCellOccupied(row, col, true);
-            const snappedPos = arena.getWorldPosition(row, col);
-            console.log(`[EntityManager] Spawning ${type} at grid {${row}, ${col}} -> world {${snappedPos.x}, ${snappedPos.z}}`);
-
-            if (type.toLowerCase() === 'bandit') {
-                const bandit = new Bandit(this.scene, snappedPos);
-                bandit.rotationY = 0;
-                this.bandits.push(bandit);
-            } else if (type.toLowerCase() === 'cleric') {
-                const cleric = new Cleric(this.scene, snappedPos);
-                cleric.rotationY = Math.PI; // Face enemy side
-                this.clerics.push(cleric);
-            } else if (type.toLowerCase() === 'ranger') {
-                const ranger = new Ranger(this.scene, snappedPos, '#228b22');
-                ranger.rotationY = Math.PI; // Face enemy side
-                this.rangers.push(ranger);
-            } else if (type.toLowerCase() === 'archer') {
-                const archer = new Archer(this.scene, snappedPos);
-                archer.rotationY = 0; // Face player side
-                this.combatArchers.push(archer);
-            } else {
+            const spawned = this.spawnCombatUnitAtCell(type, arena, row, col);
+            if (!spawned) {
+                const snappedPos = arena.getWorldPosition(row, col);
                 this.spawnAnimalGroup(type, 1, null, snappedPos);
             }
         }
@@ -757,6 +780,19 @@ export class EntityManager {
 
     private updateEntity(entity: any, delta: number, config: PlayerConfig, animate: boolean, environment: any | null, enemyTargets: { position: THREE.Vector3, isDead?: boolean }[], playerTargets: { position: THREE.Vector3, isDead?: boolean }[], isCombatActive: boolean, onAttackHit?: (type: string, count: number) => void) {
         const skipAnimation = !animate;
+
+        if ((entity as any).__forceIdle) {
+            // Bench-deployed unit preview: keep fixed in idle pose with no behavior/animation state updates.
+            const pos = (entity as any).position || (entity as any).mesh?.position || (entity as any).model?.group?.position;
+            if (entity.group && pos) entity.group.position.copy(pos);
+            if (entity.model?.group && pos) {
+                entity.model.group.position.copy(pos);
+                if (typeof entity.rotationY === 'number') {
+                    entity.model.group.rotation.y = entity.rotationY;
+                }
+            }
+            return;
+        }
 
         if (entity === this.npc && config.showNPC) {
             this.tempEyePos.copy(this.tempPlayerPos).add(this.eyeOffset);

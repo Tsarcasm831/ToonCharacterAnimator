@@ -414,25 +414,8 @@ export class Game {
             if (this.sceneManager.combatEnvironment) {
                 this.sceneManager.combatEnvironment.setCombatStarted(true);
             }
-
-            const sceneUnits = this.entityManager.getEntitiesForScene('combat');
-            if (sceneUnits.length === 0) {
-                console.warn('[Game] Combat activation requested before combat units were ready. Skipping initialization this frame.');
-                return;
-            }
-
-            const friendlyTypes = new Set(['Cleric', 'Knight', 'Paladin', 'Monk', 'Ranger', 'Sentinel', 'Archer']);
-            const friendlyUnits = sceneUnits.filter((unit) => friendlyTypes.has(unit?.constructor?.name || ''));
-            const enemyUnits = sceneUnits.filter((unit) => !friendlyUnits.includes(unit));
-
-            if (friendlyUnits.length === 0 || enemyUnits.length === 0) {
-                console.warn('[Game] Combat activation skipped because one side of the encounter is missing.');
-                this.sceneManager.combatEnvironment?.setCombatStarted(false);
-                return;
-            }
-
-            this.combatSystem.initializeCombat(null, friendlyUnits, enemyUnits);
-            this.combatInitialized = true;
+            // CombatScene is currently board/UI only. No encounter units are initialized.
+            this.combatInitialized = false;
         } else if (!active) {
             if (this.sceneManager.combatEnvironment) {
                 this.sceneManager.combatEnvironment.setCombatStarted(false);
@@ -448,6 +431,24 @@ export class Game {
         if (this.combatSystem && this.combatInitialized) {
             this.combatSystem.endTurn();
         }
+    }
+
+    public deployCombatBenchUnit(unitType: string, worldPoint: THREE.Vector3): boolean {
+        if (this.sceneManager.activeScene !== 'combat') return false;
+        const arena = this.sceneManager.combatEnvironment;
+        if (!arena) return false;
+
+        const gridPos = arena.getGridPosition(worldPoint);
+        if (!gridPos) return false;
+
+        return this.entityManager.spawnCombatUnitAtCell(unitType, arena, gridPos.r, gridPos.c, true);
+    }
+
+    public deployCombatBenchUnitAtCell(unitType: string, row: number, col: number): boolean {
+        if (this.sceneManager.activeScene !== 'combat') return false;
+        const arena = this.sceneManager.combatEnvironment;
+        if (!arena) return false;
+        return this.entityManager.spawnCombatUnitAtCell(unitType, arena, row, col, true);
     }
 
     public switchScene(sceneName: SceneType, isInit: boolean = false) {
