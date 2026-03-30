@@ -1,26 +1,32 @@
-
 import React from 'react';
 import { MenuBackground } from './MenuBackground';
 import { Units } from '../pages/Units';
 import { Map } from '../pages/Map';
 import { X } from 'lucide-react';
+import type { ActiveScene } from '../../../hooks/useGameState';
 
 interface MainMenuProps {
-    onStart: (startInCombat: boolean, startInLand: boolean, startInDev: boolean, startInTown: boolean, startInSingleBiome: boolean, startInTown2: boolean, startInTdGame: boolean) => void;
+    activeScene: ActiveScene;
+    onSceneChange: (scene: ActiveScene) => void;
+    onStart: (scene: ActiveScene) => void;
     onShowEnemies: () => void;
     onOpenStandaloneCC: () => void;
     isMobile?: boolean;
     showVideoBackground?: boolean;
 }
 
-export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, onOpenStandaloneCC, isMobile = false, showVideoBackground = false }) => {
-    const [startInCombat, setStartInCombat] = React.useState(false);
-    const [startInLand, setStartInLand] = React.useState(false);
-    const [startInDev, setStartInDev] = React.useState(false);
-    const [startInTown, setStartInTown] = React.useState(false);
-    const [startInSingleBiome, setStartInSingleBiome] = React.useState(false);
-    const [startInTown2, setStartInTown2] = React.useState(false);
-    const [startInTdGame, setStartInTdGame] = React.useState(false);
+const sceneOptions: Array<{ id: ActiveScene; label: string; activeClassName?: string }> = [
+    { id: 'dev', label: 'Dev Scene', activeClassName: 'bg-green-500 border-green-400' },
+    { id: 'combat', label: 'Combat Arena' },
+    { id: 'land', label: 'Land Scene' },
+    { id: 'town', label: 'Town Scene' },
+    { id: 'town2', label: 'Town 2 Scene' },
+    { id: 'tdgame', label: 'Top Down Game' },
+    { id: 'singleBiome', label: 'Single Biome' },
+    { id: 'roguelike', label: 'Roguelike Scene' }
+];
+
+export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, onStart, onShowEnemies, onOpenStandaloneCC, isMobile = false, showVideoBackground = false }) => {
     const [showOptions, setShowOptions] = React.useState(false);
     const [showUnits, setShowUnits] = React.useState(false);
     const [showMap, setShowMap] = React.useState(false);
@@ -90,7 +96,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, onOp
                         <div className="flex flex-col gap-6 items-center">
                             <button 
                                 type="button"
-                                onClick={() => onStart(startInCombat, startInLand, startInDev, startInTown, startInSingleBiome, startInTown2, startInTdGame)}
+                                onClick={() => onStart(activeScene)}
                                 className="px-16 py-5 bg-white text-black font-black text-xl uppercase tracking-widest rounded-full hover:bg-blue-500 hover:text-white transition-all shadow-[0_0_30px_rgba(255,255,255,0.3)] hover:shadow-[0_0_40px_rgba(59,130,246,0.6)] active:scale-95 transform hover:-translate-y-1"
                             >
                                 Enter World
@@ -114,179 +120,36 @@ export const MainMenu: React.FC<MainMenuProps> = ({ onStart, onShowEnemies, onOp
 
                             {showOptions && (
                                 <div className="flex flex-col gap-4 items-center animate-fade-in">
-                                    <button
-                                        type="button"
-                                        aria-pressed={startInDev}
-                                        className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
-                                        onClick={() => {
-                                            const next = !startInDev;
-                                            setStartInDev(next);
-                                        }}
-                                    >
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${startInDev ? 'bg-green-500 border-green-400' : 'border-white/20 group-hover:border-white/30'}`}>
-                                            {startInDev && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">Dev Scene</span>
-                                    </button>
+                                    {sceneOptions.map((sceneOption) => {
+                                        const isSelected = activeScene === sceneOption.id;
+                                        const selectedClasses = sceneOption.activeClassName ?? 'bg-blue-500 border-blue-400';
+
+                                        return (
+                                            <button
+                                                key={sceneOption.id}
+                                                type="button"
+                                                aria-pressed={isSelected}
+                                                className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
+                                                onClick={() => onSceneChange(sceneOption.id)}
+                                            >
+                                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? selectedClasses : 'border-white/20 group-hover:border-white/30'}`}>
+                                                    {isSelected && (
+                                                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    )}
+                                                </div>
+                                                <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">{sceneOption.label}</span>
+                                            </button>
+                                        );
+                                    })}
 
                                     <button
                                         type="button"
-                                        aria-pressed={startInCombat}
-                                        className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
-                                        onClick={() => {
-                                            const next = !startInCombat;
-                                            setStartInCombat(next);
-                                            if (next) {
-                                                setStartInLand(false);
-                                                setStartInTown(false);
-                                                setStartInTown2(false);
-                                                setStartInTdGame(false);
-                                            }
-                                        }}
+                                        onClick={onShowEnemies}
+                                        className="px-4 py-2 rounded-xl bg-red-600/15 border border-red-500/30 text-red-300 hover:bg-red-600/25 transition-all text-[10px] font-black uppercase tracking-widest"
                                     >
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${startInCombat ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/30'}`}>
-                                            {startInCombat && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">Combat Arena</span>
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        aria-pressed={startInLand}
-                                        className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
-                                        onClick={() => {
-                                            const next = !startInLand;
-                                            setStartInLand(next);
-                                            if (next) {
-                                                setStartInCombat(false);
-                                                setStartInTown(false);
-                                                setStartInTown2(false);
-                                                setStartInTdGame(false);
-                                            }
-                                        }}
-                                    >
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${startInLand ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/30'}`}>
-                                            {startInLand && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">Land Scene</span>
-                                    </button>
-
-                                    
-                                    <button
-                                        type="button"
-                                        aria-pressed={startInTown}
-                                        className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
-                                        onClick={() => {
-                                            const next = !startInTown;
-                                            setStartInTown(next);
-                                            if (next) {
-                                                setStartInCombat(false);
-                                                setStartInLand(false);
-                                                setStartInSingleBiome(false);
-                                                setStartInTown2(false);
-                                                setStartInTdGame(false);
-                                            }
-                                        }}
-                                    >
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${startInTown ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/30'}`}>
-                                            {startInTown && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">Town Scene</span>
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        aria-pressed={startInTown2}
-                                        className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
-                                        onClick={() => {
-                                            const next = !startInTown2;
-                                            setStartInTown2(next);
-                                            if (next) {
-                                                setStartInCombat(false);
-                                                setStartInLand(false);
-                                                setStartInTown(false);
-                                                setStartInSingleBiome(false);
-                                                setStartInTdGame(false);
-                                            }
-                                        }}
-                                    >
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${startInTown2 ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/30'}`}>
-                                            {startInTown2 && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">Town 2 Scene</span>
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        aria-pressed={startInTdGame}
-                                        className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
-                                        onClick={() => {
-                                            const next = !startInTdGame;
-                                            setStartInTdGame(next);
-                                            if (next) {
-                                                setStartInCombat(false);
-                                                setStartInLand(false);
-                                                setStartInTown(false);
-                                                setStartInSingleBiome(false);
-                                                setStartInTown2(false);
-                                            }
-                                        }}
-                                    >
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${startInTdGame ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/30'}`}>
-                                            {startInTdGame && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">Top Down Game</span>
-                                    </button>
-
-                                    <button
-                                        type="button"
-                                        aria-pressed={startInSingleBiome}
-                                        className="flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
-                                        onClick={() => {
-                                            const next = !startInSingleBiome;
-                                            setStartInSingleBiome(next);
-                                            if (next) {
-                                                setStartInCombat(false);
-                                                setStartInLand(false);
-                                                setStartInTown(false);
-                                                setStartInDev(false);
-                                                setStartInTown2(false);
-                                                setStartInTdGame(false);
-                                            }
-                                        }}
-                                    >
-                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${startInSingleBiome ? 'bg-blue-500 border-blue-400' : 'border-white/20 group-hover:border-white/30'}`}>
-                                            {startInSingleBiome && (
-                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            )}
-                                        </div>
-                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">Single Biome</span>
+                                        Show Enemies
                                     </button>
                                 </div>
                             )}

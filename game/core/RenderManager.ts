@@ -9,6 +9,7 @@ export class RenderManager {
     public controls: OrbitControls;
     private baseHemiLight: THREE.HemisphereLight;
     private baseDirLight: THREE.DirectionalLight;
+    private disposed: boolean = false;
     
     private container: HTMLElement;
 
@@ -77,6 +78,13 @@ export class RenderManager {
     }
 
     render() {
+        if (this.disposed) return;
+
+        const context = this.renderer.getContext();
+        if (context && typeof context.isContextLost === 'function' && context.isContextLost()) {
+            return;
+        }
+
         // OrbitControls can still mutate camera transforms while disabled if update()
         // is called, which breaks first-person camera orientation.
         if (this.controls.enabled) {
@@ -92,6 +100,9 @@ export class RenderManager {
     }
 
     dispose() {
+        if (this.disposed) return;
+        this.disposed = true;
+
         this.controls.dispose();
         
         this.scene.traverse((object) => {

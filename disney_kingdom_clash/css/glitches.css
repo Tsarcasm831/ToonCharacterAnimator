@@ -1,0 +1,173 @@
+/* Glitches Screen */
+#glitches-screen {
+    background-color: #1a1a2e;
+    background-image: 
+        radial-gradient(ellipse at top, rgba(144, 224, 239, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom, rgba(131, 56, 236, 0.1) 0%, transparent 50%);
+    backdrop-filter: blur(2px);
+    padding: 20px 0;
+}
+
+#glitches-screen h2 {
+    font-family: 'Luckiest Guy', cursive;
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    color: #a2f2ef;
+    text-shadow:
+        0 0 5px rgba(162, 242, 239, 0.8),
+        0 0 10px rgba(162, 242, 239, 0.6),
+        0 0 20px rgba(162, 242, 239, 0.4),
+        0 0 40px rgba(131, 56, 236, 0.5);
+    animation: glitch-title 5s infinite;
+    letter-spacing: 2px;
+}
+
+@keyframes glitch-title {
+    0%, 100% {
+        text-shadow: 0 0 5px #a2f2ef, 0 0 10px #a2f2ef, 0 0 20px #a2f2ef, 0 0 40px #8338ec;
+        transform: skew(0);
+    }
+    49.5% {
+        text-shadow: 0.05em 0.025em 0 #f00, -0.025em -0.05em 0 #0f0, 0 0.05em 0 #00f;
+    }
+    50% {
+        text-shadow: -0.05em -0.025em 0 #f00, 0.025em 0.05em 0 #0f0, 0 -0.05em 0 #00f;
+        transform: skew(-2deg);
+    }
+    50.5% {
+        text-shadow: 0.05em 0.025em 0 #f00, -0.025em -0.05em 0 #0f0, 0 0.05em 0 #00f;
+    }
+}
+
+#glitches-screen .back-button {
+    background-color: #ff9800;
+    margin-top: 20px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+#glitches-screen .back-button:hover {
+    background-color: #f57c00;
+}
+
+.glitches-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 30px;
+    padding: 20px;
+    overflow-y: auto;
+    width: 100%;
+    max-width: 1400px;
+    flex-grow: 1;
+}
+
+.glitch-card {
+    background: #1e1e3f;
+    border: 2px solid;
+    border-image-source: linear-gradient(to bottom right, #8338ec, #a2f2ef);
+    border-image-slice: 1;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+.glitch-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 1px, transparent 1px, transparent 4px),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.02) 1px, transparent 1px, transparent 4px);
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.glitch-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 0 25px rgba(162, 242, 239, 0.4), 0 0 15px rgba(131, 56, 236, 0.3);
+}
+
+.glitch-card-image-container {
+    width: 100%;
+    height: 200px;
+    background: 
+        radial-gradient(circle, rgba(0,0,0,0) 0%, #111 80%),
+        #0a0a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 15px;
+    box-sizing: border-box;
+    position: relative;
+    clip-path: polygon(0 0, 100% 0, 100% 90%, 0 100%);
+}
+
+.glitch-card-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 12px rgba(162, 242, 239, 0.7));
+}
+
+.glitch-card-info {
+    padding: 20px;
+    text-align: left;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Make the info block fill the remaining space */
+}
+
+.glitch-card-info h3 {
+    margin: 0 0 10px 0;
+    font-family: 'Luckiest Guy', cursive;
+    color: #ffc107;
+    font-size: 1.6rem;
+    letter-spacing: 1px;
+    text-shadow: 0 0 5px rgba(255, 193, 7, 0.4);
+}
+
+.glitch-card-info p.description {
+    margin: 0 0 15px 0;
+    color: #ccc;
+    font-size: 0.95em;
+    line-height: 1.5;
+    flex-grow: 1; /* Allow description to take up available space */
+    min-height: 60px; /* Ensure a minimum height for description */
+}
+
+.glitch-stats {
+    border-top: 1px solid rgba(131, 56, 236, 0.3);
+    padding-top: 15px;
+    margin-top: auto; /* Push stats to the bottom */
+    font-size: 0.9em;
+}
+
+.glitch-stats p {
+    margin: 5px 0;
+    color: #aaa;
+}
+
+.glitch-stats strong {
+    color: #a2f2ef;
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    #glitches-screen h2 {
+        font-size: 2.2em;
+    }
+
+    .glitches-grid {
+        grid-template-columns: 1fr; /* Stack cards vertically */
+        gap: 20px;
+        padding: 10px;
+    }
+}

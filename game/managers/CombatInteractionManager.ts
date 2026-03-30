@@ -3,7 +3,7 @@ import { EntityManager } from './EntityManager';
 import { RenderManager } from '../core/RenderManager';
 import { CombatEnvironment } from '../environment/CombatEnvironment';
 import { Player } from '../player/Player';
-import { EntityStats, TurnPhase } from '../../types';
+import { EntityStats } from '../../types';
 import { PlayerDebug } from '../player/PlayerDebug';
 import { CombatSystem } from './CombatSystem';
 
@@ -14,9 +14,6 @@ export class CombatInteractionManager {
     private combatSystem: CombatSystem | null = null;
     
     private raycaster = new THREE.Raycaster();
-    private dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    private dragOffset = new THREE.Vector3();
-    
     public selectedUnit: any | null = null;
     private draggingUnit: any | null = null;
     private draggingUnitStartPos: THREE.Vector3 | null = null;
@@ -253,32 +250,6 @@ export class CombatInteractionManager {
         if (clickedUnit) {
             console.log(`[CombatInteractionManager] Clicked unit: ${clickedUnit.constructor.name}`);
             
-            // If combat started, check if this is an attack
-            if (isCombatStarted && this.combatSystem) {
-                const activeUnit = this.combatSystem.getActiveUnit();
-                const targetUnit = this.combatSystem.getUnitByEntity(clickedUnit);
-                
-                // If we have an active unit and it's friendly (Player Turn)
-                if (activeUnit && activeUnit.isFriendly && this.combatSystem.turnManager.getPhase() === TurnPhase.PLAYER_TURN) {
-                    // If clicking enemy -> Attack
-                    if (targetUnit && !targetUnit.isFriendly) {
-                        const dist = this.getUnitPosition(activeUnit.entity)?.distanceTo(this.getUnitPosition(clickedUnit)!) || Infinity;
-                        if (dist <= activeUnit.stats.range) {
-                            // Check if unit can attack (hasn't acted yet)
-                            if (!activeUnit.stats.hasActedThisTurn) {
-                                // In HOMM4, units can attack after moving but it ends their turn
-                                this.combatSystem.executeAttack(activeUnit, targetUnit);
-                            } else {
-                                console.log("Unit has already attacked this turn");
-                            }
-                            return; // Action taken
-                        } else {
-                            console.log("Target out of range");
-                        }
-                    }
-                }
-            }
-
             // Select unit (default behavior)
             this.selectedUnit = clickedUnit;
             this.setUnitHighlight(clickedUnit, true);
@@ -286,47 +257,21 @@ export class CombatInteractionManager {
             const stats = clickedUnit === this.player ? this.player.status.getStats() : clickedUnit.stats;
             this.onUnitSelect?.(stats, clickedUnit);
 
+            if (isCombatStarted) {
+                return;
+            }
+
             // Dragging logic (Pre-Combat)
-            if (!isCombatStarted) {
+            if (!isCombatStarted && this.isFriendlyUnit(clickedUnit)) {
                 this.draggingUnit = clickedUnit;
                 this.isWaitingForClick = true;
                 this.mouseDownScreenPos.set(e.clientX, e.clientY);
                 
                 const unitPos = this.getUnitPosition(clickedUnit);
                 this.draggingUnitStartPos = unitPos ? unitPos.clone() : null;
-                
-                if (this.isFriendlyUnit(clickedUnit) && unitPos && this.raycaster.ray.intersectPlane(this.dragPlane, this.dragOffset)) {
-                    this.dragOffset.sub(unitPos);
-                }
             }
         } else if (clickedGround) {
-             // Clicked Ground
-             if (isCombatStarted && this.combatSystem) {
-                const activeUnit = this.combatSystem.getActiveUnit();
-                
-                // Move Action
-                if (activeUnit && activeUnit.isFriendly && this.combatSystem.turnManager.getPhase() === TurnPhase.PLAYER_TURN) {
-                    const activeUnitPos = this.getUnitPosition(activeUnit.entity);
-                    if (activeUnitPos) {
-                        // Check if unit can still move
-                        if (!activeUnit.stats.hasMovedThisTurn || (activeUnit.stats.currentMovement || 0) > 0) {
-                            const path = combatEnvironment.getPath(activeUnitPos, clickedGround);
-                            if (path.length > 0) {
-                                // Validate movement cost
-                                if (this.combatSystem.canMove(activeUnit, path.length)) {
-                                    this.combatSystem.executeMove(activeUnit, path);
-                                } else {
-                                    console.log("Not enough movement points");
-                                }
-                            }
-                        } else {
-                            console.log("Unit has already moved this turn");
-                        }
-                    }
-                }
-             }
-             
-             this.clearSelection();
+            this.clearSelection();
         } else {
             this.clearSelection();
         }
@@ -339,9 +284,10 @@ export class CombatInteractionManager {
         return friendlyTypes.includes(unitType) || this.entityManager.combatArchers.includes(unit);
     }
 
-    public handleMouseMove(e: MouseEvent) {
+    public handleMouseMove(e: MouseEvent, combatEnvironment: CombatEnvironment) {
         if (!this.isActive || !this.draggingUnit) return;
         if (!this.isFriendlyUnit(this.draggingUnit)) return;
+        if (combatEnvironment.isCombatStarted) return;
 
         const dist = this.mouseDownScreenPos.distanceTo(new THREE.Vector2(e.clientX, e.clientY));
         if (dist > 5) {
@@ -354,13 +300,13 @@ export class CombatInteractionManager {
                 ((e.clientX - rect.left) / rect.width) * 2 - 1,
                 -((e.clientY - rect.top) / rect.height) * 2 + 1
             );
-            this.raycaster.setFromCamera(mouse, this.renderManager.camera);
-            const target = new THREE.Vector3();
-            
-            if (this.raycaster.ray.intersectPlane(this.dragPlane, target)) {
-                const newPos = target.sub(this.dragOffset);
-                newPos.y = 0;
-                this.setUnitPosition(this.draggingUnit, newPos);
+            const targetPoint = this.getCombatGroundPoint(mouse, combatEnvironment);
+            if (targetPoint) {
+                const targetGrid = combatEnvironment.getGridPosition(targetPoint);
+                if (targetGrid) {
+                    const snappedPos = combatEnvironment.getWorldPosition(targetGrid.r, targetGrid.c);
+                    this.setUnitPosition(this.draggingUnit, snappedPos);
+                }
             }
         }
     }
@@ -477,6 +423,19 @@ export class CombatInteractionManager {
 
     private getUnitPosition(unit: any): THREE.Vector3 | null {
         return unit?.position || unit?.mesh?.position || unit?.model?.group?.position || unit?.group?.position || null;
+    }
+
+    private getCombatGroundPoint(mouse: THREE.Vector2, combatEnvironment: CombatEnvironment): THREE.Vector3 | null {
+        this.raycaster.setFromCamera(mouse, this.renderManager.camera);
+        const intersects = this.raycaster.intersectObjects(combatEnvironment.group.children, true);
+
+        for (const intersect of intersects) {
+            if (intersect.object.userData.type === 'ground' || intersect.object.parent?.userData.isHex) {
+                return intersect.point.clone();
+            }
+        }
+
+        return null;
     }
 
     private setUnitPosition(unit: any, position: THREE.Vector3) {

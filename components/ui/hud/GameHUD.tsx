@@ -112,37 +112,10 @@ export const GameHUD: React.FC<GameHUDProps> = ({
                                 Start Combat
                             </button>
                         )}
-                        {isCombatActive && onEndTurn && (
-                            <button 
-                                type="button"
-                                onClick={onEndTurn}
-                                disabled={!isPlayerTurn}
-                                className={`px-5 sm:px-8 py-2.5 sm:py-3 rounded-full font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[10px] sm:text-xs border-2 transition-all ${
-                                    isPlayerTurn 
-                                        ? 'bg-amber-400 text-slate-900 border-amber-200 shadow-[0_0_30px_rgba(251,191,36,0.35)] hover:bg-amber-300 hover:scale-105 active:scale-95' 
-                                        : 'bg-slate-800/70 text-slate-400 border-white/10 cursor-not-allowed'
-                                }`}
-                            >
-                                {isPlayerTurn ? 'End Turn' : 'Enemy Turn'}
-                            </button>
-                        )}
-                        {isCombatActive && onWaitTurn && isPlayerTurn && (
-                            <button 
-                                type="button"
-                                onClick={onWaitTurn}
-                                className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-purple-600/80 text-white font-black uppercase tracking-[0.12em] sm:tracking-[0.15em] text-[10px] sm:text-xs border-2 border-purple-400/50 shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:bg-purple-500 hover:scale-105 transition-all active:scale-95"
-                            >
-                                Wait
-                            </button>
-                        )}
-                        {isCombatActive && onDefend && isPlayerTurn && (
-                            <button 
-                                type="button"
-                                onClick={onDefend}
-                                className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-green-600/80 text-white font-black uppercase tracking-[0.12em] sm:tracking-[0.15em] text-[10px] sm:text-xs border-2 border-green-400/50 shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:bg-green-500 hover:scale-105 transition-all active:scale-95"
-                            >
-                                Defend
-                            </button>
+                        {isCombatActive && (
+                            <div className="px-5 sm:px-8 py-2.5 sm:py-3 rounded-full bg-emerald-600/20 text-emerald-100 font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[10px] sm:text-xs border-2 border-emerald-400/40 shadow-[0_0_20px_rgba(16,185,129,0.18)]">
+                                {isPlayerTurn ? 'Auto Battle: Ally Turn' : 'Auto Battle Running'}
+                            </div>
                         )}
                         <button 
                             type="button"

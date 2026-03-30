@@ -1,0 +1,190 @@
+#cards-screen {
+    background-image: url('../assets/images/cards_background.png');
+    background-size: cover;
+    background-position: center;
+}
+
+#cards-screen .menu-overlay-content { 
+    width: 95%;
+    max-width: 1200px;
+    background: transparent;
+    backdrop-filter: none;
+    border-radius: 15px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: none;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    color: white;
+    max-height: 90vh; 
+    overflow-y: hidden; /* Hide direct scrollbar */
+}
+
+#cards-screen h2 {
+    display: none; /* Hide the old title */
+}
+
+#cards-screen .back-button {
+    background-color: #ff9800;
+    margin-top: 20px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+#cards-screen .back-button:hover {
+    background-color: #f57c00;
+}
+
+.cards-screen-content {
+    width: 100%;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow-y: hidden;
+    min-height: 0;
+}
+
+.current-deck-section, .hero-collection-section {
+    background: transparent;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.current-deck-section {
+    flex-shrink: 0;
+}
+
+.hero-collection-section {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.section-banner {
+    width: 100%;
+    max-width: 400px;
+    height: 70px;
+    margin: -45px auto -10px auto;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    pointer-events: none;
+}
+
+.deck-banner {
+    background-image: url('../assets/images/ui/deck_banner.png');
+}
+
+.collection-banner {
+    background-image: url('../assets/images/ui/collection_banner.png');
+}
+
+#cards-deck-display {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    align-items: center;
+    padding: 20px 0 10px 0;
+    flex-wrap: wrap;
+}
+
+#cards-deck-display .deck-card {
+    width: 110px;
+    height: 140px;
+    background-color: rgba(100, 80, 150, 0.7);
+    border: 3px solid #8e44ad;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#cards-deck-display .deck-card:hover {
+    transform: translateY(-10px) scale(1.05);
+    border-color: #f1c40f;
+}
+
+#cards-deck-display .deck-card img {
+    width: 80%;
+    height: auto;
+    object-fit: contain;
+    margin-bottom: 5px;
+}
+
+#cards-deck-display .deck-card span {
+    font-family: 'Roboto', sans-serif;
+    font-weight: bold;
+    font-size: 1em;
+    color: white;
+}
+
+.hero-collection-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 20px;
+    padding: 10px;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.collection-hero-card {
+    background: rgba(40, 40, 60, 0.7);
+    border: 2px solid #6a6a8a;
+    border-radius: 8px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.collection-hero-card:hover {
+    transform: scale(1.05);
+    border-color: #ffc107;
+}
+
+.collection-hero-card.locked {
+    filter: grayscale(1) brightness(0.6);
+}
+
+.collection-hero-card.locked:hover {
+    transform: none;
+    border-color: #6a6a8a;
+}
+
+.collection-hero-card.locked .lock-icon {
+    display: block;
+}
+
+.collection-hero-card img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    margin-bottom: 5px;
+}
+
+.collection-hero-card span {
+    font-size: 0.9em;
+    font-weight: 500;
+}
+
+.lock-icon {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -60%);
+    width: 40px;
+    height: 40px;
+    opacity: 0.9;
+    filter: drop-shadow(0 0 5px black);
+}

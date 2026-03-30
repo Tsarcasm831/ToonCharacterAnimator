@@ -1,0 +1,286 @@
+#hero-details-modal {
+    z-index: 103; /* Ensure it appears on top of other overlays like the cards screen */
+    color: white;
+    font-weight: 500;
+}
+
+.modal-content h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 2.5em;
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: var(--highlight-color);
+}
+
+.modal-tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 25px;
+    border-bottom: 2px solid #6a6a8a;
+    flex-shrink: 0;
+}
+
+.tab-button {
+    padding: 10px 20px;
+    font-size: 1.1em;
+    font-weight: 500;
+    font-family: 'Roboto', sans-serif;
+    color: #ccc;
+    background: none;
+    border: none;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease-in-out;
+    position: relative;
+    top: 2px; /* To align with the container's border */
+}
+
+.tab-button:hover {
+    color: white;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.tab-button.active {
+    color: var(--highlight-color);
+    border-bottom-color: var(--highlight-color);
+}
+
+.modal-tab-content {
+    min-height: 350px;
+    overflow-y: auto;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.tab-pane {
+    display: none;
+    width: 100%;
+    padding: 10px;
+    text-align: center;
+    flex-grow: 1;
+    display: none;
+    flex-direction: column;
+}
+
+.tab-pane.active {
+    display: flex;
+}
+
+.tab-pane h3 {
+    margin-top: 0;
+    color: #90e0ef;
+}
+
+.equipment-layout {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    padding: 10px;
+    flex-grow: 1;
+}
+
+.character-preview-container {
+    flex-shrink: 0;
+}
+
+#equipment-hero-preview {
+    width: 150px;
+    height: 150px;
+    object-fit: contain;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    border: 2px solid #6a6a8a;
+}
+
+.equipment-column {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.equipment-slot {
+    background: rgba(0, 0, 0, 0.4);
+    border: 2px dashed #6a6a8a;
+    border-radius: 10px;
+    width: 150px;
+    height: 120px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: column;
+    padding: 10px;
+    box-sizing: border-box;
+    color: #aaa;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.equipment-slot:hover {
+    border-color: var(--highlight-color);
+    background: rgba(20, 20, 30, 0.5);
+    transform: translateY(-2px);
+}
+
+.slot-name {
+    font-size: 1.1em;
+    color: #fff;
+}
+
+.slot-icon-placeholder {
+    width: 60px;
+    height: 60px;
+    background-color: rgba(0,0,0,0.3);
+    border-radius: 8px;
+}
+
+.level-display-container {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    padding: 20px;
+    margin-bottom: 25px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+    min-height: 200px;
+    flex-grow: 1;
+}
+
+.level-hero-preview {
+    flex-shrink: 0;
+    width: 180px;
+    height: 180px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#level-details-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 5px 10px rgba(0,0,0,0.5));
+}
+
+.level-hero-details {
+    text-align: left;
+    flex-grow: 1;
+}
+
+.level-hero-details h3 {
+    color: var(--highlight-color);
+    font-size: 1.8em;
+    margin: 0 0 15px 0;
+}
+
+.level-hero-details p {
+    font-size: 1.1em;
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.level-hero-details p span {
+    color: #fff;
+    font-weight: bold;
+}
+
+.level-selector {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    width: 100%;
+    flex-shrink: 0;
+}
+
+.level-selector-button {
+    background-color: rgba(0,0,0,0.4);
+    border: 2px solid #6a6a8a;
+    border-radius: 10px;
+    padding: 8px;
+    width: 80px;
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.level-selector-button:hover {
+    border-color: var(--highlight-color);
+    background-color: rgba(40,40,60,0.6);
+}
+
+.level-selector-button.active {
+    border-color: var(--highlight-color);
+    background-color: rgba(60,40,90,0.7);
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+    transform: scale(1.05);
+}
+
+.level-selector-button img {
+    width: 50px;
+    height: 50px;
+    object-fit: contain;
+    margin-bottom: 5px;
+}
+
+.level-selector-button span {
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    font-size: 0.9em;
+    color: #fff;
+}
+
+#modal-confirm-button {
+    padding: 15px 30px;
+    font-size: 1.2em;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    transition: background-color 0.3s;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+}
+
+#modal-confirm-button:hover {
+    background-color: #45a049;
+}
+
+#modal-confirm-button:disabled {
+    background-color: #555 !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+#confirm-starter-hero-button {
+    margin-top: 20px;
+    padding: 15px 30px;
+    font-size: 1.2em;
+    cursor: pointer;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    transition: background-color 0.3s;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+}
+
+#confirm-starter-hero-button:hover:not(:disabled) {
+    background-color: #45a049;
+}
+
+#confirm-starter-hero-button:disabled {
+    background-color: #555 !important;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+

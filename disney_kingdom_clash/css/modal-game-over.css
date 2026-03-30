@@ -1,0 +1,101 @@
+/* Game Over Modal Styles */
+#game-over-modal {
+    z-index: 105;
+}
+
+.game-over-content {
+    background: #2a2a3e;
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    color: white;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+}
+
+.game-over-content h2 {
+    font-family: 'Cinzel', serif;
+    font-size: 2.5em;
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.game-over-content p {
+    font-size: 1.2em;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+#victory-stats-container {
+    margin: 0 0 20px 0;
+    padding: 15px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 10px;
+    display: none; /* Hidden by default, shown on victory */
+}
+
+#victory-stats-container h3 {
+    margin: 0 0 15px 0;
+    color: var(--highlight-color);
+    font-size: 1.3em;
+}
+
+.victory-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.victory-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.05);
+    padding: 8px;
+    border-radius: 5px;
+    font-size: 0.9em;
+}
+
+.victory-stat-item img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.game-over-content button {
+    padding: 15px 30px;
+    font-size: 1.2em;
+    cursor: pointer;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    transition: background-color 0.3s;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 500;
+    align-self: center;
+}
+
+#game-over-title.victory {
+    color: #4CAF50;
+}
+#game-over-title.defeat {
+    color: #f44336;
+}
+#game-over-close-button.victory {
+    background-color: #4CAF50;
+}
+#game-over-close-button.victory:hover {
+    background-color: #45a049;
+}
+#game-over-close-button.defeat {
+    background-color: #f44336;
+}
+#game-over-close-button.defeat:hover {
+    background-color: #d32f2f;
+

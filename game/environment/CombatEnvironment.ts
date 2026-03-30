@@ -130,6 +130,10 @@ export class CombatEnvironment {
         return this.occupiedCells.has(`${r},${c}`);
     }
 
+    public clearOccupiedCells() {
+        this.occupiedCells.clear();
+    }
+
     public getPath(start: THREE.Vector3, end: THREE.Vector3): { r: number, c: number }[] {
         const startGrid = this.getGridPosition(start);
         const endGrid = this.getGridPosition(end);

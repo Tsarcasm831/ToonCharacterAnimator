@@ -74,6 +74,7 @@ export class Game {
     private _onMouseMove: (e: MouseEvent) => void;
     private _onMouseDown: (e: MouseEvent) => void;
     private _onMouseUp: (e: MouseEvent) => void;
+    private _onContextMenu: (e: MouseEvent) => void;
 
     onInteractionUpdate?: (text: string | null, progress: number | null) => void;
     onBuilderToggle?: (active: boolean) => void;
@@ -106,6 +107,8 @@ export class Game {
 
     private hasSpawnedAllAnimals: boolean = false;
     private enterTownTriggered: boolean = false;
+    private isRunning: boolean = false;
+    private isDisposed: boolean = false;
 
     private currentBiomeName: string = '';
     private lastRotationUpdate = 0;
@@ -210,12 +213,13 @@ export class Game {
         this._onMouseMove = this.onMouseMove.bind(this);
         this._onMouseDown = this.onMouseDown.bind(this);
         this._onMouseUp = this.onMouseUp.bind(this);
+        this._onContextMenu = this.onContextMenu.bind(this);
         
         document.addEventListener('pointerlockchange', this._onPointerLockChange);
         window.addEventListener('mousemove', this._onMouseMove);
         window.addEventListener('mousedown', this._onMouseDown);
         window.addEventListener('mouseup', this._onMouseUp);
-        window.addEventListener('contextmenu', (e) => this.onContextMenu(e));
+        window.addEventListener('contextmenu', this._onContextMenu);
         
         this.animate = this.animate.bind(this);
         
@@ -275,16 +279,25 @@ export class Game {
         };
     }
 
-    start() { this.animate(); }
+    start() {
+        if (this.isDisposed || this.isRunning) return;
+        this.isRunning = true;
+        this.animate();
+    }
     
     stop() {
+        if (this.isDisposed) return;
+        this.isRunning = false;
+        this.initialEnvironmentBuildToken += 1;
         cancelAnimationFrame(this.animationId);
         document.removeEventListener('pointerlockchange', this._onPointerLockChange);
         window.removeEventListener('mousemove', this._onMouseMove);
         window.removeEventListener('mousedown', this._onMouseDown);
         window.removeEventListener('mouseup', this._onMouseUp);
+        window.removeEventListener('contextmenu', this._onContextMenu);
         this.renderManager.dispose(); 
         this.inputManager.dispose();
+        this.isDisposed = true;
     }
 
     private onMouseDown(e: MouseEvent) {
@@ -298,7 +311,7 @@ export class Game {
 
     private onMouseMove(e: MouseEvent) {
         if (this.sceneManager.activeScene === 'combat') {
-            this.combatManager.handleMouseMove(e);
+            this.combatManager.handleMouseMove(e, this.sceneManager.combatEnvironment);
         }
         this.cameraManager.handleMouseMove(e);
     }
@@ -386,28 +399,48 @@ export class Game {
     private combatInitialized: boolean = false;
     
     public setCombatActive(active: boolean) {
-        // Force Interaction Manager to be active if we are in Combat Scene
-        // This ensures players can select/move units during Prep Phase (active=false)
-        if (this.sceneManager.activeScene === 'combat') {
+        if (this.isDisposed) return;
+        const isCombatScene = this.sceneManager.activeScene === 'combat';
+
+        // Keep the interaction layer active in the combat scene so drag-placement works pre-start.
+        if (isCombatScene) {
             this.combatManager.setCombatActive(true);
         } else {
             this.combatManager.setCombatActive(active);
         }
 
-        if (active && this.sceneManager.activeScene === 'combat' && !this.combatInitialized) {
+        if (active && isCombatScene && !this.combatInitialized) {
             this.config.isAssassinHostile = true;
             if (this.sceneManager.combatEnvironment) {
                 this.sceneManager.combatEnvironment.setCombatStarted(true);
             }
-            // Initialize turn-based or tracked combat system
-            const enemies = this.entityManager.getEntitiesForScene('combat');
-            this.combatSystem.initializeCombat(this.player, [], enemies);
+
+            const sceneUnits = this.entityManager.getEntitiesForScene('combat');
+            if (sceneUnits.length === 0) {
+                console.warn('[Game] Combat activation requested before combat units were ready. Skipping initialization this frame.');
+                return;
+            }
+
+            const friendlyTypes = new Set(['Cleric', 'Knight', 'Paladin', 'Monk', 'Ranger', 'Sentinel', 'Archer']);
+            const friendlyUnits = sceneUnits.filter((unit) => friendlyTypes.has(unit?.constructor?.name || ''));
+            const enemyUnits = sceneUnits.filter((unit) => !friendlyUnits.includes(unit));
+
+            if (friendlyUnits.length === 0 || enemyUnits.length === 0) {
+                console.warn('[Game] Combat activation skipped because one side of the encounter is missing.');
+                this.sceneManager.combatEnvironment?.setCombatStarted(false);
+                return;
+            }
+
+            this.combatSystem.initializeCombat(null, friendlyUnits, enemyUnits);
             this.combatInitialized = true;
         } else if (!active) {
             if (this.sceneManager.combatEnvironment) {
                 this.sceneManager.combatEnvironment.setCombatStarted(false);
+                this.sceneManager.combatEnvironment.clearOccupiedCells();
             }
+            this.combatSystem.reset();
             this.combatInitialized = false;
+            this.combatManager.clearSelection();
         }
     }
 
@@ -440,6 +473,9 @@ export class Game {
     private async waitForFrames(frameCount: number, buildToken: number, sceneName: SceneType): Promise<boolean> {
         for (let i = 0; i < frameCount; i += 1) {
             await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+            if (this.isDisposed) {
+                return false;
+            }
             if (!this.isBuildTokenValid(buildToken, sceneName)) {
                 return false;
             }
@@ -450,17 +486,20 @@ export class Game {
     private async finalizeEnvironmentReady(sceneName: SceneType, buildToken: number): Promise<void> {
         const warmupComplete = await this.waitForFrames(2, buildToken, sceneName);
         if (!warmupComplete) return;
+        if (this.isDisposed) return;
 
         // Pre-warm a render while loading overlay is active to reduce first-frame pop-in.
         this.renderManager.render();
 
         const finalFrameComplete = await this.waitForFrames(1, buildToken, sceneName);
         if (!finalFrameComplete) return;
+        if (this.isDisposed) return;
 
         this.onEnvironmentReady?.();
     }
 
     private scheduleEnvironmentReady(sceneName: SceneType) {
+        if (this.isDisposed) return;
         const buildToken = ++this.initialEnvironmentBuildToken;
 
         void (async () => {
@@ -575,6 +614,7 @@ export class Game {
     resize() { this.renderManager.resize(); }
 
     private animate(time: number = 0) {
+        if (!this.isRunning || this.isDisposed) return;
         this.animationId = requestAnimationFrame(this.animate);
         
         // Use a fixed delta for logic if real delta is too erratic
@@ -627,7 +667,7 @@ export class Game {
         );
 
         // Update Auto-Battler System
-        if (this.combatManager.isActive && this.sceneManager.activeScene === 'combat') {
+        if (this.combatInitialized && this.sceneManager.activeScene === 'combat' && this.sceneManager.combatEnvironment?.isCombatStarted) {
             if (this.sceneManager.combatEnvironment) {
                 this.combatSystem.update(delta, this.sceneManager.combatEnvironment);
             }

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Co-op Lobby - Disney Kingdom Clash</title>
+    <link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Roboto:wght@400;500;700&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/menu-overlays.css">
+    <style>
+        /* Some specific lobby styles */
+        body {
+            background-image: url('../assets/images/ui/menu_background.png');
+            background-size: cover;
+            background-position: center;
+        }
+        .lobby-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            background: rgba(26, 26, 46, 0.85);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .lobby-content {
+            background: rgba(42, 42, 62, 0.95);
+            padding: 30px;
+            border-radius: 15px;
+            border: 2px solid #8e44ad;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+        .lobby-content h1 {
+            font-family: 'Cinzel', serif;
+            font-size: clamp(2em, 5vw, 3em);
+            color: #ffc107;
+            text-shadow: 2px 2px 4px #000;
+        }
+        .room-list {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            max-height: 40vh;
+            overflow-y: auto;
+            border: 1px solid rgba(142, 68, 173, 0.5);
+        }
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .room-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .room-name {
+            font-size: 1.2em;
+            font-weight: 500;
+        }
+        .room-players {
+            font-size: 1.1em;
+            color: #ccc;
+        }
+        .join-button {
+             padding: 10px 20px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+        .join-button:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+        .join-button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+        .lobby-actions {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .lobby-actions button, .back-button-lobby {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Luckiest Guy', cursive;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.4);
+            transition: all 0.2s;
+        }
+        .lobby-actions button:hover, .back-button-lobby:hover {
+            transform: translateY(-3px);
+        }
+        .create-room-button {
+            background-color: #3498db;
+        }
+        .refresh-button {
+             background-color: #e67e22;
+        }
+        .back-button-lobby {
+            background-color: #f44336;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="lobby-container">
+        <div class="lobby-content">
+            <h1>Co-op Lobby</h1>
+            <div class="room-list">
+                <!-- Example Room -->
+                <div class="room-item">
+                    <span class="room-name">Mickey's Fun House</span>
+                    <span class="room-players">1/2</span>
+                    <button class="join-button">Join</button>
+                </div>
+                 <div class="room-item">
+                    <span class="room-name">Goofy's Game Room</span>
+                    <span class="room-players">1/2</span>
+                    <button class="join-button">Join</button>
+                </div>
+                 <div class="room-item">
+                    <span class="room-name">Realm of Story</span>
+                    <span class="room-players">2/2</span>
+                    <button class="join-button" disabled>Full</button>
+                </div>
+            </div>
+            <div class="lobby-actions">
+                <button class="create-room-button">Create Room</button>
+                <button class="refresh-button">Refresh</button>
+            </div>
+        </div>
+        <button class="back-button-lobby">Back to Menu</button>
+    </div>
+    <script type="module">
+        import { initLobbyScreen } from '../js/lobby.js';
+        initLobbyScreen();
+    </script>
+</body>
+</html>

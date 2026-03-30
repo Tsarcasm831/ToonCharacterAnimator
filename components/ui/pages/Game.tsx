@@ -6,7 +6,9 @@ import SingleBiomeScene from '../../SingleBiomeScene';
 import TownScene from '../../TownScene';
 import Town2Scene from '../../Town2Scene';
 import TDGameScene from '../../TDGameScene';
+import RoguelikeScene from '../../RoguelikeScene';
 import { useGlobalState } from '../../../contexts/GlobalContext';
+
 import { CombatLogEntry } from '../hud/CombatLog';
 import { MainMenu } from '../menus/MainMenu';
 import LoadingScreen from '../overlays/LoadingScreen';
@@ -23,6 +25,7 @@ import { CITIES } from '../../../data/lands/cities';
 import { getTownWallCenters } from '../../../game/environment/townWalls';
 import { useIsMobileDevice } from '../../../hooks/useIsMobileDevice';
 import { useUndoRedo } from '../../../hooks/useUndoRedo';
+import type { ActiveScene } from '../../../hooks/useGameState';
 
 export const Game: React.FC = () => {
     const isMobileDevice = useIsMobileDevice();
@@ -162,15 +165,7 @@ export const Game: React.FC = () => {
     };
 
     // Handlers
-    const handleEnterWorld = (
-        startInCombat: boolean = false,
-        startInLand: boolean = false,
-        startInDev: boolean = false,
-        startInTown: boolean = false,
-        startInSingleBiome: boolean = false,
-        startInTown2: boolean = false,
-        startInTdGame: boolean = false
-    ) => {
+    const handleEnterWorld = (scene: ActiveScene = activeScene) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
@@ -179,23 +174,7 @@ export const Game: React.FC = () => {
         setIsSceneInitializing(false);
         if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
         if (visualReadyTimeout.current) window.clearTimeout(visualReadyTimeout.current);
-        if (startInDev) {
-          setActiveScene('dev');
-        } else if (startInTown) {
-          setActiveScene('town');
-        } else if (startInTown2) {
-          setActiveScene('town2');
-        } else if (startInTdGame) {
-          setActiveScene('tdgame');
-        } else if (startInLand) {
-          setActiveScene('land');
-        } else if (startInCombat) {
-          setActiveScene('combat');
-        } else if (startInSingleBiome) {
-          setActiveScene('singleBiome');
-        } else {
-          setActiveScene('town2');
-        }
+        setActiveScene(scene);
         // Defer mounting the scene to next tick to allow loading UI to paint
         mountSceneTimeout.current = window.setTimeout(() => {
           setShouldMountScene(true);
@@ -344,7 +323,7 @@ export const Game: React.FC = () => {
                 setDialogue(null);
                 setIsTravelOpen(false);
                 if (gameInstance.current) gameInstance.current.player.isTalking = false;
-                handleEnterWorld(false, true);
+                handleEnterWorld('land');
             }
         }
     };
@@ -607,7 +586,7 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
-    const showGlobalHUD = !isHUDDisabled && activeScene !== 'combat';
+    const showGlobalHUD = !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike';
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-start">
@@ -616,6 +595,8 @@ export const Game: React.FC = () => {
                     {gameState === 'MENU' ? (
                         <>
                             <MainMenu
+                                activeScene={activeScene}
+                                onSceneChange={setActiveScene}
                                 onStart={handleEnterWorld}
                                 onShowEnemies={onShowEnemies}
                                 onOpenStandaloneCC={handleOpenStandaloneCC}
@@ -751,6 +732,8 @@ export const Game: React.FC = () => {
                                             showGrid={showGrid}
                                             isCombatActive={isCombatActive}
                                         />
+                                    ) : activeScene === 'roguelike' ? (
+                                        <RoguelikeScene />
                                     ) : (
                                         <DevScene 
                                             activeScene={activeScene}

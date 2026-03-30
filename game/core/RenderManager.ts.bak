@@ -7,6 +7,8 @@ export class RenderManager {
     public camera: THREE.PerspectiveCamera;
     public renderer: THREE.WebGLRenderer;
     public controls: OrbitControls;
+    private baseHemiLight: THREE.HemisphereLight;
+    private baseDirLight: THREE.DirectionalLight;
     
     private container: HTMLElement;
 
@@ -35,7 +37,7 @@ export class RenderManager {
         
         // Shadow Performance Optimization
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFShadowMap; 
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(this.renderer.domElement);
 
         // Controls Setup
@@ -46,22 +48,24 @@ export class RenderManager {
         this.controls.mouseButtons = { LEFT: null as any, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE };
 
         // Lighting
-        this.scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 0.6));
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(5, 15, 5);
-        dirLight.castShadow = true;
+        this.baseHemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        this.scene.add(this.baseHemiLight);
+
+        this.baseDirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        this.baseDirLight.position.set(5, 15, 5);
+        this.baseDirLight.castShadow = true;
         
         // Optimization: Low resolution shadows for high FPS
-        dirLight.shadow.mapSize.width = 512;
-        dirLight.shadow.mapSize.height = 512;
-        dirLight.shadow.camera.near = 0.5;
-        dirLight.shadow.camera.far = 40; 
-        dirLight.shadow.camera.left = -25;
-        dirLight.shadow.camera.right = 25;
-        dirLight.shadow.camera.top = 25;
-        dirLight.shadow.camera.bottom = -25;
-        dirLight.shadow.bias = -0.005; // Slightly deeper bias for lower resolution
-        this.scene.add(dirLight);
+        this.baseDirLight.shadow.mapSize.width = 512;
+        this.baseDirLight.shadow.mapSize.height = 512;
+        this.baseDirLight.shadow.camera.near = 0.5;
+        this.baseDirLight.shadow.camera.far = 40; 
+        this.baseDirLight.shadow.camera.left = -25;
+        this.baseDirLight.shadow.camera.right = 25;
+        this.baseDirLight.shadow.camera.top = 25;
+        this.baseDirLight.shadow.camera.bottom = -25;
+        this.baseDirLight.shadow.bias = -0.005; // Slightly deeper bias for lower resolution
+        this.scene.add(this.baseDirLight);
     }
 
     resize() {
@@ -79,6 +83,12 @@ export class RenderManager {
             this.controls.update();
         }
         this.renderer.render(this.scene, this.camera);
+    }
+
+    setBaseLightingEnabled(enabled: boolean) {
+        this.baseHemiLight.visible = enabled;
+        this.baseDirLight.visible = enabled;
+        this.baseDirLight.castShadow = enabled;
     }
 
     dispose() {

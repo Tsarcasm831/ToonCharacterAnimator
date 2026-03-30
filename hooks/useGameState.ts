@@ -2,29 +2,48 @@ import { useState, useEffect, useCallback } from 'react';
 import { PageType } from '../components/ui/menus/Navigation';
 
 export type GameState = 'MENU' | 'LOADING' | 'READY' | 'PLAYING';
-export type ActiveScene = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame';
+export type ActiveScene = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'roguelike';
 
 const validPages: PageType[] = ['home', 'game', 'music', 'about', 'shop'];
+const validScenes: ActiveScene[] = ['dev', 'land', 'combat', 'mp', 'singleBiome', 'town', 'town2', 'tdgame', 'roguelike'];
+const defaultScene: ActiveScene = 'town2';
 
-function getPageFromHash(): PageType {
-  const hash = window.location.hash.replace('#', '').toLowerCase();
-  return validPages.includes(hash as PageType) ? (hash as PageType) : 'home';
+function parseHashState(): { page: PageType; scene: ActiveScene } {
+  const hash = window.location.hash.replace(/^#/, '');
+  const [rawPage = '', rawScene = ''] = hash.split('/');
+  const page = validPages.includes(rawPage as PageType) ? (rawPage as PageType) : 'home';
+  const scene = validScenes.includes(rawScene as ActiveScene) ? (rawScene as ActiveScene) : defaultScene;
+
+  return { page, scene };
+}
+
+function buildHash(page: PageType, scene: ActiveScene): string {
+  return page === 'game' ? `#game/${scene}` : `#${page}`;
 }
 
 export function useGameState() {
   const [gameState, setGameState] = useState<GameState>('MENU');
-  const [activePage, setActivePage] = useState<PageType>(getPageFromHash);
-  const [activeScene, setActiveScene] = useState<ActiveScene>('dev');
+  const [activePage, setActivePage] = useState<PageType>(() => parseHashState().page);
+  const [activeScene, setActiveScene] = useState<ActiveScene>(() => parseHashState().scene);
   const [isTravelOpen, setIsTravelOpen] = useState(false);
 
   const setActivePageWithHash = useCallback((page: PageType) => {
     setActivePage(page);
-    window.history.pushState(null, '', `#${page}`);
-  }, []);
+    window.history.pushState(null, '', buildHash(page, activeScene));
+  }, [activeScene]);
+
+  const setActiveSceneWithHash = useCallback((scene: ActiveScene) => {
+    setActiveScene(scene);
+    if (activePage === 'game') {
+      window.history.replaceState(null, '', buildHash(activePage, scene));
+    }
+  }, [activePage]);
 
   useEffect(() => {
     const onHashChange = () => {
-      setActivePage(getPageFromHash());
+      const { page, scene } = parseHashState();
+      setActivePage(page);
+      setActiveScene(scene);
     };
     window.addEventListener('hashchange', onHashChange);
     window.addEventListener('popstate', onHashChange);
@@ -47,7 +66,7 @@ export function useGameState() {
     activePage,
     setActivePage: setActivePageWithHash,
     activeScene,
-    setActiveScene,
+    setActiveScene: setActiveSceneWithHash,
     isTravelOpen,
     setIsTravelOpen
   };

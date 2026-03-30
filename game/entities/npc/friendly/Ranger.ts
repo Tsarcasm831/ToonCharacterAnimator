@@ -12,6 +12,9 @@ enum RangerState { IDLE, PATROL, STALK, ATTACK, REPOSITION }
 
 export class Ranger extends HumanoidEntity {
     velocity: THREE.Vector3 = new THREE.Vector3();
+    private static readonly IDEAL_MIN_RANGE = 10.0;
+    private static readonly IDEAL_MAX_RANGE = 16.0;
+    private static readonly RETREAT_RANGE = 8.0;
     
     private state: RangerState = RangerState.PATROL;
     private stateTimer: number = 0;
@@ -89,6 +92,26 @@ export class Ranger extends HumanoidEntity {
         );
     }
 
+    private updateDesiredRangedPosition(targetPosition: THREE.Vector3, environment: Environment | CombatEnvironment) {
+        const toSelf = new THREE.Vector3().subVectors(this.position, targetPosition);
+        toSelf.y = 0;
+
+        if (toSelf.lengthSq() < 0.0001) {
+            toSelf.set(Math.sin(this.rotationY || 0), 0, Math.cos(this.rotationY || 0));
+        } else {
+            toSelf.normalize();
+        }
+
+        const desiredDistance = (Ranger.IDEAL_MIN_RANGE + Ranger.IDEAL_MAX_RANGE) * 0.5;
+        const desiredPosition = targetPosition.clone().add(toSelf.multiplyScalar(desiredDistance));
+
+        if (environment instanceof CombatEnvironment) {
+            this.targetPos.copy(environment.snapToGrid(desiredPosition));
+        } else {
+            this.targetPos.copy(desiredPosition);
+        }
+    }
+
     update(dt: number, environment: Environment | CombatEnvironment, potentialTargets: { position: THREE.Vector3, isDead?: boolean }[], skipAnimation: boolean = false, isCombatActive: boolean = true) {
         if (this.isDead) return;
         this.stateTimer += dt;
@@ -110,6 +133,25 @@ export class Ranger extends HumanoidEntity {
             this.group.position.copy(this.position);
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
+
+            this.syncVisualTargets();
+            const actualSpeed = this.captureActualSpeed(dt);
+            this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, actualSpeed, dt * 6);
+            const isMoving = this.speedFactor > 0.1;
+            const animY = isMoving ? -1 : 0;
+
+            const animContext = {
+                config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
+                isCombatStance: false,
+                isJumping: false, isAxeSwing: false, axeSwingTimer: 0, isPunch: false,
+                isPickingUp: false, pickUpTime: 0, isInteracting: false, isWaving: false, isSkinning: false,
+                isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false,
+                isBowDraw: false, bowDrawTimer: 0
+            };
+
+            this.animator.animate(animContext, dt, isMoving, { x: 0, y: animY, isRunning: actualSpeed > 4.0, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
+            this.walkTime = animContext.walkTime;
+            this.lastStepCount = animContext.lastStepCount;
             this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
@@ -131,14 +173,14 @@ export class Ranger extends HumanoidEntity {
                 this.setState(RangerState.STALK);
             }
             if (this.state === RangerState.STALK) {
-                if (distToTarget < 18.0 && distToTarget > 10.0 && this.attackCooldown <= 0) {
+                if (distToTarget >= Ranger.IDEAL_MIN_RANGE && distToTarget <= Ranger.IDEAL_MAX_RANGE && this.attackCooldown <= 0) {
                     this.setState(RangerState.ATTACK);
-                } else if (distToTarget < 8.0) {
+                } else if (distToTarget < Ranger.RETREAT_RANGE) {
                     this.setState(RangerState.REPOSITION);
                 } else if (distToTarget > 45.0) { // Increased from 30.0
                     this.setState(RangerState.PATROL);
                 } else {
-                    this.targetPos.copy(this.currentTarget!.position);
+                    this.updateDesiredRangedPosition(this.currentTarget!.position, environment);
                 }
             }
             if (this.state === RangerState.ATTACK) {
@@ -167,7 +209,7 @@ export class Ranger extends HumanoidEntity {
                 }
                 break;
             case RangerState.STALK:
-                moveSpeed = 3.5;
+                moveSpeed = distToTarget > Ranger.IDEAL_MAX_RANGE ? 3.5 : 0;
                 break;
             case RangerState.ATTACK:
                 moveSpeed = 0; // Standing still while shooting
@@ -193,8 +235,12 @@ export class Ranger extends HumanoidEntity {
             if (this.position.distanceTo(this.lastStuckPos) < 0.001) {
                 this.stuckTimer += dt;
                 if (this.stuckTimer > 1.5) {
-                    this.setState(RangerState.PATROL);
-                    this.findPatrolPoint(env);
+                    if (this.currentTarget) {
+                        this.setState(RangerState.REPOSITION);
+                    } else {
+                        this.setState(RangerState.PATROL);
+                        this.findPatrolPoint(env);
+                    }
                     this.stuckTimer = 0;
                 }
             } else {
@@ -207,13 +253,24 @@ export class Ranger extends HumanoidEntity {
             const toGoal = new THREE.Vector3().subVectors(this.targetPos, this.position);
             toGoal.y = 0;
             if (toGoal.length() > 0.1) {
-                this.rotationY = THREE.MathUtils.lerp(this.rotationY, Math.atan2(toGoal.x, toGoal.z), 8.0 * dt);
+                const desiredRotation = Math.atan2(toGoal.x, toGoal.z);
+                const steeredRotation = AIUtils.getAdvancedAvoidanceSteering(
+                    this.position,
+                    desiredRotation,
+                    new THREE.Vector3(0.6, 2.0, 0.6),
+                    env.obstacles
+                );
+                this.rotationY = THREE.MathUtils.lerp(this.rotationY, steeredRotation, 8.0 * dt);
                 if (moveSpeed > 0) {
-                    const step = moveSpeed * dt;
-                    const next = this.position.clone().add(
-                        new THREE.Vector3(Math.sin(this.rotationY), 0, Math.cos(this.rotationY)).multiplyScalar(step)
+                    const next = AIUtils.getNextPosition(
+                        this.position,
+                        this.rotationY,
+                        moveSpeed,
+                        dt,
+                        new THREE.Vector3(0.6, 2.0, 0.6),
+                        env.obstacles
                     );
-                    if (!PlayerUtils.checkCollision(next, this.config, env.obstacles) && PlayerUtils.isWithinBounds(next)) {
+                    if (next.distanceToSquared(this.position) > 0.000001) {
                         this.position.x = next.x;
                         this.position.z = next.z;
                     }
@@ -241,8 +298,11 @@ export class Ranger extends HumanoidEntity {
             this.cameraHandler.headLookWeight = THREE.MathUtils.lerp(this.cameraHandler.headLookWeight, 0.0, dt * 4.0);
         }
 
-        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, moveSpeed, dt * 6);
-        const animY = Math.abs(this.speedFactor) > 0.1 ? -1 : 0;
+        this.syncVisualTargets();
+        const actualSpeed = this.captureActualSpeed(dt);
+        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, actualSpeed, dt * 8);
+        const isMoving = this.speedFactor > 0.1;
+        const animY = isMoving ? -1 : 0;
 
         const animContext = {
             config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
@@ -253,7 +313,7 @@ export class Ranger extends HumanoidEntity {
             isBowDraw: this.isStriking, bowDrawTimer: this.strikeTimer
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: animY, isRunning: this.state === RangerState.REPOSITION, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
+        this.animator.animate(animContext, dt, isMoving, { x: 0, y: animY, isRunning: actualSpeed > 4.0 || this.state === RangerState.REPOSITION, isPickingUp: false, isDead: false, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
         this.updateModel(dt);

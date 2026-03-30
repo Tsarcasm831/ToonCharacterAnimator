@@ -103,7 +103,6 @@ export class Archer extends HumanoidEntity {
             
             // Map external state to internal flags
             this.isFiring = (this.combatState === 'ATTACKING');
-            const isMoving = (this.combatState === 'MOVING');
             
             // Handle Fire Logic (Visuals only)
             if (this.isFiring) {
@@ -128,6 +127,11 @@ export class Archer extends HumanoidEntity {
                 this.hasFired = false;
             }
 
+            this.syncVisualTargets();
+            const actualSpeed = this.captureActualSpeed(dt);
+            const isMoving = actualSpeed > 0.1;
+            this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, actualSpeed, dt * 6);
+
             if (!skipAnimation) {
                 const animContext = {
                     config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
@@ -137,18 +141,13 @@ export class Archer extends HumanoidEntity {
                     isFishing: false, isDragged: false, walkTime: this.walkTime, lastStepCount: this.lastStepCount, didStep: false,
                     isBowDraw: this.isFiring, bowDrawTimer: this.fireTimer
                 };
-                
-                // Calculate speed factor from actual movement
-                const currentPos = this.position.clone();
-                const dist = currentPos.distanceTo(this.lastFramePos);
-                const speed = dist / dt;
-                this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, speed, dt * 6);
-                
-                this.animator.animate(animContext, dt, isMoving, { x: 0, y: 1, isRunning: speed > 4.0, isPickingUp: false, isDead: this.isDead, jump: false } as any, (environment as any).obstacles);
-                this.walkTime += dt * speed; // Update walk cycle
+
+                this.animator.animate(animContext, dt, isMoving, { x: 0, y: isMoving ? -1 : 0, isRunning: actualSpeed > 4.0, isPickingUp: false, isDead: this.isDead, jump: false } as any, (environment as any).obstacles);
+                this.walkTime = animContext.walkTime;
+                this.lastStepCount = animContext.lastStepCount;
             }
             
-            this.updateModel(dt); // Updates lastFramePos
+            this.updateModel(dt);
             this.model.sync(this.config, true);
             return;
         }
@@ -170,13 +169,9 @@ export class Archer extends HumanoidEntity {
             this.model.group.rotation.y = this.rotationY;
             if (skipAnimation) return;
 
-            // Sync target vars to prevent snapping
-            this.targetPosition.copy(this.position);
-            this.targetRotationY = this.rotationY;
+            this.syncVisualTargets();
 
-            // Calculate speed for animation
-            const dist = this.position.distanceTo(this.lastFramePos);
-            const speed = dist / dt;
+            const speed = this.captureActualSpeed(dt);
             this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, speed, dt * 6);
             const animY = Math.abs(this.speedFactor) > 0.1 ? -1 : 0;
 
@@ -271,7 +266,11 @@ export class Archer extends HumanoidEntity {
 
         if (skipAnimation) return;
 
-        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, 0, dt * 6);
+        this.syncVisualTargets();
+        const actualSpeed = this.captureActualSpeed(dt);
+        this.speedFactor = THREE.MathUtils.lerp(this.speedFactor, actualSpeed, dt * 8);
+        const isMoving = actualSpeed > 0.1;
+        const animY = isMoving ? -1 : 0;
         
         const animContext = {
             config: this.config, model: this.model, status: this.status, cameraHandler: this.cameraHandler,
@@ -282,11 +281,9 @@ export class Archer extends HumanoidEntity {
             isBowDraw: this.isFiring, bowDrawTimer: this.fireTimer
         };
         
-        this.animator.animate(animContext, dt, Math.abs(this.speedFactor) > 0.1, { x: 0, y: 0, isRunning: false, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
+        this.animator.animate(animContext, dt, isMoving, { x: 0, y: animY, isRunning: actualSpeed > 4.0, isPickingUp: false, isDead: this.isDead, jump: false } as any, env.obstacles);
         this.walkTime = animContext.walkTime;
         this.lastStepCount = animContext.lastStepCount;
-        this.targetPosition.copy(this.position);
-        this.targetRotationY = this.rotationY;
         this.updateModel(dt);
         this.model.sync(this.config, true);
     }
