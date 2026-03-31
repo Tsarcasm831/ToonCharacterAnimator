@@ -116,7 +116,10 @@ export default function App() {
                 if (currentPhase === 'PREP') {
                   startCombat();
                 } else {
-                  endCombat(false); // Surrender or force end
+                  const survivingEnemies = combatBoard
+                    .flat()
+                    .filter((unit) => unit && unit.owner === 'enemy' && !unit.isDead).length;
+                  endCombat(false, survivingEnemies); // Surrender or force end
                 }
               }}
               className="px-6 py-2 bg-neutral-100 text-neutral-950 rounded-lg font-bold hover:bg-neutral-200 transition-colors"
