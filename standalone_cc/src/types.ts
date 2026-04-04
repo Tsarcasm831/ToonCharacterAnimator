@@ -58,14 +58,16 @@ export interface EntityStats {
   canAttackAfterMove?: boolean;
 }
 
-export enum TurnPhase {
-  INITIATIVE_ROLL = 'initiative',
-  PLAYER_TURN = 'player',
-  AI_TURN = 'ai',
-  TURN_END = 'end',
-  VICTORY = 'victory',
-  DEFEAT = 'defeat'
-}
+export const TurnPhase = {
+  INITIATIVE_ROLL: 'initiative',
+  PLAYER_TURN: 'player',
+  AI_TURN: 'ai',
+  TURN_END: 'end',
+  VICTORY: 'victory',
+  DEFEAT: 'defeat'
+} as const;
+
+export type TurnPhase = (typeof TurnPhase)[keyof typeof TurnPhase];
 
 export interface Quest {
   id: string;
@@ -174,6 +176,8 @@ export interface ColorConfig {
   robeTrimColor: string;
   hoodColor: string;
   tintColor?: string;
+  embellishmentColor?: string;
+  paddedArmorColor?: string;
 }
 
 export interface ApronRiggingConfig {

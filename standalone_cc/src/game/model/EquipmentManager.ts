@@ -23,6 +23,27 @@ export class EquipmentManager {
         this.parts = parts;
     }
 
+    private applyEmbellishmentColor(target: THREE.Object3D, embellishmentColor?: string) {
+        target.traverse((child) => {
+            if (!(child instanceof THREE.Mesh)) return;
+            if (!(child.material instanceof THREE.MeshStandardMaterial)) return;
+
+            const material = child.material;
+            const defaultColorHex = material.userData.defaultEmbellishmentColorHex as number | undefined;
+
+            if (defaultColorHex === undefined) {
+                material.userData.defaultEmbellishmentColorHex = material.color.getHex();
+            }
+
+            if (embellishmentColor) {
+                material.color.set(embellishmentColor);
+                return;
+            }
+
+            material.color.set((material.userData.defaultEmbellishmentColorHex as number) ?? material.color.getHex());
+        });
+    }
+
     updateEquipment(config: PlayerConfig) {
         PlayerEquipment.updateArmor(config, this.parts, this.equippedMeshes);
     }
@@ -42,6 +63,7 @@ export class EquipmentManager {
             this.equippedMeshes.helm.position.set(config.helmX, config.helmY, config.helmZ);
             this.equippedMeshes.helm.rotation.x = config.helmRotX;
             this.equippedMeshes.helm.scale.setScalar(config.helmScale);
+            this.applyEmbellishmentColor(this.equippedMeshes.helm, config.embellishmentColor);
         }
         if (this.equippedMeshes.hood) {
             this.equippedMeshes.hood.position.set(config.hoodX, config.hoodY, config.hoodZ);
@@ -77,10 +99,12 @@ export class EquipmentManager {
         if (this.equippedMeshes.leftPauldron) {
             this.equippedMeshes.leftPauldron.position.set(config.shoulderX, config.shoulderY, config.shoulderZ);
             this.equippedMeshes.leftPauldron.scale.setScalar(config.shoulderScale);
+            this.applyEmbellishmentColor(this.equippedMeshes.leftPauldron, config.embellishmentColor);
         }
         if (this.equippedMeshes.rightPauldron) {
             this.equippedMeshes.rightPauldron.position.set(-config.shoulderX, config.shoulderY, config.shoulderZ);
             this.equippedMeshes.rightPauldron.scale.setScalar(config.shoulderScale);
+            this.applyEmbellishmentColor(this.equippedMeshes.rightPauldron, config.embellishmentColor);
         }
         if (this.equippedMeshes.shield) {
             this.equippedMeshes.shield.position.set(config.shieldX, config.shieldY, config.shieldZ);

@@ -7,6 +7,7 @@ const BUCKLE_COLOR = '#ffd700';
 export class BeltBuilder {
     static build(parts: any, config: PlayerConfig): { meshes: THREE.Object3D[] } | null {
         if (!config.equipment.belt) return null;
+        const embellishmentColor = config.embellishmentColor ?? BUCKLE_COLOR;
         
         const createdMeshes: THREE.Object3D[] = [];
         
@@ -17,7 +18,7 @@ export class BeltBuilder {
         });
         
         const buckleMat = new THREE.MeshStandardMaterial({
-            color: BUCKLE_COLOR,
+            color: embellishmentColor,
             metalness: 0.9,
             roughness: 0.2
         });

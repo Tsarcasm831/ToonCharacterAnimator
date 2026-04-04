@@ -10,6 +10,7 @@ const GLOBAL_PATTERN_SCALE = 3.5;
 
 export class QuiltedArmorBuilder {
     static build(parts: any, config: PlayerConfig) {
+        const quiltedColor = config.paddedArmorColor ?? QUILTED_COLOR;
         // --- TEXTURE GENERATION ---
         const canvas = document.createElement('canvas');
         canvas.width = 512;
@@ -18,7 +19,7 @@ export class QuiltedArmorBuilder {
         if (!ctx) return null;
 
         // Base Fabric
-        ctx.fillStyle = QUILTED_COLOR;
+        ctx.fillStyle = quiltedColor;
         ctx.fillRect(0, 0, 512, 512);
 
         // Rough weave noise
