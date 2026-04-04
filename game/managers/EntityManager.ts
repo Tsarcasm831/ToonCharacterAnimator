@@ -786,7 +786,7 @@ export class EntityManager {
             const pos = (entity as any).position || (entity as any).mesh?.position || (entity as any).model?.group?.position;
             if (entity.group && pos) entity.group.position.copy(pos);
             if (entity.model?.group && pos) {
-                entity.model.group.position.copy(pos);
+                entity.model.group.position.set(0, 0, 0);
                 if (typeof entity.rotationY === 'number') {
                     entity.model.group.rotation.y = entity.rotationY;
                 }

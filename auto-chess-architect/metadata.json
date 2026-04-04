@@ -1,5 +1,0 @@
-{
-  "name": "Auto-Chess Architect",
-  "description": "A functional Auto-Chess (TFT/Underlords clone) built with React, Tailwind CSS, and Zustand.",
-  "requestFramePermissions": []
-}

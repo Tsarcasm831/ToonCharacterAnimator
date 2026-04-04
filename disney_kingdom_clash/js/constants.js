@@ -1,9 +1,0 @@
-export const HERO_IMAGE_PATH = 'assets/images/heroes';
-export const UI_IMAGE_PATH = 'assets/images/ui';
-export const ENEMY_IMAGE_PATH = 'assets/images';
-export const GLITCH_IMAGE_PATH = 'assets/glitches';
-export const SOUNDS_PATH = 'assets/sounds';
-export const BACKGROUND_IMAGE_PATH = 'assets/images/backgrounds';
-export const PARTICLE_IMAGE_PATH = 'assets/images/particles';
-export const GROUND_TEXTURE_PATH = 'assets/images/ground_textures';
-export const PATH_TEXTURE_PATH = 'assets/images/path_textures';
