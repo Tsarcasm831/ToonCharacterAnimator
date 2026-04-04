@@ -42,7 +42,7 @@ export const Game: React.FC = () => {
 
     const { activeScene, gameState, setGameState, setActiveScene } = gameStateContext;
     const { config, setConfig, manualInput, setManualInput } = playerState;
-    const { inventory, bench, setInventory } = inventoryState;
+    const { inventory, bench, setInventory, setBench } = inventoryState;
 
     // Undo/Redo functionality
     const { undo, redo, canUndo, canRedo } = useUndoRedo(config, setConfig);
@@ -638,6 +638,28 @@ export const Game: React.FC = () => {
                                             combatLog={combatLog}
                                             showGrid={showGrid}
                                             setShowGrid={setShowGrid}
+                                            onBenchItemPlaced={(slotIndex) => {
+                                                setBench((prev) => {
+                                                    if (slotIndex < 0 || slotIndex >= prev.length) {
+                                                        return prev;
+                                                    }
+                                                    const current = prev[slotIndex];
+                                                    if (!current) {
+                                                        return prev;
+                                                    }
+
+                                                    const next = [...prev];
+                                                    if (current.count <= 1) {
+                                                        next[slotIndex] = null;
+                                                    } else {
+                                                        next[slotIndex] = {
+                                                            ...current,
+                                                            count: current.count - 1,
+                                                        };
+                                                    }
+                                                    return next;
+                                                });
+                                            }}
                                         />
                                     ) : activeScene === 'mp' ? (
                                         <MPTestScene 

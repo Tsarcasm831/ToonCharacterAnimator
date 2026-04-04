@@ -60,6 +60,7 @@ interface CombatSceneProps {
     combatLog?: unknown[];
     showGrid: boolean;
     setShowGrid: (show: boolean) => void;
+    onBenchItemPlaced?: (slotIndex: number) => void;
     controlsDisabled?: boolean;
 }
 
@@ -77,6 +78,7 @@ const CombatScene: React.FC<CombatSceneProps> = ({
     setIsCombatActive,
     showGrid,
     setShowGrid,
+    onBenchItemPlaced,
     controlsDisabled = false,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -310,6 +312,8 @@ const CombatScene: React.FC<CombatSceneProps> = ({
         if (!draggedBenchItem) return;
         e.preventDefault();
 
+        updateDragPreviewFromScreen(e.clientX, e.clientY);
+
         const game = gameRef.current;
         const cell = hoveredDropCellRef.current;
         if (!game || !cell) {
@@ -317,7 +321,10 @@ const CombatScene: React.FC<CombatSceneProps> = ({
             return;
         }
 
-        game.deployCombatBenchUnitAtCell(draggedBenchItem.item.name, cell.r, cell.c);
+        const placed = game.deployCombatBenchUnitAtCell(draggedBenchItem.item.name, cell.r, cell.c);
+        if (placed) {
+            onBenchItemPlaced?.(draggedBenchItem.index);
+        }
         hoveredDropCellRef.current = null;
         if (previewMarkerRef.current) previewMarkerRef.current.visible = false;
         setDraggedBenchItem(null);
