@@ -7,6 +7,8 @@ const METAL_COLOR = '#b0bec5';
 export class BracersBuilder {
     static build(isLeft: boolean, config: PlayerConfig): THREE.Group {
         const group = new THREE.Group();
+        void isLeft;
+        const embellishmentColor = config.embellishmentColor ?? METAL_COLOR;
         
         const leatherMat = new THREE.MeshStandardMaterial({
             color: LEATHER_COLOR,
@@ -15,7 +17,7 @@ export class BracersBuilder {
         });
         
         const metalMat = new THREE.MeshStandardMaterial({
-            color: METAL_COLOR,
+            color: embellishmentColor,
             metalness: 0.8,
             roughness: 0.3
         });

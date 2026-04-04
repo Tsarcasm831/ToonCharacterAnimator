@@ -495,7 +495,7 @@ export class BodyMorpher {
     }
 
     private updateShirt(config: PlayerConfig) {
-        const hash = `${config.outfit}_${config.shirtColor}_${config.bodyType}_${config.equipment.shirt}_${config.equipment.quiltedArmor}_${config.equipment.leatherArmor}_${config.equipment.heavyLeatherArmor}_${config.equipment.ringMail}_${config.equipment.plateMail}_${config.equipment.leatherDoublet}`;
+        const hash = `${config.outfit}_${config.shirtColor}_${config.bodyType}_${config.equipment.shirt}_${config.equipment.quiltedArmor}_${config.equipment.leatherArmor}_${config.equipment.heavyLeatherArmor}_${config.equipment.ringMail}_${config.equipment.plateMail}_${config.equipment.leatherDoublet}_${config.paddedArmorColor ?? ''}`;
         if (hash === this.lastShirtConfigHash) return;
         this.lastShirtConfigHash = hash;
         if (this.parts.shirt) this.parts.shirt = null;
@@ -684,7 +684,7 @@ export class BodyMorpher {
     }
 
     private updateBelt(config: PlayerConfig) {
-        const hash = `${config.equipment.belt}`;
+        const hash = `${config.equipment.belt}_${config.embellishmentColor ?? ''}`;
         if (hash === this.lastBeltConfigHash) return;
         this.lastBeltConfigHash = hash;
 
@@ -701,7 +701,7 @@ export class BodyMorpher {
     }
 
     private updateBracers(config: PlayerConfig) {
-        const hash = `${config.equipment.bracers}`;
+        const hash = `${config.equipment.bracers}_${config.embellishmentColor ?? ''}`;
         if (hash === this.lastBracersConfigHash) return;
         this.lastBracersConfigHash = hash;
 

@@ -7,6 +7,7 @@ interface ImpersonateControlsProps {
 }
 
 type ImpersonatePreset = { name: string; role: string; color: string; config: Partial<PlayerConfig> };
+type EmbellishmentStage = 1 | 2 | 3;
 
 const NPC_PRESETS: ImpersonatePreset[] = [
     {
@@ -443,12 +444,48 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
 
 const IMPERSONATION_PRESETS: ImpersonatePreset[] = [...NPC_PRESETS, ...NON_HUMANOID_PRESETS];
 
+const CITY_GUARD_STAGE_COLORS: Record<2 | 3, string> = {
+    2: '#f1f5f9',
+    3: '#d4af37'
+};
+
+const CITY_GUARD_PADDED_ARMOR_STAGE_COLORS: Record<2 | 3, string> = {
+    2: '#4b3621',
+    3: '#111111'
+};
+
+const CITY_GUARD_PANTS_STAGE_COLORS: Record<2 | 3, string> = {
+    2: '#4b5563',
+    3: '#111111'
+};
+
 export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setConfig }) => {
-    
-    const applyPreset = (preset: ImpersonatePreset) => {
+    const [cityGuardStage, setCityGuardStage] = React.useState<EmbellishmentStage>(1);
+
+    const getCityGuardStageConfig = (stage: EmbellishmentStage): Partial<PlayerConfig> => {
+        if (stage === 1) {
+            return {
+                embellishmentColor: undefined,
+                paddedArmorColor: undefined
+            };
+        }
+
+        return {
+            embellishmentColor: CITY_GUARD_STAGE_COLORS[stage],
+            paddedArmorColor: CITY_GUARD_PADDED_ARMOR_STAGE_COLORS[stage],
+            pantsColor: CITY_GUARD_PANTS_STAGE_COLORS[stage]
+        };
+    };
+
+    const applyPreset = (preset: ImpersonatePreset, stage: EmbellishmentStage = 1) => {
+        const stageConfig = preset.name === 'City Guard' ? getCityGuardStageConfig(stage) : {};
+
         setConfig(prev => ({
             ...prev,
+            embellishmentColor: undefined,
+            paddedArmorColor: undefined,
             ...preset.config,
+            ...stageConfig,
             impersonationModel: preset.config.impersonationModel ?? 'humanoid',
             // Ensure equipment object is merged correctly to reset unspecified slots
             equipment: {
@@ -473,38 +510,73 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {IMPERSONATION_PRESETS.map((npc) => (
-                    <button
-                        type="button"
-                        key={npc.name}
-                        onClick={() => applyPreset(npc)}
-                        className="relative group overflow-hidden rounded-2xl border border-slate-700/80 bg-gradient-to-b from-slate-800/95 to-slate-900/95 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-400/50 hover:shadow-[0_12px_28px_-18px_rgba(59,130,246,0.85)] active:scale-[0.98]"
-                    >
-                        <div className={`pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full blur-2xl opacity-20 transition-opacity group-hover:opacity-35 ${npc.color}`} />
+                {IMPERSONATION_PRESETS.map((npc) => {
+                    const isCityGuard = npc.name === 'City Guard';
 
-                        <div className="relative z-10 flex items-start justify-between gap-2">
-                            <span className={`inline-flex rounded-md px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-white/95 ${npc.color}`}>
-                                {npc.role}
-                            </span>
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/15 text-slate-300 transition-colors group-hover:border-blue-300/50 group-hover:text-blue-200">
-                                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                </svg>
-                            </span>
+                    return (
+                        <div
+                            key={npc.name}
+                            className="relative group overflow-hidden rounded-2xl border border-slate-700/80 bg-gradient-to-b from-slate-800/95 to-slate-900/95 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-400/50 hover:shadow-[0_12px_28px_-18px_rgba(59,130,246,0.85)]"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => applyPreset(npc, isCityGuard ? cityGuardStage : 1)}
+                                className="w-full text-left active:scale-[0.99]"
+                            >
+                                <div className={`pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full blur-2xl opacity-20 transition-opacity group-hover:opacity-35 ${npc.color}`} />
+
+                                <div className="relative z-10 flex items-start justify-between gap-2">
+                                    <span className={`inline-flex rounded-md px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-white/95 ${npc.color}`}>
+                                        {npc.role}
+                                    </span>
+                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/15 text-slate-300 transition-colors group-hover:border-blue-300/50 group-hover:text-blue-200">
+                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </span>
+                                </div>
+
+                                <h4 className="relative z-10 mt-3 text-base font-black uppercase tracking-tight text-white leading-tight break-words">
+                                    {npc.name}
+                                </h4>
+
+                                <div className="relative z-10 mt-4 flex items-center justify-between">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 group-hover:text-slate-200 transition-colors">
+                                        {isCityGuard ? `Apply stage ${cityGuardStage}` : 'Apply look'}
+                                    </span>
+                                    <span className="h-px w-8 bg-slate-600 transition-colors group-hover:bg-blue-300/80" />
+                                </div>
+                            </button>
+
+                            {isCityGuard && (
+                                <div className="relative z-10 mt-3 flex items-center justify-start gap-1.5">
+                                    {[1, 2, 3].map((stage) => {
+                                        const stageValue = stage as EmbellishmentStage;
+                                        const isActive = cityGuardStage === stageValue;
+
+                                        return (
+                                            <button
+                                                type="button"
+                                                key={`city-guard-stage-${stage}`}
+                                                onClick={() => {
+                                                    setCityGuardStage(stageValue);
+                                                    applyPreset(npc, stageValue);
+                                                }}
+                                                className={`rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] transition-colors ${
+                                                    isActive
+                                                        ? 'border-blue-300/70 bg-blue-500/25 text-blue-100'
+                                                        : 'border-slate-600/80 bg-slate-800/70 text-slate-300 hover:border-slate-400 hover:text-white'
+                                                }`}
+                                            >
+                                                S{stage}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
-
-                        <h4 className="relative z-10 mt-3 text-base font-black uppercase tracking-tight text-white leading-tight break-words">
-                            {npc.name}
-                        </h4>
-
-                        <div className="relative z-10 mt-4 flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 group-hover:text-slate-200 transition-colors">
-                                Apply look
-                            </span>
-                            <span className="h-px w-8 bg-slate-600 transition-colors group-hover:bg-blue-300/80" />
-                        </div>
-                    </button>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
