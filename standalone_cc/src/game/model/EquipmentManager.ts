@@ -23,6 +23,27 @@ export class EquipmentManager {
         this.parts = parts;
     }
 
+    private applyHandMountOffsets(config: PlayerConfig) {
+        const rightHandMount = this.parts.rightHandMount as THREE.Object3D | undefined;
+        const leftHandMount = this.parts.leftHandMount as THREE.Object3D | undefined;
+        if (!rightHandMount || !leftHandMount) return;
+
+        const isImp = config.impersonationModel === 'imp';
+
+        if (isImp) {
+            rightHandMount.position.set(0.008, -0.175, 0.045);
+            leftHandMount.position.set(-0.008, -0.175, 0.045);
+            rightHandMount.rotation.set(0, 0, Math.PI / 2);
+            leftHandMount.rotation.set(0, Math.PI, 0);
+            return;
+        }
+
+        rightHandMount.position.set(0, -0.06, -0.02);
+        leftHandMount.position.set(0, -0.06, -0.02);
+        rightHandMount.rotation.set(0, 0, 0);
+        leftHandMount.rotation.set(0, Math.PI, 0);
+    }
+
     private applyEmbellishmentColor(target: THREE.Object3D, embellishmentColor?: string) {
         target.traverse((child) => {
             if (!(child instanceof THREE.Mesh)) return;
@@ -58,6 +79,8 @@ export class EquipmentManager {
     }
 
     positionEquipment(config: PlayerConfig) {
+        this.applyHandMountOffsets(config);
+
         // --- RIGGING UPDATES ---
         if (this.equippedMeshes.helm) {
             this.equippedMeshes.helm.position.set(config.helmX, config.helmY, config.helmZ);
@@ -68,6 +91,19 @@ export class EquipmentManager {
         if (this.equippedMeshes.hood) {
             this.equippedMeshes.hood.position.set(config.hoodX, config.hoodY, config.hoodZ);
             this.equippedMeshes.hood.scale.setScalar(config.hoodScale);
+            this.equippedMeshes.hood.traverse((child: THREE.Object3D) => {
+                if (!(child instanceof THREE.Mesh)) return;
+                if (!(child.material instanceof THREE.MeshStandardMaterial)) return;
+
+                const hoodMat = child.material;
+                const isUnique = hoodMat.userData.isUniqueHoodMaterial as boolean | undefined;
+                if (!isUnique) {
+                    child.material = hoodMat.clone();
+                    (child.material as THREE.MeshStandardMaterial).userData.isUniqueHoodMaterial = true;
+                }
+
+                child.material.color.set(config.hoodColor);
+            });
         }
         if (this.equippedMeshes.mageHat) {
             this.equippedMeshes.mageHat.position.set(config.mageHatX, config.mageHatY, config.mageHatZ);
