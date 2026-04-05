@@ -37,12 +37,23 @@ interface ShopUnit {
     cost: number;
 }
 
+interface CombatEncounterRound {
+    enemyType: string;
+    enemyCount: number;
+}
+
 const SHOP_UNITS: ShopUnit[] = [
     { id: 'unit-1', name: 'Vanguard Sentinel', tier: 'Tier 1', role: 'Frontline', cost: 1 },
     { id: 'unit-2', name: 'Arc Ranger', tier: 'Tier 2', role: 'Ranged', cost: 2 },
     { id: 'unit-3', name: 'Storm Adept', tier: 'Tier 3', role: 'Caster', cost: 3 },
     { id: 'unit-4', name: 'Iron Paladin', tier: 'Tier 4', role: 'Bruiser', cost: 4 },
     { id: 'unit-5', name: 'Shade Assassin', tier: 'Tier 5', role: 'Skirmisher', cost: 5 },
+];
+
+const combatEncounter: CombatEncounterRound[] = [
+    { enemyType: 'imp', enemyCount: 1 },
+    { enemyType: 'imp', enemyCount: 2 },
+    { enemyType: 'imp', enemyCount: 3 },
 ];
 
 interface CombatSceneProps {
@@ -94,6 +105,8 @@ const CombatScene: React.FC<CombatSceneProps> = ({
     const [showCameraPanel, setShowCameraPanel] = useState(false);
     const [isShopOpen, setIsShopOpen] = useState(false);
     const [selectedShopUnit, setSelectedShopUnit] = useState<ShopUnit | null>(null);
+    const [currentCombatRound, setCurrentCombatRound] = useState(1);
+    const [isRoundInProgress, setIsRoundInProgress] = useState(false);
     const [draggedBenchItem, setDraggedBenchItem] = useState<{ index: number; item: InventoryItem } | null>(null);
     const hoveredDropCellRef = useRef<{ r: number; c: number } | null>(null);
     const previewMarkerRef = useRef<THREE.Mesh | null>(null);
@@ -223,6 +236,8 @@ const CombatScene: React.FC<CombatSceneProps> = ({
     useEffect(() => {
         if (!isCombatActive) {
             setSelectedBenchSlot(0);
+            setCurrentCombatRound(1);
+            setIsRoundInProgress(false);
         }
     }, [isCombatActive]);
 
@@ -241,6 +256,73 @@ const CombatScene: React.FC<CombatSceneProps> = ({
     }, [gameRef, isCombatActive]);
 
     const selectedBenchItem = bench[selectedBenchSlot];
+
+    const totalEncounterRounds = combatEncounter.length;
+    const displayRound = Math.min(currentCombatRound, totalEncounterRounds);
+    const canStartCurrentRound = !isRoundInProgress && currentCombatRound <= totalEncounterRounds;
+    const canDebugNextRound = isRoundInProgress
+        ? currentCombatRound < totalEncounterRounds
+        : currentCombatRound <= totalEncounterRounds;
+
+    const startRound = (roundNumber: number) => {
+        const game = gameRef.current;
+        if (!game) return;
+
+        if (roundNumber < 1 || roundNumber > totalEncounterRounds) return;
+
+        const roundConfig = combatEncounter[roundNumber - 1];
+        if (!roundConfig) return;
+
+        applyDefaultCamera(game);
+        const started = game.startCombatEncounterRound(roundConfig.enemyType, roundConfig.enemyCount);
+        if (!started) return;
+
+        setCurrentCombatRound(roundNumber);
+        setIsRoundInProgress(true);
+        setIsCombatActive(true);
+    };
+
+    const handleRoundControlClick = () => {
+        if (!canStartCurrentRound) return;
+        startRound(currentCombatRound);
+    };
+
+    const handleDebugNextRound = () => {
+        if (!canDebugNextRound) return;
+        const targetRound = isRoundInProgress ? currentCombatRound + 1 : currentCombatRound;
+        startRound(targetRound);
+    };
+
+    useEffect(() => {
+        if (!isCombatActive || !isRoundInProgress) return;
+
+        let frame = 0;
+
+        const checkRoundProgress = () => {
+            const game = gameRef.current;
+            if (!game) {
+                frame = requestAnimationFrame(checkRoundProgress);
+                return;
+            }
+
+            const hasLivingImp = game.entityManager.imps.some((imp) => !imp.isDead);
+            if (!hasLivingImp) {
+                setIsRoundInProgress(false);
+                if (currentCombatRound >= totalEncounterRounds) {
+                    setIsCombatActive(false);
+                    return;
+                }
+
+                setCurrentCombatRound((prev) => Math.min(prev + 1, totalEncounterRounds));
+                return;
+            }
+
+            frame = requestAnimationFrame(checkRoundProgress);
+        };
+
+        frame = requestAnimationFrame(checkRoundProgress);
+        return () => cancelAnimationFrame(frame);
+    }, [currentCombatRound, gameRef, isCombatActive, isRoundInProgress, setIsCombatActive, totalEncounterRounds]);
 
     const handleBenchItemDragStart = (index: number, item: InventoryItem) => {
         setDraggedBenchItem({ index, item });
@@ -434,23 +516,46 @@ const CombatScene: React.FC<CombatSceneProps> = ({
                                 >
                                     {showGrid ? 'Hex Grid On' : 'Hex Grid Off'}
                                 </button>
-                                {!isCombatActive ? (
+                                <button
+                                    type="button"
+                                    onClick={handleRoundControlClick}
+                                    disabled={!canStartCurrentRound}
+                                    className={`group rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] transition ${
+                                        canStartCurrentRound
+                                            ? 'border-cyan-300/35 bg-cyan-400/10 text-cyan-50 hover:border-emerald-300/45 hover:bg-emerald-400/15'
+                                            : 'border-white/10 bg-white/5 text-white/60'
+                                    }`}
+                                >
+                                    {isRoundInProgress ? (
+                                        <span>Round {displayRound} / {totalEncounterRounds} Live</span>
+                                    ) : canStartCurrentRound ? (
+                                        <>
+                                            <span className="group-hover:hidden">Round {displayRound} / {totalEncounterRounds}</span>
+                                            <span className="hidden group-hover:inline">Start Round {displayRound}</span>
+                                        </>
+                                    ) : (
+                                        <span>Encounter Complete</span>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleDebugNextRound}
+                                    disabled={!canDebugNextRound}
+                                    className={`rounded-full border px-4 py-2 text-xs font-black uppercase tracking-[0.2em] transition ${
+                                        canDebugNextRound
+                                            ? 'border-amber-300/35 bg-amber-400/15 text-amber-50 hover:bg-amber-400/25'
+                                            : 'border-white/10 bg-white/5 text-white/45'
+                                    }`}
+                                >
+                                    Next Round (Debug)
+                                </button>
+                                {isCombatActive && (
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            if (gameRef.current) {
-                                                applyDefaultCamera(gameRef.current);
-                                            }
-                                            setIsCombatActive(true);
+                                            setIsRoundInProgress(false);
+                                            setIsCombatActive(false);
                                         }}
-                                        className="rounded-full border border-emerald-300/30 bg-emerald-400/15 px-5 py-2 text-xs font-black uppercase tracking-[0.24em] text-emerald-50 transition hover:bg-emerald-400/25"
-                                    >
-                                        Start Board
-                                    </button>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsCombatActive(false)}
                                         className="rounded-full border border-rose-300/35 bg-rose-400/15 px-5 py-2 text-xs font-black uppercase tracking-[0.24em] text-rose-50 transition hover:bg-rose-400/25"
                                     >
                                         Stop Board

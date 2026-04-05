@@ -9,7 +9,6 @@ export class Imp {
     scene: THREE.Scene;
     group: THREE.Group;
     model: any; // Stores references to body parts
-    externalControl: boolean = false;
     position: THREE.Vector3 = new THREE.Vector3();
     rotationY: number = 0;
     state: ImpState = ImpState.PATROL;

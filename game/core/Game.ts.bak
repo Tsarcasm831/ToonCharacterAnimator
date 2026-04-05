@@ -472,7 +472,7 @@ export class Game {
             return false;
         }
 
-        this.combatSystem.initializeCombat(this.player, friendlyEntities, enemies, arena);
+        this.combatSystem.initializeCombat(this.player, friendlyEntities, enemies);
         this.combatInitialized = true;
         this.combatManager.setCombatActive(true);
         return true;

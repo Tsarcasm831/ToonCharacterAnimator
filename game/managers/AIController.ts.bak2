@@ -6,8 +6,6 @@ import { CombatEnvironment } from '../environment/CombatEnvironment';
 export class AIController {
     private combatSystem: CombatSystem;
     private activeInterval: NodeJS.Timeout | null = null;
-    private static readonly RANGER_ATTACKS_PER_SECOND = 0.7;
-    private static readonly DEFAULT_ATTACK_END_TURN_DELAY_MS = 1500;
 
     constructor(combatSystem: CombatSystem) {
         this.combatSystem = combatSystem;
@@ -24,9 +22,6 @@ export class AIController {
     }
 
     private decideAndExecute(unit: CombatUnit, environment: CombatEnvironment) {
-        const unitType = unit.entity?.constructor?.name;
-        const isRanger = unitType === 'Ranger';
-
         // 1. Find best target
         const target = this.findBestTarget(unit);
         if (!target) {
@@ -35,33 +30,23 @@ export class AIController {
             return;
         }
 
-        const attackDelayMs = this.getAttackEndTurnDelayMs(unit);
-
         // 2. Check if in range to attack
         const dist = this.getDistance(unit, target);
         const range = unit.stats.range || 1.5;
-        const gridDistance = this.getGridDistance(unit, target, environment);
-        const canRangerAttack = isRanger ? gridDistance <= 3 : false;
         
-        if ((isRanger && canRangerAttack) || (!isRanger && dist <= range)) {
+        if (dist <= range) {
             // Attack immediately
             console.log(`[AI] Attacking ${target.entity.constructor.name}`);
             this.combatSystem.executeAttack(unit, target);
             
             // End turn after attack animation delay
-            setTimeout(() => this.combatSystem.endTurn(), attackDelayMs);
+            setTimeout(() => this.combatSystem.endTurn(), 1500);
         } else {
             // 3. Move towards target with strategic positioning
             console.log(`[AI] Moving towards ${target.entity.constructor.name}`);
             
             // Try to find optimal position that minimizes distance while maintaining tactical advantage
-            let path = this.calculateOptimalPath(unit, target, environment);
-
-            if (path.length === 0) {
-                path = isRanger
-                    ? this.findPathToEngagementRange(unit, target, environment, 3, 1)
-                    : this.findPathToEngagementRange(unit, target, environment, 1, 1);
-            }
+            const path = this.calculateOptimalPath(unit, target, environment);
             
             if (path.length > 0) {
                 // Trim path to movement points
@@ -81,11 +66,9 @@ export class AIController {
                             
                             // Check range again after movement
                             const newDist = this.getDistance(unit, target);
-                            const newGridDistance = this.getGridDistance(unit, target, environment);
-                            const canAttackAfterMove = isRanger ? newGridDistance <= 3 : newDist <= range;
-                            if (canAttackAfterMove) {
+                            if (newDist <= range) {
                                 this.combatSystem.executeAttack(unit, target);
-                                setTimeout(() => this.combatSystem.endTurn(), attackDelayMs);
+                                setTimeout(() => this.combatSystem.endTurn(), 1500);
                             } else {
                                 // Consider if we should wait or end turn
                                 this.combatSystem.endTurn();
@@ -105,8 +88,7 @@ export class AIController {
     }
 
     private findBestTarget(unit: CombatUnit): CombatUnit | null {
-        const unitType = unit.entity?.constructor?.name;
-        if (unitType === 'Imp' || unitType === 'Ranger') {
+        if (unit.entity?.constructor?.name === 'Imp') {
             return this.findClosestTarget(unit);
         }
 
@@ -182,76 +164,7 @@ export class AIController {
             }
         }
 
-        return path.filter((cell) => {
-            if (unit.gridPos && cell.r === unit.gridPos.r && cell.c === unit.gridPos.c) {
-                return true;
-            }
-            return !environment.isCellOccupied(cell.r, cell.c);
-        });
-    }
-
-    private findPathToEngagementRange(
-        unit: CombatUnit,
-        target: CombatUnit,
-        environment: CombatEnvironment,
-        maxCellsFromTarget: number,
-        minCellsFromTarget: number = 1
-    ): { r: number, c: number }[] {
-        const unitPos = this.getUnitPosition(unit);
-        const targetPos = this.getUnitPosition(target);
-        if (!unitPos || !targetPos) return [];
-
-        let bestPath: { r: number, c: number }[] = [];
-        let bestPathCost = Infinity;
-        let bestTargetDistance = Infinity;
-
-        for (let r = 0; r < environment.GRID_ROWS; r++) {
-            for (let c = 0; c < environment.GRID_COLS; c++) {
-                if (unit.gridPos && r === unit.gridPos.r && c === unit.gridPos.c) {
-                    continue;
-                }
-
-                if (environment.isCellOccupied(r, c)) {
-                    continue;
-                }
-
-                const candidatePos = environment.getWorldPosition(r, c);
-                const candidateDistanceToTarget = environment.getPath(candidatePos, targetPos).length;
-
-                if (candidateDistanceToTarget < minCellsFromTarget || candidateDistanceToTarget > maxCellsFromTarget) {
-                    continue;
-                }
-
-                const pathToCandidate = environment.getPath(unitPos, candidatePos);
-                if (pathToCandidate.length === 0) continue;
-
-                if (
-                    pathToCandidate.length < bestPathCost ||
-                    (pathToCandidate.length === bestPathCost && candidateDistanceToTarget < bestTargetDistance)
-                ) {
-                    bestPath = pathToCandidate;
-                    bestPathCost = pathToCandidate.length;
-                    bestTargetDistance = candidateDistanceToTarget;
-                }
-            }
-        }
-
-        return bestPath;
-    }
-
-    private getGridDistance(unit: CombatUnit, target: CombatUnit, environment: CombatEnvironment): number {
-        const unitPos = this.getUnitPosition(unit);
-        const targetPos = this.getUnitPosition(target);
-        if (!unitPos || !targetPos) return Infinity;
-        return environment.getPath(unitPos, targetPos).length;
-    }
-
-    private getAttackEndTurnDelayMs(unit: CombatUnit): number {
-        if (unit.entity?.constructor?.name !== 'Ranger') {
-            return AIController.DEFAULT_ATTACK_END_TURN_DELAY_MS;
-        }
-
-        return Math.round(1000 / AIController.RANGER_ATTACKS_PER_SECOND);
+        return path.filter((cell) => !environment.isCellOccupied(cell.r, cell.c));
     }
 
     private calculatePathToTarget(unit: CombatUnit, target: CombatUnit, environment: CombatEnvironment): {r: number, c: number}[] {
