@@ -190,8 +190,8 @@ export class RobeBuilder {
         // Improved design with better coverage and flow
         if (parts.pelvis) {
             const skirtLen = 0.70; // Longer for better coverage
-            const skirtTopRad = torsoRadiusBottom * layerScale * 1.0;
-            const skirtBotRad = skirtTopRad * 1.6; // More flare for flowing look
+            const skirtTopRad = torsoRadiusBottom * layerScale * 0.94;
+            const skirtBotRad = skirtTopRad * 1.36; // Narrower flare for cleaner silhouette
 
             // Full cylinder skirt with front slit for leg movement
             const skirtGeo = new THREE.CylinderGeometry(
@@ -232,7 +232,7 @@ export class RobeBuilder {
             createdMeshes.push(skirt);
 
             // Front panel/tabard - wider and with trim
-            const tabardWidth = 0.30;
+            const tabardWidth = 0.24;
             const tabardLen = skirtLen * 0.95;
             const tabardGeo = new THREE.PlaneGeometry(tabardWidth, tabardLen, 4, 8);
             

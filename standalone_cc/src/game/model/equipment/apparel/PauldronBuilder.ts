@@ -5,6 +5,53 @@ import { PlayerConfig } from '../../../../types';
 export class PauldronBuilder {
     static build(isLeft: boolean, config: PlayerConfig): THREE.Group {
         const group = new THREE.Group();
+
+        if (config.equipment.robe) {
+            const robeMat = new THREE.MeshStandardMaterial({
+                color: config.robeColor,
+                roughness: 0.92,
+                metalness: 0.04,
+                side: THREE.DoubleSide
+            });
+
+            const trimMat = new THREE.MeshStandardMaterial({
+                color: config.robeTrimColor,
+                roughness: 0.6,
+                metalness: 0.25,
+                side: THREE.DoubleSide
+            });
+
+            const capGeo = new THREE.SphereGeometry(0.145, 18, 14, 0, Math.PI * 2, 0, Math.PI * 0.5);
+            capGeo.scale(1.28, 0.46, 1.0);
+            const cap = new THREE.Mesh(capGeo, robeMat);
+            cap.rotation.z = isLeft ? -0.34 : 0.34;
+            cap.rotation.x = 0.08;
+            cap.position.y = 0.07;
+            cap.position.x = isLeft ? 0.008 : -0.008;
+            cap.castShadow = true;
+            group.add(cap);
+
+            const sideFlapGeo = new THREE.SphereGeometry(0.09, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.56);
+            sideFlapGeo.scale(1.05, 0.75, 0.9);
+            const sideFlap = new THREE.Mesh(sideFlapGeo, robeMat);
+            sideFlap.position.set(isLeft ? 0.092 : -0.092, 0.0, 0.014);
+            sideFlap.rotation.z = isLeft ? -0.52 : 0.52;
+            sideFlap.rotation.y = isLeft ? -0.14 : 0.14;
+            sideFlap.rotation.x = 0.14;
+            sideFlap.castShadow = true;
+            group.add(sideFlap);
+
+            const trimGeo = new THREE.TorusGeometry(0.13, 0.007, 8, 24);
+            const trim = new THREE.Mesh(trimGeo, trimMat);
+            trim.scale.set(1.28, 1.0, 0.38);
+            trim.rotation.x = Math.PI / 2;
+            trim.rotation.z = isLeft ? -0.34 : 0.34;
+            trim.position.y = 0.065;
+            trim.position.x = isLeft ? 0.008 : -0.008;
+            group.add(trim);
+
+            return group;
+        }
         
         // Materials with double-sided visibility
         const metalMat = new THREE.MeshStandardMaterial({ 
@@ -30,7 +77,6 @@ export class PauldronBuilder {
 
         // Constants matching ShirtBuilder for better fit
         const torsoRadiusTop = 0.305;
-        const torsoDepthScale = 0.68;
 
         // Main shoulder plate - larger dome that wraps the shoulder
         // We use a sphere segment that covers the top and outer side

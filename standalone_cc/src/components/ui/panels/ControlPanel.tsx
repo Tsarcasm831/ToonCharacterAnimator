@@ -50,7 +50,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     canRedo
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<TabKey>('actions');
+    const [activeTab, setActiveTab] = useState<TabKey>('impersonate');
     const [isMobileLayout, setIsMobileLayout] = useState(() =>
         typeof window !== 'undefined' ? window.matchMedia('(max-width: 1024px)').matches : false
     );
@@ -70,8 +70,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     }, []);
 
     const TABS: { id: TabKey; label: string; icon: string }[] = [
-        { id: 'actions', label: 'Actions & Input', icon: '🎮' },
-        { id: 'impersonate', label: 'Impersonate', icon: '🎭' },
+        { id: 'impersonate', label: 'Impersonate', icon: '�' },
+        { id: 'actions', label: 'Actions & Input', icon: '�' },
         { id: 'randomize', label: 'Randomize', icon: '🎲' },
         { id: 'loadouts', label: 'Loadouts', icon: '💾' },
         { id: 'settings', label: 'Game Settings', icon: '⚙️' },

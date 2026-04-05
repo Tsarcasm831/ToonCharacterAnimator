@@ -47,7 +47,7 @@ export class ShirtBuilder {
         const ctx = canvas.getContext('2d');
         if (!ctx) return null;
         
-        const armorBaseColor = isLeatherArmor ? LEATHER_COLOR : (config.shirtColor || '#8B4513');
+        const armorBaseColor = isLeatherArmor ? (config.shirtColor || LEATHER_COLOR) : (config.shirtColor || '#8B4513');
         ctx.fillStyle = armorBaseColor;
         ctx.fillRect(0, 0, 512, 512);
 

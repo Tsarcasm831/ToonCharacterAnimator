@@ -38,7 +38,7 @@ const NPC_PRESETS: ImpersonatePreset[] = [
         color: "bg-red-900",
         config: {
             bodyType: 'male', bodyVariant: 'slim', outfit: 'warrior', skinColor: '#d7ccc8',
-            shirtColor: '#000000', pantsColor: '#000000', hairStyle: 'bald',
+            shirtColor: '#000000', pantsColor: '#000000', hoodColor: '#000000', hairStyle: 'bald',
             equipment: { ...DEFAULT_CONFIG.equipment, shoulders: true, shirt: true, pants: true, shoes: true, mask: true, hood: true, bracers: true, belt: true },
             selectedItem: 'Knife', weaponStance: 'side'
         }
@@ -49,7 +49,7 @@ const NPC_PRESETS: ImpersonatePreset[] = [
         color: "bg-emerald-600",
         config: {
             bodyType: 'female', bodyVariant: 'slim', outfit: 'peasant', skinColor: '#ffe4c4',
-            shirtColor: '#2e8b57', pantsColor: '#556b2f', bootsColor: '#8b4513', hoodColor: '#228b22', hairStyle: 'crew', hairColor: '#8b4513',
+            shirtColor: '#2e8b57', pantsColor: '#556b2f', bootsColor: '#8b4513', hoodColor: '#2e8b57', robeColor: '#2e8b57', hairStyle: 'crew', hairColor: '#8b4513',
             equipment: { ...DEFAULT_CONFIG.equipment, hood: true, leatherArmor: true, shirt: true, pants: true, shoes: true, bracers: true, cape: true, belt: true },
             selectedItem: 'Bow', weaponStance: 'side'
         }
@@ -62,7 +62,8 @@ const NPC_PRESETS: ImpersonatePreset[] = [
             bodyType: 'female', bodyVariant: 'slim', outfit: 'noble', skinColor: '#d4c4b0',
             shirtColor: '#1a0a2e', pantsColor: '#0d0518', robeColor: '#1a0a2e', robeTrimColor: '#6b21a8',
             mageHatColor: '#1a0a2e', mageHatBandColor: '#9333ea', hairStyle: 'bald',
-            equipment: { ...DEFAULT_CONFIG.equipment, robe: true, mageHat: true, shirt: true, pants: true, shoes: true, cape: true, belt: true },
+            mageHatY: 0.08,
+            equipment: { ...DEFAULT_CONFIG.equipment, robe: true, mageHat: true, shoulders: true, shirt: true, pants: true, shoes: true, cape: true, belt: true },
             selectedItem: null, weaponStance: 'side'
         }
     },
@@ -197,11 +198,11 @@ const NPC_PRESETS: ImpersonatePreset[] = [
 
 const CREATURE_MORPHS = {
     demon: {
-        torsoWidth: 0.82, torsoHeight: 1.08, armScale: 1.12, legScale: 0.96,
-        headScale: 0.9, neckHeight: 0.62, neckThickness: 0.88,
-        footLength: 1.05, footWidth: 0.9, toeSpread: 1.2,
-        chinSize: 0.78, chinLength: 1.15, chinForward: 0.03, noseForward: 0.06,
-        buttScale: 0.65
+        torsoWidth: 0.88, torsoHeight: 1.0, armScale: 1.2, legScale: 0.88,
+        headScale: 1.02, neckHeight: 0.55, neckThickness: 0.78,
+        footLength: 1.1, footWidth: 1.0, toeSpread: 1.32,
+        chinSize: 0.86, chinLength: 1.22, chinForward: 0.06, noseForward: 0.09,
+        buttScale: 0.58
     },
     arachnid: {
         torsoWidth: 0.72, torsoHeight: 0.8, armScale: 1.28, legScale: 1.25,
@@ -279,11 +280,12 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         config: {
             ...CREATURE_MORPHS.demon,
             impersonationModel: 'imp',
-            bodyType: 'male', bodyVariant: 'slim', outfit: 'naked', skinColor: '#8b1f1f',
+            bodyType: 'male', bodyVariant: 'slim', outfit: 'naked', skinColor: '#9a1730',
+            eyeColor: '#f6ad2f', scleraColor: '#f4d6a0', pupilColor: '#170808', lipColor: '#4d0d1b',
             hairStyle: 'bald',
-            shirtColor: '#2a0a0a', pantsColor: '#120707', bootsColor: '#1f0f0f',
-            equipment: { ...DEFAULT_CONFIG.equipment, hood: true, mask: true, belt: true },
-            selectedItem: null, weaponStance: 'side'
+            shirtColor: '#541022', pantsColor: '#2b0a14', bootsColor: '#1b070d',
+            equipment: { ...DEFAULT_CONFIG.equipment },
+            selectedItem: 'Sword', weaponStance: 'side'
         }
     },
     {
@@ -460,9 +462,12 @@ const CITY_GUARD_PANTS_STAGE_COLORS: Record<2 | 3, string> = {
 };
 
 export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setConfig }) => {
-    const [cityGuardStage, setCityGuardStage] = React.useState<EmbellishmentStage>(1);
+    const [presetStages, setPresetStages] = React.useState<Record<string, EmbellishmentStage>>({});
 
-    const getCityGuardStageConfig = (stage: EmbellishmentStage): Partial<PlayerConfig> => {
+    const isHumanoidPreset = (preset: ImpersonatePreset) => (preset.config.impersonationModel ?? 'humanoid') === 'humanoid';
+    const getPresetStage = (preset: ImpersonatePreset): EmbellishmentStage => presetStages[preset.name] ?? 1;
+
+    const getHumanoidStageConfig = (preset: ImpersonatePreset, stage: EmbellishmentStage): Partial<PlayerConfig> => {
         if (stage === 1) {
             return {
                 embellishmentColor: undefined,
@@ -470,21 +475,34 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
             };
         }
 
-        return {
+        const stageConfig: Partial<PlayerConfig> = {
             embellishmentColor: CITY_GUARD_STAGE_COLORS[stage],
-            paddedArmorColor: CITY_GUARD_PADDED_ARMOR_STAGE_COLORS[stage],
-            pantsColor: CITY_GUARD_PANTS_STAGE_COLORS[stage]
+            paddedArmorColor: CITY_GUARD_PADDED_ARMOR_STAGE_COLORS[stage]
         };
+
+        if (preset.name === 'City Guard') {
+            stageConfig.pantsColor = CITY_GUARD_PANTS_STAGE_COLORS[stage];
+        }
+
+        return stageConfig;
     };
 
     const applyPreset = (preset: ImpersonatePreset, stage: EmbellishmentStage = 1) => {
-        const stageConfig = preset.name === 'City Guard' ? getCityGuardStageConfig(stage) : {};
+        const stageConfig = isHumanoidPreset(preset) ? getHumanoidStageConfig(preset, stage) : {};
+        const unitColorOverrides: Partial<PlayerConfig> = preset.name === 'Ranger'
+            ? { hoodColor: '#2e8b57', robeColor: '#2e8b57' }
+            : preset.name === 'Assassin'
+                ? { hoodColor: '#000000' }
+                : {};
 
         setConfig(prev => ({
             ...prev,
             embellishmentColor: undefined,
             paddedArmorColor: undefined,
+            hoodColor: DEFAULT_CONFIG.hoodColor,
+            robeColor: DEFAULT_CONFIG.robeColor,
             ...preset.config,
+            ...unitColorOverrides,
             ...stageConfig,
             impersonationModel: preset.config.impersonationModel ?? 'humanoid',
             // Ensure equipment object is merged correctly to reset unspecified slots
@@ -511,7 +529,8 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {IMPERSONATION_PRESETS.map((npc) => {
-                    const isCityGuard = npc.name === 'City Guard';
+                    const isHumanoid = isHumanoidPreset(npc);
+                    const presetStage = isHumanoid ? getPresetStage(npc) : 1;
 
                     return (
                         <div
@@ -520,7 +539,7 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
                         >
                             <button
                                 type="button"
-                                onClick={() => applyPreset(npc, isCityGuard ? cityGuardStage : 1)}
+                                onClick={() => applyPreset(npc, presetStage)}
                                 className="w-full text-left active:scale-[0.99]"
                             >
                                 <div className={`pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full blur-2xl opacity-20 transition-opacity group-hover:opacity-35 ${npc.color}`} />
@@ -542,24 +561,27 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
 
                                 <div className="relative z-10 mt-4 flex items-center justify-between">
                                     <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 group-hover:text-slate-200 transition-colors">
-                                        {isCityGuard ? `Apply stage ${cityGuardStage}` : 'Apply look'}
+                                        {isHumanoid ? `Apply stage ${presetStage}` : 'Apply look'}
                                     </span>
                                     <span className="h-px w-8 bg-slate-600 transition-colors group-hover:bg-blue-300/80" />
                                 </div>
                             </button>
 
-                            {isCityGuard && (
+                            {isHumanoid && (
                                 <div className="relative z-10 mt-3 flex items-center justify-start gap-1.5">
                                     {[1, 2, 3].map((stage) => {
                                         const stageValue = stage as EmbellishmentStage;
-                                        const isActive = cityGuardStage === stageValue;
+                                        const isActive = presetStage === stageValue;
 
                                         return (
                                             <button
                                                 type="button"
-                                                key={`city-guard-stage-${stage}`}
+                                                key={`${npc.name}-stage-${stage}`}
                                                 onClick={() => {
-                                                    setCityGuardStage(stageValue);
+                                                    setPresetStages(prev => ({
+                                                        ...prev,
+                                                        [npc.name]: stageValue
+                                                    }));
                                                     applyPreset(npc, stageValue);
                                                 }}
                                                 className={`rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] transition-colors ${
