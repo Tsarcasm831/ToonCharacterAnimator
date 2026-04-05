@@ -11,7 +11,6 @@ export class CombatSystem {
     public turnManager: TurnManager;
     private aiController: AIController;
     private currentEnvironment: CombatEnvironment | null = null;
-    private static readonly CELL_MOVE_DURATION_SECONDS = 0.5;
     
     public onCombatLog?: (message: string, type: 'info' | 'damage' | 'heal' | 'death') => void;
     public onCombatEnd?: (playerWon: boolean) => void;
@@ -33,12 +32,9 @@ export class CombatSystem {
         };
     }
 
-    public initializeCombat(player: any, friendlyEntities: any[], enemyEntities: any[], environment?: CombatEnvironment) {
+    public initializeCombat(player: any, friendlyEntities: any[], enemyEntities: any[]) {
         this.units = [];
         this.combatEnded = false;
-        if (environment) {
-            this.currentEnvironment = environment;
-        }
 
         // Add player
         if (player) {
@@ -156,7 +152,6 @@ export class CombatSystem {
     }
 
     private handleVisualMovement(unit: CombatUnit, dt: number, environment: CombatEnvironment) {
-        const movementState = unit as CombatUnit & { __currentCellMoveSpeed?: number };
         const unitPos = this.getUnitPosition(unit);
         
         if (!unitPos) return;
@@ -166,13 +161,10 @@ export class CombatSystem {
              if (unit.path.length > 0) {
                 const nextCell = unit.path[0];
                 unit.nextMovePos = environment.getWorldPosition(nextCell.r, nextCell.c);
-                const segmentDistance = unitPos.distanceTo(unit.nextMovePos);
-                movementState.__currentCellMoveSpeed = segmentDistance / CombatSystem.CELL_MOVE_DURATION_SECONDS;
              } else {
                  // Path finished
                  unit.state = 'IDLE';
                  unit.nextMovePos = null;
-                 movementState.__currentCellMoveSpeed = undefined;
                  return;
              }
         }
@@ -180,7 +172,7 @@ export class CombatSystem {
         // Move towards nextMovePos with smooth interpolation
         if (unit.nextMovePos) {
             const dir = new THREE.Vector3().subVectors(unit.nextMovePos, unitPos).normalize();
-            const moveSpeed = movementState.__currentCellMoveSpeed ?? 6.0;
+            const moveSpeed = 6.0; // Increased speed for smoother feel
             const moveDist = moveSpeed * dt;
             
             // Look at direction
@@ -213,7 +205,6 @@ export class CombatSystem {
                 
                 unit.path.shift();
                 unit.nextMovePos = null;
-                movementState.__currentCellMoveSpeed = undefined;
                 
                 if (unit.path.length === 0) {
                     unit.state = 'IDLE';

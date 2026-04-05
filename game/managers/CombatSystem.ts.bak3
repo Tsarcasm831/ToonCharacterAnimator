@@ -33,12 +33,9 @@ export class CombatSystem {
         };
     }
 
-    public initializeCombat(player: any, friendlyEntities: any[], enemyEntities: any[], environment?: CombatEnvironment) {
+    public initializeCombat(player: any, friendlyEntities: any[], enemyEntities: any[]) {
         this.units = [];
         this.combatEnded = false;
-        if (environment) {
-            this.currentEnvironment = environment;
-        }
 
         // Add player
         if (player) {
