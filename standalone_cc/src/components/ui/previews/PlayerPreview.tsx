@@ -1222,7 +1222,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                 modelRef.current.update(dt, new THREE.Vector3(0, 0, 0));
             }
 
-            if (creatureModelRef.current) {
+            if (creatureModelRef.current && isWalking) {
                 creatureModelRef.current.animate(performance.now() * 0.008);
             }
 
