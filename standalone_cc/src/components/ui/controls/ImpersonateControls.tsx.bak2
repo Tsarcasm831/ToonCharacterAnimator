@@ -328,7 +328,7 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         config: {
             ...CREATURE_MORPHS.arachnid,
             impersonationModel: 'spider',
-            bodyType: 'male', bodyVariant: 'slim', outfit: 'naked', skinColor: '#173f67',
+            bodyType: 'male', bodyVariant: 'slim', outfit: 'naked', skinColor: '#141414',
             hairStyle: 'bald',
             shirtColor: '#101010', pantsColor: '#060606', bootsColor: '#080808',
             equipment: { ...DEFAULT_CONFIG.equipment, mask: true, hood: true, gloves: true },
