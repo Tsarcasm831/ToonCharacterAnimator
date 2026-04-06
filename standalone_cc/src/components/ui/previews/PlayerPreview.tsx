@@ -5,6 +5,10 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { PlayerConfig, PlayerInput } from '../../../types';
 import { PlayerModel } from '../../../game/model/PlayerModel';
 import { IdleAction } from '../../../game/animator/actions/IdleAction';
+import { WeaponAction } from '../../../game/animator/actions/WeaponAction';
+import { UnarmedPunchAction } from '../../../game/animator/actions/UnarmedPunchAction';
+import { MovementAction } from '../../../game/animator/actions/MovementAction';
+import { FireArrowAction } from '../../../game/animator/actions/FireArrowAction';
 
 interface PlayerPreviewProps {
     config: PlayerConfig;
@@ -912,7 +916,7 @@ const CREATURE_PLACEMENT: Record<Exclude<PreviewModelKey, 'humanoid'>, { scale: 
     imp: { scale: 1.45, y: -0.2, rotY: 0.2 },
 };
 
-export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
+export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInput }) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
@@ -920,8 +924,33 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
     const creatureModelRef = useRef<CreaturePreviewModel | null>(null);
     const activePreviewTypeRef = useRef<PreviewModelKey | null>(null);
     const configRef = useRef<PlayerConfig>(config);
+    const inputRef = useRef<Partial<PlayerInput>>(manualInput ?? {});
     const controlsRef = useRef<OrbitControls | null>(null);
     const frameIdRef = useRef<number>(0);
+    const walkTimeRef = useRef(0);
+    const lastStepCountRef = useRef(0);
+    const hitTimerRef = useRef(0);
+    const prevAttack1Ref = useRef(false);
+    const prevAttack2Ref = useRef(false);
+    const combatStateRef = useRef({
+        isAxeSwing: false,
+        axeSwingTimer: 0,
+        isPunch: false,
+        punchTimer: 0,
+        punchVariant: 'cross' as 'cross' | 'hook',
+        isFiringBow: false,
+        bowAttackTimer: 0,
+        bowState: 'draw' as 'draw' | 'release',
+        bowCharge: 0,
+        isCombatStance: false,
+    });
+
+    const getWeaponAttackDuration = (selectedItem: PlayerConfig['selectedItem']) => {
+        if (selectedItem === 'Sword') return 0.6;
+        if (selectedItem === 'Knife') return 0.4;
+        if (selectedItem === 'Staff') return 0.7;
+        return 0.9;
+    };
 
     const setPreviewModel = (scene: THREE.Scene, previewConfig: PlayerConfig) => {
         const nextType: PreviewModelKey = previewConfig.impersonationModel ?? 'humanoid';
@@ -1034,15 +1063,163 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
 
         const animate = () => {
             frameIdRef.current = requestAnimationFrame(animate);
+            const dt = 0.016;
+            const input = inputRef.current;
+
+            const attackPressed = !!input.attack1;
+            const getHitPressed = !!input.attack2;
+            if (attackPressed && !prevAttack1Ref.current) {
+                if (configRef.current.selectedItem === 'Bow') {
+                    combatStateRef.current.isFiringBow = true;
+                    combatStateRef.current.bowAttackTimer = 0;
+                    combatStateRef.current.bowState = 'draw';
+                    combatStateRef.current.bowCharge = 0;
+                    combatStateRef.current.isAxeSwing = false;
+                    combatStateRef.current.axeSwingTimer = 0;
+                    combatStateRef.current.isPunch = false;
+                    combatStateRef.current.punchTimer = 0;
+                } else if (configRef.current.selectedItem) {
+                    combatStateRef.current.isAxeSwing = true;
+                    combatStateRef.current.axeSwingTimer = 0;
+                    combatStateRef.current.isFiringBow = false;
+                    combatStateRef.current.bowAttackTimer = 0;
+                    combatStateRef.current.bowCharge = 0;
+                    combatStateRef.current.isPunch = false;
+                    combatStateRef.current.punchTimer = 0;
+                } else {
+                    combatStateRef.current.isPunch = true;
+                    combatStateRef.current.punchTimer = 0;
+                    combatStateRef.current.punchVariant = Math.random() > 0.5 ? 'cross' : 'hook';
+                    combatStateRef.current.isFiringBow = false;
+                    combatStateRef.current.bowAttackTimer = 0;
+                    combatStateRef.current.bowCharge = 0;
+                    combatStateRef.current.isAxeSwing = false;
+                    combatStateRef.current.axeSwingTimer = 0;
+                }
+            }
+            if (getHitPressed && !prevAttack2Ref.current) {
+                hitTimerRef.current = 0.26;
+            }
+            prevAttack1Ref.current = attackPressed;
+            prevAttack2Ref.current = getHitPressed;
+
+            hitTimerRef.current = Math.max(0, hitTimerRef.current - dt);
+
+            if (combatStateRef.current.isAxeSwing) {
+                combatStateRef.current.axeSwingTimer += dt;
+                if (combatStateRef.current.axeSwingTimer >= getWeaponAttackDuration(configRef.current.selectedItem)) {
+                    combatStateRef.current.isAxeSwing = false;
+                    combatStateRef.current.axeSwingTimer = 0;
+                }
+            }
+            if (combatStateRef.current.isFiringBow) {
+                combatStateRef.current.bowAttackTimer += dt;
+                const drawDuration = 0.24;
+                const holdDuration = 0.14;
+                const releaseDuration = 0.2;
+                const totalDuration = drawDuration + holdDuration + releaseDuration;
+                const t = combatStateRef.current.bowAttackTimer;
+
+                if (t < drawDuration) {
+                    combatStateRef.current.bowState = 'draw';
+                    combatStateRef.current.bowCharge = t / drawDuration;
+                } else if (t < drawDuration + holdDuration) {
+                    combatStateRef.current.bowState = 'draw';
+                    combatStateRef.current.bowCharge = 1;
+                } else if (t < totalDuration) {
+                    combatStateRef.current.bowState = 'release';
+                    const r = (t - drawDuration - holdDuration) / releaseDuration;
+                    combatStateRef.current.bowCharge = Math.max(0, 1 - r);
+                } else {
+                    combatStateRef.current.isFiringBow = false;
+                    combatStateRef.current.bowAttackTimer = 0;
+                    combatStateRef.current.bowState = 'draw';
+                    combatStateRef.current.bowCharge = 0;
+                }
+            }
+            if (combatStateRef.current.isPunch) {
+                combatStateRef.current.punchTimer += dt;
+                if (combatStateRef.current.punchTimer >= 0.72) {
+                    combatStateRef.current.isPunch = false;
+                    combatStateRef.current.punchTimer = 0;
+                }
+            }
+
+            const isWalking = Math.abs(input.x ?? 0) > 0.05 || Math.abs(input.y ?? 0) > 0.05;
+            if (!isWalking && walkTimeRef.current !== 0) {
+                // Match runtime locomotion behavior: reset cadence when movement stops.
+                walkTimeRef.current = 0;
+                lastStepCountRef.current = 0;
+            }
 
             if (modelRef.current) {
                 const mockPlayer = {
                     config: configRef.current,
                     isCombatStance: false,
                     model: modelRef.current,
+                    locomotion: {
+                        walkTime: walkTimeRef.current,
+                        lastStepCount: lastStepCountRef.current,
+                        didStep: false,
+                        isCrouching: false,
+                    },
                 };
-                IdleAction.animate(mockPlayer, modelRef.current.parts, 0.1, false);
-                modelRef.current.update(0.016, new THREE.Vector3(0, 0, 0));
+                const parts = modelRef.current.parts;
+                const locomotionInput: PlayerInput = {
+                    x: input.x ?? 0,
+                    y: input.y ?? 0,
+                    isRunning: !!input.isRunning,
+                    jump: false,
+                    isDead: false,
+                    isPickingUp: false,
+                    attack1: false,
+                    attack2: false,
+                    interact: false,
+                    combat: false,
+                    toggleFirstPerson: false,
+                    wave: false,
+                    leftHandWave: false,
+                    summon: false,
+                    toggleBuilder: false,
+                    rotateGhost: false,
+                    fireball: false,
+                    crouch: false,
+                };
+
+                if (isWalking) {
+                    MovementAction.animate(mockPlayer, parts, dt, 0.1, locomotionInput, false);
+                } else {
+                    IdleAction.animate(mockPlayer, parts, 0.1, false);
+                }
+                walkTimeRef.current = mockPlayer.locomotion.walkTime ?? 0;
+                lastStepCountRef.current = mockPlayer.locomotion.lastStepCount ?? 0;
+
+                const mockPlayerForActions = {
+                    config: configRef.current,
+                    model: modelRef.current,
+                    combat: combatStateRef.current,
+                    locomotion: {
+                        isJumping: false,
+                    },
+                    isCombatStance: false,
+                };
+
+                if (combatStateRef.current.isFiringBow) {
+                    FireArrowAction.animate(mockPlayerForActions, parts, dt, 0.1);
+                } else if (combatStateRef.current.isAxeSwing) {
+                    WeaponAction.animate(mockPlayerForActions, parts, dt, 0.1, isWalking);
+                } else if (combatStateRef.current.isPunch) {
+                    UnarmedPunchAction.animate(mockPlayerForActions, parts, dt, 0.1, isWalking);
+                }
+
+                if (hitTimerRef.current > 0) {
+                    const hitProgress = 1 - (hitTimerRef.current / 0.26);
+                    const recoil = Math.sin(hitProgress * Math.PI);
+                    parts.torsoContainer.rotation.x += 0.22 * recoil;
+                    parts.head.rotation.x += 0.12 * recoil;
+                }
+
+                modelRef.current.update(dt, new THREE.Vector3(0, 0, 0));
             }
 
             if (creatureModelRef.current) {
@@ -1098,6 +1275,10 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
             setPreviewModel(sceneRef.current, config);
         }
     }, [config]);
+
+    useEffect(() => {
+        inputRef.current = manualInput ?? {};
+    }, [manualInput]);
 
     return <div ref={containerRef} className="w-full h-full" />;
 };
