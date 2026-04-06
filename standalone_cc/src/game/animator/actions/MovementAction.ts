@@ -1,0 +1,322 @@
+import * as THREE from 'three';
+import { PlayerInput } from '../../../types';
+import { applyFootRot, animateBreathing } from '../AnimationUtils';
+
+export class MovementAction {
+    static animate(player: any, parts: any, dt: number, damp: number, input: PlayerInput, skipRightArm: boolean = false) {
+        const isRunning = input.isRunning;
+        const isHolding = !!player.config.selectedItem;
+        const stance = player.config.weaponStance;
+        const isMaleStyle = player.config.bodyType === 'female';
+        const locomotion = player.locomotion ?? player;
+        const isCrouching = locomotion.isCrouching ?? false;
+
+        const lerp = THREE.MathUtils.lerp;
+        const clamp = THREE.MathUtils.clamp;
+        const sin = Math.sin;
+        const cos = Math.cos;
+        const ease = (t: number) => t * t * (3 - 2 * t); // smoothstep
+
+        // Inputs
+        const forwardInput = -input.y;
+        const sideInput = input.x;
+        const inputLen = Math.min(1, Math.sqrt(forwardInput * forwardInput + sideInput * sideInput));
+        const isPureStrafe = Math.abs(sideInput) > 0.6 && Math.abs(forwardInput) < 0.3;
+
+        // Smoothly blend into strafe speed instead of snapping
+        const forwardSuppression = clamp(1 - Math.abs(forwardInput) / 0.3, 0, 1);
+        const strafeBlendRaw = ((Math.abs(sideInput) - 0.4) / 0.4) * forwardSuppression;
+        const strafeBlend = clamp(strafeBlendRaw, 0, 1);
+
+        // Scale animation speed by input magnitude to prevent sliding at low stick tilt
+        let speedMult = lerp(isRunning ? 16.2 : 9, 10, strafeBlend);
+        if (inputLen < 1.0) speedMult *= inputLen;
+
+        // Optional caller-provided stride cadence tuning (useful for NPC movement speeds).
+        const cadenceScaleRaw = Number.isFinite(player?.locomotionCadenceScale)
+            ? player.locomotionCadenceScale
+            : 1;
+        const cadenceScale = clamp(cadenceScaleRaw, 0.5, 3.0);
+        speedMult *= cadenceScale;
+
+        if (isCrouching) {
+            speedMult *= 0.6; // Slower animation when crouching
+        }
+
+        const strafeDamp = isPureStrafe ? damp * 2 : damp;
+        const animationDamp = isPureStrafe ? damp * 2.5 : damp * 1.5;
+        const walkDt = dt || 0;
+
+        // Ensure walkTime doesn't jump due to large dt
+        const cappedWalkDt = Math.min(walkDt, 0.1);
+        locomotion.walkTime = (locomotion.walkTime || 0) + cappedWalkDt * speedMult;
+        const t = locomotion.walkTime;
+
+        // Step Sound Detection
+        const stepCycle = (t - Math.PI * 0.5) / Math.PI;
+        const currentSteps = Math.floor(stepCycle);
+        if (currentSteps > (locomotion.lastStepCount ?? 0)) {
+            locomotion.didStep = true;
+            locomotion.lastStepCount = currentSteps;
+        }
+
+        animateBreathing(player, parts, Date.now() * 0.002, isRunning ? 2.5 : 1.5);
+
+        const isBackward = forwardInput < -0.1;
+        const isStrafingLeft = sideInput < -0.1;
+        const isStrafingRight = sideInput > 0.1;
+
+        let baseHeight = 0.89 * player.config.legScale;
+        let torsoLeanOffset = 0;
+        let headTiltOffset = 0;
+
+        if (isCrouching) {
+            baseHeight -= 0.35;
+            torsoLeanOffset = 0.5;
+            headTiltOffset = -0.4;
+        }
+
+        // --- HIPS & TORSO ---
+
+        // Bounce Logic
+        let bounce = 0;
+        if (isPureStrafe) {
+            // Double bounce for strafe (one for each foot plant)
+            bounce = Math.abs(sin(t)) * 0.04;
+        } else {
+            const bounceAmp = isRunning ? 0.08 : (isMaleStyle ? 0.02 : 0.03);
+            bounce = cos(2 * t) * bounceAmp;
+        }
+
+        const runSquat = isRunning ? 0.05 : 0.0;
+        parts.hips.position.y = lerp(parts.hips.position.y, baseHeight - runSquat + bounce, strafeDamp * 2);
+
+        // Sway & Twist
+        let sway = 0;
+        let twist = 0;
+        let roll = 0;
+
+        if (isPureStrafe) {
+            const leanDir = isStrafingLeft ? 1 : -1;
+            twist = leanDir * 0.25;
+            roll = leanDir * 0.05;
+            sway = 0;
+        } else {
+            const swayAmp = isRunning ? 0.04 : (isMaleStyle ? 0.015 : 0.07);
+            sway = -sin(t) * swayAmp;
+            if (isStrafingLeft) sway -= 0.03;
+            if (isStrafingRight) sway += 0.03;
+
+            const twistAmp = isRunning ? 0.12 : 0.15;
+            twist = -sin(t) * twistAmp;
+            if (!isPureStrafe) twist *= Math.sign(forwardInput || 1);
+
+            const rollAmp = isRunning ? 0.05 : (isMaleStyle ? 0.01 : 0.04);
+            roll = sin(t) * rollAmp;
+            if (isStrafingLeft) roll -= 0.06;
+            if (isStrafingRight) roll += 0.06;
+        }
+
+        parts.hips.position.x = lerp(parts.hips.position.x, sway, animationDamp);
+        parts.hips.rotation.y = lerp(parts.hips.rotation.y, twist, animationDamp);
+        parts.hips.rotation.z = lerp(parts.hips.rotation.z, roll, animationDamp);
+
+        // Forward Lean
+        const leanBaseForward = isRunning ? 0.35 : 0.1;
+        const leanBase = isBackward ? 0.1 : leanBaseForward;
+        const leanBob = Math.abs(cos(t)) * 0.05;
+        parts.hips.rotation.x = lerp(parts.hips.rotation.x, (isPureStrafe ? 0.05 : leanBase) + leanBob, animationDamp);
+
+        parts.torsoContainer.rotation.y = lerp(parts.torsoContainer.rotation.y, -twist * 0.7 + (isPureStrafe ? (isStrafingLeft ? -0.2 : 0.2) : 0), animationDamp);
+        parts.torsoContainer.rotation.z = lerp(parts.torsoContainer.rotation.z, -parts.hips.rotation.z * 0.5, animationDamp);
+        const targetTorsoX = (isRunning && !isPureStrafe) ? 0.1 : 0.02;
+        parts.torsoContainer.rotation.x = lerp(parts.torsoContainer.rotation.x, targetTorsoX + torsoLeanOffset, animationDamp);
+
+        // --- DYNAMIC SKIRT FLARING ---
+        if (parts.pelvis && parts.pelvis.children.length > 0) {
+            const skirt = parts.pelvis.children.find((c: any) => c.name && c.name.includes('Skirt'));
+            if (skirt) {
+                const legMove = Math.max(
+                    Math.abs(parts.leftThigh.rotation.x),
+                    Math.abs(parts.rightThigh.rotation.x),
+                    Math.abs(parts.leftThigh.rotation.z),
+                    Math.abs(parts.rightThigh.rotation.z)
+                );
+                const flare = 1.0 + (legMove * 0.45);
+                if (!isNaN(flare) && isFinite(flare)) {
+                    skirt.scale.x = lerp(skirt.scale.x, flare, animationDamp);
+                    skirt.scale.z = lerp(skirt.scale.z, flare, animationDamp);
+                }
+            }
+        }
+
+        parts.neck.rotation.y = -parts.torsoContainer.rotation.y * 0.5;
+        parts.head.rotation.x = lerp(parts.head.rotation.x, 0.1 - leanBob + headTiltOffset, damp);
+
+        // --- LEGS ---
+        if (isPureStrafe) {
+            const isLeft = isStrafingLeft;
+            const cyc = t % (Math.PI * 2);
+            const phase1 = cyc < Math.PI;
+            const p = (cyc % Math.PI) / Math.PI;
+
+            const baseStance = 0.12;
+            const stepWidth = 0.32;
+
+            let leadOpen = 0;
+            let trailOpen = 0;
+            let leadLift = 0;
+            let trailLift = 0;
+            let leadFoot = 0;
+            let trailFoot = 0;
+
+            if (phase1) {
+                leadLift = sin(p * Math.PI) * 0.6;
+                leadOpen = baseStance + (stepWidth * sin(p * Math.PI / 2));
+                leadFoot = -leadLift * 0.3;
+
+                trailOpen = lerp(baseStance, baseStance + stepWidth, ease(p));
+                trailLift = 0;
+                trailFoot = 0;
+            } else {
+                leadOpen = lerp(baseStance + stepWidth, baseStance, ease(p));
+                leadLift = 0;
+                leadFoot = 0;
+
+                trailLift = sin(p * Math.PI) * 0.4;
+                trailOpen = lerp(baseStance + stepWidth, baseStance, ease(p));
+                trailFoot = -trailLift * 0.5;
+            }
+
+            parts.leftThigh.rotation.z = lerp(parts.leftThigh.rotation.z, isLeft ? leadOpen : trailOpen, animationDamp);
+            parts.rightThigh.rotation.z = lerp(parts.rightThigh.rotation.z, isLeft ? -trailOpen : -leadOpen, animationDamp);
+
+            parts.leftThigh.rotation.x = lerp(parts.leftThigh.rotation.x, 0, animationDamp);
+            parts.rightThigh.rotation.x = lerp(parts.rightThigh.rotation.x, 0, animationDamp);
+
+            parts.leftShin.rotation.x = lerp(parts.leftShin.rotation.x, isLeft ? leadLift : trailLift, animationDamp);
+            parts.rightShin.rotation.x = lerp(parts.rightShin.rotation.x, isLeft ? trailLift : leadLift, animationDamp);
+
+            applyFootRot(parts.leftShin, isLeft ? leadFoot : trailFoot, isLeft ? -leadOpen : -trailOpen);
+            applyFootRot(parts.rightShin, isLeft ? trailFoot : leadFoot, isLeft ? trailOpen : leadOpen);
+        } else {
+            const calcLeg = (offset: number) => {
+                const phase = t + offset;
+                const s = sin(phase);
+                const c = cos(phase);
+
+                let thighX = 0;
+                let shinX = 0;
+                let footX = 0;
+
+                if (isBackward) {
+                    const isSwing = c > 0;
+                    thighX = s * (isRunning ? 0.9 : 0.65);
+                    if (isSwing) {
+                        const lift = c;
+                        shinX = lift * (isRunning ? 2.2 : 1.6);
+                        thighX -= lift * 0.2;
+                        footX = lift * 0.4;
+                    } else {
+                        shinX = 0.1;
+                        footX = -thighX;
+                    }
+                } else {
+                    const isSwing = c > 0;
+                    thighX = -s * (isRunning ? 1.1 : 0.55);
+                    if (isSwing) {
+                        shinX = c * (isRunning ? 2.4 : 1.4);
+                        thighX -= c * (isRunning ? 0.8 : 0.3);
+                        footX = -0.3 * c;
+                    } else {
+                        const loading = Math.max(0, sin(phase - 0.5));
+                        if (!isRunning) shinX = loading * 0.1;
+                        footX = s * (s > 0 ? -0.4 : -0.8);
+                    }
+                }
+                return { thighX, shinX, footX };
+            };
+
+            const left = calcLeg(0);
+            const right = calcLeg(Math.PI);
+
+            const walkStance = isMaleStyle ? 0.13 : 0.04;
+            const baseStanceZ = isRunning ? 0.08 : walkStance;
+
+            parts.leftThigh.rotation.x = left.thighX;
+            parts.leftThigh.rotation.z = -baseStanceZ;
+            parts.leftShin.rotation.x = left.shinX;
+            applyFootRot(parts.leftShin, left.footX, baseStanceZ);
+
+            parts.rightThigh.rotation.x = right.thighX;
+            parts.rightThigh.rotation.z = baseStanceZ;
+            parts.rightShin.rotation.x = right.shinX;
+            applyFootRot(parts.rightShin, right.footX, -baseStanceZ);
+        }
+
+        // --- ARMS ---
+        let armAmp = isRunning ? 1.4 : 0.6;
+        if (isPureStrafe) armAmp *= 0.4;
+        const armSpread = isMaleStyle ? 0.2 : 0.15;
+
+        parts.leftArm.rotation.x = sin(t) * armAmp;
+        parts.leftArm.rotation.z = armSpread + (isStrafingLeft ? 0.2 : 0);
+        parts.leftForeArm.rotation.x = isRunning ? -2.0 : -0.3;
+        parts.leftHand.rotation.y = lerp(parts.leftHand.rotation.y, Math.PI / 2, damp);
+
+        if (!skipRightArm) {
+            if (isHolding) {
+                if (stance === 'shoulder') {
+                    parts.rightArm.rotation.x = -0.5 + cos(t) * 0.1;
+                    parts.rightForeArm.rotation.x = -2.0;
+                    parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI / 2, damp);
+                } else {
+                    parts.rightArm.rotation.x = sin(t + Math.PI) * (armAmp * 0.5);
+                    parts.rightForeArm.rotation.x = -0.5;
+                    parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -1.2, damp);
+                    parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, -0.4, damp);
+                }
+            } else {
+                parts.rightHand.rotation.y = lerp(parts.rightHand.rotation.y, -Math.PI / 2, damp);
+                parts.rightHand.rotation.z = lerp(parts.rightHand.rotation.z, 0, damp);
+                parts.rightArm.rotation.x = sin(t + Math.PI) * armAmp;
+                parts.rightArm.rotation.z = -armSpread - (isStrafingRight ? 0.2 : 0);
+                parts.rightForeArm.rotation.x = isRunning ? -2.0 : -0.3;
+            }
+        }
+
+        // --- FEMALE BUTTOCKS PHYSICS ---
+        if (player.config.bodyType === 'female' && parts.buttocks && !isPureStrafe) {
+            const rightCheek = parts.buttocks.children[0];
+            const leftCheek = parts.buttocks.children[1];
+
+            if (rightCheek && leftCheek) {
+                const jiggleAmp = isRunning ? 0.04 : 0.015;
+                const physicsDamp = damp * 12;
+
+                const bounceL = -Math.cos(2 * t - 0.5) * jiggleAmp;
+                const bounceR = -Math.cos(2 * t - 0.5) * jiggleAmp;
+                const swayInertia = -Math.sin(t) * jiggleAmp * 2.0;
+                const baseY = -0.06 + player.config.buttY;
+
+                leftCheek.position.y = lerp(leftCheek.position.y, baseY + bounceL + swayInertia, physicsDamp);
+                rightCheek.position.y = lerp(rightCheek.position.y, baseY + bounceR - swayInertia, physicsDamp);
+
+                const legExtL = Math.sin(t);
+                const legExtR = Math.sin(t + Math.PI);
+                const rotJiggle = isRunning ? 0.15 : 0.05;
+                const baseRotX = 0.2;
+
+                leftCheek.rotation.x = lerp(leftCheek.rotation.x, baseRotX + legExtL * rotJiggle + bounceL * 5, physicsDamp);
+                rightCheek.rotation.x = lerp(rightCheek.rotation.x, baseRotX + legExtR * rotJiggle + bounceR * 5, physicsDamp);
+
+                const baseRotY_L = 0.25;
+                const baseRotY_R = -0.25;
+                const twistImpulse = Math.abs(Math.sin(t)) * (isRunning ? 0.2 : 0.08);
+
+                leftCheek.rotation.y = lerp(leftCheek.rotation.y, baseRotY_L + twistImpulse, physicsDamp);
+                rightCheek.rotation.y = lerp(rightCheek.rotation.y, baseRotY_R - twistImpulse, physicsDamp);
+            }
+        }
+    }
+}

@@ -4,6 +4,7 @@ import { PlayerConfig, DEFAULT_CONFIG } from '../../../types';
 
 interface ImpersonateControlsProps {
     setConfig: React.Dispatch<React.SetStateAction<PlayerConfig>>;
+    onResetToBase?: () => void;
 }
 
 type ImpersonatePreset = { name: string; role: string; color: string; config: Partial<PlayerConfig> };
@@ -461,8 +462,9 @@ const CITY_GUARD_PANTS_STAGE_COLORS: Record<2 | 3, string> = {
     3: '#111111'
 };
 
-export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setConfig }) => {
+export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setConfig, onResetToBase }) => {
     const [presetStages, setPresetStages] = React.useState<Record<string, EmbellishmentStage>>({});
+    const [infoPreset, setInfoPreset] = React.useState<ImpersonatePreset | null>(null);
 
     const isHumanoidPreset = (preset: ImpersonatePreset) => (preset.config.impersonationModel ?? 'humanoid') === 'humanoid';
     const getPresetStage = (preset: ImpersonatePreset): EmbellishmentStage => presetStages[preset.name] ?? 1;
@@ -512,6 +514,91 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
             }
         }));
     };
+    
+    const closeInfoModal = () => setInfoPreset(null);
+    const activeInfoStage = infoPreset ? getPresetStage(infoPreset) : 1;
+    const activeInfoEquipment = infoPreset
+        ? Object.entries(infoPreset.config.equipment ?? {})
+            .filter(([, enabled]) => !!enabled)
+            .map(([slot]) => slot)
+        : [];
+    const humanoidPresets = NPC_PRESETS;
+    const nonHumanoidPresets = NON_HUMANOID_PRESETS;
+
+    const renderPresetCard = (npc: ImpersonatePreset) => {
+        const isHumanoid = isHumanoidPreset(npc);
+        const presetStage = isHumanoid ? getPresetStage(npc) : 1;
+
+        return (
+            <div
+                key={npc.name}
+                className="relative group overflow-hidden rounded-2xl border border-slate-700/80 bg-gradient-to-b from-slate-800/95 to-slate-900/95 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-400/50 hover:shadow-[0_12px_28px_-18px_rgba(59,130,246,0.85)]"
+            >
+                <button
+                    type="button"
+                    onClick={() => applyPreset(npc, presetStage)}
+                    className="w-full pr-10 text-left active:scale-[0.99]"
+                >
+                    <div className={`pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full blur-2xl opacity-20 transition-opacity group-hover:opacity-35 ${npc.color}`} />
+
+                    <div className="relative z-10 flex items-start justify-between gap-2">
+                        <span className={`inline-flex rounded-md px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-white/95 ${npc.color}`}>
+                            {npc.role}
+                        </span>
+                    </div>
+
+                    <h4 className="relative z-10 mt-3 text-base font-black uppercase tracking-tight text-white leading-tight break-words">
+                        {npc.name}
+                    </h4>
+
+                    <div className="relative z-10 mt-4 flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 group-hover:text-slate-200 transition-colors">
+                            {isHumanoid ? `Apply stage ${presetStage}` : 'Apply look'}
+                        </span>
+                        <span className="h-px w-8 bg-slate-600 transition-colors group-hover:bg-blue-300/80" />
+                    </div>
+                </button>
+
+                <button
+                    type="button"
+                    onClick={() => setInfoPreset(npc)}
+                    className="absolute right-3 top-3 z-20 inline-flex h-7 items-center justify-center rounded-full border border-white/20 bg-slate-900/85 px-2.5 text-[9px] font-black uppercase tracking-[0.14em] text-slate-200 transition-colors hover:border-blue-300/60 hover:text-blue-100"
+                >
+                    Info
+                </button>
+
+                {isHumanoid && (
+                    <div className="relative z-10 mt-3 flex items-center justify-start gap-1.5">
+                        {[1, 2, 3].map((stage) => {
+                            const stageValue = stage as EmbellishmentStage;
+                            const isActive = presetStage === stageValue;
+
+                            return (
+                                <button
+                                    type="button"
+                                    key={`${npc.name}-stage-${stage}`}
+                                    onClick={() => {
+                                        setPresetStages(prev => ({
+                                            ...prev,
+                                            [npc.name]: stageValue
+                                        }));
+                                        applyPreset(npc, stageValue);
+                                    }}
+                                    className={`rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] transition-colors ${
+                                        isActive
+                                            ? 'border-blue-300/70 bg-blue-500/25 text-blue-100'
+                                            : 'border-slate-600/80 bg-slate-800/70 text-slate-300 hover:border-slate-400 hover:text-white'
+                                    }`}
+                                >
+                                    S{stage}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div className="h-full overflow-y-auto custom-scrollbar pr-1">
@@ -521,85 +608,85 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
                         <h3 className="text-blue-100 font-black text-sm uppercase tracking-[0.14em]">Identity Presets</h3>
                         <p className="mt-1 text-[11px] text-blue-200/70">Apply a full look profile in one click.</p>
                     </div>
-                    <span className="rounded-full border border-blue-300/40 bg-blue-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-blue-200">
-                        {IMPERSONATION_PRESETS.length} profiles
-                    </span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={onResetToBase}
+                            className="rounded-full border border-white/25 bg-slate-900/75 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-slate-100 transition-colors hover:border-blue-300/60 hover:text-blue-100"
+                        >
+                            Base
+                        </button>
+                        <span className="rounded-full border border-blue-300/40 bg-blue-500/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-blue-200">
+                            {IMPERSONATION_PRESETS.length} profiles
+                        </span>
+                    </div>
                 </div>
             </div>
 
+            <div className="mb-3 mt-1 flex items-center justify-between">
+                <h4 className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-200/80">Humanoid</h4>
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{humanoidPresets.length}</span>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {IMPERSONATION_PRESETS.map((npc) => {
-                    const isHumanoid = isHumanoidPreset(npc);
-                    const presetStage = isHumanoid ? getPresetStage(npc) : 1;
+                {humanoidPresets.map(renderPresetCard)}
+            </div>
 
-                    return (
-                        <div
-                            key={npc.name}
-                            className="relative group overflow-hidden rounded-2xl border border-slate-700/80 bg-gradient-to-b from-slate-800/95 to-slate-900/95 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-400/50 hover:shadow-[0_12px_28px_-18px_rgba(59,130,246,0.85)]"
-                        >
+            <div className="mb-3 mt-6 flex items-center justify-between">
+                <h4 className="text-[11px] font-black uppercase tracking-[0.16em] text-blue-200/80">Non-Humanoid</h4>
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{nonHumanoidPresets.length}</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {nonHumanoidPresets.map(renderPresetCard)}
+            </div>
+
+            {infoPreset && (
+                <div
+                    className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+                    onClick={closeInfoModal}
+                >
+                    <div
+                        className="w-full max-w-md rounded-2xl border border-blue-300/30 bg-gradient-to-b from-slate-800 to-slate-900 p-5 shadow-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <h4 className="text-lg font-black uppercase tracking-[0.06em] text-white">{infoPreset.name}</h4>
+                                <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.14em] text-blue-200/80">{infoPreset.role}</p>
+                            </div>
                             <button
                                 type="button"
-                                onClick={() => applyPreset(npc, presetStage)}
-                                className="w-full text-left active:scale-[0.99]"
+                                onClick={closeInfoModal}
+                                className="rounded-full border border-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-200 transition-colors hover:border-blue-300/60 hover:text-blue-100"
                             >
-                                <div className={`pointer-events-none absolute -right-12 -top-12 h-28 w-28 rounded-full blur-2xl opacity-20 transition-opacity group-hover:opacity-35 ${npc.color}`} />
-
-                                <div className="relative z-10 flex items-start justify-between gap-2">
-                                    <span className={`inline-flex rounded-md px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.18em] text-white/95 ${npc.color}`}>
-                                        {npc.role}
-                                    </span>
-                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/15 text-slate-300 transition-colors group-hover:border-blue-300/50 group-hover:text-blue-200">
-                                        <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                    </span>
-                                </div>
-
-                                <h4 className="relative z-10 mt-3 text-base font-black uppercase tracking-tight text-white leading-tight break-words">
-                                    {npc.name}
-                                </h4>
-
-                                <div className="relative z-10 mt-4 flex items-center justify-between">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400 group-hover:text-slate-200 transition-colors">
-                                        {isHumanoid ? `Apply stage ${presetStage}` : 'Apply look'}
-                                    </span>
-                                    <span className="h-px w-8 bg-slate-600 transition-colors group-hover:bg-blue-300/80" />
-                                </div>
+                                Close
                             </button>
-
-                            {isHumanoid && (
-                                <div className="relative z-10 mt-3 flex items-center justify-start gap-1.5">
-                                    {[1, 2, 3].map((stage) => {
-                                        const stageValue = stage as EmbellishmentStage;
-                                        const isActive = presetStage === stageValue;
-
-                                        return (
-                                            <button
-                                                type="button"
-                                                key={`${npc.name}-stage-${stage}`}
-                                                onClick={() => {
-                                                    setPresetStages(prev => ({
-                                                        ...prev,
-                                                        [npc.name]: stageValue
-                                                    }));
-                                                    applyPreset(npc, stageValue);
-                                                }}
-                                                className={`rounded-md border px-2 py-1 text-[10px] font-black uppercase tracking-[0.12em] transition-colors ${
-                                                    isActive
-                                                        ? 'border-blue-300/70 bg-blue-500/25 text-blue-100'
-                                                        : 'border-slate-600/80 bg-slate-800/70 text-slate-300 hover:border-slate-400 hover:text-white'
-                                                }`}
-                                            >
-                                                S{stage}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
                         </div>
-                    );
-                })}
-            </div>
+
+                        <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] text-slate-200">
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Model:</span> {(infoPreset.config.impersonationModel ?? 'humanoid').toUpperCase()}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Body:</span> {infoPreset.config.bodyType ?? '-'}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Variant:</span> {infoPreset.config.bodyVariant ?? '-'}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2">
+                                <span className="text-slate-400">{isHumanoidPreset(infoPreset) ? 'Outfit' : 'Skin'}:</span>{' '}
+                                {isHumanoidPreset(infoPreset) ? infoPreset.name : (infoPreset.config.skinColor ?? '-')}
+                            </div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Weapon:</span> {infoPreset.config.selectedItem ?? 'None'}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Stage:</span> {isHumanoidPreset(infoPreset) ? `S${activeInfoStage}` : 'N/A'}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Health:</span> </div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Attack Speed:</span> </div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Atk Range:</span> </div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Mana:</span> </div>
+                        </div>
+
+                        <div className="mt-3 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2">
+                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Enabled Equipment</p>
+                            <p className="mt-1 text-[11px] text-slate-100">
+                                {activeInfoEquipment.length > 0 ? activeInfoEquipment.join(', ') : 'None'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

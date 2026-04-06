@@ -56,6 +56,11 @@ function App() {
   const [isDeadUI, setIsDeadUI] = useState(false);
   const [movementMode, setMovementMode] = useState<MovementMode>('idle');
   const [zoomLevel, setZoomLevel] = useState(50);
+  const [panelState, setPanelState] = useState<{ isOpen: boolean; activeTab: string; isMobileLayout: boolean }>({
+    isOpen: false,
+    activeTab: 'impersonate',
+    isMobileLayout: false,
+  });
 
   const applyMovementMode = (mode: MovementMode) => {
     setMovementMode(mode);
@@ -78,9 +83,17 @@ function App() {
     applyMovementMode(nextMode);
   };
 
+  const handleWalkPreview = () => {
+    applyMovementMode(movementMode === 'walk' ? 'idle' : 'walk');
+  };
+
   const triggerAction = (key: keyof PlayerInput) => {
       setManualInput(prev => ({ ...prev, [key]: true }));
       setTimeout(() => setManualInput(prev => ({ ...prev, [key]: false })), 100);
+  };
+
+  const handleResetToBaseCharacter = () => {
+    setConfig(INITIAL_CONFIG);
   };
 
   return (
@@ -88,6 +101,36 @@ function App() {
       <div className="absolute inset-0">
          <PlayerPreview config={config} manualInput={manualInput} onZoomChange={setZoomLevel} />
       </div>
+
+      {panelState.isOpen && panelState.activeTab === 'impersonate' && !panelState.isMobileLayout && (
+      <div className="absolute left-[20rem] top-1/2 z-[140] hidden -translate-y-1/2 flex-col gap-4 lg:flex">
+        <button
+          type="button"
+          onClick={handleWalkPreview}
+          className={`min-w-[110px] rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] shadow-lg transition-all ${
+            movementMode === 'walk'
+              ? 'border-blue-300/70 bg-blue-500/25 text-blue-100'
+              : 'border-white/20 bg-slate-900/80 text-slate-100 hover:border-blue-300/50 hover:text-blue-100'
+          }`}
+        >
+          Walk
+        </button>
+        <button
+          type="button"
+          onClick={() => triggerAction('attack1')}
+          className="min-w-[110px] rounded-full border border-white/20 bg-slate-900/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-100 shadow-lg transition-all hover:border-rose-300/60 hover:text-rose-100"
+        >
+          Attack
+        </button>
+        <button
+          type="button"
+          onClick={() => triggerAction('attack2')}
+          className="min-w-[110px] rounded-full border border-white/20 bg-slate-900/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-100 shadow-lg transition-all hover:border-amber-300/60 hover:text-amber-100"
+        >
+          Get Hit
+        </button>
+      </div>
+      )}
       
       <ControlPanel
           config={config}
@@ -105,6 +148,8 @@ function App() {
           canUndo={false}
           canRedo={false}
           zoomLevel={zoomLevel}
+          onPanelStateChange={setPanelState}
+          onResetToBaseCharacter={handleResetToBaseCharacter}
       />
     </div>
   )

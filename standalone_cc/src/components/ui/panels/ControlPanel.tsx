@@ -30,6 +30,8 @@ interface ControlPanelProps {
     movementMode?: 'idle' | 'walk' | 'run';
     handleMovementToggle?: () => void;
     zoomLevel?: number;
+    onPanelStateChange?: (state: { isOpen: boolean; activeTab: TabKey; isMobileLayout: boolean }) => void;
+    onResetToBaseCharacter?: () => void;
 }
 
 type TabKey = 'settings' | 'environment' | 'actions' | 'impersonate' | 'body' | 'outfit' | 'face' | 'rigging' | 'eq_rigging' | 'randomize' | 'loadouts';
@@ -47,7 +49,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     onUndo,
     onRedo,
     canUndo,
-    canRedo
+    canRedo,
+    onPanelStateChange,
+    onResetToBaseCharacter
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<TabKey>('impersonate');
@@ -68,6 +72,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         mediaQuery.addEventListener('change', handleChange);
         return () => mediaQuery.removeEventListener('change', handleChange);
     }, []);
+
+    React.useEffect(() => {
+        onPanelStateChange?.({ isOpen, activeTab, isMobileLayout });
+    }, [activeTab, isMobileLayout, isOpen, onPanelStateChange]);
 
     const TABS: { id: TabKey; label: string; icon: string }[] = [
         { id: 'impersonate', label: 'Impersonate', icon: '�' },
@@ -242,7 +250,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                 )}
 
                                 {activeTab === 'impersonate' && (
-                                    <ImpersonateControls setConfig={setConfig} />
+                                    <ImpersonateControls setConfig={setConfig} onResetToBase={onResetToBaseCharacter} />
                                 )}
 
                                 {activeTab === 'randomize' && (

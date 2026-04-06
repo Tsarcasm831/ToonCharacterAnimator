@@ -157,6 +157,8 @@ const CombatScene: React.FC<CombatSceneProps> = ({
     });
 
     useEffect(() => {
+        if (!showCameraPanel) return;
+
         let frame = 0;
         let lastUpdate = 0;
 
@@ -165,7 +167,7 @@ const CombatScene: React.FC<CombatSceneProps> = ({
             const camera = game?.renderManager?.camera;
             const controls = game?.renderManager?.controls;
 
-            if (camera && controls && now - lastUpdate >= 100) {
+            if (camera && controls && now - lastUpdate >= 150) {
                 lastUpdate = now;
                 setCameraInfo({
                     position: {
@@ -192,7 +194,7 @@ const CombatScene: React.FC<CombatSceneProps> = ({
 
         frame = requestAnimationFrame(tick);
         return () => cancelAnimationFrame(frame);
-    }, [gameRef]);
+    }, [gameRef, showCameraPanel]);
 
     const format3 = (value: number) => value.toFixed(3);
 
@@ -296,14 +298,9 @@ const CombatScene: React.FC<CombatSceneProps> = ({
     useEffect(() => {
         if (!isCombatActive || !isRoundInProgress) return;
 
-        let frame = 0;
-
         const checkRoundProgress = () => {
             const game = gameRef.current;
-            if (!game) {
-                frame = requestAnimationFrame(checkRoundProgress);
-                return;
-            }
+            if (!game) return;
 
             const hasLivingImp = game.entityManager.imps.some((imp) => !imp.isDead);
             if (!hasLivingImp) {
@@ -314,14 +311,14 @@ const CombatScene: React.FC<CombatSceneProps> = ({
                 }
 
                 setCurrentCombatRound((prev) => Math.min(prev + 1, totalEncounterRounds));
-                return;
             }
-
-            frame = requestAnimationFrame(checkRoundProgress);
         };
 
-        frame = requestAnimationFrame(checkRoundProgress);
-        return () => cancelAnimationFrame(frame);
+        // Round completion does not need frame-perfect polling.
+        const intervalId = window.setInterval(checkRoundProgress, 150);
+        checkRoundProgress();
+
+        return () => window.clearInterval(intervalId);
     }, [currentCombatRound, gameRef, isCombatActive, isRoundInProgress, setIsCombatActive, totalEncounterRounds]);
 
     const handleBenchItemDragStart = (index: number, item: InventoryItem) => {
