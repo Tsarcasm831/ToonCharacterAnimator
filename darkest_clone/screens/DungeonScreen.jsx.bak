@@ -5,6 +5,7 @@ import DungeonHUD from "../components/Dungeon/DungeonHUD.jsx";
 import DungeonRoomScene from "../components/Dungeon/DungeonRoomScene.jsx";
 import CharacterModal from "../components/Dungeon/CharacterModal.jsx";
 import { useGameStore } from "../state/GameState.jsx";
+import { AnimatePresence, motion } from "framer-motion";
 function DungeonScreen() {
   const [isMapOpen, setMapOpen] = useState(false);
   const {
@@ -69,10 +70,27 @@ function DungeonScreen() {
       lineNumber: 77,
       columnNumber: 13
     }, this),
-    isTransitioning && /* @__PURE__ */ jsxDEV("div", { className: "transition-overlay" }, void 0, false, {
+    /* @__PURE__ */ jsxDEV(AnimatePresence, { children: isTransitioning && /* @__PURE__ */ jsxDEV(
+      motion.div,
+      {
+        className: "transition-overlay",
+        initial: { opacity: 0 },
+        animate: { opacity: 1 },
+        exit: { opacity: 0 },
+        transition: { duration: 0.3 }
+      },
+      void 0,
+      false,
+      {
+        fileName: "<stdin>",
+        lineNumber: 80,
+        columnNumber: 21
+      },
+      this
+    ) }, void 0, false, {
       fileName: "<stdin>",
-      lineNumber: 80,
-      columnNumber: 21
+      lineNumber: 78,
+      columnNumber: 13
     }, this),
     isMapOpen && /* @__PURE__ */ jsxDEV("div", { className: "modal-overlay", onClick: handleToggleMap, children: /* @__PURE__ */ jsxDEV("div", { className: "map-modal-content", onClick: (e) => e.stopPropagation(), children: [
       /* @__PURE__ */ jsxDEV("button", { className: "modal-close-button", onClick: handleToggleMap, children: "\xD7" }, void 0, false, {

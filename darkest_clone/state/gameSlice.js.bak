@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 export const createGameSlice = (set, get) => ({
     // Core state
     gamePhase: 'menu', // 'menu', 'dungeon', 'combat', 'loading'

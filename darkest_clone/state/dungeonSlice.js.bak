@@ -1,3 +1,5 @@
+import { v4 as uuidv4 } from 'uuid';
+
 export const createDungeonSlice = (set, get) => ({
     // Dungeon state
     dungeon: null, // { rooms: [], connections: {} }

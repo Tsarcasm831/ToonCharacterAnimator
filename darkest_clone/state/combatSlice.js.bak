@@ -1,10 +1,4 @@
-const createId = () => {
-    if (typeof globalThis.crypto?.randomUUID === 'function') {
-        return globalThis.crypto.randomUUID();
-    }
-
-    return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-};
+import { v4 as uuidv4 } from 'uuid';
 
 export const createCombatSlice = (set, get) => ({
     // Combat state
@@ -25,7 +19,7 @@ export const createCombatSlice = (set, get) => ({
 
     // === ACTIONS ===
     _initializeCombat: (heroData, enemyData) => {
-        const combatHeroes = heroData.map(h => ({ ...h, combatId: createId(), stress: 0, affliction: null, hp: h.maxHp }));
+        const combatHeroes = heroData.map(h => ({ ...h, combatId: uuidv4(), stress: 0, affliction: null, hp: h.maxHp }));
         set({ 
             heroes: combatHeroes, 
             _heroData: heroData,
@@ -36,7 +30,7 @@ export const createCombatSlice = (set, get) => ({
 
     _startCombat: () => {
          const { _enemyData, heroes } = get();
-         const newEnemies = _enemyData.map(e => ({ ...e, combatId: createId(), hp: e.maxHp }));
+         const newEnemies = _enemyData.map(e => ({ ...e, combatId: uuidv4(), hp: e.maxHp }));
          const allCharacters = [...heroes, ...newEnemies];
          const turnQueue = allCharacters.sort((a,b) => b.speed - a.speed).map(c => c.combatId);
 
