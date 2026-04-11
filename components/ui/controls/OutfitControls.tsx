@@ -42,6 +42,58 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
         }));
     };
 
+    const equipmentSections: { title: string; items: { id: keyof PlayerConfig['equipment']; label: string }[] }[] = [
+        {
+            title: 'Head',
+            items: [
+                { id: 'helm', label: 'Helm' },
+                { id: 'skullcap', label: 'Skullcap' },
+                { id: 'hood', label: 'Hood' },
+                { id: 'mageHat', label: 'Mage Hat' },
+                { id: 'mask', label: 'Mask' }
+            ]
+        },
+        {
+            title: 'Shoulders & Arms',
+            items: [
+                { id: 'shoulders', label: 'Pads' },
+                { id: 'shield', label: 'Shield' },
+                { id: 'bracers', label: 'Bracers' },
+                { id: 'gloves', label: 'Gloves' }
+            ]
+        },
+        {
+            title: 'Torso',
+            items: [
+                { id: 'robe', label: 'Robe' },
+                { id: 'quiltedArmor', label: 'Quilted' },
+                { id: 'leatherArmor', label: 'Leather' },
+                { id: 'leatherDoublet', label: 'Doublet' },
+                { id: 'heavyLeatherArmor', label: 'H.Leather' },
+                { id: 'ringMail', label: 'RingMail' },
+                { id: 'plateMail', label: 'PlateMail' },
+                { id: 'shirt', label: 'Shirt' },
+                { id: 'cape', label: 'Cape' },
+                { id: 'belt', label: 'Belt' }
+            ]
+        },
+        {
+            title: 'Legs & Feet',
+            items: [
+                { id: 'skirt', label: 'Skirt' },
+                { id: 'pants', label: 'Pants' },
+                { id: 'hideBreeches', label: 'Hide' },
+                { id: 'leatherPants', label: 'L.Pants' },
+                { id: 'chainLeggings', label: 'Chain' },
+                { id: 'plateLeggings', label: 'Plate' },
+                { id: 'warlordLegPlates', label: 'Warlord' },
+                { id: 'greaves', label: 'Greaves' },
+                { id: 'shorts', label: 'Shorts' },
+                { id: 'shoes', label: 'Shoes' }
+            ]
+        }
+    ];
+
     return (
         <div className="space-y-6">
             <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 space-y-6">
@@ -81,29 +133,34 @@ export const OutfitControls: React.FC<OutfitControlsProps> = ({ config, setConfi
 
                 <div className="space-y-3 pt-4 border-t border-white/5">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Modular Equipment</label>
-                    <div className="grid grid-cols-3 gap-2">
-                        {[
-                            {id: 'helm', label: 'Helm'}, {id: 'skullcap', label: 'Skullcap'}, {id: 'hood', label: 'Hood'}, {id: 'mageHat', label: 'Mage Hat'},
-                            {id: 'mask', label: 'Mask'}, {id: 'shoulders', label: 'Pads'}, {id: 'shield', label: 'Shield'},
-                            {id: 'robe', label: 'Robe'}, {id: 'skirt', label: 'Skirt'}, {id: 'quiltedArmor', label: 'Quilted'}, {id: 'leatherArmor', label: 'Leather'}, {id: 'leatherDoublet', label: 'Doublet'},
-                            {id: 'heavyLeatherArmor', label: 'H.Leather'}, {id: 'ringMail', label: 'RingMail'}, {id: 'plateMail', label: 'PlateMail'},
-                            {id: 'shirt', label: 'Shirt'}, {id: 'pants', label: 'Pants'}, {id: 'hideBreeches', label: 'Hide'}, {id: 'leatherPants', label: 'L.Pants'}, {id: 'chainLeggings', label: 'Chain'}, {id: 'plateLeggings', label: 'Plate'}, {id: 'warlordLegPlates', label: 'Warlord'}, {id: 'greaves', label: 'Greaves'}, {id: 'shorts', label: 'Shorts'}, {id: 'shoes', label: 'Shoes'},
-                            {id: 'bracers', label: 'Bracers'}, {id: 'gloves', label: 'Gloves'}, {id: 'cape', label: 'Cape'}, {id: 'belt', label: 'Belt'}
-                        ].map((eq) => (
-                            <ToggleButton 
-                                key={eq.id}
-                                label={eq.label}
-                                isActive={!!config.equipment[eq.id as keyof typeof config.equipment]}
-                                onClick={() => handleEquipmentChange(eq.id as any)}
-                                activeColor="blue"
-                            />
+                    <div className="space-y-3">
+                        {equipmentSections.map((section) => (
+                            <div key={section.title} className="space-y-2">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">{section.title}</span>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {section.items.map((eq) => (
+                                        <ToggleButton
+                                            key={eq.id}
+                                            label={eq.label}
+                                            isActive={!!config.equipment[eq.id]}
+                                            onClick={() => handleEquipmentChange(eq.id)}
+                                            activeColor="blue"
+                                        />
+                                    ))}
+                                </div>
+                            </div>
                         ))}
+                        <div className="space-y-2">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Appearance</span>
+                            <div className="grid grid-cols-3 gap-2">
                         <ToggleButton 
                             label="Hair"
                             isActive={config.hairStyle !== 'bald'}
                             onClick={handleHairToggle}
                             activeColor="green"
                         />
+                            </div>
+                        </div>
                     </div>
                 </div>
 

@@ -1,5 +1,5 @@
-
 import React from 'react';
+import { User } from '@supabase/supabase-js';
 import { Header } from './Header';
 import { Compass } from './Compass';
 import { Hotbar } from './Hotbar';
@@ -30,6 +30,8 @@ interface GameHUDProps {
     onToggleBestiary: () => void;
     onChangeLand?: () => void;
     isBuilderMode?: boolean;
+    onOpenLogin?: () => void;
+    user?: User | null;
     onEndTurn?: () => void;
     onWaitTurn?: () => void;
     onDefend?: () => void;
@@ -40,7 +42,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     activeScene, currentBiome, playerRotation, inventory, bench, selectedSlot, onSelectSlot,
     selectedUnit, interactionText, interactionProgress, showGrid, setShowGrid, isCombatActive, setIsCombatActive,
     stats, isFemale, combatLog, onOpenTravel, onToggleBestiary, onChangeLand, isBuilderMode,
-    onEndTurn, onWaitTurn, onDefend, isPlayerTurn
+    onEndTurn, onWaitTurn, onDefend, isPlayerTurn, onOpenLogin, user
 }) => {
     const isCombat = activeScene === 'combat';
     const showExplorationCompass = activeScene === 'dev'
@@ -52,7 +54,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
     return (
         <>
             {/* Standard Exploration Header */}
-            {!isCombat && <Header biome={currentBiome} activeScene={activeScene} onOpenTravel={onOpenTravel} onToggleBestiary={onToggleBestiary} onChangeLand={onChangeLand} />}
+            {!isCombat && <Header biome={currentBiome} activeScene={activeScene} onOpenTravel={onOpenTravel} onToggleBestiary={onToggleBestiary} onChangeLand={onChangeLand} onOpenLogin={onOpenLogin} user={user} />}
             {showExplorationCompass && <Compass rotation={playerRotation} activeScene={activeScene} />}
             
             {/* Combat HUD Elements */}

@@ -1,11 +1,12 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React, { useEffect } from "react";
 import { useGameStore } from "../../state/GameState.jsx";
+import { useShallow } from "zustand/react/shallow";
 function AttackAnimation() {
-  const { attackAnimation, setAttackAnimation } = useGameStore((state) => ({
+  const { attackAnimation, setAttackAnimation } = useGameStore(useShallow((state) => ({
     attackAnimation: state.attackAnimation,
     setAttackAnimation: state.setAttackAnimation
-  }));
+  })));
   useEffect(() => {
     if (!attackAnimation) {
       return;
@@ -20,12 +21,12 @@ function AttackAnimation() {
     };
   }, [attackAnimation, setAttackAnimation]);
 
-  return attackAnimation && attackAnimation.attacker ? /* @__PURE__ */ jsxDEV(
+  return attackAnimation && attackAnimation.attacker ? /* @__PURE__ */ jsx(
     "div",
     {
       className: "attack-animation-overlay",
-      children: /* @__PURE__ */ jsxDEV("div", { className: "attack-animation-content", children: [
-        /* @__PURE__ */ jsxDEV(
+      children: /* @__PURE__ */ jsx("div", { className: "attack-animation-content", children: [
+        /* @__PURE__ */ jsx(
           "img",
           {
             src: attackAnimation.attacker.image,
@@ -41,7 +42,7 @@ function AttackAnimation() {
           },
           this
         ),
-        /* @__PURE__ */ jsxDEV(
+        /* @__PURE__ */ jsx(
           "h1",
           {
             children: attackAnimation.skill.name
@@ -74,3 +75,4 @@ function AttackAnimation() {
 export {
   AttackAnimation as default
 };
+

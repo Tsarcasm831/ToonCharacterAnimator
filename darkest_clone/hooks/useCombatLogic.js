@@ -1,4 +1,5 @@
 import { useGameStore } from '../state/GameState.jsx';
+import { useShallow } from 'zustand/react/shallow';
 
 export function useCombatLogic() {
     const { 
@@ -9,7 +10,7 @@ export function useCombatLogic() {
         isMoving,
         setMoving,
         moveHero,
-    } = useGameStore(state => ({
+    } = useGameStore(useShallow((state) => ({
         selectedSkill: state.selectedSkill,
         setSelectedSkill: state.setSelectedSkill,
         executeSkill: state.executeSkill,
@@ -17,7 +18,7 @@ export function useCombatLogic() {
         isMoving: state.isMoving,
         setMoving: state.setMoving,
         moveHero: state.moveHero,
-    }));
+    })));
 
     const handleSelectSkill = (skill) => {
         // if skill is a stress attack, and all heroes are afflicted, don't allow selection.

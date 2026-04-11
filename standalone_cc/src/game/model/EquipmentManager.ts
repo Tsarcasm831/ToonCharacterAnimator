@@ -7,6 +7,7 @@ export class EquipmentManager {
     equippedMeshes: {
         helm?: THREE.Object3D;
         mask?: THREE.Object3D;
+        plagueDoctorMask?: THREE.Object3D;
         hood?: THREE.Object3D;
         mageHat?: THREE.Object3D;
         leftPauldron?: THREE.Object3D;
@@ -131,6 +132,34 @@ export class EquipmentManager {
                 config.maskScale * config.maskStretchY,
                 config.maskScale * config.maskStretchZ
             );
+        }
+        if (this.equippedMeshes.plagueDoctorMask) {
+            this.equippedMeshes.plagueDoctorMask.position.set(config.plagueMaskX, config.plagueMaskY, config.plagueMaskZ);
+            this.equippedMeshes.plagueDoctorMask.rotation.x = config.plagueMaskRotX;
+            this.equippedMeshes.plagueDoctorMask.scale.setScalar(config.plagueMaskScale);
+            this.equippedMeshes.plagueDoctorMask.traverse((child) => {
+                if (!(child instanceof THREE.Mesh)) return;
+                if (!(child.material instanceof THREE.MeshStandardMaterial)) return;
+
+                const mat = child.material;
+                const isUnique = mat.userData.isUniquePlagueMaskMaterial as boolean | undefined;
+                if (!isUnique) {
+                    child.material = mat.clone();
+                    (child.material as THREE.MeshStandardMaterial).userData.isUniquePlagueMaskMaterial = true;
+                }
+
+                const material = child.material as THREE.MeshStandardMaterial;
+                const part = material.userData.plagueMaskPart as string | undefined;
+                if (part === 'trim') {
+                    material.color.set(config.plagueMaskTrimColor);
+                    return;
+                }
+                if (part === 'lens') {
+                    material.color.set(config.plagueMaskLensColor);
+                    return;
+                }
+                material.color.set(config.plagueMaskColor);
+            });
         }
         if (this.equippedMeshes.leftPauldron) {
             this.equippedMeshes.leftPauldron.position.set(config.shoulderX, config.shoulderY, config.shoulderZ);

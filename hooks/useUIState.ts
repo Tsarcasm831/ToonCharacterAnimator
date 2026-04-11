@@ -27,6 +27,7 @@ export function useUIState() {
   const [interactionProgress, setInteractionProgress] = useState<number | null>(null);
   const [isTravelOpen, setIsTravelOpen] = useState(false);
   const [isDeadUI, setIsDeadUI] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
   
   const [builderLogs, setBuilderLogs] = useState<{ id: string, message: string, timestamp: number }[]>([]);
   const [isBuilderLogOpen, setIsBuilderLogOpen] = useState(false);
@@ -77,6 +78,7 @@ export function useUIState() {
     interactionText, setInteractionText,
     interactionProgress, setInteractionProgress,
     isDeadUI, setIsDeadUI,
+    isLoginOpen, setIsLoginOpen,
     builderLogs, addBuilderLog, clearBuilderLogs,
     isBuilderLogOpen, setIsBuilderLogOpen, toggleBuilderLog
   };

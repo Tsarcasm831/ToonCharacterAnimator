@@ -1,6 +1,7 @@
-import { Fragment, jsxDEV } from "react/jsx-dev-runtime";
+import { Fragment, jsx } from "react/jsx-runtime";
 import React from "react";
 import { useGameStore } from "../../state/GameState.jsx";
+import { useShallow } from "zustand/react/shallow";
 import { useCombatLogic } from "../../hooks/useCombatLogic.js";
 import { useTurnSystem } from "../../hooks/useTurnSystem.js";
 const reverseHeroOrder = false;
@@ -36,30 +37,30 @@ const Character = ({ char, isActive, onTarget, isTargetable, onInfoClick, isShud
       transition: { duration: 0.3 }
     }
   };
-  return /* @__PURE__ */ jsxDEV(
+  return /* @__PURE__ */ jsx(
     "div",
     {
       className: getCharacterClass(),
       onClick: handleClick,
       children: [
-        char.affliction && !isDead && /* @__PURE__ */ jsxDEV("div", { className: "affliction-text", children: char.affliction }, void 0, false, {
+        char.affliction && !isDead && /* @__PURE__ */ jsx("div", { className: "affliction-text", children: char.affliction }, void 0, false, {
           fileName: "<stdin>",
           lineNumber: 55,
           columnNumber: 44
         }),
-        /* @__PURE__ */ jsxDEV("div", { className: "character-name", children: char.name }, void 0, false, {
+        /* @__PURE__ */ jsx("div", { className: "character-name", children: char.name }, void 0, false, {
           fileName: "<stdin>",
           lineNumber: 56,
           columnNumber: 13
         }),
-        /* @__PURE__ */ jsxDEV("img", { src: imageSrc, alt: char.name, className: "character-sprite" }, void 0, false, {
+        /* @__PURE__ */ jsx("img", { src: imageSrc, alt: char.name, className: "character-sprite" }, void 0, false, {
           fileName: "<stdin>",
           lineNumber: 57,
           columnNumber: 13
         }),
-        !isDead && /* @__PURE__ */ jsxDEV(Fragment, { children: [
-          /* @__PURE__ */ jsxDEV("div", { className: "character-info-bars", children: [
-            /* @__PURE__ */ jsxDEV("div", { className: "health-bar-bg", children: /* @__PURE__ */ jsxDEV("div", { className: "health-bar-fg", style: { width: `${hpPercentage}%` } }, void 0, false, {
+        !isDead && /* @__PURE__ */ jsx(Fragment, { children: [
+          /* @__PURE__ */ jsx("div", { className: "character-info-bars", children: [
+            /* @__PURE__ */ jsx("div", { className: "health-bar-bg", children: /* @__PURE__ */ jsx("div", { className: "health-bar-fg", style: { width: `${hpPercentage}%` } }, void 0, false, {
               fileName: "<stdin>",
               lineNumber: 62,
               columnNumber: 29
@@ -68,7 +69,7 @@ const Character = ({ char, isActive, onTarget, isTargetable, onInfoClick, isShud
               lineNumber: 61,
               columnNumber: 25
             }),
-            char.type === "hero" && /* @__PURE__ */ jsxDEV("div", { className: "stress-bar-bg", children: /* @__PURE__ */ jsxDEV("div", { className: "stress-bar-fg", style: { width: `${stressPercentage}%` } }, void 0, false, {
+            char.type === "hero" && /* @__PURE__ */ jsx("div", { className: "stress-bar-bg", children: /* @__PURE__ */ jsx("div", { className: "stress-bar-fg", style: { width: `${stressPercentage}%` } }, void 0, false, {
               fileName: "<stdin>",
               lineNumber: 66,
               columnNumber: 33
@@ -82,7 +83,7 @@ const Character = ({ char, isActive, onTarget, isTargetable, onInfoClick, isShud
             lineNumber: 60,
             columnNumber: 21
           }),
-          /* @__PURE__ */ jsxDEV("div", { className: "hp-text", children: [
+          /* @__PURE__ */ jsx("div", { className: "hp-text", children: [
             char.hp,
             " / ",
             char.maxHp
@@ -108,12 +109,12 @@ const Character = ({ char, isActive, onTarget, isTargetable, onInfoClick, isShud
   );
 };
 function CombatScene() {
-  const { heroes, enemies, setCharacterModalId, attackAnimation } = useGameStore((state) => ({
+  const { heroes, enemies, setCharacterModalId, attackAnimation } = useGameStore(useShallow((state) => ({
     heroes: state.heroes,
     enemies: state.enemies,
     setCharacterModalId: state.setCharacterModalId,
     attackAnimation: state.attackAnimation
-  }));
+  })));
   const { activeCharacter, isPlayerTurn } = useTurnSystem();
   const { selectedSkill, isMoving, handleTargetSelect } = useCombatLogic();
   const isTargetable = (character) => {
@@ -136,8 +137,8 @@ function CombatScene() {
       setCharacterModalId(characterId);
     }
   };
-  return /* @__PURE__ */ jsxDEV("div", { className: "combat-scene", children: [
-    /* @__PURE__ */ jsxDEV("div", { className: "party", children: [...heroes].sort((a, b) => reverseHeroOrder ? b.position - a.position : a.position - b.position).map((hero) => /* @__PURE__ */ jsxDEV(
+  return /* @__PURE__ */ jsx("div", { className: "combat-scene", children: [
+    /* @__PURE__ */ jsx("div", { className: "party", children: [...heroes].sort((a, b) => reverseHeroOrder ? b.position - a.position : a.position - b.position).map((hero) => /* @__PURE__ */ jsx(
       Character,
       {
         char: hero,
@@ -160,7 +161,7 @@ function CombatScene() {
       lineNumber: 120,
       columnNumber: 13
     }, this),
-    /* @__PURE__ */ jsxDEV("div", { className: "enemies", children: [...enemies].sort((a, b) => a.position - b.position).map((enemy) => /* @__PURE__ */ jsxDEV(
+    /* @__PURE__ */ jsx("div", { className: "enemies", children: [...enemies].sort((a, b) => a.position - b.position).map((enemy) => /* @__PURE__ */ jsx(
       Character,
       {
         char: enemy,
@@ -192,3 +193,4 @@ function CombatScene() {
 export {
   CombatScene as default
 };
+

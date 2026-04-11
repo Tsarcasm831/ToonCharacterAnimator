@@ -1,6 +1,7 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React from "react";
 import { useGameStore } from "../../state/GameState.jsx";
+import { useShallow } from "zustand/react/shallow";
 import Curio from "./Curio.jsx";
 import RoomNavigation from "./RoomNavigation.jsx";
 const getRoomBackground = (room) => {
@@ -13,12 +14,12 @@ const getRoomBackground = (room) => {
   return "url(./assets/images/backgrounds/corridor.png)";
 };
 const PartyMember = ({ char, onClick }) => {
-  return /* @__PURE__ */ jsxDEV(
+  return /* @__PURE__ */ jsx(
     "div",
     {
       className: "character hero info-clickable",
       onClick: () => onClick(char.combatId),
-      children: /* @__PURE__ */ jsxDEV("img", { src: char.image, alt: char.name, className: "character-sprite" }, void 0, false, {
+      children: /* @__PURE__ */ jsx("img", { src: char.image, alt: char.name, className: "character-sprite" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 28,
         columnNumber: 13
@@ -41,14 +42,14 @@ function DungeonRoomScene() {
     setCharacterModalId,
     interactWithCurio,
     moveToRoom
-  } = useGameStore((state) => ({
+  } = useGameStore(useShallow((state) => ({
     heroes: state.heroes,
     dungeon: state.dungeon,
     currentRoomId: state.currentRoomId,
     setCharacterModalId: state.setCharacterModalId,
     interactWithCurio: state.interactWithCurio,
     moveToRoom: state.moveToRoom
-  }));
+  })));
   const currentRoom = dungeon.rooms.find((r) => r.id === currentRoomId);
   const backgroundImage = getRoomBackground(currentRoom);
   const livingHeroes = heroes.filter((h) => h.hp > 0);
@@ -58,8 +59,8 @@ function DungeonRoomScene() {
   const handleCurioClick = () => {
     interactWithCurio(currentRoomId);
   };
-  return /* @__PURE__ */ jsxDEV("div", { className: "dungeon-room-scene", style: { backgroundImage }, children: [
-    /* @__PURE__ */ jsxDEV("div", { className: "party-view", children: livingHeroes.sort((a, b) => a.position - b.position).map((hero) => /* @__PURE__ */ jsxDEV(PartyMember, { char: hero, onClick: handleCharacterClick }, hero.combatId, false, {
+  return /* @__PURE__ */ jsx("div", { className: "dungeon-room-scene", style: { backgroundImage }, children: [
+    /* @__PURE__ */ jsx("div", { className: "party-view", children: livingHeroes.sort((a, b) => a.position - b.position).map((hero) => /* @__PURE__ */ jsx(PartyMember, { char: hero, onClick: handleCharacterClick }, hero.combatId, false, {
       fileName: "<stdin>",
       lineNumber: 69,
       columnNumber: 25
@@ -68,7 +69,7 @@ function DungeonRoomScene() {
       lineNumber: 65,
       columnNumber: 13
     }, this),
-    /* @__PURE__ */ jsxDEV(
+    /* @__PURE__ */ jsx(
       RoomNavigation,
       {
         dungeon,
@@ -84,7 +85,7 @@ function DungeonRoomScene() {
       },
       this
     ),
-    currentRoom && currentRoom.hasCurio && !currentRoom.curioInteracted && /* @__PURE__ */ jsxDEV(Curio, { onClick: handleCurioClick }, void 0, false, {
+    currentRoom && currentRoom.hasCurio && !currentRoom.curioInteracted && /* @__PURE__ */ jsx(Curio, { onClick: handleCurioClick }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 80,
       columnNumber: 17
@@ -98,3 +99,4 @@ function DungeonRoomScene() {
 export {
   DungeonRoomScene as default
 };
+

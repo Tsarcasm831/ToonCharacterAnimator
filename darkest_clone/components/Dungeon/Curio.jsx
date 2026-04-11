@@ -1,12 +1,12 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React from "react";
 function Curio({ onClick }) {
-  return /* @__PURE__ */ jsxDEV(
+  return /* @__PURE__ */ jsx(
     "div",
     {
       className: "curio-container",
       onClick,
-      children: /* @__PURE__ */ jsxDEV("img", { src: "./assets/images/interactables/chest.png", alt: "Curio", className: "curio-sprite" }, void 0, false, {
+      children: /* @__PURE__ */ jsx("img", { src: "./assets/images/interactables/chest.png", alt: "Curio", className: "curio-sprite" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 13,
         columnNumber: 13
@@ -25,3 +25,4 @@ function Curio({ onClick }) {
 export {
   Curio as default
 };
+

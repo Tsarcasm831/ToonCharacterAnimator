@@ -1,3 +1,7 @@
+import heroData from '../data/heroes.json';
+import enemyData from '../data/enemies.json';
+import dungeonTemplates from '../data/dungeonTemplates.json';
+
 export const createGameSlice = (set, get) => ({
     // Core state
     gamePhase: 'menu', // 'menu', 'dungeon', 'combat', 'loading'
@@ -7,18 +11,6 @@ export const createGameSlice = (set, get) => ({
     startGame: async () => {
         set({ isLoading: true, gamePhase: 'loading' });
         try {
-            const [heroResponse, enemyResponse, dungeonResponse] = await Promise.all([
-                fetch('./data/heroes.json'),
-                fetch('./data/enemies.json'),
-                fetch('./data/dungeonTemplates.json')
-            ]);
-            if (!heroResponse.ok || !enemyResponse.ok || !dungeonResponse.ok) {
-                throw new Error('Failed to fetch game data');
-            }
-            const heroData = await heroResponse.json();
-            const enemyData = await enemyResponse.json();
-            const dungeonTemplates = await dungeonResponse.json();
-
             // --- Game Initialization Logic ---
             const dungeonTemplate = dungeonTemplates[0];
 

@@ -1,4 +1,4 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React, { useState, useEffect } from "react";
 function ChangelogModal({ onClose }) {
   const [changelog, setChangelog] = useState("Loading changelog...");
@@ -13,13 +13,13 @@ function ChangelogModal({ onClose }) {
       setChangelog("Could not load changelog.");
     });
   }, []);
-  return /* @__PURE__ */ jsxDEV("div", { className: "modal-overlay", onClick: onClose, children: /* @__PURE__ */ jsxDEV("div", { className: "changelog-modal-content", onClick: (e) => e.stopPropagation(), children: [
-    /* @__PURE__ */ jsxDEV("button", { className: "modal-close-button", onClick: onClose, children: "\xD7" }, void 0, false, {
+  return /* @__PURE__ */ jsx("div", { className: "modal-overlay", onClick: onClose, children: /* @__PURE__ */ jsx("div", { className: "changelog-modal-content", onClick: (e) => e.stopPropagation(), children: [
+    /* @__PURE__ */ jsx("button", { className: "modal-close-button", onClick: onClose, children: "\xD7" }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 24,
       columnNumber: 17
     }, this),
-    /* @__PURE__ */ jsxDEV("div", { className: "modal-header", children: /* @__PURE__ */ jsxDEV("h2", { children: "Changelog" }, void 0, false, {
+    /* @__PURE__ */ jsx("div", { className: "modal-header", children: /* @__PURE__ */ jsx("h2", { children: "Changelog" }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 26,
       columnNumber: 21
@@ -28,7 +28,7 @@ function ChangelogModal({ onClose }) {
       lineNumber: 25,
       columnNumber: 17
     }, this),
-    /* @__PURE__ */ jsxDEV("div", { className: "modal-body", children: /* @__PURE__ */ jsxDEV("pre", { className: "changelog-text", children: changelog }, void 0, false, {
+    /* @__PURE__ */ jsx("div", { className: "modal-body", children: /* @__PURE__ */ jsx("pre", { className: "changelog-text", children: changelog }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 29,
       columnNumber: 21
@@ -50,3 +50,4 @@ function ChangelogModal({ onClose }) {
 export {
   ChangelogModal as default
 };
+

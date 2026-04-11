@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 interface LoadingScreenProps {
     isVisible: boolean;
@@ -18,6 +18,7 @@ const MESSAGES = [
 
 const STATUS_DELAY_MS = 120;
 const AUTO_ENTER_DELAY_MS = 180;
+const SNOWFLAKE_COUNT = 18;
 
 const LoadingScreen: React.FC<LoadingScreenProps> = ({
     isVisible,
@@ -30,6 +31,20 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
     const [messageIndex, setMessageIndex] = useState(0);
     const finishTriggeredRef = useRef(false);
     const autoEnterTimerRef = useRef<number | null>(null);
+    const snowflakes = useMemo(() => {
+        return Array.from({ length: SNOWFLAKE_COUNT }, (_, index) => {
+            const seed = index + 1;
+            return {
+                id: seed,
+                left: `${(seed * 7.13) % 100}%`,
+                size: 2 + ((seed * 3) % 3),
+                opacity: 0.25 + ((seed * 11) % 40) / 100,
+                duration: 10 + (seed % 6) * 1.8,
+                delay: -(seed % 12) * 0.9,
+                drift: 10 + (seed % 5) * 8,
+            };
+        });
+    }, []);
 
     useEffect(() => {
         if (isVisible) {
@@ -138,7 +153,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
     return (
         <div className={`absolute inset-0 z-[150] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
-            <div className="absolute inset-0">
+            <div className="absolute inset-0 z-0">
                 <video
                     className="absolute inset-0 h-full w-full object-cover"
                     aria-label="Loading background"
@@ -151,10 +166,26 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
                     <source src="/assets/videos/loading_compressed.mp4" type="video/mp4" />
                 </video>
             </div>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.16),_transparent_38%),linear-gradient(180deg,_rgba(5,10,20,0.55),_rgba(2,6,12,0.88))]" />
-            <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:36px_36px]" />
+            <div className="absolute inset-0 z-[5] bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.16),_transparent_38%),linear-gradient(180deg,_rgba(5,10,20,0.55),_rgba(2,6,12,0.88))]" />
+            <div className="absolute inset-0 z-[6] opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:36px_36px]" />
+            <div className="absolute inset-0 z-[10] pointer-events-none overflow-hidden [contain:layout_paint]">
+                {snowflakes.map((flake) => (
+                    <span
+                        key={flake.id}
+                        className="absolute top-[-8%] rounded-full bg-white/90 shadow-[0_0_10px_rgba(255,255,255,0.35)] will-change-transform"
+                        style={{
+                            ['--drift-x' as any]: `${flake.drift}px`,
+                            left: flake.left,
+                            width: `${flake.size}px`,
+                            height: `${flake.size}px`,
+                            opacity: flake.opacity,
+                            animation: `snowfall ${flake.duration}s linear ${flake.delay}s infinite`,
+                        }}
+                    />
+                ))}
+            </div>
 
-            <div className="relative flex h-full w-full items-center justify-center px-6">
+            <div className="relative z-[20] flex h-full w-full items-center justify-center px-6">
                 <div className="w-full max-w-xl rounded-[32px] border border-white/10 bg-black/35 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-md">
                     <div className="mb-6 flex items-center justify-between gap-4">
                         <div>
@@ -210,6 +241,15 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
                     40% {
                         transform: scale(1);
                         opacity: 1;
+                    }
+                }
+
+                @keyframes snowfall {
+                    0% {
+                        transform: translate3d(0, -12vh, 0);
+                    }
+                    100% {
+                        transform: translate3d(var(--drift-x, 0px), 112vh, 0);
                     }
                 }
             `}</style>

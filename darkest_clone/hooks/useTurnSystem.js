@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useGameStore } from '../state/GameState.jsx';
+import { useShallow } from 'zustand/react/shallow';
 
 /* @tweakable Delay in milliseconds for the AI to take its turn */
 const aiActionDelay = 1000;
@@ -11,15 +12,15 @@ export function useTurnSystem() {
         isPlayerTurn, 
         runEnemyAI, 
         combatState,
-    } = useGameStore(state => ({
+    } = useGameStore(useShallow((state) => ({
         turnQueue: state.turnQueue,
         currentTurnIndex: state.currentTurnIndex,
         isPlayerTurn: state.isPlayerTurn,
         runEnemyAI: state.runEnemyAI,
         combatState: state.combatState,
-    }));
+    })));
 
-    const allCharacters = useGameStore(state => [...state.heroes, ...state.enemies]);
+    const allCharacters = useGameStore(useShallow((state) => [...state.heroes, ...state.enemies]));
     
     const activeCharacter = turnQueue.length > 0 ? allCharacters.find(c => c.combatId === turnQueue[currentTurnIndex]) : null;
 
