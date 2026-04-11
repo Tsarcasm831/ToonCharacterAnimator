@@ -1,5 +1,6 @@
 import { jsxDEV } from "react/jsx-dev-runtime";
 import React from "react";
+import clsx from "clsx";
 function RoomNode({ room, isCurrent, isAdjacent, onClick }) {
   const handleClick = () => {
     if (isAdjacent) {
@@ -14,14 +15,13 @@ function RoomNode({ room, isCurrent, isAdjacent, onClick }) {
     if (room.isStart) return "\u{1F6AA}";
     return "";
   };
-  const nodeClasses = [
-    "room-node",
-    !room.isVisited && "unvisited",
-    room.isVisited && "visited",
-    isCurrent && "current",
-    isAdjacent && "adjacent",
-    !isAdjacent && !isCurrent && "not-adjacent"
-  ].filter(Boolean).join(" ");
+  const nodeClasses = clsx("room-node", {
+    "unvisited": !room.isVisited,
+    "visited": room.isVisited,
+    "current": isCurrent,
+    "adjacent": isAdjacent,
+    "not-adjacent": !isAdjacent && !isCurrent
+  });
   return /* @__PURE__ */ jsxDEV(
     "div",
     {

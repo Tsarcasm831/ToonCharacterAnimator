@@ -1,6 +1,7 @@
 import { jsxDEV } from "react/jsx-dev-runtime";
 import React from "react";
 import { useGameStore } from "../../state/GameState.jsx";
+import { motion } from "framer-motion";
 import Curio from "./Curio.jsx";
 import RoomNavigation from "./RoomNavigation.jsx";
 const getRoomBackground = (room) => {
@@ -14,9 +15,12 @@ const getRoomBackground = (room) => {
 };
 const PartyMember = ({ char, onClick }) => {
   return /* @__PURE__ */ jsxDEV(
-    "div",
+    motion.div,
     {
       className: "character hero info-clickable",
+      initial: { opacity: 0, x: -50 },
+      animate: { opacity: 1, x: 0, transition: { delay: char.position * 0.1 } },
+      exit: { opacity: 0 },
       onClick: () => onClick(char.combatId),
       children: /* @__PURE__ */ jsxDEV("img", { src: char.image, alt: char.name, className: "character-sprite" }, void 0, false, {
         fileName: "<stdin>",

@@ -1,4 +1,4 @@
-import { create } from "https://esm.sh/zustand@4.5.2?dev&deps=react@19.2.0";
+import { create } from "zustand";
 import { createGameSlice } from "./gameSlice.js";
 import { createDungeonSlice } from "./dungeonSlice.js";
 import { createCombatSlice } from "./combatSlice.js";

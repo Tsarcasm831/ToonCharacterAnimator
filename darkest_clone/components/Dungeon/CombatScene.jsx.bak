@@ -3,6 +3,7 @@ import React from "react";
 import { useGameStore } from "../../state/GameState.jsx";
 import { useCombatLogic } from "../../hooks/useCombatLogic.js";
 import { useTurnSystem } from "../../hooks/useTurnSystem.js";
+import { motion } from "framer-motion";
 const reverseHeroOrder = false;
 const Character = ({ char, isActive, onTarget, isTargetable, onInfoClick, isShuddering }) => {
   const hpPercentage = char.maxHp > 0 ? char.hp / char.maxHp * 100 : 0;
@@ -37,10 +38,12 @@ const Character = ({ char, isActive, onTarget, isTargetable, onInfoClick, isShud
     }
   };
   return /* @__PURE__ */ jsxDEV(
-    "div",
+    motion.div,
     {
       className: getCharacterClass(),
       onClick: handleClick,
+      variants: shudderVariants,
+      animate: isShuddering ? "shudder" : "idle",
       children: [
         char.affliction && !isDead && /* @__PURE__ */ jsxDEV("div", { className: "affliction-text", children: char.affliction }, void 0, false, {
           fileName: "<stdin>",
