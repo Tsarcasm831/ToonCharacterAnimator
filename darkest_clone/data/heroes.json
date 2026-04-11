@@ -1,0 +1,68 @@
+[
+    {
+        "id": "hero_1",
+        "name": "Crusader",
+        "type": "hero",
+        "hp": 30,
+        "maxHp": 30,
+        "stress": 0,
+        "maxStress": 100,
+        "damage": 8,
+        "speed": 2,
+        "position": 4,
+        "skills": [
+            { "name": "Smite", "damage_modifier": 1.0, "target": "enemy" }
+        ],
+        "image": "./assets/images/heroes/crusader.png"
+    },
+    {
+        "id": "hero_2",
+        "name": "Highwayman",
+        "type": "hero",
+        "hp": 22,
+        "maxHp": 22,
+        "stress": 0,
+        "maxStress": 100,
+        "damage": 6,
+        "speed": 5,
+        "position": 3,
+        "skills": [
+            { "name": "Pistol Shot", "damage_modifier": 0.9, "target": "enemy" }
+        ],
+        "image": "./assets/images/heroes/highwayman.png"
+    },
+    {
+        "id": "hero_3",
+        "name": "Plague Doctor",
+        "type": "hero",
+        "hp": 20,
+        "maxHp": 20,
+        "stress": 0,
+        "maxStress": 100,
+        "damage": 4,
+        "speed": 7,
+        "position": 2,
+        "skills": [
+            { "name": "Incision", "damage_modifier": 0.8, "target": "enemy" },
+            { "name": "Battlefield Medicine", "heal": 5, "target": "hero" }
+        ],
+        "image": "./assets/images/heroes/plague-doctor.png"
+    },
+    {
+        "id": "hero_4",
+        "name": "Vestal",
+        "type": "hero",
+        "hp": 25,
+        "maxHp": 25,
+        "stress": 0,
+        "maxStress": 100,
+        "damage": 5,
+        "speed": 4,
+        "position": 1,
+        "skills": [
+             { "name": "Mace Bash", "damage_modifier": 0.9, "target": "enemy" },
+             { "name": "Divine Grace", "heal": 8, "target": "hero" }
+        ],
+        "image": "./assets/images/heroes/vestal.png"
+    }
+]

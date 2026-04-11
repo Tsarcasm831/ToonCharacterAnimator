@@ -23,8 +23,7 @@ const sceneOptions: Array<{ id: ActiveScene; label: string; activeClassName?: st
     { id: 'town2', label: 'Town 2 Scene' },
     { id: 'tdgame', label: 'Top Down Game' },
     { id: 'singleBiome', label: 'Single Biome' },
-    { id: 'roguelike', label: 'Roguelike Scene' },
-    { id: 'gameLoop', label: 'Game Loop' }
+    { id: 'roguelike', label: 'Game Loop' }
 ];
 
 export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, onStart, onShowEnemies, onOpenStandaloneCC, isMobile = false, showVideoBackground = false }) => {

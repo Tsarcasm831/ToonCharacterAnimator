@@ -1,0 +1,141 @@
+/* Combat Screen Layout */
+.combat-screen {
+    position: relative;
+    width: clamp(1000px, 95vw, 1600px);
+    height: clamp(700px, 90vh, 950px);
+    display: grid;
+    grid-template-rows: 1fr auto;
+    grid-template-columns: 1fr;
+    margin: auto;
+    border: 4px solid var(--border-color);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+}
+
+.combat-scene {
+    grid-row: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 20px;
+    background-image: url('../assets/images/backgrounds/combat-background.png');
+    background-size: cover;
+    background-position: center;
+    box-shadow: inset 0 0 var(--vignette-darkness) #000;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Combat UI */
+.combat-ui {
+    grid-row: 2;
+    display: grid;
+    grid-template-columns: 3fr 4fr 3fr;
+    background-color: #000000bf;
+    padding: 10px;
+    gap: 20px;
+    z-index: 10;
+}
+
+.turn-tracker, .action-bar, .combat-log {
+    padding: 10px;
+    border: 2px solid var(--border-color);
+}
+.turn-tracker h2 {
+    text-align: center;
+    color: var(--accent-color);
+    margin: 0;
+}
+.skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+.skill-button.selected, .move-button.selected {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 10px var(--accent-color);
+}
+.combat-log ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    height: 150px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) #111;
+}
+.combat-log li {
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Combat Result */
+.combat-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+.combat-result-popup {
+    text-align: center;
+    padding: 40px;
+    border: 4px solid var(--border-color);
+    background: var(--bg-color);
+    animation: fadeIn 0.5s ease;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Mobile Styles */
+@media (max-width: 800px) {
+    .combat-screen {
+        width: 100%;
+        height: 100%;
+        border: none;
+        box-shadow: none;
+    }
+
+    /* Combat UI */
+    .combat-ui {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+        gap: 5px;
+        padding: 5px;
+    }
+    
+    .turn-tracker {
+      grid-row: 1;
+    }
+    .action-bar {
+      grid-row: 2;
+    }
+    .combat-log {
+      grid-row: 3;
+    }
+
+    .combat-log ul {
+        height: 80px;
+    }
+    
+    .skills {
+        justify-content: center;
+    }
+
+    /* Combat Result */
+    .combat-result-popup {
+        padding: 20px;
+        width: 90%;
+    }
+    .combat-result-popup h1 {
+        font-size: 1.5rem;
+    }
+}

@@ -1,0 +1,46 @@
+[
+    {
+        "id": "enemy_1",
+        "name": "Bone Rabble",
+        "type": "enemy",
+        "hp": 10,
+        "maxHp": 10,
+        "damage": 4,
+        "speed": 2,
+        "position": 1,
+        "skills": [
+            { "name": "Shank", "damage_modifier": 1.0, "target": "hero" }
+        ],
+        "image": "./assets/images/enemies/skeleton.png"
+    },
+    {
+        "id": "enemy_2",
+        "name": "Bone Courtier",
+        "type": "enemy",
+        "hp": 18,
+        "maxHp": 18,
+        "damage": 3,
+        "speed": 4,
+        "position": 2,
+        "skills": [
+            { "name": "Tempting Goblet", "stress_damage": 15, "target": "hero" }
+        ],
+        "image": "./assets/images/enemies/goblin.png"
+    },
+    {
+        "id": "enemy_3",
+        "name": "Cultist Acolyte",
+        "type": "enemy",
+        "hp": 15,
+        "maxHp": 15,
+        "damage": 2,
+        "speed": 3,
+        "position": 3,
+        "skills": [
+            { "name": "Knife Jab", "damage_modifier": 1.0, "target": "hero" },
+            { "name": "Stressful Incantation", "stress_damage": 20, "target": "hero" }
+        ],
+        "image": "./assets/images/enemies/cultist-acolyte.png",
+        "corpseImage": "./assets/images/enemies/cultist-acolyte-corpse.png"
+    }
+]

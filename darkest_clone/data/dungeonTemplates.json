@@ -1,0 +1,24 @@
+[
+    {
+        "gridSize": { "width": 5, "height": 3 },
+        "rooms": [
+            { "id": "room_00", "x": 0, "y": 1, "isStart": true },
+            { "id": "room_01", "x": 1, "y": 1, "hasCombat": true },
+            { "id": "room_02", "x": 2, "y": 0 },
+            { "id": "room_03", "x": 2, "y": 1, "hasCurio": true, "lightModifier": -10 },
+            { "id": "room_04", "x": 2, "y": 2, "hasTrap": true },
+            { "id": "room_05", "x": 3, "y": 1, "hasCombat": true, "lightModifier": -15 },
+            { "id": "room_06", "x": 4, "y": 1, "hasBoss": true }
+        ],
+        "connections": {
+            "room_00": ["room_01"],
+            "room_01": ["room_00", "room_03"],
+            "room_02": ["room_03"],
+            "room_03": ["room_01", "room_02", "room_04", "room_05"],
+            "room_04": ["room_03"],
+            "room_05": ["room_03", "room_06"],
+            "room_06": ["room_05"]
+        }
+    }
+]
+
