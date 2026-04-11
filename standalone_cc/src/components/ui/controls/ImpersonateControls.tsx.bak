@@ -9,6 +9,38 @@ interface ImpersonateControlsProps {
 
 type ImpersonatePreset = { name: string; role: string; color: string; config: Partial<PlayerConfig> };
 type EmbellishmentStage = 1 | 2 | 3;
+type HumanoidPresetStats = {
+    health: number;
+    chakra: number;
+    attack: number;
+    defense: number;
+    evasion: number;
+    dexterity: number;
+};
+
+const HUMANOID_PRESET_STATS: Record<string, HumanoidPresetStats> = {
+    Archer: { health: 90, chakra: 40, attack: 18, defense: 8, evasion: 14, dexterity: 16 },
+    Assassin: { health: 80, chakra: 50, attack: 22, defense: 6, evasion: 20, dexterity: 18 },
+    Bandit: { health: 100, chakra: 30, attack: 12, defense: 8, evasion: 8, dexterity: 10 },
+    Berserker: { health: 160, chakra: 40, attack: 25, defense: 6, evasion: 4, dexterity: 8 },
+    Mage: { health: 85, chakra: 100, attack: 20, defense: 5, evasion: 10, dexterity: 10 },
+    Rogue: { health: 95, chakra: 60, attack: 16, defense: 7, evasion: 16, dexterity: 15 },
+    Warlock: { health: 100, chakra: 80, attack: 22, defense: 6, evasion: 12, dexterity: 12 },
+    Paladin: { health: 140, chakra: 60, attack: 18, defense: 16, evasion: 4, dexterity: 9 },
+    Ranger: { health: 105, chakra: 50, attack: 16, defense: 10, evasion: 12, dexterity: 14 },
+    Monk: { health: 115, chakra: 90, attack: 20, defense: 8, evasion: 18, dexterity: 17 },
+    Cleric: { health: 110, chakra: 70, attack: 14, defense: 12, evasion: 6, dexterity: 10 },
+    Sentinel: { health: 130, chakra: 40, attack: 12, defense: 22, evasion: 1, dexterity: 7 },
+    Knight: { health: 150, chakra: 40, attack: 16, defense: 18, evasion: 2, dexterity: 8 },
+    'City Guard': { health: 120, chakra: 30, attack: 14, defense: 14, evasion: 5, dexterity: 9 },
+    Barbarian: { health: 155, chakra: 20, attack: 24, defense: 7, evasion: 6, dexterity: 9 },
+    Bard: { health: 95, chakra: 80, attack: 12, defense: 8, evasion: 12, dexterity: 14 },
+    Druid: { health: 105, chakra: 95, attack: 18, defense: 9, evasion: 10, dexterity: 11 },
+    Sorcerer: { health: 80, chakra: 110, attack: 24, defense: 4, evasion: 10, dexterity: 12 },
+    Wizard: { health: 75, chakra: 120, attack: 22, defense: 4, evasion: 8, dexterity: 11 },
+    Blacksmith: { health: 135, chakra: 20, attack: 18, defense: 14, evasion: 3, dexterity: 8 },
+    Shopkeeper: { health: 85, chakra: 25, attack: 8, defense: 6, evasion: 7, dexterity: 10 }
+};
 
 const NPC_PRESETS: ImpersonatePreset[] = [
     {
@@ -296,7 +328,7 @@ const NON_HUMANOID_PRESETS: ImpersonatePreset[] = [
         config: {
             ...CREATURE_MORPHS.arachnid,
             impersonationModel: 'spider',
-            bodyType: 'male', bodyVariant: 'slim', outfit: 'naked', skinColor: '#141414',
+            bodyType: 'male', bodyVariant: 'slim', outfit: 'naked', skinColor: '#173f67',
             hairStyle: 'bald',
             shirtColor: '#101010', pantsColor: '#060606', bootsColor: '#080808',
             equipment: { ...DEFAULT_CONFIG.equipment, mask: true, hood: true, gloves: true },
@@ -522,6 +554,9 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
             .filter(([, enabled]) => !!enabled)
             .map(([slot]) => slot)
         : [];
+    const activeInfoStats = infoPreset && isHumanoidPreset(infoPreset) && activeInfoStage === 1
+        ? HUMANOID_PRESET_STATS[infoPreset.name] ?? null
+        : null;
     const humanoidPresets = NPC_PRESETS;
     const nonHumanoidPresets = NON_HUMANOID_PRESETS;
 
@@ -672,10 +707,12 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
                             </div>
                             <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Weapon:</span> {infoPreset.config.selectedItem ?? 'None'}</div>
                             <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Stage:</span> {isHumanoidPreset(infoPreset) ? `S${activeInfoStage}` : 'N/A'}</div>
-                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Health:</span> </div>
-                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Attack Speed:</span> </div>
-                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Atk Range:</span> </div>
-                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Mana:</span> </div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">HP:</span> {activeInfoStats?.health ?? '-'}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Chakra:</span> {activeInfoStats?.chakra ?? '-'}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Attack:</span> {activeInfoStats?.attack ?? '-'}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Defense:</span> {activeInfoStats?.defense ?? '-'}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Evasion:</span> {activeInfoStats?.evasion ?? '-'}</div>
+                            <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Dexterity:</span> {activeInfoStats?.dexterity ?? '-'}</div>
                         </div>
 
                         <div className="mt-3 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2">

@@ -24,8 +24,12 @@ const sceneOptions: Array<{ id: ActiveScene; label: string; activeClassName?: st
     { id: 'tdgame', label: 'Top Down Game' },
     { id: 'singleBiome', label: 'Single Biome' },
     { id: 'roguelike', label: 'Roguelike Scene' },
+    { id: 'darkest', label: 'Darkest Clone' },
     { id: 'gameLoop', label: 'Game Loop' }
 ];
+
+const sceneOptionsLeft = sceneOptions.slice(0, Math.ceil(sceneOptions.length / 2));
+const sceneOptionsRight = sceneOptions.slice(Math.ceil(sceneOptions.length / 2));
 
 export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, onStart, onShowEnemies, onOpenStandaloneCC, isMobile = false, showVideoBackground = false }) => {
     const [showOptions, setShowOptions] = React.useState(false);
@@ -120,31 +124,59 @@ export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, 
                             </button>
 
                             {showOptions && (
-                                <div className="animate-fade-in w-full max-w-3xl space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                        {sceneOptions.map((sceneOption) => {
-                                            const isSelected = activeScene === sceneOption.id;
-                                            const selectedClasses = sceneOption.activeClassName ?? 'bg-blue-500 border-blue-400';
+                                <div className="flex flex-col gap-4 items-stretch animate-fade-in w-full">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                                        <div className="flex flex-col gap-4">
+                                            {sceneOptionsLeft.map((sceneOption) => {
+                                                const isSelected = activeScene === sceneOption.id;
+                                                const selectedClasses = sceneOption.activeClassName ?? 'bg-blue-500 border-blue-400';
 
-                                            return (
-                                                <button
-                                                    key={sceneOption.id}
-                                                    type="button"
-                                                    aria-pressed={isSelected}
-                                                    className="w-full flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
-                                                    onClick={() => onSceneChange(sceneOption.id)}
-                                                >
-                                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? selectedClasses : 'border-white/20 group-hover:border-white/30'}`}>
-                                                        {isSelected && (
-                                                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                            </svg>
-                                                        )}
-                                                    </div>
-                                                    <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">{sceneOption.label}</span>
-                                                </button>
-                                            );
-                                        })}
+                                                return (
+                                                    <button
+                                                        key={sceneOption.id}
+                                                        type="button"
+                                                        aria-pressed={isSelected}
+                                                        className="w-full flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
+                                                        onClick={() => onSceneChange(sceneOption.id)}
+                                                    >
+                                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? selectedClasses : 'border-white/20 group-hover:border-white/30'}`}>
+                                                            {isSelected && (
+                                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">{sceneOption.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        <div className="flex flex-col gap-4">
+                                            {sceneOptionsRight.map((sceneOption) => {
+                                                const isSelected = activeScene === sceneOption.id;
+                                                const selectedClasses = sceneOption.activeClassName ?? 'bg-blue-500 border-blue-400';
+
+                                                return (
+                                                    <button
+                                                        key={sceneOption.id}
+                                                        type="button"
+                                                        aria-pressed={isSelected}
+                                                        className="w-full flex items-center gap-3 bg-black/20 px-4 py-2 rounded-xl border border-white/5 hover:border-white/10 transition-all group cursor-pointer"
+                                                        onClick={() => onSceneChange(sceneOption.id)}
+                                                    >
+                                                        <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${isSelected ? selectedClasses : 'border-white/20 group-hover:border-white/30'}`}>
+                                                            {isSelected && (
+                                                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                                                </svg>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-slate-400 text-[10px] font-black uppercase tracking-widest select-none">{sceneOption.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
 
                                     <button
