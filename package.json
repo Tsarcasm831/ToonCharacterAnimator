@@ -4,9 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/sync-external-apps.mjs",
     "dev": "vite --host 0.0.0.0",
     "dev:public": "node -e \"if (process.env.ALLOW_PUBLIC_TUNNEL !== '1') { console.error('Blocked: set ALLOW_PUBLIC_TUNNEL=1 to run dev:public'); process.exit(1); }\" && concurrently -k \"vite --host 0.0.0.0 --port 3000\" \"npx -y cloudflared tunnel --url http://localhost:3000\"",
+    "prebuild": "node scripts/sync-external-apps.mjs",
     "build": "tsc --noEmit && vite build",
+    "build:darkest_clone": "node scripts/build-darkest-clone.mjs",
     "build:analyze": "vite build --mode analyze",
     "lint": "tsc --noEmit",
     "preview": "vite preview",

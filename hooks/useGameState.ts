@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { PageType } from '../components/ui/menus/Navigation';
 
 export type GameState = 'MENU' | 'LOADING' | 'READY' | 'PLAYING';
-export type ActiveScene = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'roguelike' | 'gameLoop';
+export type ActiveScene = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'roguelike' | 'gameLoop' | 'darkest';
 
 const validPages: PageType[] = ['home', 'game', 'music', 'about', 'shop'];
-const validScenes: ActiveScene[] = ['dev', 'land', 'combat', 'mp', 'singleBiome', 'town', 'town2', 'tdgame', 'roguelike', 'gameLoop'];
+const validScenes: ActiveScene[] = ['dev', 'land', 'combat', 'mp', 'singleBiome', 'town', 'town2', 'tdgame', 'roguelike', 'gameLoop', 'darkest'];
 const defaultScene: ActiveScene = 'town2';
 
 function parseHashState(): { page: PageType; scene: ActiveScene } {

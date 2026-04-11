@@ -11,7 +11,7 @@ import { Player } from '../player/Player';
 import { PlayerUtils } from '../player/PlayerUtils';
 import { landCoordsToWorld, getLandHeightAt } from '../environment/landTerrain';
 
-export type SceneType = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'gameLoop';
+export type SceneType = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'gameLoop' | 'darkest';
 
 export class SceneManager {
     public activeScene: SceneType;
@@ -233,6 +233,14 @@ export class SceneManager {
             this.renderManager.controls.enableRotate = true;
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
+        } else if (sceneName === 'darkest') {
+            this.player.hide();
+            this.player.mesh.position.set(0, 0, 0);
+            this.renderManager.controls.target.set(0, 1.7, 0);
+            this.renderManager.camera.position.set(0, 5, 10);
+            this.renderManager.controls.enableRotate = false;
+            this.renderManager.controls.enableZoom = false;
+            this.renderManager.controls.enablePan = false;
         } else if (sceneName === 'combat') {
             this.player.hide(); // Hide the player model in combat
             this.player.mesh.position.set(0, 0, 0);

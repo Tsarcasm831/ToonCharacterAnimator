@@ -494,6 +494,184 @@ const CITY_GUARD_PANTS_STAGE_COLORS: Record<2 | 3, string> = {
     3: '#111111'
 };
 
+type EquipmentDisplayInfo = {
+    slot: keyof PlayerConfig['equipment'];
+    label: string;
+    note: string;
+    primaryColor: string;
+    accentColor?: string;
+};
+
+const getFirstDefinedColor = (...colors: Array<string | undefined>) => colors.find((color): color is string => !!color) ?? '#94a3b8';
+
+const getEnabledEquipmentDetails = (preset: ImpersonatePreset): EquipmentDisplayInfo[] => {
+    const config = preset.config;
+
+    return Object.entries(config.equipment ?? {})
+        .filter(([, enabled]) => !!enabled)
+        .map(([slot]) => slot as keyof PlayerConfig['equipment'])
+        .map((slot) => {
+            switch (slot) {
+                case 'helm':
+                    return {
+                        slot,
+                        label: 'Helm',
+                        note: 'Head armor / crest',
+                        primaryColor: getFirstDefinedColor(config.embellishmentColor, config.paddedArmorColor, config.robeTrimColor, config.mageHatBandColor),
+                        accentColor: getFirstDefinedColor(config.mageHatColor, config.hoodColor, config.hairColor)
+                    };
+                case 'shoulders':
+                    return {
+                        slot,
+                        label: 'Shoulders',
+                        note: 'Pauldrons / mantle',
+                        primaryColor: getFirstDefinedColor(config.embellishmentColor, config.paddedArmorColor, config.robeTrimColor),
+                        accentColor: getFirstDefinedColor(config.shirtColor, config.robeColor)
+                    };
+                case 'shield':
+                    return {
+                        slot,
+                        label: 'Shield',
+                        note: 'Defensive plate / emblem',
+                        primaryColor: getFirstDefinedColor(config.embellishmentColor, config.paddedArmorColor, config.shirtColor),
+                        accentColor: getFirstDefinedColor(config.robeTrimColor, config.shirtColor2, config.bootsColor)
+                    };
+                case 'shirt':
+                case 'leatherDoublet':
+                    return {
+                        slot,
+                        label: slot === 'shirt' ? 'Shirt' : 'Leather Doublet',
+                        note: 'Base torso layer',
+                        primaryColor: getFirstDefinedColor(config.shirtColor, config.robeColor, config.apronColor),
+                        accentColor: getFirstDefinedColor(config.shirtColor2, config.robeTrimColor, config.apronDetailColor)
+                    };
+                case 'pants':
+                case 'hideBreeches':
+                case 'leatherPants':
+                case 'chainLeggings':
+                case 'plateLeggings':
+                case 'warlordLegPlates':
+                case 'greaves':
+                case 'shorts':
+                case 'skirt':
+                    return {
+                        slot,
+                        label: slot
+                            .replace(/([A-Z])/g, ' $1')
+                            .replace(/^./, (char) => char.toUpperCase()),
+                        note: 'Leg armor / lower-body layer',
+                        primaryColor: getFirstDefinedColor(config.pantsColor, config.bootsColor, config.apronColor),
+                        accentColor: getFirstDefinedColor(config.embellishmentColor, config.apronDetailColor)
+                    };
+                case 'quiltedArmor':
+                case 'leatherArmor':
+                case 'heavyLeatherArmor':
+                case 'ringMail':
+                case 'plateMail':
+                    return {
+                        slot,
+                        label: slot
+                            .replace(/([A-Z])/g, ' $1')
+                            .replace(/^./, (char) => char.toUpperCase()),
+                        note: 'Chest armor / padding',
+                        primaryColor: getFirstDefinedColor(config.paddedArmorColor, config.embellishmentColor, config.shirtColor),
+                        accentColor: getFirstDefinedColor(config.shirtColor, config.robeTrimColor)
+                    };
+                case 'robe':
+                    return {
+                        slot,
+                        label: 'Robe',
+                        note: 'Spellcaster outer layer',
+                        primaryColor: getFirstDefinedColor(config.robeColor, config.shirtColor),
+                        accentColor: getFirstDefinedColor(config.robeTrimColor, config.embellishmentColor)
+                    };
+                case 'mageHat':
+                    return {
+                        slot,
+                        label: 'Mage Hat',
+                        note: 'Wizard headwear',
+                        primaryColor: getFirstDefinedColor(config.mageHatColor, config.hoodColor),
+                        accentColor: getFirstDefinedColor(config.mageHatBandColor, config.robeTrimColor)
+                    };
+                case 'bracers':
+                case 'gloves':
+                    return {
+                        slot,
+                        label: slot === 'bracers' ? 'Bracers' : 'Gloves',
+                        note: 'Arm accents / protection',
+                        primaryColor: getFirstDefinedColor(config.embellishmentColor, config.paddedArmorColor, config.bootsColor),
+                        accentColor: getFirstDefinedColor(config.shirtColor, config.robeTrimColor)
+                    };
+                case 'cape':
+                    return {
+                        slot,
+                        label: 'Cape',
+                        note: 'Back layer / faction cloth',
+                        primaryColor: getFirstDefinedColor(config.robeColor, config.shirtColor, config.embellishmentColor),
+                        accentColor: getFirstDefinedColor(config.robeTrimColor, config.shirtColor2)
+                    };
+                case 'belt':
+                    return {
+                        slot,
+                        label: 'Belt',
+                        note: 'Waist strap / utility band',
+                        primaryColor: getFirstDefinedColor(config.pantsColor, config.bootsColor, config.apronDetailColor),
+                        accentColor: getFirstDefinedColor(config.shirtColor, config.robeTrimColor)
+                    };
+                case 'blacksmithApron':
+                    return {
+                        slot,
+                        label: 'Blacksmith Apron',
+                        note: 'Forge apron with trim',
+                        primaryColor: getFirstDefinedColor(config.apronColor, config.shirtColor, config.pantsColor),
+                        accentColor: getFirstDefinedColor(config.apronDetailColor, config.embellishmentColor)
+                    };
+                case 'mask':
+                    return {
+                        slot,
+                        label: 'Mask',
+                        note: 'Face covering',
+                        primaryColor: getFirstDefinedColor(config.hoodColor, config.pupilColor, config.lipColor),
+                        accentColor: getFirstDefinedColor(config.scleraColor, config.skinColor)
+                    };
+                case 'hood':
+                    return {
+                        slot,
+                        label: 'Hood',
+                        note: 'Cloak hood / cowl',
+                        primaryColor: getFirstDefinedColor(config.hoodColor, config.robeColor),
+                        accentColor: getFirstDefinedColor(config.robeTrimColor, config.hairColor)
+                    };
+                case 'shoes':
+                    return {
+                        slot,
+                        label: 'Shoes',
+                        note: 'Boots / footwear',
+                        primaryColor: getFirstDefinedColor(config.bootsColor, config.pantsColor),
+                        accentColor: getFirstDefinedColor(config.pantsColor, config.embellishmentColor)
+                    };
+                case 'skullcap':
+                    return {
+                        slot,
+                        label: 'Skullcap',
+                        note: 'Fitted head covering',
+                        primaryColor: getFirstDefinedColor(config.hairColor, config.hoodColor, config.embellishmentColor),
+                        accentColor: getFirstDefinedColor(config.skinColor, config.shirtColor)
+                    };
+                default:
+                    return {
+                        slot,
+                        label: String(slot)
+                            .replace(/([A-Z])/g, ' $1')
+                            .replace(/^./, (char) => char.toUpperCase()),
+                        note: 'Enabled equipment',
+                        primaryColor: getFirstDefinedColor(config.embellishmentColor, config.shirtColor, config.pantsColor),
+                        accentColor: getFirstDefinedColor(config.robeTrimColor, config.bootsColor)
+                    };
+            }
+        });
+};
+
 export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setConfig, onResetToBase }) => {
     const [presetStages, setPresetStages] = React.useState<Record<string, EmbellishmentStage>>({});
     const [infoPreset, setInfoPreset] = React.useState<ImpersonatePreset | null>(null);
@@ -549,11 +727,7 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
     
     const closeInfoModal = () => setInfoPreset(null);
     const activeInfoStage = infoPreset ? getPresetStage(infoPreset) : 1;
-    const activeInfoEquipment = infoPreset
-        ? Object.entries(infoPreset.config.equipment ?? {})
-            .filter(([, enabled]) => !!enabled)
-            .map(([slot]) => slot)
-        : [];
+    const activeInfoEquipment = infoPreset ? getEnabledEquipmentDetails(infoPreset) : [];
     const activeInfoStats = infoPreset && isHumanoidPreset(infoPreset) && activeInfoStage === 1
         ? HUMANOID_PRESET_STATS[infoPreset.name] ?? null
         : null;
@@ -715,11 +889,61 @@ export const ImpersonateControls: React.FC<ImpersonateControlsProps> = ({ setCon
                             <div className="rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2"><span className="text-slate-400">Dexterity:</span> {activeInfoStats?.dexterity ?? '-'}</div>
                         </div>
 
-                        <div className="mt-3 rounded-lg border border-white/10 bg-slate-900/70 px-3 py-2">
-                            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Enabled Equipment</p>
-                            <p className="mt-1 text-[11px] text-slate-100">
-                                {activeInfoEquipment.length > 0 ? activeInfoEquipment.join(', ') : 'None'}
-                            </p>
+                        <div className="mt-3 rounded-lg border border-white/10 bg-slate-900/70 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Enabled Equipment</p>
+                                <span className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+                                    {activeInfoEquipment.length} active
+                                </span>
+                            </div>
+
+                            {activeInfoEquipment.length > 0 ? (
+                                <div className="mt-2 space-y-2">
+                                    {activeInfoEquipment.map((item) => (
+                                        <div
+                                            key={item.slot}
+                                            className="flex items-start justify-between gap-3 rounded-md border border-white/10 bg-slate-950/45 px-2.5 py-2"
+                                        >
+                                            <div className="flex min-w-0 items-start gap-2">
+                                                <div className="mt-0.5 flex items-center gap-1.5">
+                                                    <span
+                                                        className="h-3.5 w-3.5 rounded-full border border-white/20 shadow-inner"
+                                                        style={{ backgroundColor: item.primaryColor }}
+                                                    />
+                                                    {item.accentColor && (
+                                                        <span
+                                                            className="h-3.5 w-3.5 rounded-full border border-white/20 shadow-inner"
+                                                            style={{ backgroundColor: item.accentColor }}
+                                                        />
+                                                    )}
+                                                </div>
+
+                                                <div className="min-w-0">
+                                                    <p className="truncate text-[11px] font-black uppercase tracking-[0.12em] text-slate-100">
+                                                        {item.label}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-400">
+                                                        {item.note}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="shrink-0 text-right">
+                                                <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-200">
+                                                    {item.primaryColor}
+                                                </p>
+                                                {item.accentColor && (
+                                                    <p className="text-[10px] text-slate-500">
+                                                        Accent {item.accentColor}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="mt-1 text-[11px] text-slate-100">None</p>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -7,6 +7,7 @@ import TownScene from '../../TownScene';
 import Town2Scene from '../../Town2Scene';
 import TDGameScene from '../../TDGameScene';
 import RoguelikeScene from '../../RoguelikeScene';
+import DarkestScene from '../../DarkestScene';
 import { useGlobalState } from '../../../contexts/GlobalContext';
 
 import { CombatLogEntry } from '../hud/CombatLog';
@@ -359,7 +360,7 @@ export const Game: React.FC = () => {
     };
 
     const handleOpenStandaloneCC = React.useCallback(() => {
-        window.open('/standalone_cc/index.html', '_blank', 'noopener,noreferrer');
+        window.open(`${import.meta.env.BASE_URL}standalone_cc/index.html`, '_blank', 'noopener,noreferrer');
     }, []);
 
     const onSelectStructure = (type: any) => {
@@ -648,7 +649,7 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
-    const showGlobalHUD = !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop';
+    const showGlobalHUD = !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest';
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-start">
@@ -818,6 +819,13 @@ export const Game: React.FC = () => {
                                         />
                                     ) : activeScene === 'roguelike' ? (
                                         <RoguelikeScene />
+                                    ) : activeScene === 'darkest' ? (
+                                        <DarkestScene
+                                            onReady={() => {
+                                                handleEnvironmentReady();
+                                                scheduleVisualLoadingDone();
+                                            }}
+                                        />
                                     ) : (
                                         <DevScene 
                                             activeScene={activeScene}
