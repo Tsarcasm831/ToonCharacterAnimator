@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
 import { PlayerPreview } from './components/ui/previews/PlayerPreview';
 import { ControlPanel } from './components/ui/panels/ControlPanel';
 import { BODY_PRESETS, OUTFIT_PRESETS } from './data/constants';
@@ -8,25 +9,28 @@ import './index.css';
 
 type MovementMode = 'idle' | 'walk' | 'run';
 
+const BASE_VIEWPORT_WIDTH = 1600;
+const BASE_VIEWPORT_HEIGHT = 900;
+
 const DEFAULT_INPUT: Partial<PlayerInput> = {
-    x: 0,
-    y: 0,
-    isRunning: false,
-    jump: false,
-    isDead: false,
-    isPickingUp: false,
-    attack1: false,
-    attack2: false,
-    interact: false,
-    combat: false,
-    toggleFirstPerson: false,
-    wave: false,
-    leftHandWave: false,
-    summon: false,
-    toggleBuilder: false,
-    rotateGhost: false,
-    fireball: false,
-    crouch: false
+  x: 0,
+  y: 0,
+  isRunning: false,
+  jump: false,
+  isDead: false,
+  isPickingUp: false,
+  attack1: false,
+  attack2: false,
+  interact: false,
+  combat: false,
+  toggleFirstPerson: false,
+  wave: false,
+  leftHandWave: false,
+  summon: false,
+  toggleBuilder: false,
+  rotateGhost: false,
+  fireball: false,
+  crouch: false
 };
 
 const INITIAL_CONFIG: PlayerConfig = {
@@ -56,11 +60,24 @@ function App() {
   const [isDeadUI, setIsDeadUI] = useState(false);
   const [movementMode, setMovementMode] = useState<MovementMode>('idle');
   const [zoomLevel, setZoomLevel] = useState(50);
+  const [viewportScale, setViewportScale] = useState(1);
   const [panelState, setPanelState] = useState<{ isOpen: boolean; activeTab: string; isMobileLayout: boolean }>({
     isOpen: false,
     activeTab: 'impersonate',
     isMobileLayout: false,
   });
+
+  useEffect(() => {
+    const updateViewportScale = () => {
+      const widthScale = window.innerWidth / BASE_VIEWPORT_WIDTH;
+      const heightScale = window.innerHeight / BASE_VIEWPORT_HEIGHT;
+      setViewportScale(Math.min(widthScale, heightScale, 1));
+    };
+
+    updateViewportScale();
+    window.addEventListener('resize', updateViewportScale);
+    return () => window.removeEventListener('resize', updateViewportScale);
+  }, []);
 
   const applyMovementMode = (mode: MovementMode) => {
     setMovementMode(mode);
@@ -73,8 +90,8 @@ function App() {
   };
 
   const handleDeathToggle = () => {
-      setManualInput(prev => ({ ...prev, isDead: !prev.isDead }));
-      setIsDeadUI(prev => !prev);
+    setManualInput(prev => ({ ...prev, isDead: !prev.isDead }));
+    setIsDeadUI(prev => !prev);
   };
 
   const handleMovementToggle = () => {
@@ -88,51 +105,67 @@ function App() {
   };
 
   const triggerAction = (key: keyof PlayerInput) => {
-      setManualInput(prev => ({ ...prev, [key]: true }));
-      setTimeout(() => setManualInput(prev => ({ ...prev, [key]: false })), 100);
+    setManualInput(prev => ({ ...prev, [key]: true }));
+    setTimeout(() => setManualInput(prev => ({ ...prev, [key]: false })), 100);
   };
 
   const handleResetToBaseCharacter = () => {
     setConfig(INITIAL_CONFIG);
   };
 
-  return (
-    <div className="w-screen h-screen bg-slate-950 overflow-hidden text-slate-50 flex flex-col relative">
-      <div className="absolute inset-0">
-         <PlayerPreview config={config} manualInput={manualInput} onZoomChange={setZoomLevel} />
-      </div>
+  const handleBackToMainMenu = () => {
+    if (window.parent !== window) {
+      window.parent.postMessage({ type: 'sairon:close-character-creator' }, window.location.origin);
+      return;
+    }
 
-      {panelState.isOpen && panelState.activeTab === 'impersonate' && !panelState.isMobileLayout && (
-      <div className="absolute left-[20rem] top-1/2 z-[140] hidden -translate-y-1/2 flex-col gap-4 lg:flex">
-        <button
-          type="button"
-          onClick={handleWalkPreview}
-          className={`min-w-[110px] rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] shadow-lg transition-all ${
-            movementMode === 'walk'
-              ? 'border-blue-300/70 bg-blue-500/25 text-blue-100'
-              : 'border-white/20 bg-slate-900/80 text-slate-100 hover:border-blue-300/50 hover:text-blue-100'
-          }`}
-        >
-          Walk
-        </button>
-        <button
-          type="button"
-          onClick={() => triggerAction('attack1')}
-          className="min-w-[110px] rounded-full border border-white/20 bg-slate-900/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-100 shadow-lg transition-all hover:border-rose-300/60 hover:text-rose-100"
-        >
-          Attack
-        </button>
-        <button
-          type="button"
-          onClick={() => triggerAction('attack2')}
-          className="min-w-[110px] rounded-full border border-white/20 bg-slate-900/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-100 shadow-lg transition-all hover:border-amber-300/60 hover:text-amber-100"
-        >
-          Get Hit
-        </button>
-      </div>
-      )}
-      
-      <ControlPanel
+    window.history.back();
+  };
+
+  return (
+    <div className="relative h-screen w-screen overflow-hidden bg-slate-950 text-slate-50">
+      <div
+        className="absolute left-1/2 top-1/2 h-[900px] w-[1600px] overflow-hidden"
+        style={{
+          transform: `translate(-50%, -50%) scale(${viewportScale})`,
+          transformOrigin: 'center center',
+        }}
+      >
+        <div className="absolute inset-0">
+          <PlayerPreview config={config} manualInput={manualInput} onZoomChange={setZoomLevel} />
+        </div>
+
+        {panelState.isOpen && panelState.activeTab === 'impersonate' && !panelState.isMobileLayout && (
+          <div className="absolute left-[20rem] top-1/2 z-[140] hidden -translate-y-1/2 flex-col gap-4 lg:flex">
+            <button
+              type="button"
+              onClick={handleWalkPreview}
+              className={`min-w-[110px] rounded-full border px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] shadow-lg transition-all ${
+                movementMode === 'walk'
+                  ? 'border-blue-300/70 bg-blue-500/25 text-blue-100'
+                  : 'border-white/20 bg-slate-900/80 text-slate-100 hover:border-blue-300/50 hover:text-blue-100'
+              }`}
+            >
+              Walk
+            </button>
+            <button
+              type="button"
+              onClick={() => triggerAction('attack1')}
+              className="min-w-[110px] rounded-full border border-white/20 bg-slate-900/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-100 shadow-lg transition-all hover:border-rose-300/60 hover:text-rose-100"
+            >
+              Attack
+            </button>
+            <button
+              type="button"
+              onClick={() => triggerAction('attack2')}
+              className="min-w-[110px] rounded-full border border-white/20 bg-slate-900/80 px-4 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-100 shadow-lg transition-all hover:border-amber-300/60 hover:text-amber-100"
+            >
+              Get Hit
+            </button>
+          </div>
+        )}
+
+        <ControlPanel
           config={config}
           manualInput={manualInput}
           isDeadUI={isDeadUI}
@@ -148,9 +181,11 @@ function App() {
           canUndo={false}
           canRedo={false}
           zoomLevel={zoomLevel}
+          onBackToMainMenu={handleBackToMainMenu}
           onPanelStateChange={setPanelState}
           onResetToBaseCharacter={handleResetToBaseCharacter}
-      />
+        />
+      </div>
     </div>
   )
 }

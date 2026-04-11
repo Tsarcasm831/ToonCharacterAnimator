@@ -1,21 +1,21 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React from "react";
 import { useGameStore } from "../../state/GameState.jsx";
 function DungeonHUD({ onToggleMap }) {
   const lightLevel = useGameStore((state) => state.lightLevel);
-  return /* @__PURE__ */ jsxDEV("div", { className: "dungeon-hud", children: [
-    /* @__PURE__ */ jsxDEV("button", { onClick: onToggleMap, className: "map-button", children: "Map" }, void 0, false, {
+  return /* @__PURE__ */ jsx("div", { className: "dungeon-hud", children: [
+    /* @__PURE__ */ jsx("button", { onClick: onToggleMap, className: "map-button", children: "Map" }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 9,
       columnNumber: 14
     }, this),
-    /* @__PURE__ */ jsxDEV("div", { className: "light-meter", children: [
-      /* @__PURE__ */ jsxDEV("div", { className: "light-meter-icon", children: "\u{1F56F}\uFE0F" }, void 0, false, {
+    /* @__PURE__ */ jsx("div", { className: "light-meter", children: [
+      /* @__PURE__ */ jsx("div", { className: "light-meter-icon", children: "\u{1F56F}\uFE0F" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 11,
         columnNumber: 17
       }, this),
-      /* @__PURE__ */ jsxDEV("div", { className: "light-bar-bg", children: /* @__PURE__ */ jsxDEV(
+      /* @__PURE__ */ jsx("div", { className: "light-bar-bg", children: /* @__PURE__ */ jsx(
         "div",
         {
           className: "light-bar-fg",
@@ -48,3 +48,4 @@ function DungeonHUD({ onToggleMap }) {
 export {
   DungeonHUD as default
 };
+

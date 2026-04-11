@@ -27,6 +27,11 @@ interface ControlPanelProps {
     onRedo: () => void;
     canUndo: boolean;
     canRedo: boolean;
+    mode?: 'full' | 'userCreator';
+    forceOpen?: boolean;
+    onSaveCharacter?: () => Promise<void>;
+    isSavingCharacter?: boolean;
+    characterSaveStatus?: string | null;
 }
 
 type TabKey = 'settings' | 'environment' | 'actions' | 'impersonate' | 'body' | 'outfit' | 'face' | 'rigging' | 'eq_rigging' | 'randomize' | 'loadouts';
@@ -44,10 +49,15 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     onUndo,
     onRedo,
     canUndo,
-    canRedo
+    canRedo,
+    mode = 'full',
+    forceOpen = false,
+    onSaveCharacter,
+    isSavingCharacter = false,
+    characterSaveStatus = null
 }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<TabKey>('actions');
+    const [isOpen, setIsOpen] = useState(forceOpen);
+    const [activeTab, setActiveTab] = useState<TabKey>(mode === 'userCreator' ? 'body' : 'actions');
     const [isMobileLayout, setIsMobileLayout] = useState(() =>
         typeof window !== 'undefined' ? window.matchMedia('(max-width: 1024px)').matches : false
     );
@@ -66,7 +76,13 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         return () => mediaQuery.removeEventListener('change', handleChange);
     }, []);
 
-    const TABS: { id: TabKey; label: string; icon: string }[] = [
+    React.useEffect(() => {
+        if (forceOpen) {
+            setIsOpen(true);
+        }
+    }, [forceOpen]);
+
+    const allTabs: { id: TabKey; label: string; icon: string }[] = [
         { id: 'actions', label: 'Actions & Input', icon: '🎮' },
         { id: 'impersonate', label: 'Impersonate', icon: '🎭' },
         { id: 'randomize', label: 'Randomize', icon: '🎲' },
@@ -79,11 +95,21 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         { id: 'rigging', label: 'Bone Rigging', icon: '🦴' },
         { id: 'eq_rigging', label: 'Gear Rigging', icon: '🛡️' },
     ];
+    const userCreatorTabIds: TabKey[] = ['impersonate', 'actions', 'randomize', 'loadouts', 'body', 'outfit'];
+    const tabs = mode === 'userCreator'
+        ? allTabs.filter(tab => userCreatorTabIds.includes(tab.id))
+        : allTabs;
+
+    React.useEffect(() => {
+        if (!tabs.some(tab => tab.id === activeTab)) {
+            setActiveTab(tabs[0]?.id ?? 'body');
+        }
+    }, [activeTab, tabs]);
 
     return (
         <>
             {/* Trigger Button */}
-            {!isOpen && (
+            {!isOpen && !forceOpen && (
                 <button type="button" 
                     onClick={() => setIsOpen(true)}
                     className="absolute bottom-4 right-4 z-[60] p-4 bg-slate-900/90 backdrop-blur-md shadow-2xl rounded-full border border-white/20 text-white hover:bg-blue-600 hover:border-blue-400 transition-all hover:scale-105 active:scale-95 group"
@@ -112,7 +138,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         </div>
                         
                         <div className="flex-1 overflow-y-auto py-6 space-y-1 custom-scrollbar">
-                            {TABS.map(tab => (
+                            {tabs.map(tab => (
                                 <button type="button"
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
@@ -170,12 +196,14 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                     </svg>
                                 </button>
                             </div>
-                            <button type="button"
-                                onClick={() => setIsOpen(false)}
-                                className="w-full py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95"
-                            >
-                                Exit Studio
-                            </button>
+                            {!forceOpen && (
+                                <button type="button"
+                                    onClick={() => setIsOpen(false)}
+                                    className="w-full py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-red-500 hover:text-white transition-all shadow-lg active:scale-95"
+                                >
+                                    Exit Studio
+                                </button>
+                            )}
                         </div>
                     </div>
                     )}
@@ -188,23 +216,25 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         <div className={`${isMobileLayout ? 'p-4 pb-3' : 'p-8 pb-4'} border-b border-white/5 flex justify-between items-start`}>
                             <div>
                                 <h3 className={`${isMobileLayout ? 'text-xl' : 'text-2xl'} font-black text-white uppercase tracking-tight`}>
-                                    {TABS.find(t => t.id === activeTab)?.label}
+                                    {tabs.find(t => t.id === activeTab)?.label}
                                 </h3>
                                 <div className="h-1.5 w-16 bg-blue-500 mt-2 rounded-full shadow-[0_0_10px_#3b82f6]" />
                             </div>
-                            <button type="button" 
-                                onClick={() => setIsOpen(false)}
-                                aria-label="Close Studio OS panel"
-                                className="p-2 text-slate-500 hover:text-white bg-white/5 hover:bg-red-500/20 rounded-xl transition-all"
-                            >
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
+                            {!forceOpen && (
+                                <button type="button" 
+                                    onClick={() => setIsOpen(false)}
+                                    aria-label="Close Studio OS panel"
+                                    className="p-2 text-slate-500 hover:text-white bg-white/5 hover:bg-red-500/20 rounded-xl transition-all"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                            )}
                         </div>
 
                         {isMobileLayout && (
                             <div className="px-4 pt-3 overflow-x-auto custom-scrollbar border-b border-white/5">
                                 <div className="flex gap-2 min-w-max pb-3">
-                                    {TABS.map(tab => (
+                                    {tabs.map(tab => (
                                         <button
                                             type="button"
                                             key={tab.id}
@@ -247,7 +277,15 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                 )}
 
                                 {activeTab === 'loadouts' && (
-                                    <LoadoutControls config={config} setConfig={setConfig} />
+                                    <LoadoutControls
+                                        config={config}
+                                        setConfig={setConfig}
+                                        cloudSaveEnabled={mode === 'userCreator'}
+                                        onCloudSave={onSaveCharacter}
+                                        isCloudSaving={isSavingCharacter}
+                                        cloudSaveStatus={characterSaveStatus}
+                                        hideLocalLoadouts={mode === 'userCreator'}
+                                    />
                                 )}
 
                                 {activeTab === 'settings' && (

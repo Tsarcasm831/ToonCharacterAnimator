@@ -10,7 +10,7 @@ interface MainMenuProps {
     onSceneChange: (scene: ActiveScene) => void;
     onStart: (scene: ActiveScene) => void;
     onShowEnemies: () => void;
-    onOpenStandaloneCC: () => void;
+    onOpenCharacterCreator: () => void;
     isMobile?: boolean;
     showVideoBackground?: boolean;
 }
@@ -31,7 +31,7 @@ const sceneOptions: Array<{ id: ActiveScene; label: string; activeClassName?: st
 const sceneOptionsLeft = sceneOptions.slice(0, Math.ceil(sceneOptions.length / 2));
 const sceneOptionsRight = sceneOptions.slice(Math.ceil(sceneOptions.length / 2));
 
-export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, onStart, onShowEnemies, onOpenStandaloneCC, isMobile = false, showVideoBackground = false }) => {
+export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, onStart, onShowEnemies, onOpenCharacterCreator, isMobile = false, showVideoBackground = false }) => {
     const [showOptions, setShowOptions] = React.useState(false);
     const [showUnits, setShowUnits] = React.useState(false);
     const [showMap, setShowMap] = React.useState(false);
@@ -73,7 +73,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, 
 
                         <button
                             type="button"
-                            onClick={onOpenStandaloneCC}
+                            onClick={onOpenCharacterCreator}
                             className="px-8 py-2 bg-white/5 text-white font-black text-xs uppercase tracking-widest rounded-full border border-white/10 hover:bg-white/15 hover:border-white/30 transition-all shadow-[0_0_20px_rgba(255,255,255,0.08)]"
                         >
                             Open Character Creator

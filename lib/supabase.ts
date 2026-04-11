@@ -1,53 +1,30 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.SUPABASE_URL?.trim()
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY?.trim()
-const isSupabaseEnabled = Boolean(supabaseUrl && supabaseAnonKey)
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ||
+  process.env.VITE_SUPABASE_URL?.trim() ||
+  process.env.SUPABASE_URL?.trim();
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim() ||
+  process.env.VITE_SUPABASE_ANON_KEY?.trim() ||
+  process.env.SUPABASE_ANON_KEY?.trim();
 
-type DisabledQueryResult<T> = Promise<{ data: T; error: null }>
-type MusicAnalyticsRow = {
-  track_id?: string
-  track_title?: string
-  track_artist?: string
-  play_count?: number
-  last_played?: string
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL / VITE_SUPABASE_URL / SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY / VITE_SUPABASE_ANON_KEY / SUPABASE_ANON_KEY"
+  );
 }
-type DisabledSupabaseClient = {
-  from: (..._args: unknown[]) => {
-    select: (..._args: unknown[]) => {
-      eq: (..._args: unknown[]) => {
-        maybeSingle: (..._args: unknown[]) => DisabledQueryResult<MusicAnalyticsRow | null>
-      }
-      order: (..._args: unknown[]) => {
-        limit: (..._args: unknown[]) => DisabledQueryResult<MusicAnalyticsRow[]>
-      }
-    }
-    update: (..._args: unknown[]) => {
-      eq: (..._args: unknown[]) => DisabledQueryResult<null>
-    }
-    insert: (..._args: unknown[]) => DisabledQueryResult<null>
+
+export const isSupabaseEnabled = true;
+
+export const supabase: SupabaseClient = createClient(
+  supabaseUrl,
+  supabaseAnonKey,
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
   }
-}
-
-const resolved = <T>(data: T): DisabledQueryResult<T> => Promise.resolve({ data, error: null })
-
-const createDisabledSupabaseClient = (): DisabledSupabaseClient => ({
-  from: () => ({
-    select: () => ({
-      eq: () => ({
-        maybeSingle: () => resolved(null)
-      }),
-      order: () => ({
-        limit: () => resolved([])
-      })
-    }),
-    update: () => ({
-      eq: () => resolved(null)
-    }),
-    insert: () => resolved(null)
-  })
-})
-
-export const supabase: DisabledSupabaseClient = isSupabaseEnabled
-  ? (createClient(supabaseUrl!, supabaseAnonKey!) as unknown as DisabledSupabaseClient)
-  : createDisabledSupabaseClient()
+);

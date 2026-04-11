@@ -85,6 +85,7 @@ export interface Quest {
 
 export interface EquipmentState {
   helm: boolean;
+  plagueDoctorMask: boolean;
   shoulders: boolean;
   shield: boolean;
   shirt: boolean;
@@ -175,6 +176,9 @@ export interface ColorConfig {
   robeColor: string;
   robeTrimColor: string;
   hoodColor: string;
+  plagueMaskColor: string;
+  plagueMaskTrimColor: string;
+  plagueMaskLensColor: string;
   tintColor?: string;
   embellishmentColor?: string;
   paddedArmorColor?: string;
@@ -311,6 +315,13 @@ export interface AccessoryRiggingConfig {
   maskStretchY: number;
   maskStretchZ: number;
 
+  // Plague Doctor Mask
+  plagueMaskX: number;
+  plagueMaskY: number;
+  plagueMaskZ: number;
+  plagueMaskRotX: number;
+  plagueMaskScale: number;
+
   // Helm
   helmX: number;
   helmY: number;
@@ -414,6 +425,7 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   outfit: 'naked',
   equipment: {
     helm: false,
+    plagueDoctorMask: false,
     shoulders: false,
     shield: false,
     shirt: false,
@@ -492,6 +504,9 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   robeColor: '#2c2c2c',
   robeTrimColor: '#d4af37',
   hoodColor: '#111111',
+  plagueMaskColor: '#141414',
+  plagueMaskTrimColor: '#b89246',
+  plagueMaskLensColor: '#c8d2dc',
   
   // Apron
   apronColor: '#4e342e',
@@ -585,6 +600,12 @@ export const DEFAULT_CONFIG: PlayerConfig = {
   maskStretchX: 0.89,
   maskStretchY: 1.0,
   maskStretchZ: 1.0,
+
+  plagueMaskX: 0,
+  plagueMaskY: -0.022,
+  plagueMaskZ: 0.04,
+  plagueMaskRotX: 0.06,
+  plagueMaskScale: 1.0,
 
   helmX: 0,
   helmY: 0.064,

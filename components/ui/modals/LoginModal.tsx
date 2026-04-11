@@ -1,154 +1,199 @@
 import React, { useState } from 'react';
+import { User } from '@supabase/supabase-js';
+import { signIn, signUp, signOut } from '../../../lib/auth';
 
 interface LoginModalProps {
     isOpen: boolean;
     onClose: () => void;
+    user: User | null;
+    onManualSave?: () => Promise<void>;
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, user, onManualSave }) => {
     if (!isOpen) return null;
 
     const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
-    const [formData, setFormData] = useState({
-        username: '',
-        password: '',
-        email: ''
-    });
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log('Form submitted:', activeTab, formData);
-        // TODO: Implement actual login/register logic
-        onClose();
+        setError(null);
+        setSuccessMsg(null);
+        setIsLoading(true);
+        try {
+            if (activeTab === 'login') {
+                await signIn(email, password);
+                onClose();
+            } else {
+                await signUp(email, password);
+                setSuccessMsg('Account created! Check your email to confirm, then log in.');
+                setActiveTab('login');
+            }
+        } catch (err: any) {
+            setError(err?.message ?? 'Something went wrong.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
-    const handleGoogleLogin = () => {
-        console.log('Google login clicked');
-        // TODO: Implement Google login logic
+    const handleSignOut = async () => {
+        setError(null);
+        setIsLoading(true);
+        try {
+            await signOut();
+            onClose();
+        } catch (err: any) {
+            setError(err?.message ?? 'Sign-out failed.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleManualSave = async () => {
+        if (!onManualSave) return;
+        setError(null);
+        setIsLoading(true);
+        try {
+            await onManualSave();
+        } catch (err: any) {
+            setError(err?.message ?? 'Save failed.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4" onClick={(e) => {
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={(e) => {
             if (e.target === e.currentTarget) onClose();
         }}>
             <div className="bg-slate-900/95 border-2 border-white/10 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative">
                 {/* Header */}
                 <div className="p-6 border-b border-white/5 bg-gradient-to-r from-slate-900 to-slate-800 flex justify-between items-center">
                     <h2 className="text-2xl font-black text-white uppercase tracking-tighter">
-                        {activeTab === 'login' ? 'Access Terminal' : 'New Identity'}
+                        {user ? 'Profile' : activeTab === 'login' ? 'Sign In' : 'Create Account'}
                     </h2>
-                    <button type="button" 
-                        onClick={onClose}
+                    <button type="button" onClick={onClose}
                         className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
                     >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                    </button>
-                </div>
-
-                {/* Tabs */}
-                <div className="flex border-b border-white/5">
-                    <button type="button"
-                        onClick={() => setActiveTab('login')}
-                        className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
-                            activeTab === 'login' 
-                                ? 'bg-white/5 text-blue-400 border-b-2 border-blue-400' 
-                                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-                        }`}
-                    >
-                        Login
-                    </button>
-                    <button type="button"
-                        onClick={() => setActiveTab('register')}
-                        className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
-                            activeTab === 'register' 
-                                ? 'bg-white/5 text-blue-400 border-b-2 border-blue-400' 
-                                : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-                        }`}
-                    >
-                        Create Account
-                    </button>
-                </div>
-
-                {/* Body */}
-                <div className="p-8 space-y-6">
-                    {/* Google Login */}
-                    <button type="button"
-                        onClick={handleGoogleLogin}
-                        className="w-full py-3 px-4 bg-white text-slate-900 rounded-lg font-bold flex items-center justify-center gap-3 hover:bg-slate-100 transition-colors"
-                    >
-                        <svg className="w-5 h-5" viewBox="0 0 24 24">
-                            <path fill="#EA4335" d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.27 0 3.198 2.698 1.24 6.65l4.026 3.115Z" />
-                            <path fill="#34A853" d="M16.04 18.013c-1.09.703-2.474 1.078-4.04 1.078a7.077 7.077 0 0 1-6.723-4.823l-4.04 3.067A11.965 11.965 0 0 0 12 24c2.933 0 5.735-1.043 7.834-3l-3.793-2.987Z" />
-                            <path fill="#4A90E2" d="M19.834 21c2.195-2.048 3.62-5.096 3.62-9 0-.71-.109-1.473-.272-2.182H12v4.637h6.436c-.317 1.559-1.17 2.766-2.395 3.558L19.834 21Z" />
-                            <path fill="#FBBC05" d="M5.277 14.268A7.11 7.11 0 0 1 4.909 12c0-.782.125-1.533.357-2.235L1.24 6.65A11.938 11.938 0 0 0 0 12c0 1.92.445 3.719 1.237 5.273l4.04-3.005Z" />
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                        Continue with Google
                     </button>
+                </div>
 
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-white/10"></div>
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="px-2 bg-slate-900 text-slate-500">Or continue with email</span>
-                        </div>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Username</label>
-                            <input
-                                type="text"
-                                name="username"
-                                value={formData.username}
-                                onChange={handleInputChange}
-                                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
-                                placeholder="Enter username"
-                                required
-                            />
-                        </div>
-
-                        {activeTab === 'register' && (
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</label>
-                                <input
-                                    type="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleInputChange}
-                                    className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
-                                    placeholder="Enter email address"
-                                    required
-                                />
+                {user ? (
+                    /* Logged-in view */
+                    <div className="p-8 space-y-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-600/30 border border-blue-500/40 flex items-center justify-center">
+                                <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
                             </div>
+                            <div>
+                                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Logged in as</p>
+                                <p className="text-white font-semibold text-sm truncate max-w-[280px]">{user.email}</p>
+                            </div>
+                        </div>
+
+                        {onManualSave && (
+                            <button
+                                type="button"
+                                onClick={handleManualSave}
+                                disabled={isLoading}
+                                className="w-full py-3 bg-gradient-to-r from-green-700 to-green-600 text-white rounded-lg font-bold uppercase tracking-widest hover:from-green-600 hover:to-green-500 transition-all disabled:opacity-50"
+                            >
+                                {isLoading ? 'Saving…' : 'Save Game Now'}
+                            </button>
                         )}
 
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Password</label>
-                            <input
-                                type="password"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleInputChange}
-                                className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
-                                placeholder="Enter password"
-                                required
-                            />
-                        </div>
+                        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
                         <button
-                            type="submit"
-                            className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg font-bold uppercase tracking-widest shadow-lg shadow-blue-900/20 hover:shadow-blue-900/40 hover:from-blue-500 hover:to-blue-400 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                            type="button"
+                            onClick={handleSignOut}
+                            disabled={isLoading}
+                            className="w-full py-3 bg-white/5 border border-white/10 text-slate-300 rounded-lg font-bold uppercase tracking-widest hover:bg-white/10 transition-all disabled:opacity-50"
                         >
-                            {activeTab === 'login' ? 'Initialize' : 'Register'}
+                            {isLoading ? '…' : 'Sign Out'}
                         </button>
-                    </form>
-                </div>
+                    </div>
+                ) : (
+                    /* Auth form */
+                    <>
+                        <div className="flex border-b border-white/5">
+                            <button type="button"
+                                onClick={() => { setActiveTab('login'); setError(null); setSuccessMsg(null); }}
+                                className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
+                                    activeTab === 'login'
+                                        ? 'bg-white/5 text-blue-400 border-b-2 border-blue-400'
+                                        : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                                }`}
+                            >Login</button>
+                            <button type="button"
+                                onClick={() => { setActiveTab('register'); setError(null); setSuccessMsg(null); }}
+                                className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
+                                    activeTab === 'register'
+                                        ? 'bg-white/5 text-blue-400 border-b-2 border-blue-400'
+                                        : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                                }`}
+                            >Create Account</button>
+                        </div>
+
+                        <div className="p-8 space-y-5">
+                            {error && (
+                                <div className="bg-red-900/30 border border-red-500/30 rounded-lg px-4 py-3 text-red-300 text-sm">
+                                    {error}
+                                </div>
+                            )}
+                            {successMsg && (
+                                <div className="bg-green-900/30 border border-green-500/30 rounded-lg px-4 py-3 text-green-300 text-sm">
+                                    {successMsg}
+                                </div>
+                            )}
+
+                            <form onSubmit={handleSubmit} className="space-y-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</label>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                                        placeholder="you@example.com"
+                                        required
+                                        autoComplete="email"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Password</label>
+                                    <input
+                                        type="password"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full bg-black/20 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/50 transition-all"
+                                        placeholder="••••••••"
+                                        required
+                                        autoComplete={activeTab === 'login' ? 'current-password' : 'new-password'}
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg font-bold uppercase tracking-widest shadow-lg shadow-blue-900/20 hover:shadow-blue-900/40 hover:from-blue-500 hover:to-blue-400 transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                >
+                                    {isLoading ? 'Please wait…' : activeTab === 'login' ? 'Sign In' : 'Register'}
+                                </button>
+                            </form>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

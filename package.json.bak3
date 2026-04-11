@@ -1,0 +1,52 @@
+{
+  "name": "toon-character-animator",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "predev": "npm --prefix standalone_cc run build && node scripts/sync-external-apps.mjs",
+    "dev": "vite --host 0.0.0.0",
+    "dev:public": "node -e \"if (process.env.ALLOW_PUBLIC_TUNNEL !== '1') { console.error('Blocked: set ALLOW_PUBLIC_TUNNEL=1 to run dev:public'); process.exit(1); }\" && concurrently -k \"vite --host 0.0.0.0 --port 3000\" \"npx -y cloudflared tunnel --url http://localhost:3000\"",
+    "prebuild": "npm --prefix standalone_cc run build && node scripts/sync-external-apps.mjs",
+    "build": "tsc --noEmit && vite build",
+    "build:analyze": "vite build --mode analyze",
+    "lint": "tsc --noEmit",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@supabase/supabase-js": "^2.93.1",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.562.0",
+    "motion": "^12.23.24",
+    "nipplejs": "^0.10.2",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "three": "^0.182.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@testing-library/react": "^16.3.2",
+    "@types/node": "^22.19.7",
+    "@types/react": "^19.2.9",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.182.0",
+    "@vitejs/plugin-react": "^5.1.2",
+    "concurrently": "^9.2.1",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "terser": "^5.46.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0",
+    "vite-plugin-static-copy": "^3.1.6",
+    "vitest": "^3.2.4"
+  },
+  "overrides": {
+    "rollup": "^4.59.0"
+  }
+}

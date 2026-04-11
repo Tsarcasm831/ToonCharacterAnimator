@@ -1,6 +1,7 @@
 
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PlayerConfig } from '../../../types';
 import { PlayerModel } from '../../../game/model/PlayerModel';
 import { IdleAction } from '../../../game/animator/actions/IdleAction';
@@ -14,6 +15,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
     const modelRef = useRef<PlayerModel | null>(null);
+    const controlsRef = useRef<OrbitControls | null>(null);
     const frameIdRef = useRef<number>(0);
 
     useEffect(() => {
@@ -23,7 +25,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         const height = containerRef.current.clientHeight;
 
         const scene = new THREE.Scene();
-        scene.background = null; 
+        scene.background = new THREE.Color(0x081122);
         
         const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 100);
         camera.position.set(0, 0.9, 4.6); 
@@ -35,6 +37,29 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFShadowMap; 
         containerRef.current.appendChild(renderer.domElement);
+        renderer.domElement.style.touchAction = 'none';
+
+        const handleContextMenu = (event: MouseEvent) => event.preventDefault();
+        renderer.domElement.addEventListener('contextmenu', handleContextMenu);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.08;
+        controls.enableRotate = true;
+        controls.enablePan = true;
+        controls.enableZoom = true;
+        controls.rotateSpeed = 0.9;
+        controls.panSpeed = 0.85;
+        controls.zoomSpeed = 0.9;
+        controls.screenSpacePanning = true;
+        controls.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN,
+        };
+        controls.target.set(0, 0.9, 0);
+        controls.update();
+        controlsRef.current = controls;
 
         const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
         scene.add(hemiLight);
@@ -50,6 +75,9 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
         const backLight = new THREE.DirectionalLight(0x4455ff, 0.6);
         backLight.position.set(-2, 2, -5);
         scene.add(backLight);
+
+        const fillLight = new THREE.AmbientLight(0x8fb4ff, 0.28);
+        scene.add(fillLight);
 
         const playerModel = new PlayerModel(config);
         playerModel.group.rotation.y = 0.2;
@@ -69,6 +97,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
             frameIdRef.current = requestAnimationFrame(animate);
             IdleAction.animate(mockPlayer, playerModel.parts, 0.1, false);
             playerModel.update(0.016, new THREE.Vector3(0,0,0));
+            controls.update();
             renderer.render(scene, camera);
         };
 
@@ -88,6 +117,8 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
 
         return () => {
             cancelAnimationFrame(frameIdRef.current);
+            controls.dispose();
+            renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
             resizeObserver.disconnect();
             if (rendererRef.current && containerRef.current) {
                 containerRef.current.removeChild(rendererRef.current.domElement);

@@ -1,10 +1,11 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React, { useState, useEffect } from "react";
 import DungeonMap from "../components/Dungeon/DungeonMap.jsx";
 import DungeonHUD from "../components/Dungeon/DungeonHUD.jsx";
 import DungeonRoomScene from "../components/Dungeon/DungeonRoomScene.jsx";
 import CharacterModal from "../components/Dungeon/CharacterModal.jsx";
 import { useGameStore } from "../state/GameState.jsx";
+import { useShallow } from "zustand/react/shallow";
 function DungeonScreen() {
   const [isMapOpen, setMapOpen] = useState(false);
   const {
@@ -15,7 +16,7 @@ function DungeonScreen() {
     currentRoomId,
     moveToRoom,
     isTransitioning
-  } = useGameStore((state) => ({
+  } = useGameStore(useShallow((state) => ({
     characterModalId: state.characterModalId,
     setCharacterModalId: state.setCharacterModalId,
     heroes: state.heroes,
@@ -23,7 +24,7 @@ function DungeonScreen() {
     currentRoomId: state.currentRoomId,
     moveToRoom: state.moveToRoom,
     isTransitioning: state.isTransitioning
-  }));
+  })));
   const handleToggleMap = () => {
     setMapOpen(!isMapOpen);
   };
@@ -58,29 +59,29 @@ function DungeonScreen() {
     setMapOpen(false);
   };
   const characterForModal = characterModalId ? heroes.find((c) => c.combatId === characterModalId) : null;
-  return /* @__PURE__ */ jsxDEV("div", { className: "dungeon-screen", children: [
-    /* @__PURE__ */ jsxDEV(DungeonRoomScene, {}, void 0, false, {
+  return /* @__PURE__ */ jsx("div", { className: "dungeon-screen", children: [
+    /* @__PURE__ */ jsx(DungeonRoomScene, {}, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 76,
       columnNumber: 13
     }, this),
-    /* @__PURE__ */ jsxDEV(DungeonHUD, { onToggleMap: handleToggleMap }, void 0, false, {
+    /* @__PURE__ */ jsx(DungeonHUD, { onToggleMap: handleToggleMap }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 77,
       columnNumber: 13
     }, this),
-    isTransitioning && /* @__PURE__ */ jsxDEV("div", { className: "transition-overlay" }, void 0, false, {
+    isTransitioning && /* @__PURE__ */ jsx("div", { className: "transition-overlay" }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 80,
       columnNumber: 21
     }, this),
-    isMapOpen && /* @__PURE__ */ jsxDEV("div", { className: "modal-overlay", onClick: handleToggleMap, children: /* @__PURE__ */ jsxDEV("div", { className: "map-modal-content", onClick: (e) => e.stopPropagation(), children: [
-      /* @__PURE__ */ jsxDEV("button", { className: "modal-close-button", onClick: handleToggleMap, children: "\xD7" }, void 0, false, {
+    isMapOpen && /* @__PURE__ */ jsx("div", { className: "modal-overlay", onClick: handleToggleMap, children: /* @__PURE__ */ jsx("div", { className: "map-modal-content", onClick: (e) => e.stopPropagation(), children: [
+      /* @__PURE__ */ jsx("button", { className: "modal-close-button", onClick: handleToggleMap, children: "\xD7" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 92,
         columnNumber: 26
       }, this),
-      /* @__PURE__ */ jsxDEV(DungeonMap, { onRoomSelect: handleMove }, void 0, false, {
+      /* @__PURE__ */ jsx(DungeonMap, { onRoomSelect: handleMove }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 93,
         columnNumber: 26
@@ -94,7 +95,7 @@ function DungeonScreen() {
       lineNumber: 90,
       columnNumber: 17
     }, this),
-    characterForModal && /* @__PURE__ */ jsxDEV(
+    characterForModal && /* @__PURE__ */ jsx(
       CharacterModal,
       {
         character: characterForModal,
@@ -118,3 +119,4 @@ function DungeonScreen() {
 export {
   DungeonScreen as default
 };
+

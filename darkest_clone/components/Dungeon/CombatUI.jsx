@@ -1,13 +1,14 @@
-import { Fragment, jsxDEV } from "react/jsx-dev-runtime";
+import { Fragment, jsx } from "react/jsx-runtime";
 import React from "react";
 import { useGameStore } from "../../state/GameState.jsx";
+import { useShallow } from "zustand/react/shallow";
 import { useTurnSystem } from "../../hooks/useTurnSystem.js";
 import { useCombatLogic } from "../../hooks/useCombatLogic.js";
 function CombatUI() {
-  const { combatLog, _killAllEnemies } = useGameStore((state) => ({
+  const { combatLog, _killAllEnemies } = useGameStore(useShallow((state) => ({
     combatLog: state.combatLog,
     _killAllEnemies: state._killAllEnemies
-  }));
+  })));
   const { activeCharacter, isPlayerTurn, combatState } = useTurnSystem();
   const { selectedSkill, isMoving, handleSelectSkill, handleMoveButtonClick } = useCombatLogic();
   const getTurnText = () => {
@@ -15,8 +16,8 @@ function CombatUI() {
     if (!activeCharacter) return "Determining turn...";
     return `${activeCharacter.name}'s Turn`;
   };
-  return /* @__PURE__ */ jsxDEV("div", { className: "combat-ui", children: [
-    /* @__PURE__ */ jsxDEV("div", { className: "turn-tracker", children: /* @__PURE__ */ jsxDEV("h2", { children: getTurnText() }, void 0, false, {
+  return /* @__PURE__ */ jsx("div", { className: "combat-ui", children: [
+    /* @__PURE__ */ jsx("div", { className: "turn-tracker", children: /* @__PURE__ */ jsx("h2", { children: getTurnText() }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 23,
       columnNumber: 17
@@ -25,15 +26,15 @@ function CombatUI() {
       lineNumber: 22,
       columnNumber: 13
     }, this),
-    /* @__PURE__ */ jsxDEV("div", { className: "action-bar", children: [
-      /* @__PURE__ */ jsxDEV("h3", { children: "Actions" }, void 0, false, {
+    /* @__PURE__ */ jsx("div", { className: "action-bar", children: [
+      /* @__PURE__ */ jsx("h3", { children: "Actions" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 27,
         columnNumber: 17
       }, this),
-      /* @__PURE__ */ jsxDEV("div", { className: "skills", children: [
-        isPlayerTurn && activeCharacter && /* @__PURE__ */ jsxDEV(Fragment, { children: [
-          activeCharacter.skills.map((skill) => /* @__PURE__ */ jsxDEV(
+      /* @__PURE__ */ jsx("div", { className: "skills", children: [
+        isPlayerTurn && activeCharacter && /* @__PURE__ */ jsx(Fragment, { children: [
+          activeCharacter.skills.map((skill) => /* @__PURE__ */ jsx(
             "button",
             {
               className: `skill-button ${selectedSkill?.name === skill.name ? "selected" : ""}`,
@@ -50,7 +51,7 @@ function CombatUI() {
             },
             this
           )),
-          /* @__PURE__ */ jsxDEV(
+          /* @__PURE__ */ jsx(
             "button",
             {
               className: `move-button ${isMoving ? "selected" : ""}`,
@@ -67,7 +68,7 @@ function CombatUI() {
             },
             this
           ),
-          /* @__PURE__ */ jsxDEV(
+          /* @__PURE__ */ jsx(
             "button",
             {
               style: { backgroundColor: "#8B0000", borderColor: "#ff4444" },
@@ -90,7 +91,7 @@ function CombatUI() {
           lineNumber: 30,
           columnNumber: 25
         }, this),
-        !isPlayerTurn && combatState === "ongoing" && /* @__PURE__ */ jsxDEV("p", { children: "Awaiting enemy action..." }, void 0, false, {
+        !isPlayerTurn && combatState === "ongoing" && /* @__PURE__ */ jsx("p", { children: "Awaiting enemy action..." }, void 0, false, {
           fileName: "<stdin>",
           lineNumber: 58,
           columnNumber: 68
@@ -105,13 +106,13 @@ function CombatUI() {
       lineNumber: 26,
       columnNumber: 13
     }, this),
-    /* @__PURE__ */ jsxDEV("div", { className: "combat-log", children: [
-      /* @__PURE__ */ jsxDEV("h3", { children: "Log" }, void 0, false, {
+    /* @__PURE__ */ jsx("div", { className: "combat-log", children: [
+      /* @__PURE__ */ jsx("h3", { children: "Log" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 63,
         columnNumber: 17
       }, this),
-      /* @__PURE__ */ jsxDEV("ul", { children: combatLog.slice(0, 10).map((msg, index) => /* @__PURE__ */ jsxDEV("li", { children: msg }, index, false, {
+      /* @__PURE__ */ jsx("ul", { children: combatLog.slice(0, 10).map((msg, index) => /* @__PURE__ */ jsx("li", { children: msg }, index, false, {
         fileName: "<stdin>",
         lineNumber: 66,
         columnNumber: 25
@@ -134,3 +135,4 @@ function CombatUI() {
 export {
   CombatUI as default
 };
+

@@ -18,6 +18,7 @@ const SpawnAnimalsModal = lazy(() => import('./SpawnAnimalsModal').then(m => ({ 
 const EnemiesModal = lazy(() => import('./EnemiesModal').then(m => ({ default: m.EnemiesModal })));
 const ShopkeeperChatModal = lazy(() => import('./ShopkeeperChatModal').then(m => ({ default: m.ShopkeeperChatModal })));
 import { LandMapModal } from './LandMapModal';
+import { LoginModal } from './LoginModal';
 import { WorldMapModal } from './WorldMapModal';
 const LandSelectionModal = lazy(() => import('./LandSelectionModal').then(m => ({ default: m.LandSelectionModal })));
 
@@ -36,7 +37,9 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({ onEnvironmentReady }
         gameState,
         environmentState,
         combatState,
-        gameInstance
+        gameInstance,
+        user,
+        manualSave
     } = useGlobalState();
 
     const {
@@ -54,7 +57,8 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({ onEnvironmentReady }
         isLandMapOpen, setIsLandMapOpen,
         isWorldMapOpen, setIsWorldMapOpen,
         isAreaMapOpen, setIsAreaMapOpen,
-        isLandSelectionOpen, setIsLandSelectionOpen
+        isLandSelectionOpen, setIsLandSelectionOpen,
+        isLoginOpen, setIsLoginOpen
     } = uiState;
 
     const { inventory, setInventory, equipmentSlots, slotLayouts, updateSlotLayouts } = inventoryState;
@@ -370,6 +374,14 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({ onEnvironmentReady }
                 <LandSelectionModal
                     isOpen={isLandSelectionOpen}
                     onSelect={handleLandSelect}
+                />
+            )}
+            {isLoginOpen && (
+                <LoginModal
+                    isOpen={isLoginOpen}
+                    onClose={() => setIsLoginOpen(false)}
+                    user={user}
+                    onManualSave={manualSave}
                 />
             )}
             {/* {isCharacterStatsOpen && (

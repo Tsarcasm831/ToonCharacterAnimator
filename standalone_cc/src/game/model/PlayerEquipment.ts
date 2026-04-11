@@ -2,6 +2,7 @@
 import { HoodBuilder } from './equipment/apparel/HoodBuilder';
 import { HelmBuilder } from './equipment/apparel/HelmBuilder';
 import { MaskBuilder } from './equipment/apparel/MaskBuilder';
+import { PlagueDoctorMaskBuilder } from './equipment/apparel/PlagueDoctorMaskBuilder';
 import { PauldronBuilder } from './equipment/apparel/PauldronBuilder';
 import { ShieldBuilder } from './equipment/apparel/ShieldBuilder';
 import { MageHatBuilder } from './equipment/apparel/MageHatBuilder';
@@ -21,7 +22,7 @@ export class PlayerEquipment {
     }
 
     static updateArmor(config: PlayerConfig, parts: any, equippedMeshes: any) {
-        const { helm, shoulders, shield, mask, hood, mageHat, skirt, skullcap } = config.equipment;
+        const { helm, shoulders, shield, mask, hood, mageHat, skirt, skullcap, plagueDoctorMask } = config.equipment;
         
         if (helm && !equippedMeshes.helm) {
             const helmGroup = HelmBuilder.build();
@@ -57,6 +58,15 @@ export class PlayerEquipment {
         } else if (!mask && equippedMeshes.mask) {
             parts.headMount.remove(equippedMeshes.mask);
             delete equippedMeshes.mask;
+        }
+
+        if (plagueDoctorMask && !equippedMeshes.plagueDoctorMask) {
+            const plagueMaskGroup = PlagueDoctorMaskBuilder.build(config);
+            parts.headMount.add(plagueMaskGroup);
+            equippedMeshes.plagueDoctorMask = plagueMaskGroup;
+        } else if (!plagueDoctorMask && equippedMeshes.plagueDoctorMask) {
+            parts.headMount.remove(equippedMeshes.plagueDoctorMask);
+            delete equippedMeshes.plagueDoctorMask;
         }
 
         if (shoulders && !equippedMeshes.leftPauldron) {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import DevScene from '../../DevScene';
 import CombatScene from '../../CombatScene';
 import MPTestScene from '../../MPTestScene';
@@ -7,7 +7,10 @@ import TownScene from '../../TownScene';
 import Town2Scene from '../../Town2Scene';
 import TDGameScene from '../../TDGameScene';
 import RoguelikeScene from '../../RoguelikeScene';
+import DarkestScene from '../../DarkestScene';
 import { useGlobalState } from '../../../contexts/GlobalContext';
+import { isSupabaseEnabled } from '../../../lib/supabase';
+import { signIn, signUp } from '../../../lib/auth';
 
 import { CombatLogEntry } from '../hud/CombatLog';
 import { MainMenu } from '../menus/MainMenu';
@@ -27,7 +30,170 @@ import { useIsMobileDevice } from '../../../hooks/useIsMobileDevice';
 import { useUndoRedo } from '../../../hooks/useUndoRedo';
 import type { ActiveScene } from '../../../hooks/useGameState';
 
+const AuthGate: React.FC = () => {
+    const [tab, setTab] = useState<'login' | 'register'>('login');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setSuccessMsg(null);
+        setIsLoading(true);
+        try {
+            if (tab === 'login') {
+                await signIn(email, password);
+            } else {
+                await signUp(email, password);
+                setSuccessMsg('Account created! Check your email to confirm your address, then sign in.');
+                setTab('login');
+                setEmail('');
+                setPassword('');
+            }
+        } catch (err: any) {
+            setError(err?.message ?? 'Something went wrong.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="absolute inset-0 z-[200] flex items-center justify-center bg-[#080c14] p-4 overflow-auto">
+            {/* Background glow */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-blue-900/20 blur-[120px]" />
+                <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-indigo-900/15 blur-[80px]" />
+            </div>
+
+            <div className="relative w-full max-w-md">
+                {/* Logo / Title */}
+                <div className="text-center mb-8">
+                    <p className="text-[10px] text-indigo-400 uppercase tracking-[0.6em] font-bold mb-2">Sairon RPG</p>
+                    <h1 className="text-4xl font-black tracking-tighter bg-gradient-to-br from-white via-slate-200 to-slate-500 bg-clip-text text-transparent">
+                        Enter the World
+                    </h1>
+                    <p className="mt-2 text-slate-500 text-xs tracking-widest uppercase">
+                        Your progress is saved to your account
+                    </p>
+                </div>
+
+                {/* Card */}
+                <div className="bg-slate-900/80 border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-sm">
+                    {/* Tabs */}
+                    <div className="flex border-b border-white/5">
+                        <button
+                            type="button"
+                            onClick={() => { setTab('register'); setError(null); setSuccessMsg(null); }}
+                            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
+                                tab === 'register'
+                                    ? 'bg-white/5 text-blue-400 border-b-2 border-blue-400'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                            }`}
+                        >
+                            Create Account
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setTab('login'); setError(null); setSuccessMsg(null); }}
+                            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
+                                tab === 'login'
+                                    ? 'bg-white/5 text-blue-400 border-b-2 border-blue-400'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                            }`}
+                        >
+                            Sign In
+                        </button>
+                    </div>
+
+                    <div className="p-8 space-y-5">
+                        {error && (
+                            <div className="bg-red-900/30 border border-red-500/30 rounded-lg px-4 py-3 text-red-300 text-sm">
+                                {error}
+                            </div>
+                        )}
+                        {successMsg && (
+                            <div className="bg-green-900/30 border border-green-500/30 rounded-lg px-4 py-3 text-green-300 text-sm">
+                                {successMsg}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/40 transition-all"
+                                    placeholder="you@example.com"
+                                    required
+                                    autoComplete="email"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/40 transition-all"
+                                    placeholder="••••••••"
+                                    required
+                                    autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
+                                    minLength={tab === 'register' ? 6 : undefined}
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg font-black uppercase tracking-widest shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50 hover:from-blue-500 hover:to-blue-400 transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                            >
+                                {isLoading
+                                    ? 'Please wait…'
+                                    : tab === 'register'
+                                        ? 'Create Account & Play'
+                                        : 'Sign In & Play'}
+                            </button>
+                        </form>
+
+                        <p className="text-center text-slate-600 text-[10px] uppercase tracking-widest pt-1">
+                            {tab === 'register'
+                                ? 'Already have an account? '
+                                : 'No account yet? '}
+                            <button
+                                type="button"
+                                onClick={() => { setTab(tab === 'register' ? 'login' : 'register'); setError(null); setSuccessMsg(null); }}
+                                className="text-blue-500 hover:text-blue-400 font-bold transition-colors"
+                            >
+                                {tab === 'register' ? 'Sign in' : 'Create one'}
+                            </button>
+                        </p>
+                    </div>
+                </div>
+
+                <p className="text-center text-slate-700 text-[9px] uppercase tracking-widest mt-6">
+                    Your game data is saved securely to your account
+                </p>
+            </div>
+        </div>
+    );
+};
+
 export const Game: React.FC = () => {
+    type GameLoopHudState = {
+        phase: string;
+        day: number;
+        gold: number;
+        heirlooms: number;
+        supplyChests: number;
+        rosterCount: number;
+        partyCount: number;
+        activeMissionTitle: string | null;
+    };
+
     const isMobileDevice = useIsMobileDevice();
     const {
         gameState: gameStateContext,
@@ -37,7 +203,12 @@ export const Game: React.FC = () => {
         combatState,
         environmentState,
         questState,
-        gameInstance
+        gameInstance,
+        user,
+        isAuthLoading,
+        isSaveLoaded,
+        hasSavedCharacter,
+        manualSave
     } = useGlobalState();
 
     const { activeScene, gameState, setGameState, setActiveScene } = gameStateContext;
@@ -60,7 +231,8 @@ export const Game: React.FC = () => {
         setSelectedUnitStats, setSelectedUnit,
         setIsTradeOpen, setIsShopkeeperChatOpen, setIsForgeOpen,
         notification, setNotification,
-        setIsLandSelectionOpen
+        setIsLandSelectionOpen,
+        setIsLoginOpen
     } = uiState;
     const { isCombatActive, setIsCombatActive, combatLog, addCombatLog } = combatState;
     const {
@@ -85,6 +257,9 @@ export const Game: React.FC = () => {
     const visualReadyTimeout = React.useRef<number | null>(null);
     const viewportRef = React.useRef<HTMLDivElement | null>(null);
     const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
+    const [gameLoopHudState, setGameLoopHudState] = React.useState<GameLoopHudState | null>(null);
+    const [isCharacterSaveInProgress, setIsCharacterSaveInProgress] = React.useState(false);
+    const [characterSaveStatus, setCharacterSaveStatus] = React.useState<string | null>(null);
     const [chakraNodeLegend, setChakraNodeLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
     const [chakraConnectionLegend, setChakraConnectionLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
     const chakraNodeLegendSignatureRef = React.useRef('');
@@ -94,8 +269,10 @@ export const Game: React.FC = () => {
     const chakraProjectVecRef = React.useRef(new THREE.Vector3());
     const chakraCameraDirRef = React.useRef(new THREE.Vector3());
     const arenaVictoryHandledRef = React.useRef(false);
+    const lastGameLoopHudSyncRef = React.useRef(0);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
+    const isCharacterCreatorMode = isSupabaseEnabled && !!user && isSaveLoaded && !hasSavedCharacter;
     const selectedLandRef = React.useRef(selectedLand);
     const activeSceneRef = React.useRef(activeScene);
 
@@ -150,6 +327,15 @@ export const Game: React.FC = () => {
         }
     }, [gameState, activeScene, lastScene]);
 
+    React.useEffect(() => {
+        if (gameState !== 'LOADING') return;
+        if (!shouldMountScene) return;
+        if (activeScene !== 'roguelike') return;
+
+        setIsEnvironmentBuilt(true);
+        scheduleVisualLoadingDone();
+    }, [gameState, shouldMountScene, activeScene]);
+
     const scheduleVisualLoadingDone = () => {
         if (visualReadyTimeout.current) {
             window.clearTimeout(visualReadyTimeout.current);
@@ -165,7 +351,7 @@ export const Game: React.FC = () => {
     };
 
     // Handlers
-    const handleEnterWorld = (scene: ActiveScene = activeScene) => {
+    const handleEnterWorld = React.useCallback((scene: ActiveScene = activeScene) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
@@ -179,7 +365,7 @@ export const Game: React.FC = () => {
         mountSceneTimeout.current = window.setTimeout(() => {
           setShouldMountScene(true);
         }, 150);
-    };
+    }, [activeScene, setIsEnvironmentBuilt, setIsVisualLoadingDone, setIsCombatActive, setGameState, setActiveScene]);
 
     const handleEnvironmentReady = () => {
         console.log(`[Game.tsx] Environment ready for scene: ${activeSceneRef.current}`);
@@ -193,6 +379,37 @@ export const Game: React.FC = () => {
     const handleStartPlaying = () => {
         setGameState('PLAYING');
     };
+
+    const handleSaveCharacterToCloud = React.useCallback(async () => {
+        if (!user || !isSupabaseEnabled || isCharacterSaveInProgress) return;
+        setIsCharacterSaveInProgress(true);
+        setCharacterSaveStatus(null);
+        try {
+            await manualSave();
+            setCharacterSaveStatus('Character saved to your account.');
+        } catch (err) {
+            console.error('[character] save failed:', err);
+            setCharacterSaveStatus('Failed to save character. Please try again.');
+        } finally {
+            setIsCharacterSaveInProgress(false);
+        }
+    }, [user, manualSave, isCharacterSaveInProgress]);
+
+    React.useEffect(() => {
+        if (!isCharacterCreatorMode) {
+            setCharacterSaveStatus(null);
+            return;
+        }
+
+        if (gameState === 'MENU') {
+            handleEnterWorld('dev');
+            return;
+        }
+
+        if (gameState === 'PLAYING' && activeScene !== 'dev') {
+            handleEnterWorld('dev');
+        }
+    }, [isCharacterCreatorMode, gameState, activeScene, handleEnterWorld]);
 
     const handleInteractionUpdate = (text: string | null, prog: number | null) => { 
         setInteractionText(text); 
@@ -337,7 +554,7 @@ export const Game: React.FC = () => {
     };
 
     const handleOpenStandaloneCC = React.useCallback(() => {
-        window.open('/standalone_cc/index.html', '_blank', 'noopener,noreferrer');
+        window.open(`${import.meta.env.BASE_URL}standalone_cc/index.html`, '_blank', 'noopener,noreferrer');
     }, []);
 
     const onSelectStructure = (type: any) => {
@@ -345,8 +562,47 @@ export const Game: React.FC = () => {
         if (gameInstance.current) gameInstance.current.setBuildingType(type);
     };
 
+    const syncGameLoopHudState = React.useCallback((game: any, force: boolean = false) => {
+        const runState = game?.gameLoopManager?.getRunState?.();
+        if (!runState) return;
+
+        const now = performance.now();
+        if (!force && now - lastGameLoopHudSyncRef.current < 250) return;
+        lastGameLoopHudSyncRef.current = now;
+
+        const nextState: GameLoopHudState = {
+            phase: runState.phase,
+            day: runState.day,
+            gold: runState.resources?.gold ?? 0,
+            heirlooms: runState.resources?.heirlooms ?? 0,
+            supplyChests: runState.resources?.supplyChests ?? 0,
+            rosterCount: Array.isArray(runState.roster) ? runState.roster.length : 0,
+            partyCount: Array.isArray(runState.partyHeroIds) ? runState.partyHeroIds.length : 0,
+            activeMissionTitle: runState.activeMission?.mission?.title ?? null,
+        };
+
+        setGameLoopHudState((prev) => {
+            if (
+                prev &&
+                prev.phase === nextState.phase &&
+                prev.day === nextState.day &&
+                prev.gold === nextState.gold &&
+                prev.heirlooms === nextState.heirlooms &&
+                prev.supplyChests === nextState.supplyChests &&
+                prev.rosterCount === nextState.rosterCount &&
+                prev.partyCount === nextState.partyCount &&
+                prev.activeMissionTitle === nextState.activeMissionTitle
+            ) {
+                return prev;
+            }
+
+            return nextState;
+        });
+    }, []);
+
     const onGameReady = (game: any) => {
         gameInstance.current = game;
+        syncGameLoopHudState(game, true);
         setShowChakraNodeSidebar(false);
         setChakraNodeLegend([]);
         setChakraConnectionLegend([]);
@@ -483,6 +739,7 @@ export const Game: React.FC = () => {
         const previousOnUpdate = game.onUpdate;
         game.onUpdate = (dt: number) => {
             previousOnUpdate?.(dt);
+            syncGameLoopHudState(game);
             const player = game.player;
             if (!player) return;
 
@@ -586,7 +843,42 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
-    const showGlobalHUD = !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike';
+    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest';
+    const showCreatorPanel = isCharacterCreatorMode && gameState === 'PLAYING';
+
+    // Auth gate: if Supabase is configured and user is not logged in, block access
+    if (isSupabaseEnabled && !isAuthLoading && !user) {
+        return (
+            <div className="w-full h-full flex flex-col items-center justify-start">
+                <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative">
+                    <AuthGate />
+                </div>
+            </div>
+        );
+    }
+
+    // Auth loading spinner while session is being restored
+    if (isSupabaseEnabled && isAuthLoading) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-[#080c14]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                    <p className="text-slate-500 text-xs uppercase tracking-widest">Loading…</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isSupabaseEnabled && user && !isSaveLoaded) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-[#080c14]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                    <p className="text-slate-500 text-xs uppercase tracking-widest">Loading character data…</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-start">
@@ -594,15 +886,25 @@ export const Game: React.FC = () => {
                 <div className="absolute inset-0">
                     {gameState === 'MENU' ? (
                         <>
-                            <MainMenu
-                                activeScene={activeScene}
-                                onSceneChange={setActiveScene}
-                                onStart={handleEnterWorld}
-                                onShowEnemies={onShowEnemies}
-                                onOpenStandaloneCC={handleOpenStandaloneCC}
-                                isMobile={isMobileDevice}
-                                showVideoBackground={true}
-                            />
+                            {isCharacterCreatorMode ? (
+                                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-[#080c14]">
+                                    <div className="text-center">
+                                        <p className="text-[10px] text-emerald-400 uppercase tracking-[0.45em] font-bold mb-3">Character Setup</p>
+                                        <h2 className="text-2xl font-black tracking-tight text-white">Preparing Character Creator…</h2>
+                                        <p className="mt-3 text-slate-400 text-xs uppercase tracking-[0.2em]">Please wait</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <MainMenu
+                                    activeScene={activeScene}
+                                    onSceneChange={setActiveScene}
+                                    onStart={handleEnterWorld}
+                                    onShowEnemies={onShowEnemies}
+                                    onOpenStandaloneCC={handleOpenStandaloneCC}
+                                    isMobile={isMobileDevice}
+                                    showVideoBackground={true}
+                                />
+                            )}
                             {/* Mobile notice hidden as it is obscured by animator 3D logo */}
                             {/* {isMobileDevice && (
                                 <div className="absolute inset-0 z-[120] flex items-end justify-center p-6 pointer-events-none">
@@ -716,7 +1018,7 @@ export const Game: React.FC = () => {
                                             showGrid={showGrid}
                                             isCombatActive={isCombatActive}
                                         />
-                                    ) : activeScene === 'town2' ? (
+                                    ) : activeScene === 'town2' || activeScene === 'gameLoop' ? (
                                         <Town2Scene
                                             activeScene={activeScene}
                                             config={config}
@@ -756,6 +1058,13 @@ export const Game: React.FC = () => {
                                         />
                                     ) : activeScene === 'roguelike' ? (
                                         <RoguelikeScene />
+                                    ) : activeScene === 'darkest' ? (
+                                        <DarkestScene
+                                            onReady={() => {
+                                                handleEnvironmentReady();
+                                                scheduleVisualLoadingDone();
+                                            }}
+                                        />
                                     ) : (
                                         <DevScene 
                                             activeScene={activeScene}
@@ -840,26 +1149,41 @@ export const Game: React.FC = () => {
                                             setIsLandSelectionOpen(true);
                                         }}
                                         isBuilderMode={isBuilderMode}
+                                        onOpenLogin={() => setIsLoginOpen(true)}
+                                        user={user}
                                     />
                                     
                                     <BuilderLog />
-
-                                    <ControlPanel
-                                        config={config}
-                                        manualInput={manualInput}
-                                        isDeadUI={isDeadUI}
-                                        setConfig={setConfig}
-                                        setManualInput={setManualInput}
-                                        handleDeathToggle={handleDeathToggle}
-                                        triggerAction={triggerAction}
-                                        onExport={handleExport}
-                                        onSpawnAnimals={handleSpawnAnimals}
-                                        onUndo={undo}
-                                        onRedo={redo}
-                                        canUndo={canUndo}
-                                        canRedo={canRedo}
-                                    />
                                 </>
+                            )}
+
+                            {(showGlobalHUD || showCreatorPanel) && (
+                                <ControlPanel
+                                    config={config}
+                                    manualInput={manualInput}
+                                    isDeadUI={isDeadUI}
+                                    setConfig={setConfig}
+                                    setManualInput={setManualInput}
+                                    handleDeathToggle={handleDeathToggle}
+                                    triggerAction={triggerAction}
+                                    onExport={handleExport}
+                                    onSpawnAnimals={handleSpawnAnimals}
+                                    onUndo={undo}
+                                    onRedo={redo}
+                                    canUndo={canUndo}
+                                    canRedo={canRedo}
+                                    mode={isCharacterCreatorMode ? 'userCreator' : 'full'}
+                                    forceOpen={isCharacterCreatorMode}
+                                    onSaveCharacter={isCharacterCreatorMode ? handleSaveCharacterToCloud : undefined}
+                                    isSavingCharacter={isCharacterSaveInProgress}
+                                    characterSaveStatus={characterSaveStatus}
+                                />
+                            )}
+
+                            {showCreatorPanel && (
+                                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[95] bg-black/70 border border-emerald-500/40 rounded-xl px-4 py-2 backdrop-blur-sm text-[10px] uppercase tracking-[0.2em] text-emerald-200 text-center">
+                                    Create your character, then press <span className="font-black">Save Character</span> to continue.
+                                </div>
                             )}
                             
                             <LoadingScreen 
@@ -871,6 +1195,18 @@ export const Game: React.FC = () => {
                             
                             <DialogueOverlay dialogue={dialogue} onClose={onCloseDialogue} onSelectChoice={onDialogueChoice} />
                             <MobileControls game={gameInstance.current} />
+
+                            {gameLoopHudState && (
+                                <div className="absolute top-4 right-4 z-[90] bg-black/65 border border-white/15 rounded-xl px-3 py-2 backdrop-blur-sm text-[10px] uppercase tracking-wide text-white/80 pointer-events-none">
+                                    <div className="font-bold text-cyan-300">Campaign</div>
+                                    <div>Phase: {gameLoopHudState.phase}</div>
+                                    <div>Day: {gameLoopHudState.day}</div>
+                                    <div>Gold: {gameLoopHudState.gold} · Heirlooms: {gameLoopHudState.heirlooms}</div>
+                                    <div>Chests: {gameLoopHudState.supplyChests}</div>
+                                    <div>Roster: {gameLoopHudState.rosterCount} · Party: {gameLoopHudState.partyCount}</div>
+                                    {gameLoopHudState.activeMissionTitle && <div>Mission: {gameLoopHudState.activeMissionTitle}</div>}
+                                </div>
+                            )}
                         </>
                     )}
                 </div>

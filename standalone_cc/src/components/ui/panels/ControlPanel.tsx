@@ -30,6 +30,7 @@ interface ControlPanelProps {
     movementMode?: 'idle' | 'walk' | 'run';
     handleMovementToggle?: () => void;
     zoomLevel?: number;
+    onBackToMainMenu?: () => void;
     onPanelStateChange?: (state: { isOpen: boolean; activeTab: TabKey; isMobileLayout: boolean }) => void;
     onResetToBaseCharacter?: () => void;
 }
@@ -51,6 +52,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     canUndo,
     canRedo,
     onPanelStateChange,
+    onBackToMainMenu,
     onResetToBaseCharacter
 }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -78,22 +80,33 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     }, [activeTab, isMobileLayout, isOpen, onPanelStateChange]);
 
     const TABS: { id: TabKey; label: string; icon: string }[] = [
-        { id: 'impersonate', label: 'Impersonate', icon: '�' },
-        { id: 'actions', label: 'Actions & Input', icon: '�' },
-        { id: 'randomize', label: 'Randomize', icon: '🎲' },
-        { id: 'loadouts', label: 'Loadouts', icon: '💾' },
-        { id: 'settings', label: 'Game Settings', icon: '⚙️' },
-        { id: 'environment', label: 'Environment', icon: '🌍' },
-        { id: 'body', label: 'Body Details', icon: '💪' },
-        { id: 'outfit', label: 'Outfit & Gear', icon: '👕' },
-        { id: 'face', label: 'Face & Features', icon: '👀' },
-        { id: 'rigging', label: 'Bone Rigging', icon: '🦴' },
-        { id: 'eq_rigging', label: 'Gear Rigging', icon: '🛡️' },
+        { id: 'impersonate', label: 'Impersonate', icon: '' },
+        { id: 'actions', label: 'Actions & Input', icon: '' },
+        { id: 'randomize', label: 'Randomize', icon: '' },
+        { id: 'loadouts', label: 'Loadouts', icon: '' },
+        { id: 'settings', label: 'Game Settings', icon: '' },
+        { id: 'environment', label: 'Environment', icon: '' },
+        { id: 'body', label: 'Body Details', icon: '' },
+        { id: 'outfit', label: 'Outfit & Gear', icon: '' },
+        { id: 'face', label: 'Face & Features', icon: '' },
+        { id: 'rigging', label: 'Bone Rigging', icon: '' },
+        { id: 'eq_rigging', label: 'Gear Rigging', icon: '' },
     ];
 
     return (
         <>
             {/* Trigger Button */}
+            {!isOpen && onBackToMainMenu && (
+                <button
+                    type="button"
+                    onClick={onBackToMainMenu}
+                    className="absolute bottom-20 right-4 z-[65] rounded-full border border-white/10 bg-black/70 px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-200 shadow-lg transition-colors hover:bg-black/90"
+                    aria-label="Back to main menu"
+                >
+                    Back to Main Menu
+                </button>
+            )}
+
             {!isOpen && (
                 <button type="button" 
                     onClick={() => setIsOpen(true)}

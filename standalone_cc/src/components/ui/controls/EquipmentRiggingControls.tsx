@@ -72,6 +72,17 @@ export const EquipmentRiggingControls: React.FC<EquipmentRiggingControlsProps> =
                 </div>
             )}
 
+            {config.equipment.plagueDoctorMask && (
+                <div className="space-y-2 border-b border-gray-100 pb-4">
+                    <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Plague Doctor Rigging</h5>
+                    <Slider label="Mask X" value={config.plagueMaskX} min={-0.1} max={0.1} step={0.002} onChange={(v) => handleConfigChange('plagueMaskX', v)} />
+                    <Slider label="Mask Y" value={config.plagueMaskY} min={-0.1} max={0.1} step={0.002} onChange={(v) => handleConfigChange('plagueMaskY', v)} />
+                    <Slider label="Mask Z" value={config.plagueMaskZ} min={-0.1} max={0.15} step={0.002} onChange={(v) => handleConfigChange('plagueMaskZ', v)} />
+                    <Slider label="Mask Rot X" value={config.plagueMaskRotX} min={-0.8} max={0.8} step={0.02} onChange={(v) => handleConfigChange('plagueMaskRotX', v)} />
+                    <Slider label="Mask Scale" value={config.plagueMaskScale} min={0.7} max={1.4} step={0.01} onChange={(v) => handleConfigChange('plagueMaskScale', v)} />
+                </div>
+            )}
+
             {config.equipment.hood && (
                 <div className="space-y-2 border-b border-gray-100 pb-4">
                     <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Hood Rigging</h5>
@@ -175,7 +186,7 @@ export const EquipmentRiggingControls: React.FC<EquipmentRiggingControlsProps> =
                 </div>
             )}
 
-            {!config.equipment.helm && !config.equipment.mask && !config.equipment.hood && !config.equipment.mageHat && !config.equipment.shoulders && !config.equipment.shield && !hasShirt && (
+            {!config.equipment.helm && !config.equipment.mask && !config.equipment.hood && !config.equipment.mageHat && !config.equipment.plagueDoctorMask && !config.equipment.shoulders && !config.equipment.shield && !hasShirt && (
                 <div className="text-center py-6 text-gray-400 italic text-[10px]">
                     Equip armor items to see rigging controls
                 </div>

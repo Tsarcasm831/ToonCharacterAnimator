@@ -1,31 +1,32 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React, { useState } from "react";
 import { useGameStore } from "../state/GameState.jsx";
+import { useShallow } from "zustand/react/shallow";
 import ChangelogModal from "../components/ChangelogModal.jsx";
 function MenuScreen() {
-  const { startGame, isLoading } = useGameStore((state) => ({
+  const { startGame, isLoading } = useGameStore(useShallow((state) => ({
     startGame: state.startGame,
     isLoading: state.isLoading
-  }));
+  })));
   const [isChangelogVisible, setChangelogVisible] = useState(false);
   const handleEmbark = () => {
     if (!isLoading) {
       startGame();
     }
   };
-  return /* @__PURE__ */ jsxDEV("div", { className: "menu-screen", children: [
-    /* @__PURE__ */ jsxDEV("h1", { children: "Descent into Shadow" }, void 0, false, {
+  return /* @__PURE__ */ jsx("div", { className: "menu-screen", children: [
+    /* @__PURE__ */ jsx("h1", { children: "Descent into Shadow" }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 21,
       columnNumber: 13
     }, this),
-    /* @__PURE__ */ jsxDEV("p", { className: "subtitle", children: "A perilous journey awaits" }, void 0, false, {
+    /* @__PURE__ */ jsx("p", { className: "subtitle", children: "A perilous journey awaits" }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 22,
       columnNumber: 13
     }, this),
-    /* @__PURE__ */ jsxDEV("div", { className: "menu-buttons", children: [
-      /* @__PURE__ */ jsxDEV(
+    /* @__PURE__ */ jsx("div", { className: "menu-buttons", children: [
+      /* @__PURE__ */ jsx(
         "button",
         {
           className: "embark-button",
@@ -42,7 +43,7 @@ function MenuScreen() {
         },
         this
       ),
-      /* @__PURE__ */ jsxDEV("button", { className: "changelog-button", onClick: () => setChangelogVisible(true), children: "Changelog" }, void 0, false, {
+      /* @__PURE__ */ jsx("button", { className: "changelog-button", onClick: () => setChangelogVisible(true), children: "Changelog" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 31,
         columnNumber: 17
@@ -52,12 +53,12 @@ function MenuScreen() {
       lineNumber: 23,
       columnNumber: 13
     }, this),
-    isLoading && /* @__PURE__ */ jsxDEV("p", { className: "loading-text", children: "Assembling your ill-fated party..." }, void 0, false, {
+    isLoading && /* @__PURE__ */ jsx("p", { className: "loading-text", children: "Assembling your ill-fated party..." }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 35,
       columnNumber: 27
     }, this),
-    isChangelogVisible && /* @__PURE__ */ jsxDEV(ChangelogModal, { onClose: () => setChangelogVisible(false) }, void 0, false, {
+    isChangelogVisible && /* @__PURE__ */ jsx(ChangelogModal, { onClose: () => setChangelogVisible(false) }, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 36,
       columnNumber: 36
@@ -71,3 +72,4 @@ function MenuScreen() {
 export {
   MenuScreen as default
 };
+

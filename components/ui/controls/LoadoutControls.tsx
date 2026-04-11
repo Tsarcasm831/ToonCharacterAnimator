@@ -5,9 +5,22 @@ import { LoadoutManager, CharacterLoadout } from '../../../utils/LoadoutManager'
 interface LoadoutControlsProps {
   config: PlayerConfig;
   setConfig: React.Dispatch<React.SetStateAction<PlayerConfig>>;
+  cloudSaveEnabled?: boolean;
+  onCloudSave?: () => Promise<void>;
+  isCloudSaving?: boolean;
+  cloudSaveStatus?: string | null;
+  hideLocalLoadouts?: boolean;
 }
 
-const LoadoutControls: React.FC<LoadoutControlsProps> = ({ config, setConfig }) => {
+const LoadoutControls: React.FC<LoadoutControlsProps> = ({
+  config,
+  setConfig,
+  cloudSaveEnabled = false,
+  onCloudSave,
+  isCloudSaving = false,
+  cloudSaveStatus = null,
+  hideLocalLoadouts = false
+}) => {
   const [loadouts, setLoadouts] = useState<CharacterLoadout[]>([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [loadoutName, setLoadoutName] = useState('');
@@ -110,6 +123,15 @@ const LoadoutControls: React.FC<LoadoutControlsProps> = ({ config, setConfig }) 
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleCloudSave = async () => {
+    if (!onCloudSave || isCloudSaving) return;
+    try {
+      await onCloudSave();
+    } catch {
+      // Parent handles status + user notification.
+    }
+  };
+
   return (
     <div className="bg-neutral-800 rounded-lg p-4 border border-purple-500/30">
       <div className="flex items-center justify-between mb-4">
@@ -120,6 +142,43 @@ const LoadoutControls: React.FC<LoadoutControlsProps> = ({ config, setConfig }) 
         <span className="text-xs text-neutral-400">{loadouts.length}/{20} saved</span>
       </div>
 
+      {cloudSaveEnabled && (
+        <>
+          <button
+            type="button"
+            onClick={handleCloudSave}
+            disabled={isCloudSaving || !onCloudSave}
+            className={`w-full px-4 py-3 mb-4 text-white font-bold rounded transition-all duration-300 flex items-center justify-center gap-2 shadow-lg ${
+              isCloudSaving || !onCloudSave
+                ? 'bg-green-700/70 cursor-not-allowed'
+                : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500'
+            }`}
+          >
+            <span className="text-xl">💾</span>
+            {isCloudSaving ? 'Saving Character…' : 'Save Character'}
+          </button>
+          {cloudSaveStatus && (
+            <div
+              className={`mb-4 rounded px-3 py-2 text-xs ${
+                cloudSaveStatus.toLowerCase().includes('failed')
+                  ? 'border border-red-500/30 bg-red-900/20 text-red-200'
+                  : 'border border-emerald-500/30 bg-emerald-900/20 text-emerald-200'
+              }`}
+            >
+              {cloudSaveStatus}
+            </div>
+          )}
+        </>
+      )}
+
+      {hideLocalLoadouts && (
+        <div className="rounded border border-white/10 bg-black/20 px-3 py-3 text-xs text-neutral-300">
+          Character setup here is account-based. Use the green button above to save to your Supabase profile.
+        </div>
+      )}
+
+      {!hideLocalLoadouts && (
+        <>
       {/* Save New Loadout Button */}
       <button
         type="button"
@@ -286,6 +345,8 @@ const LoadoutControls: React.FC<LoadoutControlsProps> = ({ config, setConfig }) 
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

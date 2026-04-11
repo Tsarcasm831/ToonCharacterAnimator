@@ -1,0 +1,77 @@
+import { jsx } from "react/jsx-runtime";
+import React, { useEffect } from "react";
+import { useGameStore } from "../../state/GameState.jsx";
+function AttackAnimation() {
+  const { attackAnimation, setAttackAnimation } = useGameStore((state) => ({
+    attackAnimation: state.attackAnimation,
+    setAttackAnimation: state.setAttackAnimation
+  }));
+  useEffect(() => {
+    if (!attackAnimation) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setAttackAnimation(null);
+    }, 700);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [attackAnimation, setAttackAnimation]);
+
+  return attackAnimation && attackAnimation.attacker ? /* @__PURE__ */ jsx(
+    "div",
+    {
+      className: "attack-animation-overlay",
+      children: /* @__PURE__ */ jsx("div", { className: "attack-animation-content", children: [
+        /* @__PURE__ */ jsx(
+          "img",
+          {
+            src: attackAnimation.attacker.image,
+            alt: attackAnimation.attacker.name,
+            className: `attacker-portrait ${attackAnimation.attacker.type === "hero" ? "hero" : "enemy"}`
+          },
+          void 0,
+          false,
+          {
+            fileName: "<stdin>",
+            lineNumber: 26,
+            columnNumber: 25
+          },
+          this
+        ),
+        /* @__PURE__ */ jsx(
+          "h1",
+          {
+            children: attackAnimation.skill.name
+          },
+          void 0,
+          false,
+          {
+            fileName: "<stdin>",
+            lineNumber: 40,
+            columnNumber: 25
+          },
+          this
+        )
+      ] }, void 0, true, {
+        fileName: "<stdin>",
+        lineNumber: 25,
+        columnNumber: 21
+      }, this)
+    },
+    void 0,
+    false,
+    {
+      fileName: "<stdin>",
+      lineNumber: 18,
+      columnNumber: 17
+    },
+    this
+  ) : null;
+}
+export {
+  AttackAnimation as default
+};
+

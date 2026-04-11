@@ -1,4 +1,4 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React from "react";
 function RoomNode({ room, isCurrent, isAdjacent, onClick }) {
   const handleClick = () => {
@@ -22,13 +22,13 @@ function RoomNode({ room, isCurrent, isAdjacent, onClick }) {
     isAdjacent && "adjacent",
     !isAdjacent && !isCurrent && "not-adjacent"
   ].filter(Boolean).join(" ");
-  return /* @__PURE__ */ jsxDEV(
+  return /* @__PURE__ */ jsx(
     "div",
     {
       className: nodeClasses,
       onClick: handleClick,
       style: { gridColumn: room.x + 1, gridRow: room.y + 1 },
-      children: /* @__PURE__ */ jsxDEV("div", { className: "room-icon", children: getRoomIcon() }, void 0, false, {
+      children: /* @__PURE__ */ jsx("div", { className: "room-icon", children: getRoomIcon() }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 35,
         columnNumber: 13
@@ -47,3 +47,4 @@ function RoomNode({ room, isCurrent, isAdjacent, onClick }) {
 export {
   RoomNode as default
 };
+

@@ -2,10 +2,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MenuBackground } from '../menus/MenuBackground';
 import { LoginModal } from '../modals/LoginModal';
+import { useGlobalState } from '../../../contexts/GlobalContext';
 import { useIsIphoneLayout } from '../../../hooks/useIsIphoneLayout';
 
 export const Home: React.FC = () => {
     const [isLoginOpen, setIsLoginOpen] = useState(false);
+    const { user } = useGlobalState();
     const isIphoneLayout = useIsIphoneLayout();
     const keySequenceRef = useRef('');
     
@@ -218,7 +220,7 @@ export const Home: React.FC = () => {
                 )}
             </div>
 
-            <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
+            <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} user={user} />
         </div>
     );
 };

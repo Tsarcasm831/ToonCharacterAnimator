@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import DevScene from '../../DevScene';
 import CombatScene from '../../CombatScene';
 import MPTestScene from '../../MPTestScene';
@@ -9,6 +9,8 @@ import TDGameScene from '../../TDGameScene';
 import RoguelikeScene from '../../RoguelikeScene';
 import DarkestScene from '../../DarkestScene';
 import { useGlobalState } from '../../../contexts/GlobalContext';
+import { isSupabaseEnabled } from '../../../lib/supabase';
+import { signIn, signUp } from '../../../lib/auth';
 
 import { CombatLogEntry } from '../hud/CombatLog';
 import { MainMenu } from '../menus/MainMenu';
@@ -20,6 +22,7 @@ import { ChakraNodeDebuggerSidebar, type ChakraDebuggerSidebarEntry, type Chakra
 import { BuilderUI } from '../panels/BuilderUI';
 import { BuilderLog } from '../panels/BuilderLog';
 import { ControlPanel } from '../panels/ControlPanel';
+import { PlayerPreview } from '../previews/PlayerPreview';
 import * as THREE from 'three';
 import type { DialogueContent } from '../../../game/core/Game';
 import { CITIES } from '../../../data/lands/cities';
@@ -27,6 +30,269 @@ import { getTownWallCenters } from '../../../game/environment/townWalls';
 import { useIsMobileDevice } from '../../../hooks/useIsMobileDevice';
 import { useUndoRedo } from '../../../hooks/useUndoRedo';
 import type { ActiveScene } from '../../../hooks/useGameState';
+
+const AuthGate: React.FC = () => {
+    const [tab, setTab] = useState<'login' | 'register'>('login');
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState<string | null>(null);
+    const [successMsg, setSuccessMsg] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const snowflakes = React.useMemo(() => {
+        return Array.from({ length: 34 }, (_, index) => {
+            const seed = index + 1;
+            return {
+                id: seed,
+                left: `${(seed * 6.47) % 100}%`,
+                size: 3 + (seed % 4),
+                opacity: 0.5 + ((seed * 9) % 35) / 100,
+                duration: 6.5 + (seed % 7) * 0.9,
+                delay: -(seed % 16) * 0.42,
+                drift: 8 + (seed % 6) * 12,
+            };
+        });
+    }, []);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setSuccessMsg(null);
+        setIsLoading(true);
+        try {
+            if (tab === 'login') {
+                await signIn(email, password);
+            } else {
+                await signUp(email, password);
+                setSuccessMsg('Account created! Check your email to confirm your address, then sign in.');
+                setTab('login');
+                setEmail('');
+                setPassword('');
+            }
+        } catch (err: any) {
+            setError(err?.message ?? 'Something went wrong.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="absolute inset-0 z-[200] flex items-center justify-center overflow-hidden p-4 isolate">
+            <div className="absolute inset-0 z-0 overflow-hidden bg-[#050913] pointer-events-none">
+                <img
+                    src="/assets/images/menus/start_screen_ice.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-70"
+                />
+                <img
+                    src="/assets/images/menus/start_screen_ice.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full object-cover object-center"
+                />
+            </div>
+            <div className="absolute inset-0 z-[5] bg-[#050913]/70" />
+            {/* Background glow */}
+            <div className="absolute inset-0 z-[6] overflow-hidden pointer-events-none">
+                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-blue-900/20 blur-[120px]" />
+                <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-indigo-900/15 blur-[80px]" />
+            </div>
+            <div
+                className="absolute inset-0 z-[12] pointer-events-none overflow-hidden opacity-75"
+                style={{
+                    backgroundImage: [
+                        'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.95) 0 1.2px, transparent 1.6px)',
+                        'radial-gradient(circle at 60% 30%, rgba(255,255,255,0.8) 0 1px, transparent 1.4px)',
+                        'radial-gradient(circle at 35% 70%, rgba(255,255,255,0.7) 0 1.4px, transparent 1.8px)'
+                    ].join(', '),
+                    backgroundSize: '180px 180px, 240px 240px, 300px 300px',
+                    animation: 'loginSnowField 18s linear infinite',
+                }}
+            />
+            <div className="absolute inset-0 z-[15] pointer-events-none overflow-hidden [contain:layout_paint]">
+                {snowflakes.map((flake) => (
+                    <span
+                        key={flake.id}
+                        className="absolute left-0 top-0 will-change-transform"
+                        style={{
+                            left: flake.left,
+                            top: '-24vh',
+                            width: `${flake.size + 6}px`,
+                            height: `${flake.duration > 0 ? flake.size + 10 : flake.size + 10}px`,
+                            opacity: flake.opacity,
+                            animation: `loginSnowfall ${flake.duration}s linear ${flake.delay}s infinite`,
+                        }}
+                    >
+                        <span
+                            className="absolute left-0 top-0"
+                        >
+                            <span
+                                className="absolute left-0 top-0 rounded-full bg-cyan-50/95 shadow-[0_0_12px_rgba(255,255,255,0.4)] mix-blend-screen"
+                                style={{
+                                    width: `${flake.size}px`,
+                                    height: `${flake.size}px`,
+                                    filter: 'blur(0.2px) drop-shadow(0 0 6px rgba(255,255,255,0.45))',
+                                    animation: `loginSnowSway ${(flake.duration * 0.74).toFixed(2)}s ease-in-out ${flake.delay}s infinite alternate`,
+                                }}
+                            />
+                        </span>
+                        <span
+                            className="absolute left-0 top-0"
+                            style={{ transform: 'translateY(-160vh)' }}
+                        >
+                            <span
+                                className="absolute left-0 top-0 rounded-full bg-cyan-50/95 shadow-[0_0_12px_rgba(255,255,255,0.4)] mix-blend-screen"
+                                style={{
+                                    width: `${flake.size}px`,
+                                    height: `${flake.size}px`,
+                                    filter: 'blur(0.2px) drop-shadow(0 0 6px rgba(255,255,255,0.45))',
+                                    animation: `loginSnowSway ${(flake.duration * 0.74).toFixed(2)}s ease-in-out ${flake.delay}s infinite alternate`,
+                                }}
+                            />
+                        </span>
+                    </span>
+                ))}
+            </div>
+
+            <div className="relative z-[30] w-full max-w-md">
+                {/* Logo / Title */}
+                <div className="text-center mb-8">
+                    <p className="text-[10px] text-indigo-400 uppercase tracking-[0.6em] font-bold mb-2">Sairon RPG</p>
+                    <h1 className="text-4xl font-black tracking-tighter bg-gradient-to-br from-white via-slate-200 to-slate-500 bg-clip-text text-transparent">
+                        Enter the World
+                    </h1>
+                    <p className="mt-2 text-slate-500 text-xs tracking-widest uppercase">
+                        Your progress is saved to your account
+                    </p>
+                </div>
+
+                {/* Card */}
+                <div className="bg-slate-900/80 border border-white/10 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-sm">
+                    {/* Tabs */}
+                    <div className="flex border-b border-white/5">
+                        <button
+                            type="button"
+                            onClick={() => { setTab('register'); setError(null); setSuccessMsg(null); }}
+                            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
+                                tab === 'register'
+                                    ? 'bg-white/5 text-blue-400 border-b-2 border-blue-400'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                            }`}
+                        >
+                            Create Account
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setTab('login'); setError(null); setSuccessMsg(null); }}
+                            className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-colors ${
+                                tab === 'login'
+                                    ? 'bg-white/5 text-blue-400 border-b-2 border-blue-400'
+                                    : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
+                            }`}
+                        >
+                            Sign In
+                        </button>
+                    </div>
+
+                    <div className="p-8 space-y-5">
+                        {error && (
+                            <div className="bg-red-900/30 border border-red-500/30 rounded-lg px-4 py-3 text-red-300 text-sm">
+                                {error}
+                            </div>
+                        )}
+                        {successMsg && (
+                            <div className="bg-green-900/30 border border-green-500/30 rounded-lg px-4 py-3 text-green-300 text-sm">
+                                {successMsg}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/40 transition-all"
+                                    placeholder="you@example.com"
+                                    required
+                                    autoComplete="email"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Password</label>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/40 transition-all"
+                                    placeholder="••••••••"
+                                    required
+                                    autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
+                                    minLength={tab === 'register' ? 6 : undefined}
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg font-black uppercase tracking-widest shadow-lg shadow-blue-900/30 hover:shadow-blue-900/50 hover:from-blue-500 hover:to-blue-400 transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                            >
+                                {isLoading
+                                    ? 'Please wait…'
+                                    : tab === 'register'
+                                        ? 'Create Account & Play'
+                                        : 'Sign In & Play'}
+                            </button>
+                        </form>
+
+                        <p className="text-center text-slate-600 text-[10px] uppercase tracking-widest pt-1">
+                            {tab === 'register'
+                                ? 'Already have an account? '
+                                : 'No account yet? '}
+                            <button
+                                type="button"
+                                onClick={() => { setTab(tab === 'register' ? 'login' : 'register'); setError(null); setSuccessMsg(null); }}
+                                className="text-blue-500 hover:text-blue-400 font-bold transition-colors"
+                            >
+                                {tab === 'register' ? 'Sign in' : 'Create one'}
+                            </button>
+                        </p>
+
+                        <style>{`
+                            @keyframes loginSnowfall {
+                                0% {
+                                    transform: translate3d(0, 0, 0);
+                                }
+                                100% {
+                                    transform: translate3d(0, 160vh, 0);
+                                }
+                            }
+
+                            @keyframes loginSnowSway {
+                                0% {
+                                    transform: translateX(0);
+                                }
+                                100% {
+                                    transform: translateX(24px);
+                                }
+                            }
+
+                            @keyframes loginSnowField {
+                                0% {
+                                    background-position: 0 0, 0 0, 0 0;
+                                }
+                                100% {
+                                    background-position: 0 320px, 0 520px, 0 760px;
+                                }
+                            }
+                        `}</style>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+};
 
 export const Game: React.FC = () => {
     type GameLoopHudState = {
@@ -49,7 +315,12 @@ export const Game: React.FC = () => {
         combatState,
         environmentState,
         questState,
-        gameInstance
+        gameInstance,
+        user,
+        isAuthLoading,
+        isSaveLoaded,
+        hasSavedCharacter,
+        manualSave
     } = useGlobalState();
 
     const { activeScene, gameState, setGameState, setActiveScene } = gameStateContext;
@@ -72,7 +343,8 @@ export const Game: React.FC = () => {
         setSelectedUnitStats, setSelectedUnit,
         setIsTradeOpen, setIsShopkeeperChatOpen, setIsForgeOpen,
         notification, setNotification,
-        setIsLandSelectionOpen
+        setIsLandSelectionOpen,
+        setIsLoginOpen
     } = uiState;
     const { isCombatActive, setIsCombatActive, combatLog, addCombatLog } = combatState;
     const {
@@ -96,10 +368,13 @@ export const Game: React.FC = () => {
     const mountSceneTimeout = React.useRef<number | null>(null);
     const visualReadyTimeout = React.useRef<number | null>(null);
     const viewportRef = React.useRef<HTMLDivElement | null>(null);
-    const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
+    const [isCharacterCreatorModalOpen, setIsCharacterCreatorModalOpen] = React.useState(false);
     const [gameLoopHudState, setGameLoopHudState] = React.useState<GameLoopHudState | null>(null);
+    const [isCharacterSaveInProgress, setIsCharacterSaveInProgress] = React.useState(false);
+    const [characterSaveStatus, setCharacterSaveStatus] = React.useState<string | null>(null);
     const [chakraNodeLegend, setChakraNodeLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
     const [chakraConnectionLegend, setChakraConnectionLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
+    const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
     const chakraNodeLegendSignatureRef = React.useRef('');
     const chakraSidebarVisibleRef = React.useRef(false);
     const chakraHoverTargetRef = React.useRef<ChakraSidebarHoverTarget | null>(null);
@@ -110,6 +385,7 @@ export const Game: React.FC = () => {
     const lastGameLoopHudSyncRef = React.useRef(0);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
+    const isCharacterCreatorMode = isSupabaseEnabled && !!user && isSaveLoaded && !hasSavedCharacter;
     const selectedLandRef = React.useRef(selectedLand);
     const activeSceneRef = React.useRef(activeScene);
 
@@ -188,7 +464,7 @@ export const Game: React.FC = () => {
     };
 
     // Handlers
-    const handleEnterWorld = (scene: ActiveScene = activeScene) => {
+    const handleEnterWorld = React.useCallback((scene: ActiveScene = activeScene) => {
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
@@ -202,7 +478,18 @@ export const Game: React.FC = () => {
         mountSceneTimeout.current = window.setTimeout(() => {
           setShouldMountScene(true);
         }, 150);
-    };
+    }, [activeScene, setIsEnvironmentBuilt, setIsVisualLoadingDone, setIsCombatActive, setGameState, setActiveScene]);
+
+    const enterCreatorOnlyMode = React.useCallback(() => {
+        setShouldMountScene(false);
+        setIsSceneInitializing(false);
+        if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
+        if (visualReadyTimeout.current) window.clearTimeout(visualReadyTimeout.current);
+        setIsEnvironmentBuilt(true);
+        setIsVisualLoadingDone(true);
+        setIsCombatActive(false);
+        setGameState('PLAYING');
+    }, [setIsCombatActive, setIsEnvironmentBuilt, setIsVisualLoadingDone, setGameState]);
 
     const handleEnvironmentReady = () => {
         console.log(`[Game.tsx] Environment ready for scene: ${activeSceneRef.current}`);
@@ -216,6 +503,34 @@ export const Game: React.FC = () => {
     const handleStartPlaying = () => {
         setGameState('PLAYING');
     };
+
+    const handleSaveCharacterToCloud = React.useCallback(async () => {
+        if (!user || !isSupabaseEnabled || isCharacterSaveInProgress) return;
+        setIsCharacterSaveInProgress(true);
+        setCharacterSaveStatus(null);
+        try {
+            await manualSave();
+            setCharacterSaveStatus('Character saved to your account.');
+        } catch (err) {
+            console.error('[character] save failed:', err);
+            setCharacterSaveStatus('Failed to save character. Please try again.');
+        } finally {
+            setIsCharacterSaveInProgress(false);
+        }
+    }, [user, manualSave, isCharacterSaveInProgress]);
+
+    React.useEffect(() => {
+        if (!isCharacterCreatorMode) {
+            setCharacterSaveStatus(null);
+            return;
+        }
+
+        if (gameState === 'MENU') {
+            enterCreatorOnlyMode();
+            return;
+        }
+
+    }, [isCharacterCreatorMode, gameState, enterCreatorOnlyMode]);
 
     const handleInteractionUpdate = (text: string | null, prog: number | null) => { 
         setInteractionText(text); 
@@ -359,9 +674,25 @@ export const Game: React.FC = () => {
         setIsEnemiesModalOpen(true);
     };
 
-    const handleOpenStandaloneCC = React.useCallback(() => {
-        window.open(`${import.meta.env.BASE_URL}standalone_cc/index.html`, '_blank', 'noopener,noreferrer');
+    const handleOpenCharacterCreator = React.useCallback(() => {
+        setIsCharacterCreatorModalOpen(true);
     }, []);
+
+    const handleCloseCharacterCreator = React.useCallback(() => {
+        setIsCharacterCreatorModalOpen(false);
+    }, []);
+
+    React.useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) return;
+            if (event.data?.type !== 'sairon:close-character-creator') return;
+
+            handleCloseCharacterCreator();
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [handleCloseCharacterCreator]);
 
     const onSelectStructure = (type: any) => {
         environmentState.setActiveStructure(type);
@@ -649,23 +980,71 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
-    const showGlobalHUD = !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest';
+    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest';
+    const showCreatorPanel = isCharacterCreatorMode && gameState === 'PLAYING';
+
+    // Auth gate: if Supabase is configured and user is not logged in, block access
+    if (isSupabaseEnabled && !isAuthLoading && !user) {
+        return (
+            <div className="absolute inset-0 overflow-hidden">
+                <AuthGate />
+            </div>
+        );
+    }
+
+    // Auth loading spinner while session is being restored
+    if (isSupabaseEnabled && isAuthLoading) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-[#080c14]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+                    <p className="text-slate-500 text-xs uppercase tracking-widest">Loading…</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isSupabaseEnabled && user && !isSaveLoaded) {
+        return (
+            <div className="w-full h-full flex items-center justify-center bg-[#080c14]">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                    <p className="text-slate-500 text-xs uppercase tracking-widest">Loading character data…</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-start">
             <div ref={viewportRef} className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
+                    {isCharacterCreatorMode && (
+                        <div className="absolute inset-0 overflow-hidden bg-[#081122]">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(59,130,246,0.16),transparent_34%),radial-gradient(circle_at_50%_65%,rgba(14,165,233,0.12),transparent_42%),linear-gradient(to_bottom,#081122_0%,#050913_100%)]" />
+                            <div className="absolute inset-0 flex items-center justify-center px-8 pointer-events-auto">
+                                <div className="w-full max-w-[min(980px,100vw)] h-full min-h-0">
+                                    <PlayerPreview config={config} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {gameState === 'MENU' ? (
                         <>
-                            <MainMenu
-                                activeScene={activeScene}
-                                onSceneChange={setActiveScene}
-                                onStart={handleEnterWorld}
-                                onShowEnemies={onShowEnemies}
-                                onOpenStandaloneCC={handleOpenStandaloneCC}
-                                isMobile={isMobileDevice}
-                                showVideoBackground={true}
-                            />
+                            {isCharacterCreatorMode ? (
+                                <div className="absolute inset-0 z-[100] bg-[#080c14]" />
+                            ) : (
+                                <MainMenu
+                                    activeScene={activeScene}
+                                    onSceneChange={setActiveScene}
+                                    onStart={handleEnterWorld}
+                                    onShowEnemies={onShowEnemies}
+                                    onOpenCharacterCreator={handleOpenCharacterCreator}
+                                    isMobile={isMobileDevice}
+                                    showVideoBackground={true}
+                                />
+                            )}
                             {/* Mobile notice hidden as it is obscured by animator 3D logo */}
                             {/* {isMobileDevice && (
                                 <div className="absolute inset-0 z-[120] flex items-end justify-center p-6 pointer-events-none">
@@ -910,26 +1289,41 @@ export const Game: React.FC = () => {
                                             setIsLandSelectionOpen(true);
                                         }}
                                         isBuilderMode={isBuilderMode}
+                                        onOpenLogin={() => setIsLoginOpen(true)}
+                                        user={user}
                                     />
                                     
                                     <BuilderLog />
-
-                                    <ControlPanel
-                                        config={config}
-                                        manualInput={manualInput}
-                                        isDeadUI={isDeadUI}
-                                        setConfig={setConfig}
-                                        setManualInput={setManualInput}
-                                        handleDeathToggle={handleDeathToggle}
-                                        triggerAction={triggerAction}
-                                        onExport={handleExport}
-                                        onSpawnAnimals={handleSpawnAnimals}
-                                        onUndo={undo}
-                                        onRedo={redo}
-                                        canUndo={canUndo}
-                                        canRedo={canRedo}
-                                    />
                                 </>
+                            )}
+
+                            {(showGlobalHUD || showCreatorPanel) && (
+                                <ControlPanel
+                                    config={config}
+                                    manualInput={manualInput}
+                                    isDeadUI={isDeadUI}
+                                    setConfig={setConfig}
+                                    setManualInput={setManualInput}
+                                    handleDeathToggle={handleDeathToggle}
+                                    triggerAction={triggerAction}
+                                    onExport={handleExport}
+                                    onSpawnAnimals={handleSpawnAnimals}
+                                    onUndo={undo}
+                                    onRedo={redo}
+                                    canUndo={canUndo}
+                                    canRedo={canRedo}
+                                    mode={isCharacterCreatorMode ? 'userCreator' : 'full'}
+                                    forceOpen={isCharacterCreatorMode}
+                                    onSaveCharacter={isCharacterCreatorMode ? handleSaveCharacterToCloud : undefined}
+                                    isSavingCharacter={isCharacterSaveInProgress}
+                                    characterSaveStatus={characterSaveStatus}
+                                />
+                            )}
+
+                            {showCreatorPanel && (
+                                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[95] bg-black/70 border border-emerald-500/40 rounded-xl px-4 py-2 backdrop-blur-sm text-[10px] uppercase tracking-[0.2em] text-emerald-200 text-center">
+                                    Create your character, then press <span className="font-black">Save Character</span> to continue.
+                                </div>
                             )}
                             
                             <LoadingScreen 
@@ -957,6 +1351,37 @@ export const Game: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {isCharacterCreatorModalOpen && (
+                <div
+                    className="fixed inset-0 z-[260] flex items-center justify-center bg-black/80 backdrop-blur-md p-[0.5vh]"
+                    onClick={handleCloseCharacterCreator}
+                >
+                    <div
+                        className="relative w-[99vw] h-[99dvh] overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#050913] shadow-[0_0_80px_rgba(15,23,42,0.75)]"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="absolute right-4 top-4 z-20 flex items-center gap-3">
+                            <span className="rounded-full border border-white/10 bg-black/50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 backdrop-blur-sm">
+                                Character Creator
+                            </span>
+                            <button
+                                type="button"
+                                onClick={handleCloseCharacterCreator}
+                                className="h-10 w-10 rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:bg-black/80"
+                                aria-label="Close character creator"
+                            >
+                                <span className="text-lg leading-none">×</span>
+                            </button>
+                        </div>
+                        <iframe
+                            title="Character Creator"
+                            src={`${import.meta.env.BASE_URL}standalone_cc/index.html`}
+                            className="h-full w-full border-0"
+                        />
+                    </div>
+                </div>
+            )}
             
             {gameState === 'PLAYING' && notification && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4">

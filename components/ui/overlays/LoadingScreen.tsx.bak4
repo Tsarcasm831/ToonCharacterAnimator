@@ -1,0 +1,220 @@
+import React, { useEffect, useRef, useState } from 'react';
+
+interface LoadingScreenProps {
+    isVisible: boolean;
+    isSystemReady: boolean;
+    onFinished?: () => void;
+    isLoadingScene?: boolean;
+}
+
+const MESSAGES = [
+    'Initializing Render Engine...',
+    'Preparing Terrain Systems...',
+    'Instancing World Geometry...',
+    'Populating Scene Data...',
+    'Finalizing World State...',
+    'System Synchronized.'
+];
+
+const STATUS_DELAY_MS = 120;
+const AUTO_ENTER_DELAY_MS = 180;
+
+const LoadingScreen: React.FC<LoadingScreenProps> = ({
+    isVisible,
+    isSystemReady,
+    onFinished,
+    isLoadingScene = false
+}) => {
+    const [shouldRender, setShouldRender] = useState(isVisible);
+    const [progress, setProgress] = useState(0);
+    const [messageIndex, setMessageIndex] = useState(0);
+    const finishTriggeredRef = useRef(false);
+    const autoEnterTimerRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (isVisible) {
+            setShouldRender(true);
+            setProgress(0);
+            setMessageIndex(0);
+            finishTriggeredRef.current = false;
+            if (autoEnterTimerRef.current !== null) {
+                window.clearTimeout(autoEnterTimerRef.current);
+                autoEnterTimerRef.current = null;
+            }
+            return;
+        }
+
+        const hideTimer = window.setTimeout(() => setShouldRender(false), 300);
+        return () => window.clearTimeout(hideTimer);
+    }, [isVisible]);
+
+    useEffect(() => {
+        if (!isVisible) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            setProgress((prev) => {
+                if (isSystemReady) {
+                    return 100;
+                }
+
+                if (prev < 68) {
+                    return prev + 3.5;
+                }
+
+                if (prev < 88) {
+                    return prev + 1.1;
+                }
+
+                return Math.min(prev + 0.25, 94);
+            });
+        }, STATUS_DELAY_MS);
+
+        return () => window.clearInterval(interval);
+    }, [isVisible, isSystemReady]);
+
+    useEffect(() => {
+        if (!isVisible) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            setMessageIndex((prev) => {
+                const maxIndex = isSystemReady ? MESSAGES.length - 1 : MESSAGES.length - 2;
+                return Math.min(prev + 1, maxIndex);
+            });
+        }, 700);
+
+        return () => window.clearInterval(interval);
+    }, [isVisible, isSystemReady]);
+
+    useEffect(() => {
+        if (!isSystemReady || !isVisible || finishTriggeredRef.current) {
+            return;
+        }
+
+        setProgress(100);
+        setMessageIndex(MESSAGES.length - 1);
+
+        autoEnterTimerRef.current = window.setTimeout(() => {
+            if (finishTriggeredRef.current) {
+                return;
+            }
+
+            finishTriggeredRef.current = true;
+            onFinished?.();
+        }, AUTO_ENTER_DELAY_MS);
+
+        return () => {
+            if (autoEnterTimerRef.current !== null) {
+                window.clearTimeout(autoEnterTimerRef.current);
+                autoEnterTimerRef.current = null;
+            }
+        };
+    }, [isSystemReady, isVisible, onFinished]);
+
+    useEffect(() => {
+        return () => {
+            if (autoEnterTimerRef.current !== null) {
+                window.clearTimeout(autoEnterTimerRef.current);
+            }
+        };
+    }, []);
+
+    if (!shouldRender) {
+        return null;
+    }
+
+    const dots = Array.from({ length: 4 }, (_, index) => (
+        <span
+            key={index}
+            className="h-2.5 w-2.5 rounded-full bg-cyan-300/90"
+            style={{
+                animation: `loaderPulse 900ms ${index * 120}ms ease-in-out infinite`
+            }}
+        />
+    ));
+
+    return (
+        <div className={`absolute inset-0 z-[150] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+            <div className="absolute inset-0">
+                <video
+                    className="absolute inset-0 h-full w-full object-cover"
+                    aria-label="Loading background"
+                    autoPlay
+                    muted
+                    playsInline
+                    loop
+                    preload="auto"
+                >
+                    <source src="/assets/videos/loading_compressed.mp4" type="video/mp4" />
+                </video>
+            </div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(34,211,238,0.16),_transparent_38%),linear-gradient(180deg,_rgba(5,10,20,0.55),_rgba(2,6,12,0.88))]" />
+            <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.05)_1px,transparent_1px)] [background-size:36px_36px]" />
+
+            <div className="relative flex h-full w-full items-center justify-center px-6">
+                <div className="w-full max-w-xl rounded-[32px] border border-white/10 bg-black/35 p-8 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-md">
+                    <div className="mb-6 flex items-center justify-between gap-4">
+                        <div>
+                            <div className="text-[11px] font-black uppercase tracking-[0.5em] text-cyan-200/80">
+                                World Boot
+                            </div>
+                            <div className="mt-2 text-3xl font-black uppercase tracking-[0.14em] text-white">
+                                {isSystemReady ? 'Entering Scene' : 'Loading'}
+                            </div>
+                        </div>
+                        <div className="text-right text-xs font-bold uppercase tracking-[0.35em] text-white/55">
+                            <div>{Math.round(progress)}%</div>
+                            <div className="mt-1 text-[10px] text-cyan-200/60">
+                                {isLoadingScene ? 'Scene init' : 'Syncing'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mb-5 overflow-hidden rounded-full border border-cyan-400/15 bg-white/5">
+                        <div
+                            className="h-3 rounded-full bg-[linear-gradient(90deg,_#22d3ee,_#38bdf8,_#60a5fa)] transition-[width] duration-150 ease-out"
+                            style={{ width: `${progress}%` }}
+                        />
+                    </div>
+
+                    <div className="mb-6 flex items-center gap-3">
+                        {dots}
+                        <div className="text-xs font-black uppercase tracking-[0.35em] text-white/70">
+                            {MESSAGES[messageIndex]}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 text-[10px] font-bold uppercase tracking-[0.28em] text-white/60">
+                        <div className={`rounded-2xl border px-3 py-3 ${isLoadingScene ? 'border-amber-400/30 bg-amber-400/10 text-amber-100' : 'border-white/10 bg-white/5'}`}>
+                            Scene
+                        </div>
+                        <div className={`rounded-2xl border px-3 py-3 ${progress >= 50 ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100' : 'border-white/10 bg-white/5'}`}>
+                            Assets
+                        </div>
+                        <div className={`rounded-2xl border px-3 py-3 ${isSystemReady ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-100' : 'border-white/10 bg-white/5'}`}>
+                            Ready
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <style>{`
+                @keyframes loaderPulse {
+                    0%, 80%, 100% {
+                        transform: scale(0.72);
+                        opacity: 0.35;
+                    }
+                    40% {
+                        transform: scale(1);
+                        opacity: 1;
+                    }
+                }
+            `}</style>
+        </div>
+    );
+};
+
+export default LoadingScreen;

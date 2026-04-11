@@ -1,15 +1,16 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React from "react";
 import { useGameStore } from "../../state/GameState.jsx";
+import { useShallow } from "zustand/react/shallow";
 import { useDungeonNavigation } from "../../hooks/useDungeonNavigation.js";
 import RoomNode from "./RoomNode.jsx";
 function DungeonMap({ onRoomSelect }) {
-  const { dungeon, currentRoomId } = useGameStore((state) => ({
+  const { dungeon, currentRoomId } = useGameStore(useShallow((state) => ({
     dungeon: state.dungeon,
     currentRoomId: state.currentRoomId
-  }));
+  })));
   const { handleMoveTo, getConnections } = useDungeonNavigation();
-  if (!dungeon) return /* @__PURE__ */ jsxDEV("div", { children: "No dungeon loaded." }, void 0, false, {
+  if (!dungeon) return /* @__PURE__ */ jsx("div", { children: "No dungeon loaded." }, void 0, false, {
     fileName: "<stdin>",
     lineNumber: 14,
     columnNumber: 26
@@ -23,7 +24,7 @@ function DungeonMap({ onRoomSelect }) {
   const gridWidth = Math.max(...dungeon.rooms.map((r) => r.x)) + 1;
   const gridHeight = Math.max(...dungeon.rooms.map((r) => r.y)) + 1;
   const connections = getConnections(currentRoomId);
-  return /* @__PURE__ */ jsxDEV("div", { className: "dungeon-map-container", children: /* @__PURE__ */ jsxDEV(
+  return /* @__PURE__ */ jsx("div", { className: "dungeon-map-container", children: /* @__PURE__ */ jsx(
     "div",
     {
       className: "dungeon-map",
@@ -31,7 +32,7 @@ function DungeonMap({ onRoomSelect }) {
         gridTemplateColumns: `repeat(${gridWidth}, auto)`,
         gridTemplateRows: `repeat(${gridHeight}, auto)`
       },
-      children: dungeon.rooms.map((room) => /* @__PURE__ */ jsxDEV(
+      children: dungeon.rooms.map((room) => /* @__PURE__ */ jsx(
         RoomNode,
         {
           room,
@@ -66,3 +67,4 @@ function DungeonMap({ onRoomSelect }) {
 export {
   DungeonMap as default
 };
+

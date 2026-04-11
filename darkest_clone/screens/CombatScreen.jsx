@@ -1,6 +1,7 @@
-import { jsxDEV } from "react/jsx-dev-runtime";
+import { jsx } from "react/jsx-runtime";
 import React from "react";
 import { useGameStore } from "../state/GameState.jsx";
+import { useShallow } from "zustand/react/shallow";
 import CombatScene from "../components/Dungeon/CombatScene.jsx";
 import CombatUI from "../components/Dungeon/CombatUI.jsx";
 import CharacterModal from "../components/Dungeon/CharacterModal.jsx";
@@ -13,14 +14,14 @@ function CombatScreen() {
     heroes,
     enemies,
     endCombat
-  } = useGameStore((state) => ({
+  } = useGameStore(useShallow((state) => ({
     combatState: state.combatState,
     characterModalId: state.characterModalId,
     setCharacterModalId: state.setCharacterModalId,
     heroes: state.heroes,
     enemies: state.enemies,
     endCombat: state.endCombat
-  }));
+  })));
   const handleProceed = () => {
     endCombat();
   };
@@ -28,38 +29,38 @@ function CombatScreen() {
     window.location.reload();
   };
   const characterForModal = characterModalId ? [...heroes, ...enemies].find((c) => c.combatId === characterModalId) : null;
-  return /* @__PURE__ */ jsxDEV("div", { className: "combat-screen", children: [
-    /* @__PURE__ */ jsxDEV(CombatScene, {}, void 0, false, {
+  return /* @__PURE__ */ jsx("div", { className: "combat-screen", children: [
+    /* @__PURE__ */ jsx(CombatScene, {}, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 40,
       columnNumber: 13
     }, this),
-    /* @__PURE__ */ jsxDEV(CombatUI, {}, void 0, false, {
+    /* @__PURE__ */ jsx(CombatUI, {}, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 41,
       columnNumber: 13
     }, this),
-    /* @__PURE__ */ jsxDEV(AttackAnimation, {}, void 0, false, {
+    /* @__PURE__ */ jsx(AttackAnimation, {}, void 0, false, {
       fileName: "<stdin>",
       lineNumber: 42,
       columnNumber: 13
     }, this),
-    combatState !== "ongoing" && /* @__PURE__ */ jsxDEV("div", { className: "combat-overlay", children: /* @__PURE__ */ jsxDEV("div", { className: "combat-result-popup", children: [
-      /* @__PURE__ */ jsxDEV("h1", { children: combatState === "victory" ? "Victory Achieved" : "A Fateful Defeat" }, void 0, false, {
+    combatState !== "ongoing" && /* @__PURE__ */ jsx("div", { className: "combat-overlay", children: /* @__PURE__ */ jsx("div", { className: "combat-result-popup", children: [
+      /* @__PURE__ */ jsx("h1", { children: combatState === "victory" ? "Victory Achieved" : "A Fateful Defeat" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 46,
         columnNumber: 25
       }, this),
-      /* @__PURE__ */ jsxDEV("p", { children: combatState === "victory" ? "The fiends are vanquished... for now." : "Ruin has come to our family." }, void 0, false, {
+      /* @__PURE__ */ jsx("p", { children: combatState === "victory" ? "The fiends are vanquished... for now." : "Ruin has come to our family." }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 47,
         columnNumber: 25
       }, this),
-      combatState === "victory" ? /* @__PURE__ */ jsxDEV("button", { onClick: handleProceed, children: "Proceed" }, void 0, false, {
+      combatState === "victory" ? /* @__PURE__ */ jsx("button", { onClick: handleProceed, children: "Proceed" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 49,
         columnNumber: 30
-      }, this) : /* @__PURE__ */ jsxDEV("button", { onClick: handleRestart, children: "Try Again" }, void 0, false, {
+      }, this) : /* @__PURE__ */ jsx("button", { onClick: handleRestart, children: "Try Again" }, void 0, false, {
         fileName: "<stdin>",
         lineNumber: 51,
         columnNumber: 30
@@ -73,7 +74,7 @@ function CombatScreen() {
       lineNumber: 44,
       columnNumber: 17
     }, this),
-    characterForModal && /* @__PURE__ */ jsxDEV(
+    characterForModal && /* @__PURE__ */ jsx(
       CharacterModal,
       {
         character: characterForModal,
@@ -97,3 +98,4 @@ function CombatScreen() {
 export {
   CombatScreen as default
 };
+
