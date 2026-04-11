@@ -1,0 +1,130 @@
+--- a/components/Dungeon/DungeonRoomScene.jsx
++++ b/components/Dungeon/DungeonRoomScene.jsx
+@@ -1,10 +1,11 @@
+ import React from 'react';
+ import { useGameStore } from '../../state/GameState.jsx';
+-import { motion } from 'framer-motion';
++import { motion, AnimatePresence } from 'framer-motion';
+ import Curio from './Curio.jsx';
+ import RoomNavigation from './RoomNavigation.jsx';
++import clsx from 'clsx';
+ 
+ const getRoomBackground = (room) => {
+     if (!room) return 'url(./assets/images/backgrounds/corridor.png)';
+@@ -17,6 +18,11 @@
+ 
+     return 'url(./assets/images/backgrounds/corridor.png)';
+ };
++
++const isCorridor = (room) => {
++    if (!room) return false;
++    return !room.isStart && !room.hasBoss && !room.hasCombat && !room.hasTrap && !room.hasCurio;
++}
+ 
+ const PartyMember = ({ char, onClick }) => {
+     return (
+@@ -46,17 +52,22 @@
+         moveToRoom: state.moveToRoom,
+     }));
+ 
++    if (!dungeon) {
++        return <div className="dungeon-room-scene" />; // Return an empty room to prevent crash
++    }
++
+     const currentRoom = dungeon.rooms.find(r => r.id === currentRoomId);
+     const backgroundImage = getRoomBackground(currentRoom);
++    const corridor = isCorridor(currentRoom);
+ 
+     const livingHeroes = heroes.filter(h => h.hp > 0);
+     
+     const handleCharacterClick = (id) => {
+         setCharacterModalId(id);
+     };
+-
++    
+     const handleCurioClick = () => {
+         interactWithCurio(currentRoomId);
+     };
+ 
+@@ -69,16 +80,18 @@
+                         <PartyMember key={hero.combatId} char={hero} onClick={handleCharacterClick} />
+                     ))}
+             </div>
+-            
+-            <RoomNavigation 
+-                dungeon={dungeon} 
+-                currentRoomId={currentRoomId} 
+-                onMove={moveToRoom} 
+-            />
+ 
+-            {currentRoom && currentRoom.hasCurio && !currentRoom.curioInteracted && (
+-                <Curio onClick={handleCurioClick} />
+-            )}
++            <div className={clsx("room-content", { "corridor-layout": corridor })}>
++                 <AnimatePresence>
++                    {currentRoom && currentRoom.hasCurio && !currentRoom.curioInteracted && (
++                        <Curio onClick={handleCurioClick} />
++                    )}
++                </AnimatePresence>
++            </div>
++            
++            <RoomNavigation dungeon={dungeon} currentRoomId={currentRoomId} onMove={moveToRoom} />
++
++            
+         </div>
+     );
+ }
+--- a/styles/dungeon.css
++++ b/styles/dungeon.css
+@@ -11,7 +11,7 @@
+     box-shadow: inset 0 0 var(--vignette-darkness) #000;
+     position: relative;
+     overflow: hidden;
+-    display: flex;
++    display: grid; /* Changed to grid */
+     justify-content: flex-start;
+     align-items: flex-end;
+     padding: 20px;
+@@ -66,13 +66,22 @@
+     background: rgba(0,0,0,0.5);
+ }
+ 
++.room-content {
++    grid-column: 1;
++    grid-row: 1;
++    display: flex;
++    justify-content: center;
++    align-items: flex-end;
++    padding-bottom: 20px;
++    padding-right: 20%;
++}
++
++.room-content.corridor-layout {
++    justify-content: flex-end;
++}
++
+ .curio-container {
+-    position: absolute;
+-    right: 20%;
+-    bottom: 20px;
+-    height: 15vh;
+-    min-height: 100px;
+     cursor: pointer;
+ }
+ 
+@@ -82,12 +91,15 @@
+ }
+ 
+ .party-view {
++    grid-column: 1;
++    grid-row: 1;
+     display: flex;
+     gap: -20px;
+     height: 35vh;
+     min-height: 250px;
+     align-items: flex-end;
+     margin-left: 5%;
++    z-index: 2; /* Ensure party is above other content */
+ }
+ 
+ .dungeon-map-container {

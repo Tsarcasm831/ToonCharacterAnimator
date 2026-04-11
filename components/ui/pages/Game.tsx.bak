@@ -28,17 +28,6 @@ import { useUndoRedo } from '../../../hooks/useUndoRedo';
 import type { ActiveScene } from '../../../hooks/useGameState';
 
 export const Game: React.FC = () => {
-    type GameLoopHudState = {
-        phase: string;
-        day: number;
-        gold: number;
-        heirlooms: number;
-        supplyChests: number;
-        rosterCount: number;
-        partyCount: number;
-        activeMissionTitle: string | null;
-    };
-
     const isMobileDevice = useIsMobileDevice();
     const {
         gameState: gameStateContext,
@@ -96,7 +85,6 @@ export const Game: React.FC = () => {
     const visualReadyTimeout = React.useRef<number | null>(null);
     const viewportRef = React.useRef<HTMLDivElement | null>(null);
     const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
-    const [gameLoopHudState, setGameLoopHudState] = React.useState<GameLoopHudState | null>(null);
     const [chakraNodeLegend, setChakraNodeLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
     const [chakraConnectionLegend, setChakraConnectionLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
     const chakraNodeLegendSignatureRef = React.useRef('');
@@ -106,7 +94,6 @@ export const Game: React.FC = () => {
     const chakraProjectVecRef = React.useRef(new THREE.Vector3());
     const chakraCameraDirRef = React.useRef(new THREE.Vector3());
     const arenaVictoryHandledRef = React.useRef(false);
-    const lastGameLoopHudSyncRef = React.useRef(0);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
     const selectedLandRef = React.useRef(selectedLand);
@@ -162,15 +149,6 @@ export const Game: React.FC = () => {
             return () => clearTimeout(t);
         }
     }, [gameState, activeScene, lastScene]);
-
-    React.useEffect(() => {
-        if (gameState !== 'LOADING') return;
-        if (!shouldMountScene) return;
-        if (activeScene !== 'roguelike') return;
-
-        setIsEnvironmentBuilt(true);
-        scheduleVisualLoadingDone();
-    }, [gameState, shouldMountScene, activeScene]);
 
     const scheduleVisualLoadingDone = () => {
         if (visualReadyTimeout.current) {
@@ -367,47 +345,8 @@ export const Game: React.FC = () => {
         if (gameInstance.current) gameInstance.current.setBuildingType(type);
     };
 
-    const syncGameLoopHudState = React.useCallback((game: any, force: boolean = false) => {
-        const runState = game?.gameLoopManager?.getRunState?.();
-        if (!runState) return;
-
-        const now = performance.now();
-        if (!force && now - lastGameLoopHudSyncRef.current < 250) return;
-        lastGameLoopHudSyncRef.current = now;
-
-        const nextState: GameLoopHudState = {
-            phase: runState.phase,
-            day: runState.day,
-            gold: runState.resources?.gold ?? 0,
-            heirlooms: runState.resources?.heirlooms ?? 0,
-            supplyChests: runState.resources?.supplyChests ?? 0,
-            rosterCount: Array.isArray(runState.roster) ? runState.roster.length : 0,
-            partyCount: Array.isArray(runState.partyHeroIds) ? runState.partyHeroIds.length : 0,
-            activeMissionTitle: runState.activeMission?.mission?.title ?? null,
-        };
-
-        setGameLoopHudState((prev) => {
-            if (
-                prev &&
-                prev.phase === nextState.phase &&
-                prev.day === nextState.day &&
-                prev.gold === nextState.gold &&
-                prev.heirlooms === nextState.heirlooms &&
-                prev.supplyChests === nextState.supplyChests &&
-                prev.rosterCount === nextState.rosterCount &&
-                prev.partyCount === nextState.partyCount &&
-                prev.activeMissionTitle === nextState.activeMissionTitle
-            ) {
-                return prev;
-            }
-
-            return nextState;
-        });
-    }, []);
-
     const onGameReady = (game: any) => {
         gameInstance.current = game;
-        syncGameLoopHudState(game, true);
         setShowChakraNodeSidebar(false);
         setChakraNodeLegend([]);
         setChakraConnectionLegend([]);
@@ -544,7 +483,6 @@ export const Game: React.FC = () => {
         const previousOnUpdate = game.onUpdate;
         game.onUpdate = (dt: number) => {
             previousOnUpdate?.(dt);
-            syncGameLoopHudState(game);
             const player = game.player;
             if (!player) return;
 
@@ -648,7 +586,7 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
-    const showGlobalHUD = !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop';
+    const showGlobalHUD = !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike';
 
     return (
         <div className="w-full h-full flex flex-col items-center justify-start">
@@ -778,7 +716,7 @@ export const Game: React.FC = () => {
                                             showGrid={showGrid}
                                             isCombatActive={isCombatActive}
                                         />
-                                    ) : activeScene === 'town2' || activeScene === 'gameLoop' ? (
+                                    ) : activeScene === 'town2' ? (
                                         <Town2Scene
                                             activeScene={activeScene}
                                             config={config}
@@ -933,18 +871,6 @@ export const Game: React.FC = () => {
                             
                             <DialogueOverlay dialogue={dialogue} onClose={onCloseDialogue} onSelectChoice={onDialogueChoice} />
                             <MobileControls game={gameInstance.current} />
-
-                            {gameLoopHudState && (
-                                <div className="absolute top-4 right-4 z-[90] bg-black/65 border border-white/15 rounded-xl px-3 py-2 backdrop-blur-sm text-[10px] uppercase tracking-wide text-white/80 pointer-events-none">
-                                    <div className="font-bold text-cyan-300">Campaign</div>
-                                    <div>Phase: {gameLoopHudState.phase}</div>
-                                    <div>Day: {gameLoopHudState.day}</div>
-                                    <div>Gold: {gameLoopHudState.gold} · Heirlooms: {gameLoopHudState.heirlooms}</div>
-                                    <div>Chests: {gameLoopHudState.supplyChests}</div>
-                                    <div>Roster: {gameLoopHudState.rosterCount} · Party: {gameLoopHudState.partyCount}</div>
-                                    {gameLoopHudState.activeMissionTitle && <div>Mission: {gameLoopHudState.activeMissionTitle}</div>}
-                                </div>
-                            )}
                         </>
                     )}
                 </div>

@@ -1,0 +1,96 @@
+.menu-screen {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-image: url('../assets/images/backgrounds/menu-background.png');
+    background-size: cover;
+    background-position: center;
+    text-align: center;
+    box-shadow: inset 0 0 200px #000;
+    color: var(--primary-text);
+}
+
+.menu-screen h1 {
+    font-family: var(--font-header);
+    /* Use clamp for fluid typography */
+    font-size: clamp(3rem, 8vw, 7rem);
+    text-shadow: 4px 4px 8px #000;
+    margin-bottom: 2rem;
+}
+
+.menu-screen .subtitle {
+    font-family: var(--font-body);
+    /* Use clamp for fluid typography */
+    font-size: clamp(1rem, 0.8rem + 1vw, 1.5rem);
+    color: #a0a0a0;
+    margin-top: -2rem;
+    margin-bottom: 4rem;
+    text-shadow: 2px 2px 4px #000;
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.embark-button {
+    font-family: var(--font-header);
+    /* Use clamp for fluid typography and padding */
+    font-size: clamp(1.8rem, 1.5rem + 1.5vw, 2.8rem);
+    padding: clamp(10px, 1.5vh, 20px) clamp(25px, 4vw, 50px);
+    background-color: transparent;
+    color: var(--primary-text);
+    border: 3px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-shadow: 2px 2px 4px #000;
+    box-shadow: none; /* Override base button styles */
+}
+
+.embark-button:hover:not(:disabled) {
+    background-color: rgba(197, 41, 41, 0.2);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 15px var(--accent-color);
+    transform: scale(1.05);
+}
+
+.embark-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    background-color: transparent; /* Ensure disabled doesn't have a solid bg */
+    border-color: var(--border-color); /* Keep border color */
+}
+
+.changelog-button {
+    font-family: var(--font-body);
+    font-size: 1.2rem;
+    padding: 8px 16px;
+    background-color: transparent;
+    color: var(--primary-text);
+    border: 2px solid var(--border-color);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.changelog-button:hover {
+    background-color: rgba(197, 41, 41, 0.1);
+    border-color: var(--primary-text);
+}
+
+.loading-text {
+    margin-top: 2rem;
+    font-size: 1.2rem;
+    color: var(--primary-text);
+}
+
+@media (max-width: 800px) {
+    /* Media query is no longer needed for font sizes, but can be kept for other adjustments if necessary */
+    .menu-screen .subtitle {
+        margin-bottom: 3rem;
+    }
+}

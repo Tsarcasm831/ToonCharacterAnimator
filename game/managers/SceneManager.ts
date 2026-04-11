@@ -11,7 +11,7 @@ import { Player } from '../player/Player';
 import { PlayerUtils } from '../player/PlayerUtils';
 import { landCoordsToWorld, getLandHeightAt } from '../environment/landTerrain';
 
-export type SceneType = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame';
+export type SceneType = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'gameLoop';
 
 export class SceneManager {
     public activeScene: SceneType;
@@ -59,7 +59,7 @@ export class SceneManager {
             if (!this.townEnvironment) {
                 this.townEnvironment = new TownEnvironment(this.scene);
             }
-        } else if (sceneName === 'town2' || sceneName === 'tdgame') {
+        } else if (sceneName === 'town2' || sceneName === 'tdgame' || sceneName === 'gameLoop') {
             if (!this.town2Environment) {
                 this.town2Environment = new Town2Environment(this.scene);
             }
@@ -75,7 +75,7 @@ export class SceneManager {
     }
 
     private usesEnvironmentLighting(sceneName: SceneType): boolean {
-        return sceneName === 'dev' || sceneName === 'singleBiome' || sceneName === 'town' || sceneName === 'town2' || sceneName === 'tdgame';
+        return sceneName === 'dev' || sceneName === 'singleBiome' || sceneName === 'town' || sceneName === 'town2' || sceneName === 'tdgame' || sceneName === 'gameLoop';
     }
 
     private unloadEnvironments(except: SceneType) {
@@ -91,7 +91,7 @@ export class SceneManager {
             this.townEnvironment.dispose();
             this.townEnvironment = null;
         }
-        if (except !== 'town2' && except !== 'tdgame' && this.town2Environment) {
+        if (except !== 'town2' && except !== 'tdgame' && except !== 'gameLoop' && this.town2Environment) {
             this.town2Environment.dispose();
             this.town2Environment = null;
         }
@@ -113,7 +113,7 @@ export class SceneManager {
         if (this.activeScene === 'dev') return this.environment;
         if (this.activeScene === 'singleBiome') return this.singleBiomeEnvironment;
         if (this.activeScene === 'town') return this.townEnvironment;
-        if (this.activeScene === 'town2' || this.activeScene === 'tdgame') return this.town2Environment;
+        if (this.activeScene === 'town2' || this.activeScene === 'tdgame' || this.activeScene === 'gameLoop') return this.town2Environment;
         if (this.activeScene === 'land') return this.landEnvironment;
         if (this.activeScene === 'combat' || this.activeScene === 'mp') return this.combatEnvironment;
         return null;
@@ -187,7 +187,7 @@ export class SceneManager {
             this.renderManager.controls.enableRotate = true;
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
-        } else if (sceneName === 'town2' || sceneName === 'tdgame') {
+        } else if (sceneName === 'town2' || sceneName === 'tdgame' || sceneName === 'gameLoop') {
             const TOWN2_GRID_SIZE = 1.3333;
             const TOWN2_MIN_X = -200;
             const TOWN2_MIN_Z = -100;
@@ -275,7 +275,7 @@ export class SceneManager {
             this.singleBiomeEnvironment.update(delta, config, this.player.mesh.position);
         } else if (this.activeScene === 'town' && this.townEnvironment) {
             this.townEnvironment.update(delta, config, this.player.mesh.position);
-        } else if ((this.activeScene === 'town2' || this.activeScene === 'tdgame') && this.town2Environment) {
+        } else if ((this.activeScene === 'town2' || this.activeScene === 'tdgame' || this.activeScene === 'gameLoop') && this.town2Environment) {
             this.town2Environment.update(delta, config, this.player.mesh.position);
         } else if (this.activeScene === 'land' && this.landEnvironment) {
             this.landEnvironment.update(delta, config, this.player.mesh.position);

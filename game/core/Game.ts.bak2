@@ -201,7 +201,7 @@ export class Game {
             this.entityManager.initDevEntities(this.sceneManager.environment, this.config);
         } else if (activeScene === 'town') {
             this.setupTownScene();
-        } else if (activeScene === 'town2' || activeScene === 'gameLoop') {
+        } else if (activeScene === 'town2') {
             this.setupTown2Scene();
         }
         
@@ -513,7 +513,7 @@ export class Game {
         if (sceneName === 'town') {
             this.setupTownScene();
         }
-        if (sceneName === 'town2' || sceneName === 'gameLoop') {
+        if (sceneName === 'town2') {
             this.setupTown2Scene();
         }
 
