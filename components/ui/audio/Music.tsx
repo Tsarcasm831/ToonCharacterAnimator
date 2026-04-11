@@ -790,45 +790,14 @@ export const MusicView: React.FC = () => {
 
         // Track play in Supabase
         try {
-            const nowIso = new Date().toISOString();
+            const { error: incrementError } = await supabase.rpc('increment_music_track_listen', {
+                p_track_id: track.id,
+                p_track_title: track.title,
+                p_track_artist: track.artist,
+            });
 
-            const { data: existingTrack, error: fetchError } = await supabase
-                .from('music_analytics')
-                .select('track_id, play_count')
-                .eq('track_id', track.id)
-                .maybeSingle();
-
-            if (fetchError) {
-                console.error('Analytics lookup error:', fetchError);
-            } else if (existingTrack) {
-                const currentCount = Number(existingTrack.play_count) || 0;
-                const { error: updateError } = await supabase
-                    .from('music_analytics')
-                    .update({
-                        track_title: track.title,
-                        track_artist: track.artist,
-                        play_count: currentCount + 1,
-                        last_played: nowIso
-                    })
-                    .eq('track_id', track.id);
-
-                if (updateError) {
-                    console.error('Analytics update error:', updateError);
-                }
-            } else {
-                const { error: insertError } = await supabase
-                    .from('music_analytics')
-                    .insert({
-                        track_id: track.id,
-                        track_title: track.title,
-                        track_artist: track.artist,
-                        play_count: 1,
-                        last_played: nowIso
-                    });
-
-                if (insertError) {
-                    console.error('Analytics insert error:', insertError);
-                }
+            if (incrementError) {
+                console.error('Analytics increment error:', incrementError);
             }
         } catch (err) {
             console.error('Failed to track play:', err);
@@ -874,7 +843,7 @@ export const MusicView: React.FC = () => {
         const interval = setInterval(async () => {
             try {
                 const { data, error } = await supabase
-                    .from('music_analytics')
+                    .from('music_track_listens')
                     .select('*')
                     .order('play_count', { ascending: false })
                     .limit(10);
