@@ -1060,7 +1060,7 @@ export const Game: React.FC = () => {
     }
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-start">
+        <div className="relative w-full h-full flex flex-col items-center justify-start">
             <div ref={viewportRef} className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
                     {isCharacterCreatorMode && (
@@ -1398,11 +1398,11 @@ export const Game: React.FC = () => {
 
             {isCharacterCreatorModalOpen && (
                 <div
-                    className="fixed inset-0 z-[260] flex items-center justify-center bg-black/80 backdrop-blur-md p-[0.5vh]"
+                    className="absolute inset-0 z-[260] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-3"
                     onClick={handleCloseCharacterCreator}
                 >
                     <div
-                        className="relative w-[99vw] h-[99dvh] overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#050913] shadow-[0_0_80px_rgba(15,23,42,0.75)]"
+                        className="relative size-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#050913] shadow-[0_0_80px_rgba(15,23,42,0.75)]"
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="absolute right-4 top-4 z-20 flex items-center gap-3">

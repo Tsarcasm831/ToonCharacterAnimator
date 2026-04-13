@@ -127,7 +127,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {/* Split UI Layout */}
             {isOpen && (
-                <div className={`fixed inset-0 z-[100] pointer-events-none animate-fade-in overflow-hidden ${isMobileLayout ? 'flex items-start p-2' : 'flex justify-between p-4'}`}>
+                <div className={`absolute inset-0 z-[100] pointer-events-none animate-fade-in overflow-hidden ${isMobileLayout ? 'flex items-start p-2' : 'flex justify-between p-4'}`}>
                     
                     {/* LEFT PANEL: Navigation */}
                     {!isMobileLayout && (
