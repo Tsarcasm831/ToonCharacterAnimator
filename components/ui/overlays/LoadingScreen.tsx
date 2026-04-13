@@ -152,7 +152,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
     ));
 
     return (
-        <div className={`absolute inset-0 z-[150] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`absolute inset-0 z-[150] transition-opacity duration-300 ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
             <div className="absolute inset-0 z-0">
                 <video
                     className="absolute inset-0 h-full w-full object-cover"

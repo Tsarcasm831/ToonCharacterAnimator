@@ -1087,6 +1087,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
 
         const playerModel = new PlayerModel(previewConfig);
         playerModel.group.rotation.y = 0.2;
+        playerModel.sync(previewConfig, false);
         scene.add(playerModel.group);
         modelRef.current = playerModel;
         activePreviewTypeRef.current = 'humanoid';
@@ -1112,10 +1113,13 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         renderer.shadowMap.type = THREE.PCFShadowMap; 
         containerRef.current.appendChild(renderer.domElement);
         renderer.domElement.style.touchAction = 'none';
+        const eventSurface = containerRef.current;
+        if (!eventSurface) return;
+        eventSurface.style.touchAction = 'none';
         const handleContextMenu = (event: MouseEvent) => event.preventDefault();
-        renderer.domElement.addEventListener('contextmenu', handleContextMenu);
+        eventSurface.addEventListener('contextmenu', handleContextMenu);
 
-        const controls = new OrbitControls(camera, renderer.domElement);
+        const controls = new OrbitControls(camera, eventSurface);
         controls.enableDamping = true;
         controls.dampingFactor = 0.08;
         controls.enableRotate = true;
@@ -1354,7 +1358,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                 creatureModelRef.current = null;
             }
 
-            renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
+            eventSurface.removeEventListener('contextmenu', handleContextMenu);
             if (rendererRef.current && containerRef.current) {
                 containerRef.current.removeChild(rendererRef.current.domElement);
                 rendererRef.current.dispose();

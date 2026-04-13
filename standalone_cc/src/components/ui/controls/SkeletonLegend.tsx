@@ -31,7 +31,7 @@ const JOINT_LEGEND = [
 
 export const SkeletonLegend: React.FC = () => {
     return (
-        <div className="absolute top-32 left-6 w-48 bg-white/90 backdrop-blur-md shadow-2xl rounded-xl p-4 border border-white/50 animate-[fadeIn_0.3s_ease-out] z-20 h-[60vh] overflow-y-auto scrollbar-hide">
+        <div className="fixed left-[20rem] top-1/2 z-[120] hidden w-48 max-h-[60vh] -translate-y-1/2 overflow-y-auto rounded-xl border border-white/50 bg-white/90 p-4 shadow-2xl backdrop-blur-md animate-[fadeIn_0.3s_ease-out] lg:block scrollbar-hide">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-200 pb-2">Skeleton Legend</h3>
             <div className="grid grid-cols-1 gap-1.5">
                 {JOINT_LEGEND.map((item) => (

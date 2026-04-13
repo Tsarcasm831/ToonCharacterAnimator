@@ -56,8 +56,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     onResetToBaseCharacter
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [isDevMode, setIsDevMode] = useState(false);
-    const [activeTab, setActiveTab] = useState<TabKey>('randomize');
+    const [activeTab, setActiveTab] = useState<TabKey>('impersonate');
     const [isMobileLayout, setIsMobileLayout] = useState(() =>
         typeof window !== 'undefined' ? window.matchMedia('(max-width: 1024px)').matches : false
     );
@@ -93,14 +92,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         { id: 'rigging', label: 'Bone Rigging', icon: '' },
         { id: 'eq_rigging', label: 'Gear Rigging', icon: '' },
     ];
-    const DEV_ONLY_TABS: TabKey[] = ['impersonate', 'actions', 'settings', 'environment', 'rigging', 'eq_rigging'];
-    const visibleTabs = isDevMode ? TABS : TABS.filter(tab => !DEV_ONLY_TABS.includes(tab.id));
-
-    React.useEffect(() => {
-        if (!isDevMode && DEV_ONLY_TABS.includes(activeTab)) {
-            setActiveTab('randomize');
-        }
-    }, [activeTab, isDevMode]);
 
     return (
         <>
@@ -124,6 +115,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                 >
                     <svg className="w-6 h-6 group-hover:rotate-90 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                 </button>
             )}
@@ -133,33 +125,18 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
             {/* Split UI Layout */}
             {isOpen && (
-                <div className={`fixed inset-0 z-[100] pointer-events-none animate-fade-in overflow-hidden ${isMobileLayout ? 'flex items-start p-2' : 'flex justify-between'}`}>
+                <div className={`fixed inset-0 z-[100] pointer-events-none animate-fade-in overflow-hidden ${isMobileLayout ? 'flex items-start p-2' : 'flex justify-between p-4'}`}>
                     
                     {/* LEFT PANEL: Navigation */}
                     {!isMobileLayout && (
-                    <div className="w-72 h-full bg-slate-950/90 backdrop-blur-xl border border-white/10 border-l-0 rounded-l-none rounded-r-[2rem] shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
+                    <div className="w-72 h-full bg-slate-950/90 backdrop-blur-xl border border-white/10 rounded-[2rem] shadow-2xl flex flex-col overflow-hidden pointer-events-auto">
                         <div className="p-8 border-b border-white/5">
                             <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Studio<span className="text-blue-500">OS</span></h2>
-                            <div className="mt-1 flex items-center gap-2">
-                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Workspace Navigation</p>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsDevMode(prev => !prev)}
-                                    className={`rounded-md border px-2 py-0.5 text-[9px] font-black uppercase tracking-widest transition-colors ${
-                                        isDevMode
-                                            ? 'border-red-400/80 bg-red-500/70 text-white hover:bg-red-500'
-                                            : 'border-red-500/50 bg-red-600/20 text-red-300 hover:bg-red-600/35'
-                                    }`}
-                                    aria-pressed={isDevMode}
-                                    title={isDevMode ? 'Disable Dev Mode' : 'Enable Dev Mode'}
-                                >
-                                    {isDevMode ? 'Dev On' : 'Dev Off'}
-                                </button>
-                            </div>
+                            <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-1">Workspace Navigation</p>
                         </div>
                         
                         <div className="flex-1 overflow-y-auto py-6 space-y-1 custom-scrollbar">
-                            {visibleTabs.map(tab => (
+                            {TABS.map(tab => (
                                 <button type="button"
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
@@ -231,7 +208,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                     {!isMobileLayout && <div className="flex-1 flex items-center justify-center pointer-events-none" />}
 
                     {/* RIGHT PANEL: Content & Settings */}
-                    <div className={`${isMobileLayout ? 'w-full h-[calc(100dvh-1rem)] rounded-2xl' : 'w-[450px] h-full border-r-0 rounded-l-[2rem] rounded-r-none'} bg-slate-950/90 backdrop-blur-xl border border-white/10 shadow-2xl flex flex-col overflow-hidden pointer-events-auto`}>
+                    <div className={`${isMobileLayout ? 'w-full h-[calc(100dvh-1rem)] rounded-2xl' : 'w-[450px] h-full rounded-[2rem]'} bg-slate-950/90 backdrop-blur-xl border border-white/10 shadow-2xl flex flex-col overflow-hidden pointer-events-auto`}>
                         <div className={`${isMobileLayout ? 'p-4 pb-3' : 'p-8 pb-4'} border-b border-white/5 flex justify-between items-start`}>
                             <div>
                                 <h3 className={`${isMobileLayout ? 'text-xl' : 'text-2xl'} font-black text-white uppercase tracking-tight`}>
@@ -251,7 +228,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                         {isMobileLayout && (
                             <div className="px-4 pt-3 overflow-x-auto custom-scrollbar border-b border-white/5">
                                 <div className="flex gap-2 min-w-max pb-3">
-                                    {visibleTabs.map(tab => (
+                                    {TABS.map(tab => (
                                         <button
                                             type="button"
                                             key={tab.id}

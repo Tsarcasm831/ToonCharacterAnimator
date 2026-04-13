@@ -1,137 +1,37 @@
-
-import React, { useRef, useEffect } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { PlayerConfig } from '../../../types';
-import { PlayerModel } from '../../../game/model/PlayerModel';
-import { IdleAction } from '../../../game/animator/actions/IdleAction';
+import React from 'react';
+import type { PlayerConfig, PlayerInput } from '../../../types';
+import { PlayerPreview as StandalonePlayerPreview } from '../../../standalone_cc/src/components/ui/previews/PlayerPreview';
+import {
+    DEFAULT_CONFIG as STANDALONE_DEFAULT_CONFIG,
+    type PlayerConfig as StandalonePlayerConfig,
+    type PlayerInput as StandalonePlayerInput
+} from '../../../standalone_cc/src/types';
 
 interface PlayerPreviewProps {
     config: PlayerConfig;
+    manualInput?: Partial<PlayerInput>;
+    onZoomChange?: (zoom: number) => void;
 }
 
-export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-    const sceneRef = useRef<THREE.Scene | null>(null);
-    const modelRef = useRef<PlayerModel | null>(null);
-    const controlsRef = useRef<OrbitControls | null>(null);
-    const frameIdRef = useRef<number>(0);
-
-    useEffect(() => {
-        if (!containerRef.current) return;
-
-        const width = containerRef.current.clientWidth;
-        const height = containerRef.current.clientHeight;
-
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x081122);
-        
-        const camera = new THREE.PerspectiveCamera(30, width / height, 0.1, 100);
-        camera.position.set(0, 0.9, 4.6); 
-        camera.lookAt(0, 0.9, 0);
-
-        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-        renderer.setPixelRatio(1); // Performance win in UI
-        renderer.setSize(width, height);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFShadowMap; 
-        containerRef.current.appendChild(renderer.domElement);
-        renderer.domElement.style.touchAction = 'none';
-
-        const handleContextMenu = (event: MouseEvent) => event.preventDefault();
-        renderer.domElement.addEventListener('contextmenu', handleContextMenu);
-
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.08;
-        controls.enableRotate = true;
-        controls.enablePan = true;
-        controls.enableZoom = true;
-        controls.rotateSpeed = 0.9;
-        controls.panSpeed = 0.85;
-        controls.zoomSpeed = 0.9;
-        controls.screenSpacePanning = true;
-        controls.mouseButtons = {
-            LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.PAN,
-        };
-        controls.target.set(0, 0.9, 0);
-        controls.update();
-        controlsRef.current = controls;
-
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
-        scene.add(hemiLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.3);
-        dirLight.position.set(2, 2, 5);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 512;
-        dirLight.shadow.mapSize.height = 512;
-        dirLight.shadow.bias = -0.001;
-        scene.add(dirLight);
-        
-        const backLight = new THREE.DirectionalLight(0x4455ff, 0.6);
-        backLight.position.set(-2, 2, -5);
-        scene.add(backLight);
-
-        const fillLight = new THREE.AmbientLight(0x8fb4ff, 0.28);
-        scene.add(fillLight);
-
-        const playerModel = new PlayerModel(config);
-        playerModel.group.rotation.y = 0.2;
-        scene.add(playerModel.group);
-
-        sceneRef.current = scene;
-        modelRef.current = playerModel;
-        rendererRef.current = renderer;
-
-        const mockPlayer = {
-            config: config,
-            isCombatStance: false,
-            model: playerModel,
-        };
-
-        const animate = () => {
-            frameIdRef.current = requestAnimationFrame(animate);
-            IdleAction.animate(mockPlayer, playerModel.parts, 0.1, false);
-            playerModel.update(0.016, new THREE.Vector3(0,0,0));
-            controls.update();
-            renderer.render(scene, camera);
-        };
-
-        animate();
-
-        const handleResize = () => {
-            if (!containerRef.current || !rendererRef.current) return;
-            const w = containerRef.current.clientWidth;
-            const h = containerRef.current.clientHeight;
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
-            rendererRef.current.setSize(w, h);
-        };
-        
-        const resizeObserver = new ResizeObserver(() => handleResize());
-        resizeObserver.observe(containerRef.current);
-
-        return () => {
-            cancelAnimationFrame(frameIdRef.current);
-            controls.dispose();
-            renderer.domElement.removeEventListener('contextmenu', handleContextMenu);
-            resizeObserver.disconnect();
-            if (rendererRef.current && containerRef.current) {
-                containerRef.current.removeChild(rendererRef.current.domElement);
-                rendererRef.current.dispose();
-            }
-        };
-    }, []);
-
-    useEffect(() => {
-        if (modelRef.current) {
-            modelRef.current.sync(config, false);
+export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInput, onZoomChange }) => {
+    const normalizedConfig = React.useMemo<StandalonePlayerConfig>(() => ({
+        ...STANDALONE_DEFAULT_CONFIG,
+        ...(config as unknown as Partial<StandalonePlayerConfig>),
+        equipment: {
+            ...STANDALONE_DEFAULT_CONFIG.equipment,
+            ...((config as unknown as Partial<StandalonePlayerConfig>)?.equipment ?? {})
         }
-    }, [config]);
+    }), [config]);
 
-    return <div ref={containerRef} className="w-full h-full" />;
+    const normalizedInput = React.useMemo<Partial<StandalonePlayerInput>>(() => ({
+        ...(manualInput as unknown as Partial<StandalonePlayerInput>)
+    }), [manualInput]);
+
+    return (
+        <StandalonePlayerPreview
+            config={normalizedConfig}
+            manualInput={normalizedInput}
+            onZoomChange={onZoomChange}
+        />
+    );
 };
