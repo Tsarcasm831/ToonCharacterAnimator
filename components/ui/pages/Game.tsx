@@ -26,6 +26,7 @@ import { PlayerPreview } from '../previews/PlayerPreview';
 import * as THREE from 'three';
 import type { DialogueContent } from '../../../game/core/Game';
 import { CITIES } from '../../../data/lands/cities';
+import { BODY_PRESETS, OUTFIT_PRESETS } from '../../../data/constants';
 import { getTownWallCenters } from '../../../game/environment/townWalls';
 import { useIsMobileDevice } from '../../../hooks/useIsMobileDevice';
 import { useUndoRedo } from '../../../hooks/useUndoRedo';
@@ -383,9 +384,11 @@ export const Game: React.FC = () => {
     const chakraCameraDirRef = React.useRef(new THREE.Vector3());
     const arenaVictoryHandledRef = React.useRef(false);
     const lastGameLoopHudSyncRef = React.useRef(0);
+    const creatorStarterAppliedRef = React.useRef(false);
 
     const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
-    const isCharacterCreatorMode = isSupabaseEnabled && !!user && isSaveLoaded && !hasSavedCharacter;
+    // Temporary: bypass first-login creator flow and always use normal main menu after login.
+    const isCharacterCreatorMode = false && isSupabaseEnabled && !!user && isSaveLoaded && !hasSavedCharacter;
     const selectedLandRef = React.useRef(selectedLand);
     const activeSceneRef = React.useRef(activeScene);
 
@@ -522,7 +525,48 @@ export const Game: React.FC = () => {
     React.useEffect(() => {
         if (!isCharacterCreatorMode) {
             setCharacterSaveStatus(null);
+            creatorStarterAppliedRef.current = false;
             return;
+        }
+
+        if (!creatorStarterAppliedRef.current) {
+            setConfig((prev) => {
+                const looksUninitialized =
+                    prev.outfit === 'naked' &&
+                    !prev.equipment.shirt &&
+                    !prev.equipment.pants &&
+                    prev.hairStyle === 'bald';
+
+                creatorStarterAppliedRef.current = true;
+                if (!looksUninitialized) {
+                    return prev;
+                }
+
+                return {
+                    ...prev,
+                    ...BODY_PRESETS.average,
+                    ...OUTFIT_PRESETS.peasant,
+                    bodyType: 'male',
+                    bodyVariant: 'average',
+                    hairStyle: 'crew',
+                    hairColor: '#2b1d16',
+                    skinColor: '#d8b89a',
+                    eyeColor: '#3c5e8f',
+                    scleraColor: '#f2f4f7',
+                    pupilColor: '#111111',
+                    lipColor: '#c79b84',
+                    shirtColor: '#6f4e37',
+                    shirtColor2: '#caa472',
+                    pantsColor: '#3b2d24',
+                    bootsColor: '#2a1b14',
+                    timeOfDay: 16.8,
+                    isAutoTime: false,
+                    equipment: {
+                        ...prev.equipment,
+                        ...(OUTFIT_PRESETS.peasant.equipment ?? {}),
+                    },
+                };
+            });
         }
 
         if (gameState === 'MENU') {
@@ -1020,11 +1064,11 @@ export const Game: React.FC = () => {
             <div ref={viewportRef} className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
                     {isCharacterCreatorMode && (
-                        <div className="absolute inset-0 overflow-hidden bg-[#081122]">
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(59,130,246,0.16),transparent_34%),radial-gradient(circle_at_50%_65%,rgba(14,165,233,0.12),transparent_42%),linear-gradient(to_bottom,#081122_0%,#050913_100%)]" />
-                            <div className="absolute inset-0 flex items-center justify-center px-8 pointer-events-auto">
+                        <div className="absolute inset-0 overflow-hidden bg-[#081122] pointer-events-none">
+                            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_30%,rgba(59,130,246,0.16),transparent_34%),radial-gradient(circle_at_50%_65%,rgba(14,165,233,0.12),transparent_42%),linear-gradient(to_bottom,#081122_0%,#050913_100%)]" />
+                            <div className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-auto">
                                 <div className="w-full max-w-[min(980px,100vw)] h-full min-h-0">
-                                    <PlayerPreview config={config} />
+                                    <PlayerPreview config={config} manualInput={manualInput} />
                                 </div>
                             </div>
                         </div>
@@ -1033,7 +1077,7 @@ export const Game: React.FC = () => {
                     {gameState === 'MENU' ? (
                         <>
                             {isCharacterCreatorMode ? (
-                                <div className="absolute inset-0 z-[100] bg-[#080c14]" />
+                                <div className="absolute inset-0 z-[100] pointer-events-none bg-[#080c14]" />
                             ) : (
                                 <MainMenu
                                     activeScene={activeScene}

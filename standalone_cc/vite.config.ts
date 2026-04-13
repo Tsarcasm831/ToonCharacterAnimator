@@ -8,4 +8,7 @@ export default defineConfig({
   base: './',
   root: path.dirname(fileURLToPath(import.meta.url)),
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 1200,
+  },
 })
