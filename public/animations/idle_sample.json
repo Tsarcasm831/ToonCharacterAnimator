@@ -1,0 +1,62 @@
+{
+  "action": "idle_sample",
+  "fps": 30,
+  "frameCount": 3,
+  "duration": 0.1,
+  "loop": true,
+  "bones": [
+    "hips",
+    "torsoContainer",
+    "neck",
+    "head",
+    "leftArm",
+    "rightArm"
+  ],
+  "frames": [
+    {
+      "index": 0,
+      "time": 0.0,
+      "rotations": {
+        "hips": [0, 0, 0],
+        "torsoContainer": [0.01, 0, 0],
+        "neck": [0, 0, 0],
+        "head": [0.02, 0, 0],
+        "leftArm": [0.01, 0, 0.04],
+        "rightArm": [0.01, 0, -0.04]
+      },
+      "positions": {
+        "hips": [0, 0, 0]
+      }
+    },
+    {
+      "index": 1,
+      "time": 0.033333,
+      "rotations": {
+        "hips": [0, 0, 0],
+        "torsoContainer": [0.015, 0, 0],
+        "neck": [-0.004, 0, 0],
+        "head": [0.018, 0, 0],
+        "leftArm": [0.014, 0, 0.042],
+        "rightArm": [0.014, 0, -0.042]
+      },
+      "positions": {
+        "hips": [0, 0.005, 0]
+      }
+    },
+    {
+      "index": 2,
+      "time": 0.066667,
+      "rotations": {
+        "hips": [0, 0, 0],
+        "torsoContainer": [0.01, 0, 0],
+        "neck": [0, 0, 0],
+        "head": [0.02, 0, 0],
+        "leftArm": [0.01, 0, 0.04],
+        "rightArm": [0.01, 0, -0.04]
+      },
+      "positions": {
+        "hips": [0, 0, 0]
+      }
+    }
+  ]
+}

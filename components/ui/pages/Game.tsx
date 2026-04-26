@@ -354,6 +354,39 @@ export const Game: React.FC = () => {
         setIsBuilderMode, setCurrentBiome, setActiveStructure, showGrid, setShowGrid, selectedLand 
     } = environmentState;
 
+    const handleBenchUnitPurchased = React.useCallback((unitName: string) => {
+        const existingIndex = bench.findIndex((item) => item?.name === unitName);
+        const emptyIndex = bench.findIndex((item) => item === null);
+
+        if (existingIndex === -1 && emptyIndex === -1) {
+            addCombatLog('Bench is full.', 'info');
+            return false;
+        }
+
+        setBench((prev) => {
+            const next = [...prev];
+            const currentIndex = next.findIndex((item) => item?.name === unitName);
+
+            if (currentIndex >= 0 && next[currentIndex]) {
+                next[currentIndex] = {
+                    ...next[currentIndex],
+                    count: next[currentIndex].count + 1,
+                };
+                return next;
+            }
+
+            const nextEmptyIndex = next.findIndex((item) => item === null);
+            if (nextEmptyIndex >= 0) {
+                next[nextEmptyIndex] = { name: unitName, count: 1 };
+            }
+
+            return next;
+        });
+
+        addCombatLog(`${unitName} added to bench.`, 'info');
+        return true;
+    }, [addCombatLog, bench, setBench]);
+
     // Effects
     React.useEffect(() => {
         if (notification) {
@@ -1146,6 +1179,7 @@ export const Game: React.FC = () => {
                                                     return next;
                                                 });
                                             }}
+                                            onBenchUnitPurchased={handleBenchUnitPurchased}
                                         />
                                     ) : activeScene === 'mp' ? (
                                         <MPTestScene 

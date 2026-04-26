@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Music as MusicIcon, Play, Pause, Volume2, VolumeX, SkipForward, SkipBack, X, ChevronUp, ChevronLeft, ChevronRight, Shuffle, Repeat, Repeat1, ListMusic, Disc3, Star, Sparkles } from 'lucide-react';
 import { useMusic } from '../../../contexts/MusicContext';
 import { useIsIphoneLayout } from '../../../hooks/useIsIphoneLayout';
-import { supabase, isSupabaseEnabled } from '../../../lib/supabase';
+import { supabase } from '../../../lib/supabase';
 import { AUTO_GENERATED_FEATURED_TRACKS, AUTO_GENERATED_SINGLE_ALBUMS } from './autoSingles.generated';
 
 interface Track {
@@ -788,21 +788,19 @@ export const MusicView: React.FC = () => {
     const handlePlayTrack = useCallback(async (track: Track, queue?: Track[]) => {
         playTrack(track, queue);
 
-        // Track play in Supabase when analytics are configured.
-        if (isSupabaseEnabled && supabase) {
-            try {
-                const { error: incrementError } = await supabase.rpc('increment_music_track_listen', {
-                    p_track_id: track.id,
-                    p_track_title: track.title,
-                    p_track_artist: track.artist,
-                });
+        // Track play in Supabase
+        try {
+            const { error: incrementError } = await supabase.rpc('increment_music_track_listen', {
+                p_track_id: track.id,
+                p_track_title: track.title,
+                p_track_artist: track.artist,
+            });
 
-                if (incrementError) {
-                    console.error('Analytics increment error:', incrementError);
-                }
-            } catch (err) {
-                console.error('Failed to track play:', err);
+            if (incrementError) {
+                console.error('Analytics increment error:', incrementError);
             }
+        } catch (err) {
+            console.error('Failed to track play:', err);
         }
 
         setIsMobilePlayerOpen(true);
@@ -843,8 +841,6 @@ export const MusicView: React.FC = () => {
     // Hourly analytics logging
     useEffect(() => {
         const interval = setInterval(async () => {
-            if (!isSupabaseEnabled || !supabase) return;
-
             try {
                 const { data, error } = await supabase
                     .from('music_track_listens')

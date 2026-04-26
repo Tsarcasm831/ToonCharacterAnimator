@@ -1,15 +1,7 @@
-import { supabase, isSupabaseEnabled } from "@/lib/supabase";
-
-function requireSupabase() {
-  if (!isSupabaseEnabled || !supabase) {
-    throw new Error("Supabase is not configured");
-  }
-
-  return supabase;
-}
+import { supabase } from "@/lib/supabase";
 
 export async function signUp(email: string, password: string) {
-  const { data, error } = await requireSupabase().auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
   });
@@ -19,7 +11,7 @@ export async function signUp(email: string, password: string) {
 }
 
 export async function signIn(email: string, password: string) {
-  const { data, error } = await requireSupabase().auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
@@ -29,7 +21,7 @@ export async function signIn(email: string, password: string) {
 }
 
 export async function signOut() {
-  const { error } = await requireSupabase().auth.signOut();
+  const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
 
@@ -37,7 +29,7 @@ export async function getCurrentUser() {
   const {
     data: { user },
     error,
-  } = await requireSupabase().auth.getUser();
+  } = await supabase.auth.getUser();
 
   if (error) throw error;
   return user;
