@@ -1,0 +1,6 @@
+{
+  "name": "Apex Core",
+  "description": "A 3D planetary defense prototype set in space where a central core defends against endless incoming asteroid waves.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

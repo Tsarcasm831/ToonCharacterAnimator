@@ -471,12 +471,12 @@ export class Game {
         this.entityManager.spawnCombatEncounter(enemyType, enemyCount, arena, reservedCells);
 
         const enemies = [...this.entityManager.imps];
-        if (friendlyEntities.length === 0 || enemies.length === 0) {
+        if (enemies.length === 0) {
             this.combatInitialized = false;
             return false;
         }
 
-        this.combatSystem.initializeCombat(null, friendlyEntities, enemies, arena);
+        this.combatSystem.initializeCombat(this.player, friendlyEntities, enemies, arena);
         this.combatInitialized = true;
         this.combatManager.setCombatActive(true);
         return true;

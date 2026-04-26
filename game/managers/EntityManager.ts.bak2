@@ -557,27 +557,7 @@ export class EntityManager {
         const lower = type.toLowerCase();
         let spawnedUnit: any = null;
 
-        if (lower === 'sentinel' || lower === 'vanguard sentinel') {
-            const sentinel = new Sentinel(this.scene, snappedPos);
-            sentinel.rotationY = Math.PI;
-            this.sentinels.push(sentinel);
-            spawnedUnit = sentinel;
-        } else if (lower === 'knight') {
-            const knight = new Knight(this.scene, snappedPos);
-            knight.rotationY = Math.PI;
-            this.knights.push(knight);
-            spawnedUnit = knight;
-        } else if (lower === 'paladin' || lower === 'iron paladin') {
-            const paladin = new Paladin(this.scene, snappedPos);
-            paladin.rotationY = Math.PI;
-            this.paladins.push(paladin);
-            spawnedUnit = paladin;
-        } else if (lower === 'monk' || lower === 'storm adept') {
-            const monk = new Monk(this.scene, snappedPos);
-            monk.rotationY = Math.PI;
-            this.monks.push(monk);
-            spawnedUnit = monk;
-        } else if (lower === 'bandit' || lower === 'shade assassin') {
+        if (lower === 'bandit') {
             const bandit = new Bandit(this.scene, snappedPos);
             bandit.rotationY = 0;
             this.bandits.push(bandit);
@@ -587,7 +567,7 @@ export class EntityManager {
             cleric.rotationY = Math.PI;
             this.clerics.push(cleric);
             spawnedUnit = cleric;
-        } else if (lower === 'ranger' || lower === 'arc ranger') {
+        } else if (lower === 'ranger') {
             const ranger = new Ranger(this.scene, snappedPos, '#228b22');
             ranger.rotationY = Math.PI;
             this.rangers.push(ranger);

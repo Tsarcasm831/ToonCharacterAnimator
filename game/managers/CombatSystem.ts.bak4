@@ -3,16 +3,15 @@ import { EntityStats, UnitState, TurnPhase } from '../../types';
 import { CombatEnvironment } from '../environment/CombatEnvironment';
 import { CombatUnit } from './CombatTypes';
 import { TurnManager } from './TurnManager';
+import { AIController } from './AIController';
 
 export class CombatSystem {
     private units: CombatUnit[] = [];
     private combatEnded: boolean = false;
     public turnManager: TurnManager;
+    private aiController: AIController;
     private currentEnvironment: CombatEnvironment | null = null;
     private static readonly CELL_MOVE_DURATION_SECONDS = 0.5;
-    private static readonly MELEE_GRID_RANGE = 1;
-    private static readonly DEFAULT_RANGED_GRID_RANGE = 3;
-    private static readonly ATTACK_ANIMATION_SECONDS = 0.28;
     
     public onCombatLog?: (message: string, type: 'info' | 'damage' | 'heal' | 'death') => void;
     public onCombatEnd?: (playerWon: boolean) => void;
@@ -21,10 +20,16 @@ export class CombatSystem {
     public onTurnChanged?: (unit: CombatUnit) => void;
 
     constructor() {
+        this.aiController = new AIController(this);
         this.turnManager = new TurnManager();
         this.turnManager.onTurnStart = (unit) => {
             this.onCombatLog?.(`${this.getUnitName(unit)}'s Turn`, 'info');
             this.onTurnChanged?.(unit);
+
+            // Combat runs fully automated after the start button is pressed.
+            if (this.currentEnvironment) {
+                this.aiController.onTurnStart(unit, this.currentEnvironment);
+            }
         };
     }
 
@@ -51,7 +56,10 @@ export class CombatSystem {
             return;
         }
 
-        this.onCombatLog?.(`Auto battle started! ${this.getAliveFriendlyCount()} allies vs ${this.getAliveEnemyCount()} enemies`, 'info');
+        this.onCombatLog?.(`Combat started! ${this.getAliveFriendlyCount()} allies vs ${this.getAliveEnemyCount()} enemies`, 'info');
+        
+        // Start Turn-Based System
+        this.turnManager.startCombat(this.units);
     }
 
     private addUnit(entity: any, isFriendly: boolean) {
@@ -83,7 +91,7 @@ export class CombatSystem {
             currentInitiative: 0,
             baseDefense: fullStats.defense || 10, // Store original defense
             state: 'IDLE',
-            attackTimer: Math.random() * this.getAttackIntervalSeconds(fullStats),
+            attackTimer: 0,
             target: null,
             path: [],
             nextMovePos: null
@@ -105,7 +113,7 @@ export class CombatSystem {
         this.currentEnvironment = environment;
         environment.clearOccupiedCells();
 
-        // Sync grid positions first so every fighter sees the same board.
+        // Sync grid positions first (always important)
         for (const unit of this.units) {
             if (unit.isAlive) {
                 // Update Entity Combat State
@@ -125,9 +133,10 @@ export class CombatSystem {
             }
         }
 
+        // Handle Visuals / Animations for the active unit or moving units
         for (const unit of this.units) {
             if (!unit.isAlive) continue;
-            this.updateAutoBattlerUnit(unit, dt, environment);
+            this.updateUnitVisuals(unit, dt, environment);
         }
 
         // Check Victory Conditions
@@ -139,129 +148,11 @@ export class CombatSystem {
         }
     }
 
-    private updateAutoBattlerUnit(unit: CombatUnit, dt: number, environment: CombatEnvironment) {
-        if (unit.attackTimer > 0) {
-            unit.attackTimer = Math.max(0, unit.attackTimer - dt);
-        }
-
+    private updateUnitVisuals(unit: CombatUnit, dt: number, environment: CombatEnvironment) {
+        // If unit is moving, handle interpolation
         if (unit.state === 'MOVING') {
-            this.handleVisualMovement(unit, dt, environment);
-            return;
+             this.handleVisualMovement(unit, dt, environment);
         }
-
-        if (unit.state === 'ATTACKING') {
-            const attackState = unit as CombatUnit & { __attackAnimTimer?: number };
-            attackState.__attackAnimTimer = Math.max(0, (attackState.__attackAnimTimer ?? 0) - dt);
-            if (attackState.__attackAnimTimer <= 0) {
-                unit.state = 'IDLE';
-                attackState.__attackAnimTimer = undefined;
-            }
-            return;
-        }
-
-        const target = this.findBestTarget(unit);
-        unit.target = target;
-        if (!target) return;
-
-        if (this.isTargetInRange(unit, target, environment)) {
-            if (unit.attackTimer <= 0) {
-                this.executeAttack(unit, target);
-            }
-            return;
-        }
-
-        const path = this.findPathToEngagementRange(unit, target, environment);
-        if (path.length > 0) {
-            unit.path = path.slice(0, 1);
-            unit.nextMovePos = null;
-            unit.state = 'MOVING';
-        }
-    }
-
-    private findBestTarget(unit: CombatUnit): CombatUnit | null {
-        let bestTarget: CombatUnit | null = null;
-        let bestScore = Infinity;
-
-        for (const other of this.units) {
-            if (other.isFriendly === unit.isFriendly || !other.isAlive) continue;
-
-            const distance = this.getDistance(unit, other);
-            const healthRatio = other.stats.maxHealth > 0 ? other.stats.health / other.stats.maxHealth : 1;
-            const score = distance + healthRatio * 2;
-            if (score < bestScore) {
-                bestScore = score;
-                bestTarget = other;
-            }
-        }
-
-        return bestTarget;
-    }
-
-    private findPathToEngagementRange(unit: CombatUnit, target: CombatUnit, environment: CombatEnvironment): { r: number; c: number }[] {
-        const unitPos = this.getUnitPosition(unit);
-        const targetPos = this.getUnitPosition(target);
-        if (!unitPos || !targetPos) return [];
-
-        const desiredRange = this.getGridAttackRange(unit);
-        let bestPath: { r: number; c: number }[] = [];
-        let bestPathCost = Infinity;
-        let bestTargetDistance = Infinity;
-
-        for (let r = 0; r < environment.GRID_ROWS; r += 1) {
-            for (let c = 0; c < environment.GRID_COLS; c += 1) {
-                if (unit.gridPos && r === unit.gridPos.r && c === unit.gridPos.c) continue;
-                if (environment.isCellOccupied(r, c)) continue;
-
-                const candidatePos = environment.getWorldPosition(r, c);
-                const candidateDistanceToTarget = environment.getPath(candidatePos, targetPos).length;
-                if (candidateDistanceToTarget < CombatSystem.MELEE_GRID_RANGE || candidateDistanceToTarget > desiredRange) {
-                    continue;
-                }
-
-                const pathToCandidate = environment.getPath(unitPos, candidatePos);
-                if (pathToCandidate.length === 0) continue;
-
-                if (
-                    pathToCandidate.length < bestPathCost ||
-                    (pathToCandidate.length === bestPathCost && candidateDistanceToTarget < bestTargetDistance)
-                ) {
-                    bestPath = pathToCandidate;
-                    bestPathCost = pathToCandidate.length;
-                    bestTargetDistance = candidateDistanceToTarget;
-                }
-            }
-        }
-
-        if (bestPath.length > 0) return bestPath;
-
-        const fallbackPath = environment.getPath(unitPos, targetPos);
-        if (fallbackPath.length > 0) fallbackPath.pop();
-        return fallbackPath;
-    }
-
-    private isTargetInRange(unit: CombatUnit, target: CombatUnit, environment: CombatEnvironment): boolean {
-        const unitPos = this.getUnitPosition(unit);
-        const targetPos = this.getUnitPosition(target);
-        if (!unitPos || !targetPos) return false;
-
-        const gridDistance = environment.getPath(unitPos, targetPos).length;
-        if (gridDistance > 0 && gridDistance <= this.getGridAttackRange(unit)) {
-            return true;
-        }
-
-        return unitPos.distanceTo(targetPos) <= (unit.stats.range || 1.5);
-    }
-
-    private getGridAttackRange(unit: CombatUnit): number {
-        const name = unit.entity?.constructor?.name;
-        if (name === 'Ranger' || name === 'Archer' || name === 'Mage' || name === 'Warlock' || name === 'Cleric') {
-            return CombatSystem.DEFAULT_RANGED_GRID_RANGE;
-        }
-        return CombatSystem.MELEE_GRID_RANGE;
-    }
-
-    private getAttackIntervalSeconds(stats: EntityStats): number {
-        return 1 / Math.max(0.2, stats.attackSpeed || 1);
     }
 
     private handleVisualMovement(unit: CombatUnit, dt: number, environment: CombatEnvironment) {
@@ -319,8 +210,6 @@ export class CombatSystem {
             if (unitPos.distanceTo(unit.nextMovePos) < 0.05) {
                 // Snap to exact pos
                 if (unit.entity.position) unit.entity.position.copy(unit.nextMovePos);
-                else if (unit.entity.mesh?.position) unit.entity.mesh.position.copy(unit.nextMovePos);
-                else if (unit.entity.model?.group?.position) unit.entity.model.group.position.copy(unit.nextMovePos);
                 
                 unit.path.shift();
                 unit.nextMovePos = null;
@@ -378,11 +267,11 @@ export class CombatSystem {
             return;
         }
         if (attacker.stats.hasActedThisTurn) {
-            attacker.stats.hasActedThisTurn = false;
+            this.onCombatLog?.(`${this.getUnitName(attacker)} has already acted this turn!`, 'info');
+            return;
         }
 
         attacker.state = 'ATTACKING';
-        (attacker as CombatUnit & { __attackAnimTimer?: number }).__attackAnimTimer = CombatSystem.ATTACK_ANIMATION_SECONDS;
         
         // Face target
         const unitPos = this.getUnitPosition(attacker);
@@ -402,7 +291,13 @@ export class CombatSystem {
         this.performDamageCalc(attacker, defender);
 
         attacker.stats.hasActedThisTurn = true;
-        attacker.attackTimer = this.getAttackIntervalSeconds(attacker.stats);
+        
+        // After attack, brief delay then return to IDLE?
+        // For turn based, we stay in 'ATTACKING' visually until anim is done? 
+        // Simulating simple timer for now.
+        setTimeout(() => {
+            if (attacker.isAlive) attacker.state = 'IDLE';
+        }, 1000);
     }
 
     private performDamageCalc(attacker: CombatUnit, defender: CombatUnit) {
@@ -432,7 +327,6 @@ export class CombatSystem {
         unit.state = 'DEAD';
         this.onCombatLog?.(`${this.getUnitName(unit)} died!`, 'death');
         this.onUnitDeath?.(unit.entity);
-        unit.entity.isDead = true;
         
         // Visual cleanup
         if (unit.entity.model?.group) unit.entity.model.group.visible = false;
@@ -466,13 +360,6 @@ export class CombatSystem {
 
     private getUnitPosition(unit: CombatUnit): THREE.Vector3 | null {
         return unit.entity?.position || unit.entity?.mesh?.position || unit.entity?.model?.group?.position || null;
-    }
-
-    private getDistance(u1: CombatUnit, u2: CombatUnit): number {
-        const p1 = this.getUnitPosition(u1);
-        const p2 = this.getUnitPosition(u2);
-        if (!p1 || !p2) return Infinity;
-        return p1.distanceTo(p2);
     }
 
     private getUnitName(unit: CombatUnit): string {
