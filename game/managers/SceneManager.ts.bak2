@@ -11,7 +11,7 @@ import { Player } from '../player/Player';
 import { PlayerUtils } from '../player/PlayerUtils';
 import { landCoordsToWorld, getLandHeightAt } from '../environment/landTerrain';
 
-export type SceneType = 'dev' | 'starter' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'gameLoop' | 'darkest';
+export type SceneType = 'dev' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'gameLoop' | 'darkest';
 
 export class SceneManager {
     public activeScene: SceneType;
@@ -51,7 +51,7 @@ export class SceneManager {
             if (!this.environment) {
                 this.environment = new Environment(this.scene);
             }
-        } else if (sceneName === 'singleBiome' || sceneName === 'starter') {
+        } else if (sceneName === 'singleBiome') {
             if (!this.singleBiomeEnvironment) {
                 this.singleBiomeEnvironment = new SingleBiomeEnvironment(this.scene);
             }
@@ -75,7 +75,7 @@ export class SceneManager {
     }
 
     private usesEnvironmentLighting(sceneName: SceneType): boolean {
-        return sceneName === 'dev' || sceneName === 'singleBiome' || sceneName === 'starter' || sceneName === 'town' || sceneName === 'town2' || sceneName === 'tdgame' || sceneName === 'gameLoop';
+        return sceneName === 'dev' || sceneName === 'singleBiome' || sceneName === 'town' || sceneName === 'town2' || sceneName === 'tdgame' || sceneName === 'gameLoop';
     }
 
     private unloadEnvironments(except: SceneType) {
@@ -83,7 +83,7 @@ export class SceneManager {
             this.environment.dispose();
             this.environment = null;
         }
-        if (except !== 'singleBiome' && except !== 'starter' && this.singleBiomeEnvironment) {
+        if (except !== 'singleBiome' && this.singleBiomeEnvironment) {
             this.singleBiomeEnvironment.dispose();
             this.singleBiomeEnvironment = null;
         }
@@ -111,7 +111,7 @@ export class SceneManager {
 
     public get currentEnvironment() {
         if (this.activeScene === 'dev') return this.environment;
-        if (this.activeScene === 'singleBiome' || this.activeScene === 'starter') return this.singleBiomeEnvironment;
+        if (this.activeScene === 'singleBiome') return this.singleBiomeEnvironment;
         if (this.activeScene === 'town') return this.townEnvironment;
         if (this.activeScene === 'town2' || this.activeScene === 'tdgame' || this.activeScene === 'gameLoop') return this.town2Environment;
         if (this.activeScene === 'land') return this.landEnvironment;
@@ -119,10 +119,10 @@ export class SceneManager {
         return null;
     }
 
-    public updateSingleBiomeLand(points: number[][], biome?: { name: string, color: string, type?: string }, options?: { spawnHive?: boolean }) {
+    public updateSingleBiomeLand(points: number[][], biome?: { name: string, color: string, type?: string }) {
         console.log(`[SceneManager] updateSingleBiomeLand called. ActiveScene: ${this.activeScene}, Env: ${!!this.singleBiomeEnvironment}`);
-        if ((this.activeScene === 'singleBiome' || this.activeScene === 'starter') && this.singleBiomeEnvironment) {
-            this.singleBiomeEnvironment.setLandData(points, biome, options);
+        if (this.activeScene === 'singleBiome' && this.singleBiomeEnvironment) {
+            this.singleBiomeEnvironment.setLandData(points, biome);
             // Trigger environment ready after land data is applied
             console.log(`[SceneManager] land data applied, triggering onEnvironmentReady`);
             this.onEnvironmentReady?.();
@@ -211,13 +211,13 @@ export class SceneManager {
             this.renderManager.controls.enableRotate = true;
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
-        } else if (sceneName === 'singleBiome' || sceneName === 'starter') {
+        } else if (sceneName === 'singleBiome') {
             this.player.show(); // Ensure player is visible
             this.player.mesh.position.set(0, 5, 0);
             this.renderManager.controls.target.set(0, 1.7, 0);
             this.renderManager.camera.position.set(0, 8, 10);
 
-            this.renderManager.controls.enableRotate = sceneName !== 'starter';
+            this.renderManager.controls.enableRotate = true;
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'land') {
@@ -279,7 +279,7 @@ export class SceneManager {
     public update(delta: number, config: any) {
         if (this.activeScene === 'dev' && this.environment) {
             this.environment.update(delta, config, this.player.mesh.position);
-        } else if ((this.activeScene === 'singleBiome' || this.activeScene === 'starter') && this.singleBiomeEnvironment) {
+        } else if (this.activeScene === 'singleBiome' && this.singleBiomeEnvironment) {
             this.singleBiomeEnvironment.update(delta, config, this.player.mesh.position);
         } else if (this.activeScene === 'town' && this.townEnvironment) {
             this.townEnvironment.update(delta, config, this.player.mesh.position);

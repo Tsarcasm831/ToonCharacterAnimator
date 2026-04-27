@@ -39,7 +39,7 @@ export class SingleBiomeEnvironment {
         this.updateSkySphereForBounds(worldWidth, worldDepth);
     }
 
-    public setLandData(points: number[][], biome?: { name: string, color: string, type?: string }) {
+    public setLandData(points: number[][], biome?: { name: string, color: string, type?: string }, options: { spawnHive?: boolean } = {}) {
         console.log(`[SingleBiomeEnvironment] setLandData called. Points: ${points?.length}, Biome: ${biome?.name}`);
         this.landPoints = points;
         if (biome) {
@@ -54,12 +54,14 @@ export class SingleBiomeEnvironment {
         this.group.visible = true;
         this.build();
 
-        // Initialize HiveMindController
         if (this.hiveController) {
             this.hiveController.dispose();
+            this.hiveController = null;
         }
-        // Spawn slightly offset from center/player
-        this.hiveController = new HiveMindController(this.scene, new THREE.Vector3(10, 3, 10), 50);
+        if (options.spawnHive !== false) {
+            // Spawn slightly offset from center/player
+            this.hiveController = new HiveMindController(this.scene, new THREE.Vector3(10, 3, 10), 50);
+        }
     }
 
     public setVisible(visible: boolean) {

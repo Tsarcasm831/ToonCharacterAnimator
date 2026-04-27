@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DevScene from '../../DevScene';
+import Starter from '../../Starter';
 import CombatScene from '../../CombatScene';
 import MPTestScene from '../../MPTestScene';
 import SingleBiomeScene from '../../SingleBiomeScene';
@@ -1160,6 +1161,25 @@ export const Game: React.FC = () => {
                                                 handleEnvironmentReady();
                                                 scheduleVisualLoadingDone();
                                             }}
+                                            onToggleQuestLog={uiState.toggleQuestLog}
+                                            showGrid={showGrid}
+                                            isCombatActive={isCombatActive}
+                                        />
+                                    ) : activeScene === 'starter' ? (
+                                        <Starter
+                                            activeScene={activeScene}
+                                            config={config}
+                                            manualInput={manualInput}
+                                            initialInventory={inventory}
+                                            onInventoryUpdate={setInventory}
+                                            onSlotSelect={setSelectedSlot}
+                                            onInteractionUpdate={handleInteractionUpdate}
+                                            onGameReady={onGameReady}
+                                            onEnvironmentReady={() => {
+                                                handleEnvironmentReady();
+                                                scheduleVisualLoadingDone();
+                                            }}
+                                            onToggleWorldMap={handleMapToggle}
                                             onToggleQuestLog={uiState.toggleQuestLog}
                                             showGrid={showGrid}
                                             isCombatActive={isCombatActive}

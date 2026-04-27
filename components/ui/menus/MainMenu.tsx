@@ -17,6 +17,7 @@ interface MainMenuProps {
 
 const sceneOptions: Array<{ id: ActiveScene; label: string; activeClassName?: string }> = [
     { id: 'dev', label: 'Dev Scene', activeClassName: 'bg-green-500 border-green-400' },
+    { id: 'starter', label: 'Starter Scene' },
     { id: 'combat', label: 'Combat Arena' },
     { id: 'land', label: 'Land Scene' },
     { id: 'town', label: 'Town Scene' },
