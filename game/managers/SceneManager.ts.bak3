@@ -217,7 +217,7 @@ export class SceneManager {
             this.renderManager.controls.target.set(0, 1.7, 0);
             this.renderManager.camera.position.set(0, 8, 10);
 
-            this.renderManager.controls.enableRotate = sceneName !== 'starter';
+            this.renderManager.controls.enableRotate = true;
             this.renderManager.controls.enableZoom = true;
             this.renderManager.controls.enablePan = true;
         } else if (sceneName === 'land') {

@@ -205,7 +205,7 @@ export class Game {
             this.setupTown2Scene();
         }
         
-        if (activeScene !== 'singleBiome') {
+        if (activeScene !== 'singleBiome' && activeScene !== 'starter') {
             this.scheduleEnvironmentReady(activeScene);
         }
 
@@ -517,7 +517,7 @@ export class Game {
             this.setupTown2Scene();
         }
 
-        if (!isInit && sceneName !== 'singleBiome') {
+        if (!isInit && sceneName !== 'singleBiome' && sceneName !== 'starter') {
             this.scheduleEnvironmentReady(sceneName);
         }
     }
