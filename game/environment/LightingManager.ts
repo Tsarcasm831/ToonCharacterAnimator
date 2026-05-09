@@ -138,6 +138,8 @@ export class LightingManager {
         const lightIntensity = Math.max(0, sunAltitude * 0.8 + 0.1);
         this.sunLight.intensity = lightIntensity;
         
+        this.sunLight.castShadow = sunAltitude > 0.28;
+
         if (sunAltitude > 0 && sunAltitude < 0.2) {
             this.sunLight.color.setHSL(0.08, 0.8, 0.7);
         } else if (sunAltitude <= 0) {

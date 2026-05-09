@@ -9,6 +9,7 @@ import Town2Scene from '../../Town2Scene';
 import TDGameScene from '../../TDGameScene';
 import RoguelikeScene from '../../RoguelikeScene';
 import DarkestScene from '../../DarkestScene';
+import Loop from '../../Loop';
 import { useGlobalState } from '../../../contexts/GlobalContext';
 import { isSupabaseEnabled } from '../../../lib/supabase';
 import { signIn, signUp } from '../../../lib/auth';
@@ -40,17 +41,39 @@ const AuthGate: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const snowflakes = React.useMemo(() => {
-        return Array.from({ length: 34 }, (_, index) => {
-            const seed = index + 1;
+    const snowLayers = React.useMemo(() => {
+        const snowfallDensity = 0.84;
+        const layerCount = Math.round(4 + snowfallDensity * 5);
+
+        return Array.from({ length: layerCount }, (_, layerIndex) => {
+            const depth = layerCount === 1 ? 1 : layerIndex / (layerCount - 1);
+            const isBackLayer = depth < 0.28;
+            const flakeCount = Math.round((isBackLayer ? 78 - layerIndex * 8 : 24 + layerIndex * 8) * snowfallDensity);
+
             return {
-                id: seed,
-                left: `${(seed * 6.47) % 100}%`,
-                size: 3 + (seed % 4),
-                opacity: 0.5 + ((seed * 9) % 35) / 100,
-                duration: 6.5 + (seed % 7) * 0.9,
-                delay: -(seed % 16) * 0.42,
-                drift: 8 + (seed % 6) * 12,
+                id: `snow-layer-${layerIndex}`,
+                opacity: isBackLayer ? 0.72 : 0.62 + depth * 0.28,
+                zIndex: 10 + layerIndex,
+                flakes: Array.from({ length: flakeCount }, (_, flakeIndex) => {
+                    const dust = isBackLayer;
+                    const size = dust
+                        ? 1 + Math.random() * 2.7
+                        : 1.4 + depth * 5.4 + Math.random() * (2 + depth * 4.5);
+
+                    return {
+                        id: `snow-${layerIndex}-${flakeIndex}`,
+                        left: `${-10 + Math.random() * 120}%`,
+                        top: `${Math.random() * 100}%`,
+                        size,
+                        blur: dust ? 0.05 + Math.random() * 0.35 : 0.08 + depth * 0.85 + Math.random() * 0.4,
+                        opacity: dust ? 0.16 + Math.random() * 0.26 : 0.16 + depth * 0.34 + Math.random() * 0.2,
+                        duration: 20 - depth * 12 + Math.random() * (8 - depth * 3),
+                        delay: -Math.random() * 22,
+                        drift: `${28 + depth * 150 + Math.random() * (50 + depth * 120)}px`,
+                        startY: `${-20 - Math.random() * 90}vh`,
+                        dust,
+                    };
+                }),
             };
         });
     }, []);
@@ -94,67 +117,41 @@ const AuthGate: React.FC = () => {
                 />
             </div>
             <div className="absolute inset-0 z-[5] bg-[#050913]/70" />
-            {/* Background glow */}
-            <div className="absolute inset-0 z-[6] overflow-hidden pointer-events-none">
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-blue-900/20 blur-[120px]" />
-                <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-indigo-900/15 blur-[80px]" />
+            <div className="absolute inset-0 z-[6] pointer-events-none bg-[radial-gradient(ellipse_at_50%_34%,rgba(96,165,250,0.2),transparent_34%),linear-gradient(180deg,rgba(8,13,26,0.18),rgba(3,8,18,0.74)_82%)]" />
+            <div className="absolute inset-0 z-[8] pointer-events-none overflow-hidden opacity-70 mix-blend-screen">
+                <div className="absolute -inset-x-16 top-[12%] h-48 rotate-[-7deg] bg-[linear-gradient(90deg,transparent,rgba(219,234,254,0.14),transparent)] blur-2xl animate-[loginSnowVeil_16s_ease-in-out_infinite]" />
+                <div className="absolute -inset-x-20 bottom-[18%] h-36 rotate-[-5deg] bg-[linear-gradient(90deg,transparent,rgba(125,211,252,0.1),transparent)] blur-2xl animate-[loginSnowVeil_22s_ease-in-out_-7s_infinite]" />
             </div>
-            <div
-                className="absolute inset-0 z-[12] pointer-events-none overflow-hidden opacity-75"
-                style={{
-                    backgroundImage: [
-                        'radial-gradient(circle at 20% 20%, rgba(255,255,255,0.95) 0 1.2px, transparent 1.6px)',
-                        'radial-gradient(circle at 60% 30%, rgba(255,255,255,0.8) 0 1px, transparent 1.4px)',
-                        'radial-gradient(circle at 35% 70%, rgba(255,255,255,0.7) 0 1.4px, transparent 1.8px)'
-                    ].join(', '),
-                    backgroundSize: '180px 180px, 240px 240px, 300px 300px',
-                    animation: 'loginSnowField 18s linear infinite',
-                }}
-            />
-            <div className="absolute inset-0 z-[15] pointer-events-none overflow-hidden [contain:layout_paint]">
-                {snowflakes.map((flake) => (
-                    <span
-                        key={flake.id}
-                        className="absolute left-0 top-0 will-change-transform"
-                        style={{
-                            left: flake.left,
-                            top: '-24vh',
-                            width: `${flake.size + 6}px`,
-                            height: `${flake.duration > 0 ? flake.size + 10 : flake.size + 10}px`,
-                            opacity: flake.opacity,
-                            animation: `loginSnowfall ${flake.duration}s linear ${flake.delay}s infinite`,
-                        }}
-                    >
+            {snowLayers.map((layer) => (
+                <div
+                    key={layer.id}
+                    className="absolute inset-0 pointer-events-none overflow-hidden [contain:layout_paint]"
+                    style={{ zIndex: layer.zIndex, opacity: layer.opacity }}
+                >
+                    {layer.flakes.map((flake) => (
                         <span
-                            className="absolute left-0 top-0"
-                        >
-                            <span
-                                className="absolute left-0 top-0 rounded-full bg-cyan-50/95 shadow-[0_0_12px_rgba(255,255,255,0.4)] mix-blend-screen"
-                                style={{
-                                    width: `${flake.size}px`,
-                                    height: `${flake.size}px`,
-                                    filter: 'blur(0.2px) drop-shadow(0 0 6px rgba(255,255,255,0.45))',
-                                    animation: `loginSnowSway ${(flake.duration * 0.74).toFixed(2)}s ease-in-out ${flake.delay}s infinite alternate`,
-                                }}
-                            />
-                        </span>
-                        <span
-                            className="absolute left-0 top-0"
-                            style={{ transform: 'translateY(-160vh)' }}
-                        >
-                            <span
-                                className="absolute left-0 top-0 rounded-full bg-cyan-50/95 shadow-[0_0_12px_rgba(255,255,255,0.4)] mix-blend-screen"
-                                style={{
-                                    width: `${flake.size}px`,
-                                    height: `${flake.size}px`,
-                                    filter: 'blur(0.2px) drop-shadow(0 0 6px rgba(255,255,255,0.45))',
-                                    animation: `loginSnowSway ${(flake.duration * 0.74).toFixed(2)}s ease-in-out ${flake.delay}s infinite alternate`,
-                                }}
-                            />
-                        </span>
-                    </span>
-                ))}
-            </div>
+                            key={flake.id}
+                            className={`absolute top-0 rounded-full will-change-transform mix-blend-screen ${
+                                flake.dust
+                                    ? 'bg-slate-100/75'
+                                    : 'bg-cyan-50/85 shadow-[0_0_10px_rgba(255,255,255,0.24)]'
+                            }`}
+                            style={{
+                                ['--snow-drift' as any]: flake.drift,
+                                ['--snow-start-y' as any]: flake.startY,
+                                left: flake.left,
+                                top: `${flake.dust ? flake.top : 0}`,
+                                width: `${flake.size}px`,
+                                height: `${flake.size}px`,
+                                opacity: flake.opacity,
+                                filter: `blur(${flake.blur}px)`,
+                                animation: `${flake.dust ? 'loginSnowDrift' : 'loginSnowFall'} ${flake.duration}s ${flake.dust ? 'ease-in-out' : 'linear'} ${flake.delay}s infinite ${flake.dust ? 'alternate' : ''}`,
+                            }}
+                        />
+                    ))}
+                </div>
+            ))}
+            <div className="absolute inset-x-0 bottom-0 z-[18] h-1/3 pointer-events-none bg-[linear-gradient(180deg,transparent,rgba(5,9,19,0.38))]" />
 
             <div className="relative z-[30] w-full max-w-md">
                 {/* Logo / Title */}
@@ -261,30 +258,32 @@ const AuthGate: React.FC = () => {
                         </p>
 
                         <style>{`
-                            @keyframes loginSnowfall {
+                            @keyframes loginSnowFall {
+                                0% {
+                                    transform: translate3d(0, var(--snow-start-y, -20vh), 0) rotate(-12deg);
+                                }
+                                100% {
+                                    transform: translate3d(var(--snow-drift, 80px), 124vh, 0) rotate(-12deg);
+                                }
+                            }
+
+                            @keyframes loginSnowVeil {
+                                0%, 100% {
+                                    transform: translate3d(-5%, 0, 0);
+                                    opacity: 0.32;
+                                }
+                                45% {
+                                    transform: translate3d(6%, 18px, 0);
+                                    opacity: 0.58;
+                                }
+                            }
+
+                            @keyframes loginSnowDrift {
                                 0% {
                                     transform: translate3d(0, 0, 0);
                                 }
                                 100% {
-                                    transform: translate3d(0, 160vh, 0);
-                                }
-                            }
-
-                            @keyframes loginSnowSway {
-                                0% {
-                                    transform: translateX(0);
-                                }
-                                100% {
-                                    transform: translateX(24px);
-                                }
-                            }
-
-                            @keyframes loginSnowField {
-                                0% {
-                                    background-position: 0 0, 0 0, 0 0;
-                                }
-                                100% {
-                                    background-position: 0 320px, 0 520px, 0 760px;
+                                    transform: translate3d(calc(var(--snow-drift, 18px) * 0.22), 14px, 0);
                                 }
                             }
                         `}</style>
@@ -1025,7 +1024,7 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
-    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest';
+    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest' && activeScene !== 'loop';
     const showCreatorPanel = isCharacterCreatorMode && gameState === 'PLAYING';
 
     // Auth gate: if Supabase is configured and user is not logged in, block access
@@ -1264,6 +1263,13 @@ export const Game: React.FC = () => {
                                         <RoguelikeScene />
                                     ) : activeScene === 'darkest' ? (
                                         <DarkestScene
+                                            onReady={() => {
+                                                handleEnvironmentReady();
+                                                scheduleVisualLoadingDone();
+                                            }}
+                                        />
+                                    ) : activeScene === 'loop' ? (
+                                        <Loop
                                             onReady={() => {
                                                 handleEnvironmentReady();
                                                 scheduleVisualLoadingDone();

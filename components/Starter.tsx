@@ -102,7 +102,7 @@ const Starter: React.FC<StarterSceneProps> = ({
 
   return (
     <>
-      <div ref={containerRef} className="w-full h-full" onContextMenu={(e) => e.preventDefault()} />
+      <div ref={containerRef} className="w-full h-full" />
       <WorldMapModal isOpen={isWorldMapOpen} onClose={() => setIsWorldMapOpen(false)} />
     </>
   );
