@@ -20,7 +20,6 @@ export class CameraManager {
     private readonly tempHeadPos = new THREE.Vector3();
     private readonly tempForward = new THREE.Vector3();
     private readonly tempCamDir = new THREE.Vector3();
-    private readonly starterCameraOffset = new THREE.Vector3(0, 6.3, 8.5);
     private readonly fpvEuler = new THREE.Euler(0, 0, 0, 'YXZ');
     private lastMouseX: number | null = null;
     private lastMouseY: number | null = null;
@@ -195,12 +194,8 @@ export class CameraManager {
 
                 this.tempCamDir.set(0, 0, -1).applyQuaternion(this.renderManager.camera.quaternion);
                 this.renderManager.controls.target.copy(this.tempHeadPos).add(this.tempCamDir);
-            } else if (activeScene === 'starter') {
-                this.renderManager.controls.target.copy(this.tempTargetPos);
-                this.renderManager.camera.position.copy(this.tempTargetPos).add(this.starterCameraOffset);
-                this.renderManager.controls.update();
             } else {
-                // TPV Logic
+                // TPV Logic (includes starter scene)
                 this.prevTargetPos.copy(this.renderManager.controls.target);
                 this.renderManager.controls.target.copy(this.tempTargetPos);
                 this.tempDeltaPos.subVectors(this.renderManager.controls.target, this.prevTargetPos);

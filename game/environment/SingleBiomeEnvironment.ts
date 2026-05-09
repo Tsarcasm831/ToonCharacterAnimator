@@ -200,16 +200,19 @@ export class SingleBiomeEnvironment {
             color: new THREE.Color(this.currentBiome.color),
             roughness: 0.8,
             metalness: 0.1,
-            side: THREE.DoubleSide
+            side: THREE.FrontSide
         });
 
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.receiveShadow = true;
-        this.mesh.castShadow = true;
+        this.mesh.castShadow = false;
         this.mesh.userData = { type: 'ground', terrainType: this.currentBiome.type };
         
         this.group.add(this.mesh);
         this.obstacles.push(this.mesh);
+
+        // Spawn trees within the land polygon
+        this.spawnTrees(worldPoints, bounds);
 
         if (this.circularWallCenters.length > 0) {
             this.clearCircularWalls();
@@ -330,5 +333,31 @@ export class SingleBiomeEnvironment {
             });
         });
         this.circularWallGroups = [];
+    }
+
+    private spawnTrees(worldPoints: number[][], bounds: ReturnType<typeof calculateBounds>) {
+        const { worldMinX, worldMaxX, worldMinZ, worldMaxZ } = bounds;
+        const treeCount = 20;
+        
+        for (let i = 0; i < treeCount; i++) {
+            const x = worldMinX + Math.random() * (worldMaxX - worldMinX);
+            const z = worldMinZ + Math.random() * (worldMaxZ - worldMinZ);
+            
+            // Check if point is inside land polygon
+            if (!isPointInPolygon(x, z, worldPoints)) continue;
+            
+            const y = PlayerUtils.getTerrainHeight(x, z);
+            const pos = new THREE.Vector3(x, y, z);
+            
+            // Create tree based on biome type
+            const result = this.currentBiome.type === 'snow' 
+                ? ObjectFactory.createPineTree(pos, 1.2 + Math.random() * 0.8)
+                : ObjectFactory.createTree(pos);
+            
+            if (result && result.group && result.trunk) {
+                this.group.add(result.group);
+                this.obstacles.push(result.trunk);
+            }
+        }
     }
 }

@@ -218,12 +218,12 @@ export class Game {
         this._onMouseDown = this.onMouseDown.bind(this);
         this._onMouseUp = this.onMouseUp.bind(this);
         this._onContextMenu = this.onContextMenu.bind(this);
-        
+
         document.addEventListener('pointerlockchange', this._onPointerLockChange);
-        window.addEventListener('mousemove', this._onMouseMove);
-        window.addEventListener('mousedown', this._onMouseDown);
-        window.addEventListener('mouseup', this._onMouseUp);
-        window.addEventListener('contextmenu', this._onContextMenu);
+        window.addEventListener('mousemove', this._onMouseMove, { passive: true });
+        window.addEventListener('mousedown', this._onMouseDown, { passive: true });
+        window.addEventListener('mouseup', this._onMouseUp, { passive: true });
+        window.addEventListener('contextmenu', this._onContextMenu, { passive: false });
         
         this.animate = this.animate.bind(this);
         
@@ -305,6 +305,7 @@ export class Game {
     }
 
     private onMouseDown(e: MouseEvent) {
+        // Only handle combat and first-person - let OrbitControls handle everything else
         if (this.cameraManager.isFirstPerson && document.pointerLockElement !== this.renderManager.renderer.domElement) {
             this.renderManager.renderer.domElement.requestPointerLock();
         }
@@ -314,19 +315,24 @@ export class Game {
     }
 
     private onMouseMove(e: MouseEvent) {
+        // Only handle combat and first-person - let OrbitControls handle everything else
         if (this.sceneManager.activeScene === 'combat') {
             this.combatManager.handleMouseMove(e, this.sceneManager.combatEnvironment);
         }
-        this.cameraManager.handleMouseMove(e);
+        if (this.cameraManager.isFirstPerson) {
+            this.cameraManager.handleMouseMove(e);
+        }
     }
 
     private onMouseUp(e: MouseEvent) {
+        // Only handle combat - let OrbitControls handle everything else
         if (this.sceneManager.activeScene === 'combat') {
             this.combatManager.handleMouseUp(e, this.sceneManager.combatEnvironment);
         }
     }
-    
+
     private onContextMenu(e: MouseEvent) {
+        // Only handle combat - let OrbitControls handle right-click rotation for other scenes
         if (this.sceneManager.activeScene === 'combat') {
             e.preventDefault();
             this.combatManager.handleContextMenu(e);
