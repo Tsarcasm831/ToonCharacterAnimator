@@ -195,7 +195,7 @@ export class CameraManager {
                 this.tempCamDir.set(0, 0, -1).applyQuaternion(this.renderManager.camera.quaternion);
                 this.renderManager.controls.target.copy(this.tempHeadPos).add(this.tempCamDir);
             } else {
-                // TPV Logic
+                // TPV Logic (includes starter scene)
                 this.prevTargetPos.copy(this.renderManager.controls.target);
                 this.renderManager.controls.target.copy(this.tempTargetPos);
                 this.tempDeltaPos.subVectors(this.renderManager.controls.target, this.prevTargetPos);

@@ -17,6 +17,7 @@ interface MainMenuProps {
 
 const sceneOptions: Array<{ id: ActiveScene; label: string; activeClassName?: string }> = [
     { id: 'dev', label: 'Dev Scene', activeClassName: 'bg-green-500 border-green-400' },
+    { id: 'starter', label: 'Starter Scene' },
     { id: 'combat', label: 'Combat Arena' },
     { id: 'land', label: 'Land Scene' },
     { id: 'town', label: 'Town Scene' },
@@ -25,7 +26,8 @@ const sceneOptions: Array<{ id: ActiveScene; label: string; activeClassName?: st
     { id: 'singleBiome', label: 'Single Biome' },
     { id: 'roguelike', label: 'Roguelike Scene' },
     { id: 'darkest', label: 'Darkest Clone' },
-    { id: 'gameLoop', label: 'Game Loop' }
+    { id: 'gameLoop', label: 'Game Loop' },
+    { id: 'loop', label: 'Settlement Loop', activeClassName: 'bg-amber-500 border-amber-400' }
 ];
 
 const sceneOptionsLeft = sceneOptions.slice(0, Math.ceil(sceneOptions.length / 2));

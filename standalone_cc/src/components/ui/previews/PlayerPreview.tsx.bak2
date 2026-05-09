@@ -9,13 +9,6 @@ import { WeaponAction } from '../../../game/animator/actions/WeaponAction';
 import { UnarmedPunchAction } from '../../../game/animator/actions/UnarmedPunchAction';
 import { MovementAction } from '../../../game/animator/actions/MovementAction';
 import { FireArrowAction } from '../../../game/animator/actions/FireArrowAction';
-import { JumpAction } from '../../../game/animator/actions/JumpAction';
-import { PickupAction } from '../../../game/animator/actions/PickupAction';
-import { InteractAction } from '../../../game/animator/actions/InteractAction';
-import { WaveAction } from '../../../game/animator/actions/WaveAction';
-import { LeftHandWaveAction } from '../../../game/animator/actions/LeftHandWaveAction';
-import { SummonAction } from '../../../game/animator/actions/SummonAction';
-import { FireballAction } from '../../../game/animator/actions/FireballAction';
 
 interface PlayerPreviewProps {
     config: PlayerConfig;
@@ -1032,13 +1025,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
     const hitTimerRef = useRef(0);
     const prevAttack1Ref = useRef(false);
     const prevAttack2Ref = useRef(false);
-    const prevJumpRef = useRef(false);
-    const prevPickupRef = useRef(false);
-    const prevInteractRef = useRef(false);
-    const prevWaveRef = useRef(false);
-    const prevLeftWaveRef = useRef(false);
-    const prevSummonRef = useRef(false);
-    const prevFireballRef = useRef(false);
     const combatStateRef = useRef({
         isAxeSwing: false,
         axeSwingTimer: 0,
@@ -1050,23 +1036,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         bowState: 'draw' as 'draw' | 'release',
         bowCharge: 0,
         isCombatStance: false,
-    });
-    const actionStateRef = useRef({
-        isJumping: false,
-        jumpTimer: 0,
-        jumpVelocity: 0,
-        isPickingUp: false,
-        pickUpTime: 0,
-        isInteracting: false,
-        interactTimer: 0,
-        isWaving: false,
-        waveTimer: 0,
-        isLeftHandWaving: false,
-        leftHandWaveTimer: 0,
-        isSummoning: false,
-        summonTimer: 0,
-        isFireballCasting: false,
-        fireballTimer: 0,
     });
 
     const getWeaponAttackDuration = (selectedItem: PlayerConfig['selectedItem']) => {
@@ -1193,48 +1162,9 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             frameIdRef.current = requestAnimationFrame(animate);
             const dt = 0.016;
             const input = inputRef.current;
-            const actionState = actionStateRef.current;
 
             const attackPressed = !!input.attack1;
             const getHitPressed = !!input.attack2;
-            const jumpPressed = !!input.jump;
-            const pickupPressed = !!input.isPickingUp;
-            const interactPressed = !!input.interact;
-            const wavePressed = !!input.wave;
-            const leftWavePressed = !!input.leftHandWave;
-            const summonPressed = !!input.summon;
-            const fireballPressed = !!input.fireball;
-
-            if (jumpPressed && !prevJumpRef.current) {
-                actionState.isJumping = true;
-                actionState.jumpTimer = 0;
-                actionState.jumpVelocity = 0;
-            }
-            if (pickupPressed && !prevPickupRef.current) {
-                actionState.isPickingUp = true;
-                actionState.pickUpTime = 0;
-            }
-            if (interactPressed && !prevInteractRef.current) {
-                actionState.isInteracting = true;
-                actionState.interactTimer = 0;
-            }
-            if (wavePressed && !prevWaveRef.current) {
-                actionState.isWaving = true;
-                actionState.waveTimer = 0;
-            }
-            if (leftWavePressed && !prevLeftWaveRef.current) {
-                actionState.isLeftHandWaving = true;
-                actionState.leftHandWaveTimer = 0;
-            }
-            if (summonPressed && !prevSummonRef.current && !configRef.current.selectedItem) {
-                actionState.isSummoning = true;
-                actionState.summonTimer = 0;
-            }
-            if (fireballPressed && !prevFireballRef.current) {
-                actionState.isFireballCasting = true;
-                actionState.fireballTimer = 0;
-            }
-
             if (attackPressed && !prevAttack1Ref.current) {
                 if (configRef.current.selectedItem === 'Bow') {
                     combatStateRef.current.isFiringBow = true;
@@ -1269,13 +1199,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             }
             prevAttack1Ref.current = attackPressed;
             prevAttack2Ref.current = getHitPressed;
-            prevJumpRef.current = jumpPressed;
-            prevPickupRef.current = pickupPressed;
-            prevInteractRef.current = interactPressed;
-            prevWaveRef.current = wavePressed;
-            prevLeftWaveRef.current = leftWavePressed;
-            prevSummonRef.current = summonPressed;
-            prevFireballRef.current = fireballPressed;
 
             hitTimerRef.current = Math.max(0, hitTimerRef.current - dt);
 
@@ -1318,60 +1241,6 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                     combatStateRef.current.punchTimer = 0;
                 }
             }
-            if (actionState.isJumping) {
-                actionState.jumpTimer += dt;
-                if (actionState.jumpTimer < 0.28) {
-                    actionState.jumpVelocity = 1 - (actionState.jumpTimer / 0.28);
-                } else if (actionState.jumpTimer < 0.55) {
-                    actionState.jumpVelocity = -((actionState.jumpTimer - 0.28) / 0.27);
-                } else {
-                    actionState.isJumping = false;
-                    actionState.jumpTimer = 0;
-                    actionState.jumpVelocity = 0;
-                }
-            }
-            if (actionState.isPickingUp) {
-                actionState.pickUpTime += dt;
-                if (actionState.pickUpTime >= 1.2) {
-                    actionState.isPickingUp = false;
-                    actionState.pickUpTime = 0;
-                }
-            }
-            if (actionState.isInteracting) {
-                actionState.interactTimer += dt;
-                if (actionState.interactTimer >= 0.4) {
-                    actionState.isInteracting = false;
-                    actionState.interactTimer = 0;
-                }
-            }
-            if (actionState.isWaving) {
-                actionState.waveTimer += dt;
-                if (actionState.waveTimer >= 3.0) {
-                    actionState.isWaving = false;
-                    actionState.waveTimer = 0;
-                }
-            }
-            if (actionState.isLeftHandWaving) {
-                actionState.leftHandWaveTimer += dt;
-                if (actionState.leftHandWaveTimer >= 2.7) {
-                    actionState.isLeftHandWaving = false;
-                    actionState.leftHandWaveTimer = 0;
-                }
-            }
-            if (actionState.isSummoning) {
-                actionState.summonTimer += dt;
-                if (actionState.summonTimer >= 6.0) {
-                    actionState.isSummoning = false;
-                    actionState.summonTimer = 0;
-                }
-            }
-            if (actionState.isFireballCasting) {
-                actionState.fireballTimer += dt;
-                if (actionState.fireballTimer >= 0.8) {
-                    actionState.isFireballCasting = false;
-                    actionState.fireballTimer = 0;
-                }
-            }
 
             const isWalking = Math.abs(input.x ?? 0) > 0.05 || Math.abs(input.y ?? 0) > 0.05;
             if (!isWalking && walkTimeRef.current !== 0) {
@@ -1384,31 +1253,13 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                 const mockPlayer = {
                     config: configRef.current,
                     isCombatStance: false,
-                    isPickingUp: actionState.isPickingUp,
-                    pickUpTime: actionState.pickUpTime,
-                    isInteracting: actionState.isInteracting,
-                    interactTimer: actionState.interactTimer,
-                    isWaving: actionState.isWaving,
-                    waveTimer: actionState.waveTimer,
-                    isLeftHandWaving: actionState.isLeftHandWaving,
-                    leftHandWaveTimer: actionState.leftHandWaveTimer,
                     model: modelRef.current,
                     locomotion: {
                         walkTime: walkTimeRef.current,
                         lastStepCount: lastStepCountRef.current,
                         didStep: false,
                         isCrouching: false,
-                        isJumping: actionState.isJumping,
-                        jumpVelocity: actionState.jumpVelocity,
                     },
-                    combat: {
-                        ...combatStateRef.current,
-                        isSummoning: actionState.isSummoning,
-                        summonTimer: actionState.summonTimer,
-                        isFireballCasting: actionState.isFireballCasting,
-                        fireballTimer: actionState.fireballTimer,
-                    },
-                    scene,
                 };
                 const parts = modelRef.current.parts;
                 const locomotionInput: PlayerInput = {
@@ -1432,30 +1283,10 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                     crouch: false,
                 };
 
-                const hasFullBodyAction =
-                    actionState.isFireballCasting ||
-                    actionState.isPickingUp ||
-                    actionState.isSummoning ||
-                    actionState.isWaving ||
-                    actionState.isLeftHandWaving;
-                const damp = 0.1;
-
-                if (actionState.isFireballCasting) {
-                    FireballAction.animate(mockPlayer, parts, dt, damp);
-                } else if (actionState.isPickingUp) {
-                    PickupAction.animate(mockPlayer, parts, dt, damp);
-                } else if (actionState.isSummoning) {
-                    SummonAction.animate(mockPlayer, parts, dt, damp);
-                } else if (actionState.isWaving) {
-                    WaveAction.animate(mockPlayer, parts, dt, damp);
-                } else if (actionState.isLeftHandWaving) {
-                    LeftHandWaveAction.animate(mockPlayer, parts, dt, damp);
-                } else if (actionState.isJumping) {
-                    JumpAction.animate(mockPlayer, parts, dt, damp, locomotionInput, false);
-                } else if (isWalking) {
-                    MovementAction.animate(mockPlayer, parts, dt, damp, locomotionInput, false);
+                if (isWalking) {
+                    MovementAction.animate(mockPlayer, parts, dt, 0.1, locomotionInput, false);
                 } else {
-                    IdleAction.animate(mockPlayer, parts, damp, false);
+                    IdleAction.animate(mockPlayer, parts, 0.1, false);
                 }
                 walkTimeRef.current = mockPlayer.locomotion.walkTime ?? 0;
                 lastStepCountRef.current = mockPlayer.locomotion.lastStepCount ?? 0;
@@ -1470,16 +1301,12 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                     isCombatStance: false,
                 };
 
-                if (!hasFullBodyAction && !actionState.isJumping) {
-                    if (combatStateRef.current.isFiringBow) {
-                        FireArrowAction.animate(mockPlayerForActions, parts, dt, damp);
-                    } else if (combatStateRef.current.isAxeSwing) {
-                        WeaponAction.animate(mockPlayerForActions, parts, dt, damp, isWalking);
-                    } else if (combatStateRef.current.isPunch) {
-                        UnarmedPunchAction.animate(mockPlayerForActions, parts, dt, damp, isWalking);
-                    } else if (actionState.isInteracting) {
-                        InteractAction.animate(mockPlayer, parts, dt, damp);
-                    }
+                if (combatStateRef.current.isFiringBow) {
+                    FireArrowAction.animate(mockPlayerForActions, parts, dt, 0.1);
+                } else if (combatStateRef.current.isAxeSwing) {
+                    WeaponAction.animate(mockPlayerForActions, parts, dt, 0.1, isWalking);
+                } else if (combatStateRef.current.isPunch) {
+                    UnarmedPunchAction.animate(mockPlayerForActions, parts, dt, 0.1, isWalking);
                 }
 
                 if (hitTimerRef.current > 0) {
