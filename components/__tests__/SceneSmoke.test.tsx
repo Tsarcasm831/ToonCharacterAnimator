@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import DevScene from '../DevScene';
+import Starter from '../Starter';
 import WorldScene from '../WorldScene';
 import TownScene from '../TownScene';
 import Town2Scene from '../Town2Scene';
@@ -84,6 +85,16 @@ describe('Scene smoke tests', () => {
     expect(container.querySelector('div.w-full.h-full')).toBeTruthy();
   });
 
+  it('renders Starter without crashing', () => {
+    const { container } = render(
+      <TestProviders>
+        <Starter {...baseSceneProps} activeScene="starter" />
+      </TestProviders>
+    );
+
+    expect(container.querySelector('div.w-full.h-full')).toBeTruthy();
+  });
+
   it('renders WorldScene without crashing', () => {
     const { container } = render(
       <TestProviders>
@@ -121,6 +132,6 @@ describe('Scene smoke tests', () => {
       </TestProviders>
     );
 
-    expect(screen.getByRole('button', { name: /start combat/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /start round 1/i })).toBeTruthy();
   });
 });
