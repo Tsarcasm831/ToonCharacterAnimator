@@ -34,7 +34,6 @@ export class InputManager {
     onToggleHands?: () => void;
     onToggleSkeletonMode?: () => void;
     onToggleInventory?: () => void;
-    onToggleItemCatalog?: () => void;
     onToggleFirstPerson?: () => void;
     onToggleBuilder?: () => void;
     onToggleKeybinds?: () => void;
@@ -117,14 +116,9 @@ export class InputManager {
         if (this.isBlocked) return;
 
         // Store key state
-        this.keys[e.code] = true;
+        this.keys[e.code] = true; 
 
         // Handle Triggers (One-shot actions)
-        if (e.code === 'KeyI' && e.shiftKey) {
-            e.preventDefault();
-            this.onToggleItemCatalog?.();
-            return;
-        }
         if (this.checkTrigger(e.code, InputCommand.ToggleInventory)) this.onToggleInventory?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleQuestLog)) this.onToggleQuestLog?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleWorldMap)) this.onToggleWorldMap?.();
@@ -243,7 +237,7 @@ export class InputManager {
             leftHandWave: !!(this.isCommandActive(InputCommand.LeftHandWave) || this.manualInput.leftHandWave),
             summon: !!(this.isCommandActive(InputCommand.Summon) || this.manualInput.summon),
             toggleBuilder: !!(this.isCommandActive(InputCommand.ToggleBuilder)),
-            rotateGhost: !!(this.isCommandActive(InputCommand.RotateGhost) && this.isBuilding),
+            rotateGhost: !!(this.isCommandActive(InputCommand.RotateGhost) && this.isBuilding), 
             fireball: !!(this.isCommandActive(InputCommand.Fireball) && !this.isBuilding)
         };
     }

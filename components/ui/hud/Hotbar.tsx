@@ -14,6 +14,7 @@ export const Hotbar: React.FC<HotbarProps> = ({ inventory, selectedSlot, onSelec
     const healthPercent = (stats.health / stats.maxHealth) * 100;
     const chakraPercent = (stats.chakra / stats.maxChakra) * 100;
     const xpPercent = (stats.xp / stats.maxXp) * 100;
+    const hotbarSlotLabels = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
 
     return (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-2">
@@ -38,7 +39,7 @@ export const Hotbar: React.FC<HotbarProps> = ({ inventory, selectedSlot, onSelec
 
                 {/* Hotbar Slots Container */}
                 <div className="flex gap-2 p-2 bg-white/20 backdrop-blur-xl rounded-2xl border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
-                    {Array.from({ length: 8 }).map((_, i) => {
+                    {hotbarSlotLabels.map((slotLabel, i) => {
                         const item = inventory[i];
                         return (
                             <div 
@@ -51,7 +52,7 @@ export const Hotbar: React.FC<HotbarProps> = ({ inventory, selectedSlot, onSelec
                                 }`}
                             >
                                 <span className={`absolute top-1 left-1.5 text-[10px] font-black pointer-events-none ${selectedSlot === i ? 'text-blue-200' : 'text-gray-500'}`}>
-                                    {i + 1}
+                                    {slotLabel}
                                 </span>
                                 
                                 {item ? (

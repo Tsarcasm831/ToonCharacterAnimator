@@ -5,7 +5,6 @@ import type { DialogueContent } from '../game/core/Game';
 export function useUIState() {
   const [notification, setNotification] = useState<string | null>(null);
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
-  const [isItemCatalogOpen, setIsItemCatalogOpen] = useState(false);
   const [isTradeOpen, setIsTradeOpen] = useState(false);
   const [isShopkeeperChatOpen, setIsShopkeeperChatOpen] = useState(false);
   const [isForgeOpen, setIsForgeOpen] = useState(false);
@@ -53,12 +52,10 @@ export function useUIState() {
 
   const toggleKeybinds = () => setIsKeybindsOpen(prev => !prev);
   const toggleQuestLog = () => setIsQuestLogOpen(prev => !prev);
-  const toggleItemCatalog = () => setIsItemCatalogOpen(prev => !prev);
 
   return {
     notification, setNotification,
     isInventoryOpen, setIsInventoryOpen, toggleInventory,
-    isItemCatalogOpen, setIsItemCatalogOpen, toggleItemCatalog,
     isTradeOpen, setIsTradeOpen,
     isShopkeeperChatOpen, setIsShopkeeperChatOpen,
     isForgeOpen, setIsForgeOpen,

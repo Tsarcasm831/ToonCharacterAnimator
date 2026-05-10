@@ -4,15 +4,16 @@ export class PickaxeBuilder {
     static build(woodMat: THREE.Material, metalMat: THREE.Material): THREE.Group {
         const itemGroup = new THREE.Group();
         const handleLength = 0.65;
-        
+        const gripOffset = 0.12;
+
         const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, handleLength, 8), woodMat);
-        handle.rotation.z = -Math.PI / 2; 
-        handle.position.x = handleLength * 0.15;
-        handle.castShadow = true; 
+        handle.rotation.z = -Math.PI / 2;
+        handle.position.x = handleLength * 0.15 + gripOffset;
+        handle.castShadow = true;
         itemGroup.add(handle);
 
         const pickHead = new THREE.Group();
-        pickHead.position.x = handleLength * 0.55; 
+        pickHead.position.x = handleLength * 0.55 + gripOffset;
         // No rotation -> Up is Y (Vertical).
         
         const block = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.06), metalMat);

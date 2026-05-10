@@ -334,7 +334,7 @@ export const Game: React.FC = () => {
         dialogue, 
         selectedSlot, setSelectedSlot,
         interactionText, interactionProgress, setInteractionText, setInteractionProgress,
-        isInventoryOpen, isItemCatalogOpen, isTradeOpen, isShopkeeperChatOpen, isForgeOpen, isKeybindsOpen, isQuestLogOpen, isSpawnModalOpen, isEnemiesModalOpen, isCharacterStatsOpen, isLandMapOpen, isAreaMapOpen, isTravelOpen,
+        isInventoryOpen, isTradeOpen, isShopkeeperChatOpen, isForgeOpen, isKeybindsOpen, isQuestLogOpen, isSpawnModalOpen, isEnemiesModalOpen, isCharacterStatsOpen, isLandMapOpen, isAreaMapOpen, isTravelOpen,
         setIsTravelOpen, setIsLandMapOpen, setIsAreaMapOpen,
         setDialogue,
         setIsDeadUI, isDeadUI,
@@ -419,7 +419,7 @@ export const Game: React.FC = () => {
     const lastGameLoopHudSyncRef = React.useRef(0);
     const creatorStarterAppliedRef = React.useRef(false);
 
-    const isHUDDisabled = isInventoryOpen || isItemCatalogOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
+    const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
     // Temporary: bypass first-login creator flow and always use normal main menu after login.
     const isCharacterCreatorMode = false && isSupabaseEnabled && !!user && isSaveLoaded && !hasSavedCharacter;
     const selectedLandRef = React.useRef(selectedLand);
@@ -692,7 +692,7 @@ export const Game: React.FC = () => {
         if (selectedItem) {
             // Check if it's a weapon/tool
             const isWeapon = [
-                'Sword', 'Axe', 'Pickaxe', 'Shovel', 'Knife', 'Halberd',
+                'Sword', 'Axe', 'Pickaxe', 'Knife', 'Halberd', 
                 'Staff', 'Fishing Pole', 'Bow'
             ].includes(selectedItem.name);
             
@@ -893,7 +893,6 @@ export const Game: React.FC = () => {
         // Scene initializes Game.
         
         game.inputManager.onToggleInventory = uiState.toggleInventory;
-        game.inputManager.onToggleItemCatalog = uiState.toggleItemCatalog;
         game.inputManager.onToggleKeybinds = uiState.toggleKeybinds;
         game.inputManager.onToggleQuestLog = uiState.toggleQuestLog;
         game.inputManager.onToggleBuilderLog = uiState.toggleBuilderLog;
@@ -1133,7 +1132,7 @@ export const Game: React.FC = () => {
     // Auth loading spinner while session is being restored
     if (isSupabaseEnabled && isAuthLoading) {
         return (
-            <div className="w-full h-full min-h-0 flex items-center justify-center bg-[#080c14]">
+            <div className="w-full h-full flex items-center justify-center bg-[#080c14]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
                     <p className="text-slate-500 text-xs uppercase tracking-widest">Loading…</p>
@@ -1144,7 +1143,7 @@ export const Game: React.FC = () => {
 
     if (isSupabaseEnabled && user && !isSaveLoaded) {
         return (
-            <div className="w-full h-full min-h-0 flex items-center justify-center bg-[#080c14]">
+            <div className="w-full h-full flex items-center justify-center bg-[#080c14]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
                     <p className="text-slate-500 text-xs uppercase tracking-widest">Loading character data…</p>
@@ -1154,8 +1153,8 @@ export const Game: React.FC = () => {
     }
 
     return (
-        <div className="relative w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-start">
-            <div ref={viewportRef} className="w-full flex-1 min-h-0 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
+        <div className="relative w-full h-full flex flex-col items-center justify-start">
+            <div ref={viewportRef} className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
                     {isCharacterCreatorMode && (
                         <div className="absolute inset-0 overflow-hidden bg-[#081122] pointer-events-none">

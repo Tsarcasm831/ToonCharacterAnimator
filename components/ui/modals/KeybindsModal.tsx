@@ -25,7 +25,7 @@ const CATEGORIES = [
             { keys: ["C"], label: "Combat Stance" },
             { keys: ["E"], label: "Interact / Talk" },
             { keys: ["F", "P"], label: "Pick Up / Skin" },
-            { keys: ["Q"], label: "Cast Fireball" },
+            { keys: ["R"], label: "Cast Fireball" },
             { keys: ["L"], label: "Summon Skill" },
         ]
     },
@@ -33,6 +33,7 @@ const CATEGORIES = [
         title: "Inventory & Slots",
         binds: [
             { keys: ["I"], label: "Inventory" },
+            { keys: ["Shift", "I"], label: "Item Catalog" },
             { keys: ["1-0", "-", "=", "Backspace"], label: "Equip Hotbar Slot" },
             { keys: ["O"], label: "Quest Log" },
              { keys: ["`", "Tab"], label: "Open This Help" },

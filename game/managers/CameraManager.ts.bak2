@@ -7,9 +7,8 @@ export class CameraManager {
     private player: Player;
 
     // Camera State
-    public cameraFocusMode: number = 0;
+    public cameraFocusMode: number = 0; 
     public isFirstPerson: boolean = false;
-    public cameraCollisionEnabled: boolean = false;
     
     // First Person State
     public fpvYaw: number = 0;
@@ -21,13 +20,7 @@ export class CameraManager {
     private readonly tempHeadPos = new THREE.Vector3();
     private readonly tempForward = new THREE.Vector3();
     private readonly tempCamDir = new THREE.Vector3();
-    private readonly tempDesiredCameraPos = new THREE.Vector3();
-    private readonly tempCameraCollisionDir = new THREE.Vector3();
-    private readonly cameraCollisionRaycaster = new THREE.Raycaster();
     private readonly fpvEuler = new THREE.Euler(0, 0, 0, 'YXZ');
-    private readonly cameraCollisionPadding = 0.35;
-    private readonly cameraCollisionMinDistance = 0.8;
-    private readonly cameraCollisionNear = 0.05;
     private lastMouseX: number | null = null;
     private lastMouseY: number | null = null;
     
@@ -164,15 +157,15 @@ export class CameraManager {
     }
 
     public getCameraRotation(): number {
-        return this.isFirstPerson
-            ? (this.fpvYaw - Math.PI)
+        return this.isFirstPerson 
+            ? (this.fpvYaw - Math.PI) 
             : Math.atan2(
                 this.renderManager.camera.position.x - this.renderManager.controls.target.x, 
                 this.renderManager.camera.position.z - this.renderManager.controls.target.z
               );
     }
 
-    public updatePosition(activeScene: string, cameraCollisionObstacles: THREE.Object3D[] = []) {
+    public updatePosition(activeScene: string) {
         if (activeScene !== 'combat') {
             this.tempTargetPos.copy(this.player.mesh.position);
             const playerScale = this.player.mesh.scale.y;
@@ -208,50 +201,9 @@ export class CameraManager {
                 this.tempDeltaPos.subVectors(this.renderManager.controls.target, this.prevTargetPos);
                 this.renderManager.camera.position.add(this.tempDeltaPos);
                 this.renderManager.controls.update();
-                this.resolveThirdPersonCameraCollision(this.renderManager.controls.target, cameraCollisionObstacles);
             }
         } else {
              this.renderManager.controls.update();
         }
-    }
-
-    private resolveThirdPersonCameraCollision(target: THREE.Vector3, obstacles: THREE.Object3D[]) {
-        if (!this.cameraCollisionEnabled || obstacles.length === 0) return;
-
-        this.tempDesiredCameraPos.copy(this.renderManager.camera.position);
-        this.tempCameraCollisionDir.subVectors(this.tempDesiredCameraPos, target);
-        const desiredDistance = this.tempCameraCollisionDir.length();
-        if (desiredDistance <= this.cameraCollisionMinDistance) return;
-
-        this.tempCameraCollisionDir.multiplyScalar(1 / desiredDistance);
-        this.cameraCollisionRaycaster.set(target, this.tempCameraCollisionDir);
-        this.cameraCollisionRaycaster.near = this.cameraCollisionNear;
-        this.cameraCollisionRaycaster.far = desiredDistance;
-
-        const hits = this.cameraCollisionRaycaster.intersectObjects(obstacles, true);
-        const hit = hits.find(({ object, distance }) => {
-            if (distance <= this.cameraCollisionNear) return false;
-            return this.isCameraBlockingObject(object);
-        });
-
-        if (!hit) return;
-
-        const resolvedDistance = Math.max(
-            this.cameraCollisionMinDistance,
-            hit.distance - this.cameraCollisionPadding
-        );
-        this.renderManager.camera.position.copy(target).addScaledVector(this.tempCameraCollisionDir, resolvedDistance);
-    }
-
-    private isCameraBlockingObject(object: THREE.Object3D): boolean {
-        let current: THREE.Object3D | null = object;
-        while (current) {
-            const type = current.userData?.type;
-            if (type === 'ground' || type === 'pickup' || type === 'pickupResource') return false;
-            if (type === 'hard' || current.userData?.structureType || current.userData?.cameraBlocking) return true;
-            current = current.parent;
-        }
-
-        return true;
     }
 }

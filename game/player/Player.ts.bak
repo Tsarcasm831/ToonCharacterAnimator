@@ -48,7 +48,6 @@ export class Player {
     
     // Generic Interaction
     interactableTarget: THREE.Object3D | null = null;
-    pickupTarget: THREE.Object3D | null = null;
 
     // Emotes
     isWaving: boolean = false;
@@ -289,7 +288,6 @@ export class Player {
         this.pickUpTime = 0;
         this.isSkinning = false;
         this.skinningTimer = 0;
-        this.pickupTarget = null;
     }
 
     private syncConfig() {

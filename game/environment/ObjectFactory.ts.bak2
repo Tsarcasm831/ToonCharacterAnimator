@@ -10,7 +10,6 @@ import { VegetationFactory } from './objects/VegetationFactory';
 import { HumanRemnantsFactory } from './objects/HumanRemnantsFactory';
 import { AtmosphereFactory } from './objects/AtmosphereFactory';
 import { ForgeBuilder } from './objects/ForgeBuilder';
-import { DisturbedGroundFactory } from './objects/DisturbedGroundFactory';
 import { Wall } from '../builder/wall';
 
 export class ObjectFactory {
@@ -75,10 +74,6 @@ export class ObjectFactory {
 
     static createRoadSign(position: THREE.Vector3, type: 'stop' | 'yield' = 'stop') {
         return HumanRemnantsFactory.createRoadSign(position, type);
-    }
-
-    static createDisturbedGround(position: THREE.Vector3, cellSize: number = 1.0) {
-        return DisturbedGroundFactory.createDisturbedGround(position, cellSize);
     }
 
     // Structures
@@ -221,14 +216,6 @@ export class ObjectFactory {
 
     static createPebble(position: THREE.Vector3) {
         return ScatterFactory.createPebble(position);
-    }
-
-    static createPickupRock(position: THREE.Vector3) {
-        return ScatterFactory.createPickupRock(position);
-    }
-
-    static createPickupStick(position: THREE.Vector3) {
-        return ScatterFactory.createPickupStick(position);
     }
 
     static createMushroom(position: THREE.Vector3) {

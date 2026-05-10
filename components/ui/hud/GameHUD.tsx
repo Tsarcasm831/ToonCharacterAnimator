@@ -97,7 +97,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
             <InteractionOverlay text={interactionText} progress={interactionProgress} />
 
             {/* Bottom Controls / Hotbars */}
-            {!isCombat && !isBuilderMode && (activeScene === 'dev' || activeScene === 'land' || activeScene === 'singleBiome') && (
+            {!isCombat && !isBuilderMode && (activeScene === 'dev' || activeScene === 'land' || activeScene === 'singleBiome' || activeScene === 'starter') && (
                 <Hotbar inventory={inventory} selectedSlot={selectedSlot} onSelectSlot={onSelectSlot} stats={stats} />
             )}
 
