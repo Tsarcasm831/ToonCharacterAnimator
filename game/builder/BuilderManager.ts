@@ -135,10 +135,7 @@ export class BuilderManager {
     update(playerPos: THREE.Vector3, playerRotation: number, environment: Environment, camera: THREE.Camera, mousePos: {x: number, y: number}) {
         if (!this.isActive || !this.ghostMesh) return;
 
-        if (this.isPlacementLocked) {
-            this.ghostMesh.rotation.y = this.ghostRotation;
-            return;
-        }
+        if (this.isPlacementLocked) return;
 
         this.ghostMesh.rotation.y = this.ghostRotation;
 
@@ -146,13 +143,82 @@ export class BuilderManager {
         this._rayCoords.set(mousePos.x, mousePos.y);
         raycaster.setFromCamera(this._rayCoords, camera);
         
-        const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -playerPos.y);
-        const hit = new THREE.Vector3();
-        let targetPos = raycaster.ray.intersectPlane(plane, hit);
+        // Debug: Log mouse position
+        if (this.currentType === 'firepit' && Math.random() < 0.05) {
+            console.log('[BuilderManager] Mouse pos:', mousePos, 'Type:', this.currentType);
+        }
+        
+        // Try to raycast against actual ground mesh
+        let targetPos: THREE.Vector3 | null = null;
+        const groundMesh = (environment as any).mesh; // SingleBiomeEnvironment has .mesh
+        const terrainMeshes = (environment as any).terrainManager?.getTerrainMeshes?.() || []; // Regular Environment
+        
+        let raycastObjects: THREE.Object3D[] = [];
+        
+        // Try to get ground mesh from different environment types
+        if (groundMesh) {
+            raycastObjects.push(groundMesh);
+        }
+        if (terrainMeshes.length > 0) {
+            raycastObjects.push(...terrainMeshes);
+        }
+        
+        // Also try obstacles array which should contain the ground mesh
+        if (raycastObjects.length === 0 && environment.obstacles && environment.obstacles.length > 0) {
+            // Filter for ground-type objects
+            const groundObstacles = environment.obstacles.filter(obj => 
+                obj.userData && (obj.userData.type === 'ground' || obj.userData.terrainType)
+            );
+            if (groundObstacles.length > 0) {
+                raycastObjects.push(...groundObstacles);
+            } else {
+                // If no ground-type obstacles, try all obstacles
+                raycastObjects.push(...environment.obstacles);
+            }
+        }
+        
+        if (raycastObjects.length > 0) {
+            const intersects = raycaster.intersectObjects(raycastObjects, true);
+            if (intersects.length > 0) {
+                targetPos = intersects[0].point;
+                if (this.currentType === 'firepit' && Math.random() < 0.05) {
+                    console.log('[BuilderManager] Raycast hit:', targetPos, 'Objects:', raycastObjects.length);
+                }
+            } else {
+                if (this.currentType === 'firepit' && Math.random() < 0.05) {
+                    console.log('[BuilderManager] Raycast missed all objects. Count:', raycastObjects.length);
+                }
+            }
+        }
 
+        // If we are placing a free-move prop like firepit and the raycast missed,
+        // use a point projected in front of the player rather than snapping to grid.
+        if (!targetPos && ['firepit', 'torch', 'barrel', 'crate', 'tire', 'pallet', 'road_sign', 'flag', 'supply_cart'].includes(this.currentType)) {
+            const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotation);
+            const right = new THREE.Vector3(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotation);
+            targetPos = playerPos.clone()
+                .add(forward.multiplyScalar(3.2))
+                .add(right.multiplyScalar(this._rayCoords.x * 6));
+        }
+        
+        // Fallback to plane intersection if terrain raycast fails
+        if (!targetPos) {
+            const raycastGroundHeight = PlayerUtils.getGroundHeight(playerPos, { torsoWidth: 0.1 } as any, environment.obstacles);
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -raycastGroundHeight);
+            const hit = new THREE.Vector3();
+            targetPos = raycaster.ray.intersectPlane(plane, hit);
+            if (this.currentType === 'firepit' && Math.random() < 0.05) {
+                console.log('[BuilderManager] Plane fallback:', targetPos, 'Ground height:', raycastGroundHeight);
+            }
+        }
+
+        // Final fallback to position in front of player
         if (!targetPos) {
             const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), playerRotation);
             targetPos = playerPos.clone().add(forward.multiplyScalar(3.2));
+            if (this.currentType === 'firepit' && Math.random() < 0.05) {
+                console.log('[BuilderManager] Player fallback:', targetPos);
+            }
         }
 
         const gridSize = 1.3333;
@@ -160,6 +226,8 @@ export class BuilderManager {
 
         const isWallLike = ['wall', 'palisade', 'stone_wall', 'wooden_wall'].includes(this.currentType);
         const isDoorLike = ['doorway', 'door'].includes(this.currentType);
+        // Small props that should use free placement (no grid snap)
+        const isFreePlacementProp = ['firepit', 'torch', 'barrel', 'crate', 'tire', 'pallet', 'road_sign', 'flag', 'supply_cart'].includes(this.currentType);
 
         if (this.currentType === 'foundation' || this.currentType === 'roof') {
             this.ghostMesh.position.x = Math.floor(targetPos.x / gridSize) * gridSize + halfGrid;
@@ -179,10 +247,12 @@ export class BuilderManager {
         } else if (isDoorLike) {
             this.ghostMesh.position.x = Math.round(targetPos.x / gridSize) * gridSize;
             this.ghostMesh.position.z = Math.round(targetPos.z / gridSize) * gridSize;
+        } else if (isFreePlacementProp) {
+            // Free placement for small props - follows cursor precisely
+            this.ghostMesh.position.x = targetPos.x;
+            this.ghostMesh.position.z = targetPos.z;
         } else {
-            // Free placement for props, or grid snap?
-            // Let's stick to grid snap for consistency, or maybe half-grid?
-            // For now, center on grid cells like foundations
+            // Grid snap for other structures
             this.ghostMesh.position.x = Math.floor(targetPos.x / gridSize) * gridSize + halfGrid;
             this.ghostMesh.position.z = Math.floor(targetPos.z / gridSize) * gridSize + halfGrid;
         }
@@ -350,6 +420,8 @@ export class BuilderManager {
             addObstacles(realMesh);
         }
 
+        console.log('[BuilderManager] onBuild called with type:', this.currentType, 'position:', this.ghostMesh.position, 'rotation:', this.ghostMesh.rotation.y);
+        console.log('[BuilderManager] onBuild callback exists:', !!this.onBuild);
         this.onBuild?.(this.currentType, this.ghostMesh.position, this.ghostMesh.rotation.y);
         this.isPlacementLocked = false;
         this.clearGhost();

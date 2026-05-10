@@ -157,6 +157,7 @@ export const About: React.FC = () => {
     const [datastreamVisible, setDatastreamVisible] = useState(true);
     const [revealDossier, setRevealDossier] = useState(false);
     const [showBackToTop, setShowBackToTop] = useState(false);
+    const datastreamContentRef = React.useRef<HTMLDivElement | null>(null);
 
     const panelClassName = isIphoneLayout
         ? 'about-panel w-full max-w-[94vw] bg-slate-950/80 border border-cyan-500/30 rounded-2xl shadow-2xl backdrop-blur-md overflow-hidden'
@@ -181,6 +182,13 @@ export const About: React.FC = () => {
                 const step = datastream[currentStep];
                 const timer = setTimeout(() => {
                     setStreamStep(currentStep + 1);
+                    // Auto-scroll to bottom as new lines appear
+                    setTimeout(() => {
+                        datastreamContentRef.current?.scrollTo({
+                            top: datastreamContentRef.current.scrollHeight,
+                            behavior: 'smooth'
+                        });
+                    }, 50);
                     currentStep++;
                     processStream();
                 }, step.delay);
@@ -204,7 +212,16 @@ export const About: React.FC = () => {
     useEffect(() => {
         if (showContent) {
             const hideTimer = setTimeout(() => setDatastreamVisible(false), 4000);
-            const dossierTimer = setTimeout(() => setRevealDossier(true), 4600);
+            const dossierTimer = setTimeout(() => {
+                setRevealDossier(true);
+                // Auto-scroll to dossier after it starts revealing
+                setTimeout(() => {
+                    scrollContainerRef.current?.scrollTo({
+                        top: scrollContainerRef.current.scrollHeight,
+                        behavior: 'smooth'
+                    });
+                }, 300);
+            }, 4600);
             return () => {
                 clearTimeout(hideTimer);
                 clearTimeout(dossierTimer);
@@ -251,21 +268,15 @@ export const About: React.FC = () => {
                         </div>
 
                         <div className={contentClassName}>
-                            <div
-                                className={`border border-cyan-500/20 bg-black/40 rounded-2xl p-5 md:p-8 shadow-inner shadow-cyan-500/10 transition-all duration-500 ${
-                                    datastreamVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none absolute'
-                                }`}
-                            >
+                            <div className={`border border-cyan-500/20 bg-black/40 rounded-2xl p-5 md:p-8 shadow-inner shadow-cyan-500/10 overflow-hidden transition-all duration-500 ${datastreamVisible ? (isIphoneLayout ? 'h-[200px] opacity-100' : 'h-[280px] opacity-100') : 'h-0 opacity-0 pointer-events-none p-0'}`}>
                                 <h2 className={`text-center font-black text-cyan-200 tracking-wide mb-5 ${isIphoneLayout ? 'text-xl' : 'text-2xl'}`}>
                                     Datastream
                                 </h2>
-                                <div className={`space-y-2 text-left font-mono text-slate-300 ${isIphoneLayout ? 'text-[11px]' : 'text-xs md:text-sm'}`}>
-                                    {datastream.map((line, idx) => (
+                                <div ref={datastreamContentRef} className={`space-y-2 text-left font-mono text-slate-300 overflow-y-auto ${isIphoneLayout ? 'text-[11px] h-[140px]' : 'text-xs md:text-sm h-[200px]'}`}>
+                                    {datastream.slice(0, streamStep).map((line, idx) => (
                                         <div
                                             key={idx}
-                                            className={`datastream-line flex items-center justify-between transition-all duration-300 ${
-                                                idx < streamStep ? 'opacity-100' : 'opacity-0 h-0 overflow-hidden'
-                                            }`}
+                                            className="datastream-line flex items-center justify-between transition-all duration-300"
                                         >
                                             <div className="flex items-center gap-2">
                                                 <span className="text-cyan-500 font-bold shrink-0">[{idx.toString().padStart(2, '0')}]</span>
@@ -307,7 +318,7 @@ export const About: React.FC = () => {
                             </div>
 
                             {revealDossier && (
-                                <div className="border border-cyan-500/20 bg-black/50 rounded-2xl p-5 md:p-8 shadow-inner shadow-blue-500/10">
+                                <div className="border border-cyan-500/20 bg-black/50 rounded-2xl p-5 md:p-8 shadow-inner shadow-blue-500/10 transition-all duration-700 ease-in-out">
                                     <div className="flex items-center gap-3 mb-6">
                                         <span className="text-cyan-400 text-xs font-mono uppercase tracking-[0.3em]"># dossier</span>
                                         <div className="h-px flex-1 bg-cyan-500/30" />
@@ -317,23 +328,23 @@ export const About: React.FC = () => {
                                         {dossierSections.map((section, sIdx) => (
                                             <div
                                                 key={section.title}
-                                                className={`dossier-card md:col-span-2 border border-white/5 bg-white/5 rounded-2xl p-4 md:p-6 transition-all duration-500 ${
+                                                className={`dossier-card md:col-span-2 border border-white/5 bg-white/5 rounded-2xl p-4 md:p-6 transition-all duration-700 ease-in-out ${
                                                     revealDossier ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
                                                 }`}
-                                                style={{ animationDelay: `${sIdx * 120}ms`, transitionDelay: `${sIdx * 120}ms` }}
+                                                style={{ animationDelay: `${sIdx * 150}ms`, transitionDelay: `${sIdx * 150}ms` }}
                                             >
                                                 <h3 className={`flex items-center gap-3 text-cyan-200 font-black uppercase tracking-wide mb-4 ${isIphoneLayout ? 'text-base' : 'text-lg'}`}>
                                                     <span className="text-cyan-400/70 font-mono text-xs">[{sIdx + 1}]</span>
                                                     {section.title}
                                                 </h3>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                    {section.items.map((item) => (
+                                                    {section.items.map((item, iIdx) => (
                                                         <div
                                                             key={item.label}
-                                                            className={`dossier-entry border-l-4 border-cyan-400/60 bg-black/40 rounded-xl px-4 py-3 transition-all duration-500 ${
-                                                                revealDossier ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+                                                            className={`dossier-entry border-l-4 border-cyan-400/60 bg-black/40 rounded-xl px-4 py-3 transition-all duration-700 ease-in-out ${
+                                                                revealDossier ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-2'
                                                             } ${item.fullWidth ? 'md:col-span-2' : ''}`}
-                                                            style={{ animationDelay: `${sIdx * 120 + 80}ms` }}
+                                                            style={{ transitionDelay: `${sIdx * 150 + iIdx * 100 + 200}ms` }}
                                                         >
                                                             <span className="block text-[11px] uppercase tracking-[0.25em] text-cyan-200/80 font-black">
                                                                 {item.label}

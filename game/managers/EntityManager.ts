@@ -92,6 +92,7 @@ export class EntityManager {
     private readonly eyeOffset = new THREE.Vector3(0, 1.7, 0);
     private readonly tempEnemyTargets: { position: THREE.Vector3, isDead?: boolean }[] = [];
     private readonly tempPlayerTargets: { position: THREE.Vector3, isDead?: boolean }[] = [];
+    private readonly trackedDeadEntities = new Set<any>();
     private lastEnemyCount: number = 0;
 
     constructor(scene: THREE.Scene, environment: any | null, initialConfig: PlayerConfig) {
@@ -725,7 +726,7 @@ export class EntityManager {
         }
     }
 
-    update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, cameraPosition: THREE.Vector3, environment: any | null, activeScene: string, isCombatActive: boolean, onAttackHit?: (type: string, count: number) => void, sceneEntities?: any[]) {
+    update(delta: number, config: PlayerConfig, playerPosition: THREE.Vector3, cameraPosition: THREE.Vector3, environment: any | null, activeScene: string, isCombatActive: boolean, onAttackHit?: (type: string, count: number) => void, onEntityDeath?: (entityType: string) => void, sceneEntities?: any[]) {
         const now = performance.now();
         this.tempPlayerPos.copy(playerPosition);
         

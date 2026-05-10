@@ -20,6 +20,7 @@ export class SoundManager {
     private oreHitBuffer: AudioBuffer | null = null;
     private treeHitBuffer: AudioBuffer | null = null;
     private oreCrumblingBuffer: AudioBuffer | null = null;
+    private treeFallBuffer: AudioBuffer | null = null;
 
     constructor() {
         if (typeof window !== 'undefined') {
@@ -447,6 +448,28 @@ export class SoundManager {
 
         gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+
+        source.start(this.ctx.currentTime);
+    }
+
+    async playTreeFall() {
+        if (!this.ctx || !this.masterGain) return;
+        this.ensureContext();
+
+        if (!this.treeFallBuffer) {
+            this.treeFallBuffer = await this.loadAudioBuffer('/assets/sounds/tree_fall.mp3');
+        }
+
+        if (!this.treeFallBuffer) return;
+
+        const source = this.ctx.createBufferSource();
+        source.buffer = this.treeFallBuffer;
+        const gain = this.ctx.createGain();
+        source.connect(gain);
+        gain.connect(this.masterGain);
+
+        gain.gain.setValueAtTime(0.4, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.5);
 
         source.start(this.ctx.currentTime);
     }

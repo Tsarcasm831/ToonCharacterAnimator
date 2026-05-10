@@ -198,10 +198,21 @@ export class InputManager {
 
     private handleMouseMove(e: MouseEvent) {
         if (this.isBlocked) return;
-        // Convert to Normalized Device Coordinates (NDC)
-        // x: -1 to 1, y: 1 to -1
-        this.mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
-        this.mousePosition.y = -(e.clientY / window.innerHeight) * 2 + 1;
+        // Convert to Normalized Device Coordinates (NDC) relative to the render canvas.
+        // This keeps raycasting aligned with the visible game view when the canvas
+        // does not exactly match the window size.
+        const canvas = document.querySelector('canvas');
+        const rect = canvas?.getBoundingClientRect();
+        const width = rect?.width ?? window.innerWidth;
+        const height = rect?.height ?? window.innerHeight;
+        const left = rect?.left ?? 0;
+        const top = rect?.top ?? 0;
+
+        const x = e.clientX - left;
+        const y = e.clientY - top;
+
+        this.mousePosition.x = (x / width) * 2 - 1;
+        this.mousePosition.y = -(y / height) * 2 + 1;
     }
 
     getInput(): PlayerInput {

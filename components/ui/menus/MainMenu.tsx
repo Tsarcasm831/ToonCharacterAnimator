@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MenuBackground } from './MenuBackground';
 import { Units } from '../pages/Units';
 import { Map } from '../pages/Map';
-import { X } from 'lucide-react';
+import { X, Send } from 'lucide-react';
 import type { ActiveScene } from '../../../hooks/useGameState';
 
 interface MainMenuProps {
@@ -37,6 +37,12 @@ export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, 
     const [showOptions, setShowOptions] = React.useState(false);
     const [showUnits, setShowUnits] = React.useState(false);
     const [showMap, setShowMap] = React.useState(false);
+    const [showChat, setShowChat] = React.useState(false);
+    const [chatInput, setChatInput] = React.useState('');
+    const [chatMessages, setChatMessages] = React.useState<Array<{ type: 'system' | 'user' | 'command'; content: string }>>([
+        { type: 'system', content: 'Press Enter to open chat. Type /tut1co to complete tutorial 1.' }
+    ]);
+    const chatInputRef = useRef<HTMLInputElement>(null);
     const hideControls = isMobile;
 
     React.useEffect(() => {
@@ -45,11 +51,56 @@ export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, 
             if (event.key === 'Escape') {
                 setShowUnits(false);
                 setShowMap(false);
+                setShowChat(false);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [showUnits, showMap]);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            console.log('[MainMenu] Key pressed:', event.key, 'target:', event.target);
+            if ((event.target as HTMLElement).closest('input, textarea, select, .no-capture')) return;
+            
+            if (event.key === 'Enter') {
+                console.log('[MainMenu] Enter key detected, toggling chat');
+                event.preventDefault();
+                setShowChat(prev => {
+                    const newState = !prev;
+                    console.log('[MainMenu] Chat state:', prev, '->', newState);
+                    if (newState) {
+                        setTimeout(() => chatInputRef.current?.focus(), 100);
+                    }
+                    return newState;
+                });
+            }
+        };
+
+        console.log('[MainMenu] Attaching keydown listener');
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            console.log('[MainMenu] Removing keydown listener');
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
+
+    const handleChatSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmedInput = chatInput.trim();
+        if (!trimmedInput) return;
+
+        setChatMessages(prev => [...prev, { type: 'user', content: trimmedInput }]);
+
+        if (trimmedInput === '/tut1co') {
+            localStorage.setItem('tutorial1Completed', 'true');
+            setChatMessages(prev => [...prev, { type: 'command', content: 'Tutorial 1 completed! You will receive sticks and stones when you enter the world.' }]);
+        } else if (trimmedInput.startsWith('/')) {
+            setChatMessages(prev => [...prev, { type: 'system', content: `Unknown command: ${trimmedInput}` }]);
+        }
+
+        setChatInput('');
+    };
 
     return (
         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center">
@@ -245,6 +296,57 @@ export const MainMenu: React.FC<MainMenuProps> = ({ activeScene, onSceneChange, 
                         <div className="flex-1 min-h-0">
                             <Map />
                         </div>
+                    </div>
+                </div>
+            )}
+            {showChat && !hideControls && (
+                <div className="absolute bottom-8 left-8 z-[150] w-[400px] max-w-[calc(100vw-4rem)]">
+                    <div className="bg-slate-900/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-sm overflow-hidden">
+                        <div className="flex items-center justify-between px-4 py-3 bg-black/40 border-b border-white/10">
+                            <span className="text-white text-xs font-black uppercase tracking-widest">Chat</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowChat(false)}
+                                className="text-white/60 hover:text-white transition-colors"
+                                aria-label="Close chat"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        <div className="h-48 overflow-y-auto p-3 space-y-2">
+                            {chatMessages.map((msg, index) => (
+                                <div
+                                    key={index}
+                                    className={`text-xs ${
+                                        msg.type === 'system' ? 'text-slate-400 italic' :
+                                        msg.type === 'command' ? 'text-green-400 font-bold' :
+                                        'text-white'
+                                    }`}
+                                >
+                                    {msg.type === 'user' && <span className="text-blue-400 font-bold mr-2">You:</span>}
+                                    {msg.content}
+                                </div>
+                            ))}
+                        </div>
+                        <form onSubmit={handleChatSubmit} className="p-3 border-t border-white/10">
+                            <div className="flex gap-2">
+                                <input
+                                    ref={chatInputRef}
+                                    type="text"
+                                    value={chatInput}
+                                    onChange={(e) => setChatInput(e.target.value)}
+                                    placeholder="Type a command..."
+                                    className="flex-1 bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-xs placeholder-white/30 focus:outline-none focus:border-white/30"
+                                />
+                                <button
+                                    type="submit"
+                                    className="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-3 py-2 transition-colors"
+                                    aria-label="Send message"
+                                >
+                                    <Send className="h-4 w-4" />
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

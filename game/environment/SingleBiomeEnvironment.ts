@@ -46,12 +46,12 @@ export class SingleBiomeEnvironment {
     private circularWallCenters: THREE.Vector2[] = [];
     private currentBiome: { name: string, color: string, type: string } = { name: 'Grass', color: '#4ade80', type: 'Grass' };
     private static readonly TREE_COUNT = 64;
-    private static readonly TREE_HEALTH = 10;
+    private static readonly TREE_HEALTH = 6;
     private static readonly ROCK_FORMATION_COUNT = 26;
-    private static readonly ROCK_HEALTH = 10;
+    private static readonly ROCK_HEALTH = 6;
     private static readonly DEFAULT_ROCK_STONE_YIELD = 5;
     private static readonly MUD_CLUMP_COUNT = 20;
-    private static readonly MUD_CLUMP_HEALTH = 3;
+    private static readonly MUD_CLUMP_HEALTH = 6;
     private static readonly PICKUP_SCATTER_COUNT = 120;
     private static readonly GRASS_TUFT_COUNT = 2600;
     private static readonly SPAWN_ATTEMPT_MULTIPLIER = 10;
@@ -64,6 +64,7 @@ export class SingleBiomeEnvironment {
     public onOreCrumbling?: () => void;
     public onMudDug?: () => void;
     public onWrongTool?: (message: string) => void;
+    public onTreeFall?: () => void;
 
     constructor(scene: THREE.Scene) {
         this.scene = scene;
@@ -256,11 +257,13 @@ export class SingleBiomeEnvironment {
         geometry.computeBoundingBox();
         geometry.computeBoundingSphere();
 
-        // Material - Based on biome
-        const material = new THREE.MeshStandardMaterial({ 
+        // Material - Based on biome with programmatic texture
+        const texture = this.createGrassTexture(this.currentBiome.color);
+        const material = new THREE.MeshStandardMaterial({
             color: new THREE.Color(this.currentBiome.color),
-            roughness: 0.8,
-            metalness: 0.1,
+            map: texture,
+            roughness: 0.85,
+            metalness: 0.05,
             side: THREE.FrontSide
         });
 
@@ -416,6 +419,9 @@ export class SingleBiomeEnvironment {
                 this.group.add(stump);
                 this.obstacles.push(stump);
             }
+
+            // Play tree fall sound
+            this.onTreeFall?.();
 
             // Drop sticks directly to inventory
             const stickDropCount = 8;
@@ -747,6 +753,102 @@ export class SingleBiomeEnvironment {
         if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
         this.group.add(mesh);
         this.grassTuftMesh = mesh;
+    }
+
+    private createGrassTexture(baseColor: string): THREE.CanvasTexture {
+        const size = 512;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const baseColorRGB = this.hexToRgb(baseColor);
+        const r = baseColorRGB.r;
+        const g = baseColorRGB.g;
+        const b = baseColorRGB.b;
+
+        // Fill base color
+        ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        ctx.fillRect(0, 0, size, size);
+
+        // Add noise for texture detail
+        const imageData = ctx.getImageData(0, 0, size, size);
+        const data = imageData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+            const noise = (Math.random() - 0.5) * 30;
+            data[i] = Math.max(0, Math.min(255, data[i] + noise));
+            data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise));
+            data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise));
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        // Add grass blade patterns
+        for (let i = 0; i < 4000; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const length = 3 + Math.random() * 8;
+            const angle = Math.random() * Math.PI * 2;
+            const brightness = 0.7 + Math.random() * 0.3;
+
+            ctx.strokeStyle = `rgba(${Math.floor(r * brightness)}, ${Math.floor(g * brightness)}, ${Math.floor(b * brightness)}, 0.3)`;
+            ctx.lineWidth = 1 + Math.random() * 1.5;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+            ctx.stroke();
+        }
+
+        // Add subtle dirt patches
+        for (let i = 0; i < 150; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 5 + Math.random() * 15;
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+            gradient.addColorStop(0, 'rgba(101, 67, 33, 0.15)');
+            gradient.addColorStop(1, 'rgba(101, 67, 33, 0)');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Add subtle variation patches
+        for (let i = 0; i < 80; i++) {
+            const x = Math.random() * size;
+            const y = Math.random() * size;
+            const radius = 10 + Math.random() * 30;
+            const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+            const brightness = 0.9 + Math.random() * 0.2;
+            gradient.addColorStop(0, `rgba(${Math.floor(r * brightness)}, ${Math.floor(g * brightness)}, ${Math.floor(b * brightness)}, 0.2)`);
+            gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(4, 4);
+        texture.anisotropy = 16;
+
+        return texture;
+    }
+
+    private hexToRgb(hex: string): { r: number; g: number; b: number } {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result
+            ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16),
+            }
+            : { r: 74, g: 222, b: 128 };
     }
 
     private createGrassTuftGeometry(): THREE.BufferGeometry {

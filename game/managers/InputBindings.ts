@@ -81,7 +81,7 @@ export const DEFAULT_KEYBINDINGS: KeyBindingMap = {
     [InputCommand.ToggleGrid]: ['KeyT'],
     [InputCommand.RotateGhost]: ['KeyR'],
     [InputCommand.ToggleBuilderLog]: ['Period'],
-    [InputCommand.ConfirmBuild]: ['Enter'],
+    [InputCommand.ConfirmBuild]: [],
     [InputCommand.TeleportToTown]: ['BracketRight'],
     [InputCommand.Crouch]: ['KeyX'],
     [InputCommand.Slot1]: ['Digit1'],

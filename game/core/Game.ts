@@ -99,6 +99,8 @@ export class Game {
     public onEnvironmentReady?: () => void;
     public onUpdate?: (dt: number) => void;
     public onWrongTool?: (message: string) => void;
+    public onFirepitBuilt?: () => void;
+    public onEntityDeath?: (entityType: string) => void;
     public onEnterTown?: () => void;
     public onEnterTown2?: () => void;
     public onNpcInteraction?: (context: { scene: SceneType; target: any }) => NpcInteractionResponse | null | undefined;
@@ -136,6 +138,17 @@ export class Game {
         this.builderManager.onBuild = (type, pos, rot) => {
             const msg = `Built ${type} at (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}) Rot: ${rot.toFixed(2)}`;
             this.onBuildLog?.(msg);
+            
+            console.log('[Game] onBuild callback triggered with type:', type, 'pos:', pos, 'rot:', rot);
+            console.log('[Game] onFirepitBuilt callback exists:', !!this.onFirepitBuilt);
+            
+            // Trigger tutorial advancement if firepit is built
+            if (type === 'firepit') {
+                console.log('[Game] Firepit built, triggering onFirepitBuilt callback');
+                this.onFirepitBuilt?.();
+            } else {
+                console.log('[Game] Type is not firepit, skipping onFirepitBuilt. Type was:', type);
+            }
         };
 
         this.builderManager.onCheckCost = (cost) => {
@@ -143,7 +156,9 @@ export class Game {
             for (const [itemName, requiredAmount] of Object.entries(cost)) {
                 const totalAmount = inventory.filter(i => i?.name === itemName).reduce((sum, i) => sum + (i?.count || 0), 0);
                 if (totalAmount < requiredAmount) {
+                    const msg = `Need ${requiredAmount} ${itemName}, have ${totalAmount}`;
                     console.log(`Insufficient ${itemName}: need ${requiredAmount}, have ${totalAmount}`);
+                    this.onWrongTool?.(msg);
                     return false;
                 }
             }
@@ -645,12 +660,19 @@ export class Game {
         singleBiomeEnv.getStoneDropCount = () => this.getStoneDropCountForEquippedPickaxe();
         singleBiomeEnv.onAddToInventory = (itemName, count) => {
             this.player.addItem(itemName, count, true);
+            // Dispatch pickup event for UI notification
+            window.dispatchEvent(new CustomEvent('pickup-item', { 
+                detail: { itemName, count } 
+            }));
         };
         singleBiomeEnv.onOreCrumbling = () => {
             this.soundManager?.playOreCrumbling();
         };
         singleBiomeEnv.onMudDug = () => {
             this.soundManager?.playStoneDink();
+        };
+        singleBiomeEnv.onTreeFall = () => {
+            this.soundManager?.playTreeFall();
         };
         singleBiomeEnv.onWrongTool = (message) => {
             this.onWrongTool?.(message);
@@ -678,6 +700,9 @@ export class Game {
         console.log('Game.toggleBuilder called - current isBuilding:', this.isBuilding);
         this.isBuilding = !this.isBuilding;
         console.log('Game.toggleBuilder - new isBuilding:', this.isBuilding);
+        if (this.isBuilding) {
+            this.lastBuildTime = 0;
+        }
         this.builderManager.setActive(this.isBuilding);
         this.inputManager.setBuilding(this.isBuilding);
         console.log('Game.toggleBuilder - calling onBuilderToggle with:', this.isBuilding);
@@ -689,27 +714,22 @@ export class Game {
     
     private handleConfirmBuild() {
         if (!this.isBuilding) return;
-        
-        const currentTime = Date.now();
-        const timeSinceSlotSelect = currentTime - this.lastSlotSelectTime;
-        
-        // Only allow confirmation if enough time has passed since slot selection
-        if (timeSinceSlotSelect >= this.slotSelectProtection && currentTime - this.lastBuildTime >= this.buildCooldown) {
-            const currentEnv = this.sceneManager.currentEnvironment;
-            if (currentEnv) {
-                const shouldBuild = this.builderManager.selectPlacementLocation();
-                if (!shouldBuild) return;
-                this.builderManager.build(currentEnv);
-                this.lastBuildTime = currentTime;
-                if (this.showObstacleHitboxes) {
-                    const debugObjects: THREE.Object3D[] = [...currentEnv.obstacles];
-                    const entities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
-                    entities.forEach(entity => {
-                        if (entity.group) debugObjects.push(entity.group);
-                    });
-                    PlayerDebug.updateObstacleHitboxVisuals(debugObjects, true);
-                }
-            }
+
+        const currentEnv = this.sceneManager.currentEnvironment;
+        if (!currentEnv) return;
+
+        const shouldBuild = this.builderManager.selectPlacementLocation();
+        if (!shouldBuild) return;
+
+        this.builderManager.build(currentEnv);
+        this.lastBuildTime = Date.now();
+        if (this.showObstacleHitboxes) {
+            const debugObjects: THREE.Object3D[] = [...currentEnv.obstacles];
+            const entities = this.entityManager.getEntitiesForScene(this.sceneManager.activeScene);
+            entities.forEach(entity => {
+                if (entity.group) debugObjects.push(entity.group);
+            });
+            PlayerDebug.updateObstacleHitboxVisuals(debugObjects, true);
         }
     }
 
@@ -796,6 +816,7 @@ export class Game {
             this.sceneManager.activeScene, 
             this.combatManager.isActive,
             this.onAttackHit,
+            this.onEntityDeath,
             currentEntities
         );
 
@@ -871,7 +892,7 @@ export class Game {
                 this.player.model.group.position.copy(this.player.mesh.position);
                 this.player.model.group.rotation.copy(this.player.mesh.rotation);
             }
-            if (this.isBuilding && this.inputManager.mousePosition && (this.sceneManager.activeScene === 'dev' || this.sceneManager.activeScene === 'singleBiome' || this.sceneManager.activeScene === 'land')) {
+            if (this.isBuilding && this.inputManager.mousePosition && (this.sceneManager.activeScene === 'dev' || this.sceneManager.activeScene === 'singleBiome' || this.sceneManager.activeScene === 'starter' || this.sceneManager.activeScene === 'land')) {
                 this.builderManager.update(this.player.mesh.position, this.player.mesh.rotation.y, currentEnv as any, this.renderManager.camera, this.inputManager.mousePosition);
             }
         }

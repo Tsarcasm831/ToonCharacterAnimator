@@ -20,6 +20,7 @@ import LoadingScreen from '../overlays/LoadingScreen';
 import { MobileControls } from '../hud/MobileControls';
 import { DialogueOverlay } from '../overlays/DialogueOverlay';
 import { GameHUD } from '../hud/GameHUD';
+import { PickupNotifications } from '../hud/PickupNotifications';
 import { ChakraNodeDebuggerSidebar, type ChakraDebuggerSidebarEntry, type ChakraSidebarHoverTarget } from '../modals/ChakraNodeDebuggerSidebar';
 import { BuilderUI } from '../panels/BuilderUI';
 import { BuilderLog } from '../panels/BuilderLog';
@@ -306,6 +307,10 @@ export const Game: React.FC = () => {
         partyCount: number;
         activeMissionTitle: string | null;
     };
+    type DevChatMessage = {
+        type: 'system' | 'user' | 'command';
+        content: string;
+    };
 
     const isMobileDevice = useIsMobileDevice();
     const {
@@ -406,10 +411,48 @@ export const Game: React.FC = () => {
     const [gameLoopHudState, setGameLoopHudState] = React.useState<GameLoopHudState | null>(null);
     const [isCharacterSaveInProgress, setIsCharacterSaveInProgress] = React.useState(false);
     const [characterSaveStatus, setCharacterSaveStatus] = React.useState<string | null>(null);
+    const [isDevChatOpen, setIsDevChatOpen] = React.useState(false);
+    const [devChatInput, setDevChatInput] = React.useState('');
+    const [devChatMessages, setDevChatMessages] = React.useState<DevChatMessage[]>([
+        { type: 'system', content: 'Press Enter to open dev chat. Type /tut1co to finish tutorial 1 and receive resources.' }
+    ]);
     const [chakraNodeLegend, setChakraNodeLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
     const [chakraConnectionLegend, setChakraConnectionLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
     const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
+    const [tutorialStep, setTutorialStep] = React.useState(1);
+    const tutorialStepRef = React.useRef(1);
     const chakraNodeLegendSignatureRef = React.useRef('');
+
+    // Auto-advance tutorial from step 1 to step 2 when resources are gathered
+    React.useEffect(() => {
+        console.log('[Game.tsx] Tutorial Step 1 useEffect running. Current step:', tutorialStep, 'Active scene:', activeScene);
+        if (tutorialStep === 1 && activeScene === 'starter') {
+            const stickCount = inventory.filter(i => i?.name === 'Stick').reduce((sum, i) => sum + (i?.count || 0), 0);
+            const stoneCount = inventory.filter(i => i?.name === 'Stone').reduce((sum, i) => sum + (i?.count || 0), 0);
+            console.log('[Game.tsx] Stick count:', stickCount, 'Stone count:', stoneCount);
+            if (stickCount >= 8 && stoneCount >= 15) {
+                console.log('[Game.tsx] Advancing tutorial to step 2');
+                setTutorialStep(2);
+            }
+        }
+    }, [tutorialStep, inventory, activeScene]);
+
+    // Keep ref in sync with state
+    React.useEffect(() => {
+        tutorialStepRef.current = tutorialStep;
+    }, [tutorialStep]);
+
+    // Track porkchop inventory for tutorial step 3
+    React.useEffect(() => {
+        if (tutorialStep === 3 && activeScene === 'starter') {
+            const porkCount = inventory.filter(i => i?.name === 'Pork' || i?.name === 'Porkchop').reduce((sum, i) => sum + (i?.count || 0), 0);
+            if (porkCount >= 10) {
+                setTutorialStep(4);
+                setNotification('Tutorial complete! You gathered enough porkchops.');
+            }
+        }
+    }, [tutorialStep, inventory, activeScene]);
+
     const chakraSidebarVisibleRef = React.useRef(false);
     const chakraHoverTargetRef = React.useRef<ChakraSidebarHoverTarget | null>(null);
     const chakraArrowPathRef = React.useRef<SVGPathElement | null>(null);
@@ -418,6 +461,41 @@ export const Game: React.FC = () => {
     const arenaVictoryHandledRef = React.useRef(false);
     const lastGameLoopHudSyncRef = React.useRef(0);
     const creatorStarterAppliedRef = React.useRef(false);
+    const devChatInputRef = React.useRef<HTMLInputElement | null>(null);
+
+    React.useEffect(() => {
+        if (!isDevChatOpen) return;
+        const frame = window.requestAnimationFrame(() => devChatInputRef.current?.focus());
+        return () => window.cancelAnimationFrame(frame);
+    }, [isDevChatOpen]);
+
+    React.useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (gameState !== 'PLAYING') return;
+
+            if (isDevChatOpen) {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setIsDevChatOpen(false);
+                    setDevChatInput('');
+                }
+                return;
+            }
+
+            const target = event.target as HTMLElement | null;
+            if (target?.closest('input, textarea, select, .no-capture')) return;
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                event.stopPropagation();
+                setIsDevChatOpen(true);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown, false);
+        return () => window.removeEventListener('keydown', handleKeyDown, false);
+    }, [gameState, isDevChatOpen]);
 
     const isHUDDisabled = isInventoryOpen || isItemCatalogOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
     // Temporary: bypass first-login creator flow and always use normal main menu after login.
@@ -501,6 +579,38 @@ export const Game: React.FC = () => {
 
     // Handlers
     const handleEnterWorld = React.useCallback((scene: ActiveScene = activeScene) => {
+        // Check for tutorial completion flag and add items to inventory
+        const tutorialCompleted = localStorage.getItem('tutorial1Completed');
+        if (tutorialCompleted === 'true') {
+            // Add sticks and stones to inventory
+            setInventory((prev) => {
+                const next = [...prev];
+                // Find or add Stick
+                const stickIndex = next.findIndex((item) => item?.name === 'Stick');
+                if (stickIndex >= 0 && next[stickIndex]) {
+                    next[stickIndex] = { ...next[stickIndex], count: next[stickIndex].count + 10 };
+                } else {
+                    const emptyIndex = next.findIndex((item) => item === null);
+                    if (emptyIndex >= 0) {
+                        next[emptyIndex] = { name: 'Stick', count: 10 };
+                    }
+                }
+                // Find or add Stone
+                const stoneIndex = next.findIndex((item) => item?.name === 'Stone');
+                if (stoneIndex >= 0 && next[stoneIndex]) {
+                    next[stoneIndex] = { ...next[stoneIndex], count: next[stoneIndex].count + 10 };
+                } else {
+                    const emptyIndex = next.findIndex((item) => item === null);
+                    if (emptyIndex >= 0) {
+                        next[emptyIndex] = { name: 'Stone', count: 10 };
+                    }
+                }
+                return next;
+            });
+            // Clear the flag so items are only given once
+            localStorage.removeItem('tutorial1Completed');
+        }
+
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
@@ -514,7 +624,7 @@ export const Game: React.FC = () => {
         mountSceneTimeout.current = window.setTimeout(() => {
           setShouldMountScene(true);
         }, 150);
-    }, [activeScene, setIsEnvironmentBuilt, setIsVisualLoadingDone, setIsCombatActive, setGameState, setActiveScene]);
+    }, [activeScene, setIsEnvironmentBuilt, setIsVisualLoadingDone, setIsCombatActive, setGameState, setActiveScene, setInventory]);
 
     const enterCreatorOnlyMode = React.useCallback(() => {
         setShouldMountScene(false);
@@ -539,6 +649,54 @@ export const Game: React.FC = () => {
     const handleStartPlaying = () => {
         setGameState('PLAYING');
     };
+
+    const handleDevChatSubmit = React.useCallback((e: React.FormEvent) => {
+        e.preventDefault();
+        const command = devChatInput.trim();
+        if (!command) return;
+
+        setDevChatMessages((prev) => [...prev, { type: 'user', content: command }]);
+
+        if (command === '/tut1co') {
+            localStorage.setItem('tutorial1Completed', 'true');
+            setInventory((prev) => {
+                const next = [...prev];
+                const rewards = [
+                    { name: 'Stick', count: 10 },
+                    { name: 'Stone', count: 15 },
+                ];
+
+                rewards.forEach((reward) => {
+                    const existingIndex = next.findIndex((item) => item?.name === reward.name);
+                    if (existingIndex >= 0 && next[existingIndex]) {
+                        next[existingIndex] = {
+                            ...next[existingIndex],
+                            count: next[existingIndex]!.count + reward.count,
+                        };
+                        return;
+                    }
+
+                    const emptyIndex = next.findIndex((item) => item === null);
+                    if (emptyIndex >= 0) {
+                        next[emptyIndex] = { name: reward.name, count: reward.count };
+                    }
+                });
+
+                // Sync with Game instance's player inventory for BuilderManager
+                if (gameInstance.current) {
+                    gameInstance.current.setInventory(next);
+                }
+
+                return next;
+            });
+            setDevChatMessages((prev) => [...prev, { type: 'command', content: 'Tutorial 1 completed. Added 10 Stick and 15 Stone to your inventory.' }]);
+            setNotification('Tutorial resources granted');
+        } else {
+            setDevChatMessages((prev) => [...prev, { type: 'system', content: `Unknown command: ${command}` }]);
+        }
+
+        setDevChatInput('');
+    }, [devChatInput, setInventory, setNotification]);
 
     const handleSaveCharacterToCloud = React.useCallback(async () => {
         if (!user || !isSupabaseEnabled || isCharacterSaveInProgress) return;
@@ -884,6 +1042,8 @@ export const Game: React.FC = () => {
         chakraSidebarVisibleRef.current = false;
         chakraHoverTargetRef.current = null;
         hideChakraHoverArrow();
+
+
         // Bind game callbacks here if needed, or rely on game observing state?
         // The previous implementation bound callbacks to the game instance.
         // We should replicate that or ensure the game instance reads from context/props updates.
@@ -933,6 +1093,36 @@ export const Game: React.FC = () => {
         game.onBuildingTypeChange = (type: any) => environmentState.setActiveStructure(type);
         game.onBiomeUpdate = (b: any) => environmentState.setCurrentBiome(b);
         game.onBuildLog = (message: string) => uiState.addBuilderLog(message);
+        game.onFirepitBuilt = () => {
+            console.log('[Game.tsx] onFirepitBuilt called, tutorialStep:', tutorialStepRef.current);
+            if (tutorialStepRef.current === 2) {
+                console.log('[Game.tsx] Advancing from tutorial step 2 to 3');
+                setTutorialStep(3);
+                setNotification('Firepit built! Wild pigs appear nearby!');
+                // Spawn 3 pigs near player
+                if (gameInstance.current) {
+                    const playerPos = gameInstance.current.player.mesh.position;
+                    const environment = gameInstance.current.sceneManager.currentEnvironment;
+                    console.log('[Game.tsx] Spawning 3 pigs near player at position:', playerPos);
+                    console.log('[Game.tsx] Environment:', environment);
+                    console.log('[Game.tsx] EntityManager:', gameInstance.current.entityManager);
+                    for (let i = 0; i < 3; i++) {
+                        const spawnPos = new THREE.Vector3(
+                            playerPos.x + 5 + Math.random() * 8,
+                            0,
+                            playerPos.z + 5 + Math.random() * 8
+                        );
+                        console.log('[Game.tsx] Spawning pig', i + 1, 'at:', spawnPos);
+                        gameInstance.current.entityManager.spawnAnimalGroup('pig', 1, environment, spawnPos);
+                        console.log('[Game.tsx] Pig', i + 1, 'spawned. Total pigs:', gameInstance.current.entityManager.pigs.length);
+                    }
+                } else {
+                    console.log('[Game.tsx] gameInstance.current is null, cannot spawn pigs');
+                }
+            } else {
+                console.log('[Game.tsx] onFirepitBuilt called but tutorialStep is not 2, it is:', tutorialStepRef.current);
+            }
+        };
         game.onWrongTool = (message: string) => setNotification(message);
         
         game.onDialogueTrigger = (content: string | DialogueContent) => setDialogue(content);
@@ -1501,22 +1691,65 @@ export const Game: React.FC = () => {
                             
                             <DialogueOverlay dialogue={dialogue} onClose={onCloseDialogue} onSelectChoice={onDialogueChoice} />
                             <MobileControls game={gameInstance.current} />
+                            <PickupNotifications />
+
+                            {gameState === 'PLAYING' && isDevChatOpen && !isMobileDevice && (
+                                <div className="fixed bottom-6 left-6 z-[130] w-[420px] max-w-[calc(100vw-3rem)]">
+                                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/92 shadow-2xl backdrop-blur-md">
+                                        <div className="flex items-center justify-between border-b border-white/10 bg-black/30 px-4 py-3">
+                                            <div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.35em] text-cyan-300">Dev Chat</div>
+                                                <div className="text-[10px] text-slate-500">Enter command, Esc to close</div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsDevChatOpen(false);
+                                                    setDevChatInput('');
+                                                }}
+                                                className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300 transition hover:border-white/30 hover:text-white"
+                                            >
+                                                Close
+                                            </button>
+                                        </div>
+                                        <div className="max-h-56 overflow-y-auto space-y-2 px-4 py-3 text-sm">
+                                            {devChatMessages.map((message, index) => (
+                                                <div
+                                                    key={`${message.type}-${index}`}
+                                                    className={`rounded-xl px-3 py-2 ${message.type === 'system' ? 'bg-white/5 text-slate-300' : message.type === 'command' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' : 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/20'}`}
+                                                >
+                                                    {message.content}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <form onSubmit={handleDevChatSubmit} className="border-t border-white/10 p-3">
+                                            <input
+                                                ref={devChatInputRef}
+                                                value={devChatInput}
+                                                onChange={(e) => setDevChatInput(e.target.value)}
+                                                placeholder="/tut1co"
+                                                className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                                            />
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Tutorial Panel */}
                             {(() => {
                                 const stickCount = inventory.filter(i => i?.name === 'Stick').reduce((sum, i) => sum + (i?.count || 0), 0);
                                 const stoneCount = inventory.filter(i => i?.name === 'Stone').reduce((sum, i) => sum + (i?.count || 0), 0);
-                                const tutorial1Complete = stickCount >= 8 && stoneCount >= 15;
-                                const tutorialStep = tutorial1Complete ? 2 : 1;
+                                const porkCount = inventory.filter(i => i?.name === 'Pork' || i?.name === 'Porkchop').reduce((sum, i) => sum + (i?.count || 0), 0);
 
                                 if (tutorialStep === 1) {
                                     const stickProgress = Math.min(100, (stickCount / 8) * 100);
                                     const stoneProgress = Math.min(100, (stoneCount / 15) * 100);
                                     const totalProgress = (stickProgress + stoneProgress) / 2;
+                                    const tutorial1Complete = stickCount >= 8 && stoneCount >= 15;
 
                                     return (
                                         <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-amber-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
-                                            <div className="font-bold text-amber-400 text-xs uppercase tracking-wider mb-2">Tutorial 1/2</div>
+                                            <div className="font-bold text-amber-400 text-xs uppercase tracking-wider mb-2">Tutorial 1/3</div>
                                             <div className="text-sm font-medium">Gather Resources</div>
                                             <div className="text-xs text-stone-400 mt-1">
                                                 <span className={stickCount >= 8 ? 'text-green-400' : 'text-amber-300'}>{stickCount}/8</span> Sticks · <span className={stoneCount >= 15 ? 'text-green-400' : 'text-amber-300'}>{stoneCount}/15</span> Stone
@@ -1527,10 +1760,10 @@ export const Game: React.FC = () => {
                                             <div className="text-[10px] text-stone-500 mt-1.5 italic">Chop trees for sticks, mine rocks for stone</div>
                                         </div>
                                     );
-                                } else {
+                                } else if (tutorialStep === 2) {
                                     return (
                                         <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-emerald-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
-                                            <div className="font-bold text-emerald-400 text-xs uppercase tracking-wider mb-2">Tutorial 2/2</div>
+                                            <div className="font-bold text-emerald-400 text-xs uppercase tracking-wider mb-2">Tutorial 2/3</div>
                                             <div className="text-sm font-medium">Build a Firepit</div>
                                             <div className="text-xs text-stone-400 mt-1">
                                                 Press <span className="text-amber-300">B</span> to open builder, select <span className="text-amber-300">🔥 Firepit</span>, and place it
@@ -1541,6 +1774,37 @@ export const Game: React.FC = () => {
                                             <div className="text-[10px] text-stone-500 mt-1.5 italic">Cost: 8 Sticks + 15 Stone</div>
                                         </div>
                                     );
+                                } else if (tutorialStep === 3) {
+                                    const porkProgress = Math.min(100, (porkCount / 10) * 100);
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-red-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-red-400 text-xs uppercase tracking-wider mb-2">Tutorial 3/3</div>
+                                            <div className="text-sm font-medium">Gather Porkchops</div>
+                                            <div className="text-xs text-stone-400 mt-1">
+                                                <span className={porkCount >= 10 ? 'text-green-400' : 'text-amber-300'}>{porkCount}/10</span> Porkchops
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className={`h-full transition-all duration-300 ${porkCount >= 10 ? 'bg-green-500' : 'bg-red-500/50'}`} style={{ width: `${porkProgress}%` }} />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Kill pigs and skin them for meat</div>
+                                        </div>
+                                    );
+                                } else if (tutorialStep === 4) {
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-green-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-green-400 text-xs uppercase tracking-wider mb-2">Tutorial Complete!</div>
+                                            <div className="text-sm font-medium">You gathered enough meat</div>
+                                            <div className="text-xs text-stone-400 mt-1">
+                                                You can now explore freely
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className="h-full bg-green-500 w-full" />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Press B to build, explore the world</div>
+                                        </div>
+                                    );
+                                } else {
+                                    return null;
                                 }
                             })()}
 

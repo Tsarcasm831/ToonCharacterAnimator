@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import DevScene from '../../DevScene';
+import Starter from '../../Starter';
 import CombatScene from '../../CombatScene';
 import MPTestScene from '../../MPTestScene';
 import SingleBiomeScene from '../../SingleBiomeScene';
@@ -8,6 +9,7 @@ import Town2Scene from '../../Town2Scene';
 import TDGameScene from '../../TDGameScene';
 import RoguelikeScene from '../../RoguelikeScene';
 import DarkestScene from '../../DarkestScene';
+import Loop from '../../Loop';
 import { useGlobalState } from '../../../contexts/GlobalContext';
 import { isSupabaseEnabled } from '../../../lib/supabase';
 import { signIn, signUp } from '../../../lib/auth';
@@ -18,13 +20,16 @@ import LoadingScreen from '../overlays/LoadingScreen';
 import { MobileControls } from '../hud/MobileControls';
 import { DialogueOverlay } from '../overlays/DialogueOverlay';
 import { GameHUD } from '../hud/GameHUD';
+import { PickupNotifications } from '../hud/PickupNotifications';
 import { ChakraNodeDebuggerSidebar, type ChakraDebuggerSidebarEntry, type ChakraSidebarHoverTarget } from '../modals/ChakraNodeDebuggerSidebar';
 import { BuilderUI } from '../panels/BuilderUI';
 import { BuilderLog } from '../panels/BuilderLog';
 import { ControlPanel } from '../panels/ControlPanel';
+import { PlayerPreview } from '../previews/PlayerPreview';
 import * as THREE from 'three';
 import type { DialogueContent } from '../../../game/core/Game';
 import { CITIES } from '../../../data/lands/cities';
+import { BODY_PRESETS, ITEM_DATA, OUTFIT_PRESETS } from '../../../data/constants';
 import { getTownWallCenters } from '../../../game/environment/townWalls';
 import { useIsMobileDevice } from '../../../hooks/useIsMobileDevice';
 import { useUndoRedo } from '../../../hooks/useUndoRedo';
@@ -37,6 +42,42 @@ const AuthGate: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [successMsg, setSuccessMsg] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const snowLayers = React.useMemo(() => {
+        const snowfallDensity = 0.84;
+        const layerCount = Math.round(4 + snowfallDensity * 5);
+
+        return Array.from({ length: layerCount }, (_, layerIndex) => {
+            const depth = layerCount === 1 ? 1 : layerIndex / (layerCount - 1);
+            const isBackLayer = depth < 0.28;
+            const flakeCount = Math.round((isBackLayer ? 78 - layerIndex * 8 : 24 + layerIndex * 8) * snowfallDensity);
+
+            return {
+                id: `snow-layer-${layerIndex}`,
+                opacity: isBackLayer ? 0.72 : 0.62 + depth * 0.28,
+                zIndex: 10 + layerIndex,
+                flakes: Array.from({ length: flakeCount }, (_, flakeIndex) => {
+                    const dust = isBackLayer;
+                    const size = dust
+                        ? 1 + Math.random() * 2.7
+                        : 1.4 + depth * 5.4 + Math.random() * (2 + depth * 4.5);
+
+                    return {
+                        id: `snow-${layerIndex}-${flakeIndex}`,
+                        left: `${-10 + Math.random() * 120}%`,
+                        top: `${Math.random() * 100}%`,
+                        size,
+                        blur: dust ? 0.05 + Math.random() * 0.35 : 0.08 + depth * 0.85 + Math.random() * 0.4,
+                        opacity: dust ? 0.16 + Math.random() * 0.26 : 0.16 + depth * 0.34 + Math.random() * 0.2,
+                        duration: 20 - depth * 12 + Math.random() * (8 - depth * 3),
+                        delay: -Math.random() * 22,
+                        drift: `${28 + depth * 150 + Math.random() * (50 + depth * 120)}px`,
+                        startY: `${-20 - Math.random() * 90}vh`,
+                        dust,
+                    };
+                }),
+            };
+        });
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,14 +102,59 @@ const AuthGate: React.FC = () => {
     };
 
     return (
-        <div className="absolute inset-0 z-[200] flex items-center justify-center bg-[#080c14] p-4 overflow-auto">
-            {/* Background glow */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-blue-900/20 blur-[120px]" />
-                <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-indigo-900/15 blur-[80px]" />
+        <div className="absolute inset-0 z-[200] flex items-center justify-center overflow-hidden p-4 isolate">
+            <div className="absolute inset-0 z-0 overflow-hidden bg-[#050913] pointer-events-none">
+                <img
+                    src="/assets/images/menus/start_screen_ice.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full object-cover scale-110 blur-2xl opacity-70"
+                />
+                <img
+                    src="/assets/images/menus/start_screen_ice.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 h-full w-full object-cover object-center"
+                />
             </div>
+            <div className="absolute inset-0 z-[5] bg-[#050913]/70" />
+            <div className="absolute inset-0 z-[6] pointer-events-none bg-[radial-gradient(ellipse_at_50%_34%,rgba(96,165,250,0.2),transparent_34%),linear-gradient(180deg,rgba(8,13,26,0.18),rgba(3,8,18,0.74)_82%)]" />
+            <div className="absolute inset-0 z-[8] pointer-events-none overflow-hidden opacity-70 mix-blend-screen">
+                <div className="absolute -inset-x-16 top-[12%] h-48 rotate-[-7deg] bg-[linear-gradient(90deg,transparent,rgba(219,234,254,0.14),transparent)] blur-2xl animate-[loginSnowVeil_16s_ease-in-out_infinite]" />
+                <div className="absolute -inset-x-20 bottom-[18%] h-36 rotate-[-5deg] bg-[linear-gradient(90deg,transparent,rgba(125,211,252,0.1),transparent)] blur-2xl animate-[loginSnowVeil_22s_ease-in-out_-7s_infinite]" />
+            </div>
+            {snowLayers.map((layer) => (
+                <div
+                    key={layer.id}
+                    className="absolute inset-0 pointer-events-none overflow-hidden [contain:layout_paint]"
+                    style={{ zIndex: layer.zIndex, opacity: layer.opacity }}
+                >
+                    {layer.flakes.map((flake) => (
+                        <span
+                            key={flake.id}
+                            className={`absolute top-0 rounded-full will-change-transform mix-blend-screen ${
+                                flake.dust
+                                    ? 'bg-slate-100/75'
+                                    : 'bg-cyan-50/85 shadow-[0_0_10px_rgba(255,255,255,0.24)]'
+                            }`}
+                            style={{
+                                ['--snow-drift' as any]: flake.drift,
+                                ['--snow-start-y' as any]: flake.startY,
+                                left: flake.left,
+                                top: `${flake.dust ? flake.top : 0}`,
+                                width: `${flake.size}px`,
+                                height: `${flake.size}px`,
+                                opacity: flake.opacity,
+                                filter: `blur(${flake.blur}px)`,
+                                animation: `${flake.dust ? 'loginSnowDrift' : 'loginSnowFall'} ${flake.duration}s ${flake.dust ? 'ease-in-out' : 'linear'} ${flake.delay}s infinite ${flake.dust ? 'alternate' : ''}`,
+                            }}
+                        />
+                    ))}
+                </div>
+            ))}
+            <div className="absolute inset-x-0 bottom-0 z-[18] h-1/3 pointer-events-none bg-[linear-gradient(180deg,transparent,rgba(5,9,19,0.38))]" />
 
-            <div className="relative w-full max-w-md">
+            <div className="relative z-[30] w-full max-w-md">
                 {/* Logo / Title */}
                 <div className="text-center mb-8">
                     <p className="text-[10px] text-indigo-400 uppercase tracking-[0.6em] font-bold mb-2">Sairon RPG</p>
@@ -171,12 +257,40 @@ const AuthGate: React.FC = () => {
                                 {tab === 'register' ? 'Sign in' : 'Create one'}
                             </button>
                         </p>
+
+                        <style>{`
+                            @keyframes loginSnowFall {
+                                0% {
+                                    transform: translate3d(0, var(--snow-start-y, -20vh), 0) rotate(-12deg);
+                                }
+                                100% {
+                                    transform: translate3d(var(--snow-drift, 80px), 124vh, 0) rotate(-12deg);
+                                }
+                            }
+
+                            @keyframes loginSnowVeil {
+                                0%, 100% {
+                                    transform: translate3d(-5%, 0, 0);
+                                    opacity: 0.32;
+                                }
+                                45% {
+                                    transform: translate3d(6%, 18px, 0);
+                                    opacity: 0.58;
+                                }
+                            }
+
+                            @keyframes loginSnowDrift {
+                                0% {
+                                    transform: translate3d(0, 0, 0);
+                                }
+                                100% {
+                                    transform: translate3d(calc(var(--snow-drift, 18px) * 0.22), 14px, 0);
+                                }
+                            }
+                        `}</style>
                     </div>
                 </div>
 
-                <p className="text-center text-slate-700 text-[9px] uppercase tracking-widest mt-6">
-                    Your game data is saved securely to your account
-                </p>
             </div>
         </div>
     );
@@ -192,6 +306,10 @@ export const Game: React.FC = () => {
         rosterCount: number;
         partyCount: number;
         activeMissionTitle: string | null;
+    };
+    type DevChatMessage = {
+        type: 'system' | 'user' | 'command';
+        content: string;
     };
 
     const isMobileDevice = useIsMobileDevice();
@@ -221,7 +339,7 @@ export const Game: React.FC = () => {
         dialogue, 
         selectedSlot, setSelectedSlot,
         interactionText, interactionProgress, setInteractionText, setInteractionProgress,
-        isInventoryOpen, isTradeOpen, isShopkeeperChatOpen, isForgeOpen, isKeybindsOpen, isQuestLogOpen, isSpawnModalOpen, isEnemiesModalOpen, isCharacterStatsOpen, isLandMapOpen, isAreaMapOpen, isTravelOpen,
+        isInventoryOpen, isItemCatalogOpen, isTradeOpen, isShopkeeperChatOpen, isForgeOpen, isKeybindsOpen, isQuestLogOpen, isSpawnModalOpen, isEnemiesModalOpen, isCharacterStatsOpen, isLandMapOpen, isAreaMapOpen, isTravelOpen,
         setIsTravelOpen, setIsLandMapOpen, setIsAreaMapOpen,
         setDialogue,
         setIsDeadUI, isDeadUI,
@@ -241,6 +359,39 @@ export const Game: React.FC = () => {
         setIsBuilderMode, setCurrentBiome, setActiveStructure, showGrid, setShowGrid, selectedLand 
     } = environmentState;
 
+    const handleBenchUnitPurchased = React.useCallback((unitName: string) => {
+        const existingIndex = bench.findIndex((item) => item?.name === unitName);
+        const emptyIndex = bench.findIndex((item) => item === null);
+
+        if (existingIndex === -1 && emptyIndex === -1) {
+            addCombatLog('Bench is full.', 'info');
+            return false;
+        }
+
+        setBench((prev) => {
+            const next = [...prev];
+            const currentIndex = next.findIndex((item) => item?.name === unitName);
+
+            if (currentIndex >= 0 && next[currentIndex]) {
+                next[currentIndex] = {
+                    ...next[currentIndex],
+                    count: next[currentIndex].count + 1,
+                };
+                return next;
+            }
+
+            const nextEmptyIndex = next.findIndex((item) => item === null);
+            if (nextEmptyIndex >= 0) {
+                next[nextEmptyIndex] = { name: unitName, count: 1 };
+            }
+
+            return next;
+        });
+
+        addCombatLog(`${unitName} added to bench.`, 'info');
+        return true;
+    }, [addCombatLog, bench, setBench]);
+
     // Effects
     React.useEffect(() => {
         if (notification) {
@@ -256,13 +407,101 @@ export const Game: React.FC = () => {
     const mountSceneTimeout = React.useRef<number | null>(null);
     const visualReadyTimeout = React.useRef<number | null>(null);
     const viewportRef = React.useRef<HTMLDivElement | null>(null);
-    const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
+    const [isCharacterCreatorModalOpen, setIsCharacterCreatorModalOpen] = React.useState(false);
     const [gameLoopHudState, setGameLoopHudState] = React.useState<GameLoopHudState | null>(null);
     const [isCharacterSaveInProgress, setIsCharacterSaveInProgress] = React.useState(false);
     const [characterSaveStatus, setCharacterSaveStatus] = React.useState<string | null>(null);
+    const [isDevChatOpen, setIsDevChatOpen] = React.useState(false);
+    const [devChatInput, setDevChatInput] = React.useState('');
+    const [devChatMessages, setDevChatMessages] = React.useState<DevChatMessage[]>([
+        { type: 'system', content: 'Press Enter to open dev chat. Type /tut1co to finish tutorial 1 and receive resources.' }
+    ]);
     const [chakraNodeLegend, setChakraNodeLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
     const [chakraConnectionLegend, setChakraConnectionLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
+    const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
+    const [tutorialStep, setTutorialStep] = React.useState(1);
     const chakraNodeLegendSignatureRef = React.useRef('');
+
+    // Auto-advance tutorial from step 1 to step 2 when resources are gathered
+    React.useEffect(() => {
+        if (tutorialStep === 1 && activeScene === 'starter') {
+            const stickCount = inventory.filter(i => i?.name === 'Stick').reduce((sum, i) => sum + (i?.count || 0), 0);
+            const stoneCount = inventory.filter(i => i?.name === 'Stone').reduce((sum, i) => sum + (i?.count || 0), 0);
+            if (stickCount >= 8 && stoneCount >= 15) {
+                setTutorialStep(2);
+            }
+        }
+    }, [tutorialStep, inventory, activeScene]);
+
+    // Track porkchop inventory for tutorial step 3
+    React.useEffect(() => {
+        if (tutorialStep === 3 && activeScene === 'starter') {
+            const porkCount = inventory.filter(i => i?.name === 'Pork' || i?.name === 'Porkchop').reduce((sum, i) => sum + (i?.count || 0), 0);
+            if (porkCount >= 10) {
+                setTutorialStep(4);
+                setNotification('Tutorial complete! You gathered enough porkchops.');
+            }
+        }
+    }, [tutorialStep, inventory, activeScene]);
+
+    // Check for firepit when environment is built (for pre-placed firepits)
+    const firepitCheckedRef = React.useRef(false);
+    React.useEffect(() => {
+        if (tutorialStep !== 2 || !isEnvironmentBuilt || !gameInstance.current || firepitCheckedRef.current || activeScene !== 'starter') return;
+
+        const game = gameInstance.current;
+        const scene = game.renderManager?.scene;
+        if (!scene) return;
+
+        let found = false;
+        let foundMethod = '';
+        scene.traverse((obj: any) => {
+            if (found) return;
+            // Check userData structureType (set by BuilderManager when built)
+            if (obj.userData?.structureType === 'firepit' || obj.parent?.userData?.structureType === 'firepit') {
+                found = true;
+                foundMethod = 'structureType';
+            }
+            // Check for fire mesh flag (set by Firepit class)
+            if (obj.userData?.isFire) {
+                found = true;
+                foundMethod = 'isFire flag';
+            }
+            // Check for point lights with fire color (firepit has orange point light)
+            if (obj.isPointLight && obj.color?.getHex() === 0xff6600) {
+                found = true;
+                foundMethod = 'point light';
+            }
+            // Check for emissive materials (fire cone)
+            if (obj.material?.emissive && obj.material.emissiveIntensity > 0) {
+                const emissiveColor = obj.material.emissive.getHex();
+                if (emissiveColor === 0xff2200 || emissiveColor === 0xff5500) {
+                    found = true;
+                    foundMethod = 'emissive material';
+                }
+            }
+        });
+
+        firepitCheckedRef.current = true;
+
+        if (found) {
+            console.log('[Game.tsx] Firepit detected in environment via', foundMethod, ', advancing tutorial to step 3');
+            setTutorialStep(3);
+            setNotification('Firepit detected! Wild pigs appear nearby!');
+            // Spawn 3 pigs near player
+            const playerPos = game.player.mesh.position;
+            for (let i = 0; i < 3; i++) {
+                const spawnPos = new THREE.Vector3(
+                    playerPos.x + 5 + Math.random() * 8,
+                    0,
+                    playerPos.z + 5 + Math.random() * 8
+                );
+                game.entityManager.spawnAnimalGroup('pig', 1, game.sceneManager.currentEnvironment, spawnPos);
+            }
+        } else {
+            console.log('[Game.tsx] No firepit found in environment, will wait for onFirepitBuilt callback');
+        }
+    }, [tutorialStep, isEnvironmentBuilt, activeScene]);
     const chakraSidebarVisibleRef = React.useRef(false);
     const chakraHoverTargetRef = React.useRef<ChakraSidebarHoverTarget | null>(null);
     const chakraArrowPathRef = React.useRef<SVGPathElement | null>(null);
@@ -270,9 +509,46 @@ export const Game: React.FC = () => {
     const chakraCameraDirRef = React.useRef(new THREE.Vector3());
     const arenaVictoryHandledRef = React.useRef(false);
     const lastGameLoopHudSyncRef = React.useRef(0);
+    const creatorStarterAppliedRef = React.useRef(false);
+    const devChatInputRef = React.useRef<HTMLInputElement | null>(null);
 
-    const isHUDDisabled = isInventoryOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
-    const isCharacterCreatorMode = isSupabaseEnabled && !!user && isSaveLoaded && !hasSavedCharacter;
+    React.useEffect(() => {
+        if (!isDevChatOpen) return;
+        const frame = window.requestAnimationFrame(() => devChatInputRef.current?.focus());
+        return () => window.cancelAnimationFrame(frame);
+    }, [isDevChatOpen]);
+
+    React.useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (gameState !== 'PLAYING') return;
+
+            if (isDevChatOpen) {
+                if (event.key === 'Escape') {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setIsDevChatOpen(false);
+                    setDevChatInput('');
+                }
+                return;
+            }
+
+            const target = event.target as HTMLElement | null;
+            if (target?.closest('input, textarea, select, .no-capture')) return;
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                event.stopPropagation();
+                setIsDevChatOpen(true);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown, false);
+        return () => window.removeEventListener('keydown', handleKeyDown, false);
+    }, [gameState, isDevChatOpen]);
+
+    const isHUDDisabled = isInventoryOpen || isItemCatalogOpen || isTradeOpen || isShopkeeperChatOpen || isForgeOpen || !!dialogue || isKeybindsOpen || isQuestLogOpen || isSpawnModalOpen || isEnemiesModalOpen || isCharacterStatsOpen || isLandMapOpen || isAreaMapOpen || gameState !== 'PLAYING' || isTravelOpen;
+    // Temporary: bypass first-login creator flow and always use normal main menu after login.
+    const isCharacterCreatorMode = false && isSupabaseEnabled && !!user && isSaveLoaded && !hasSavedCharacter;
     const selectedLandRef = React.useRef(selectedLand);
     const activeSceneRef = React.useRef(activeScene);
 
@@ -352,6 +628,38 @@ export const Game: React.FC = () => {
 
     // Handlers
     const handleEnterWorld = React.useCallback((scene: ActiveScene = activeScene) => {
+        // Check for tutorial completion flag and add items to inventory
+        const tutorialCompleted = localStorage.getItem('tutorial1Completed');
+        if (tutorialCompleted === 'true') {
+            // Add sticks and stones to inventory
+            setInventory((prev) => {
+                const next = [...prev];
+                // Find or add Stick
+                const stickIndex = next.findIndex((item) => item?.name === 'Stick');
+                if (stickIndex >= 0 && next[stickIndex]) {
+                    next[stickIndex] = { ...next[stickIndex], count: next[stickIndex].count + 10 };
+                } else {
+                    const emptyIndex = next.findIndex((item) => item === null);
+                    if (emptyIndex >= 0) {
+                        next[emptyIndex] = { name: 'Stick', count: 10 };
+                    }
+                }
+                // Find or add Stone
+                const stoneIndex = next.findIndex((item) => item?.name === 'Stone');
+                if (stoneIndex >= 0 && next[stoneIndex]) {
+                    next[stoneIndex] = { ...next[stoneIndex], count: next[stoneIndex].count + 10 };
+                } else {
+                    const emptyIndex = next.findIndex((item) => item === null);
+                    if (emptyIndex >= 0) {
+                        next[emptyIndex] = { name: 'Stone', count: 10 };
+                    }
+                }
+                return next;
+            });
+            // Clear the flag so items are only given once
+            localStorage.removeItem('tutorial1Completed');
+        }
+
         setIsEnvironmentBuilt(false);
         setIsVisualLoadingDone(false);
         setIsCombatActive(false);
@@ -365,7 +673,18 @@ export const Game: React.FC = () => {
         mountSceneTimeout.current = window.setTimeout(() => {
           setShouldMountScene(true);
         }, 150);
-    }, [activeScene, setIsEnvironmentBuilt, setIsVisualLoadingDone, setIsCombatActive, setGameState, setActiveScene]);
+    }, [activeScene, setIsEnvironmentBuilt, setIsVisualLoadingDone, setIsCombatActive, setGameState, setActiveScene, setInventory]);
+
+    const enterCreatorOnlyMode = React.useCallback(() => {
+        setShouldMountScene(false);
+        setIsSceneInitializing(false);
+        if (mountSceneTimeout.current) window.clearTimeout(mountSceneTimeout.current);
+        if (visualReadyTimeout.current) window.clearTimeout(visualReadyTimeout.current);
+        setIsEnvironmentBuilt(true);
+        setIsVisualLoadingDone(true);
+        setIsCombatActive(false);
+        setGameState('PLAYING');
+    }, [setIsCombatActive, setIsEnvironmentBuilt, setIsVisualLoadingDone, setGameState]);
 
     const handleEnvironmentReady = () => {
         console.log(`[Game.tsx] Environment ready for scene: ${activeSceneRef.current}`);
@@ -379,6 +698,54 @@ export const Game: React.FC = () => {
     const handleStartPlaying = () => {
         setGameState('PLAYING');
     };
+
+    const handleDevChatSubmit = React.useCallback((e: React.FormEvent) => {
+        e.preventDefault();
+        const command = devChatInput.trim();
+        if (!command) return;
+
+        setDevChatMessages((prev) => [...prev, { type: 'user', content: command }]);
+
+        if (command === '/tut1co') {
+            localStorage.setItem('tutorial1Completed', 'true');
+            setInventory((prev) => {
+                const next = [...prev];
+                const rewards = [
+                    { name: 'Stick', count: 10 },
+                    { name: 'Stone', count: 15 },
+                ];
+
+                rewards.forEach((reward) => {
+                    const existingIndex = next.findIndex((item) => item?.name === reward.name);
+                    if (existingIndex >= 0 && next[existingIndex]) {
+                        next[existingIndex] = {
+                            ...next[existingIndex],
+                            count: next[existingIndex]!.count + reward.count,
+                        };
+                        return;
+                    }
+
+                    const emptyIndex = next.findIndex((item) => item === null);
+                    if (emptyIndex >= 0) {
+                        next[emptyIndex] = { name: reward.name, count: reward.count };
+                    }
+                });
+
+                // Sync with Game instance's player inventory for BuilderManager
+                if (gameInstance.current) {
+                    gameInstance.current.setInventory(next);
+                }
+
+                return next;
+            });
+            setDevChatMessages((prev) => [...prev, { type: 'command', content: 'Tutorial 1 completed. Added 10 Stick and 15 Stone to your inventory.' }]);
+            setNotification('Tutorial resources granted');
+        } else {
+            setDevChatMessages((prev) => [...prev, { type: 'system', content: `Unknown command: ${command}` }]);
+        }
+
+        setDevChatInput('');
+    }, [devChatInput, setInventory, setNotification]);
 
     const handleSaveCharacterToCloud = React.useCallback(async () => {
         if (!user || !isSupabaseEnabled || isCharacterSaveInProgress) return;
@@ -398,18 +765,56 @@ export const Game: React.FC = () => {
     React.useEffect(() => {
         if (!isCharacterCreatorMode) {
             setCharacterSaveStatus(null);
+            creatorStarterAppliedRef.current = false;
             return;
+        }
+
+        if (!creatorStarterAppliedRef.current) {
+            setConfig((prev) => {
+                const looksUninitialized =
+                    prev.outfit === 'naked' &&
+                    !prev.equipment.shirt &&
+                    !prev.equipment.pants &&
+                    prev.hairStyle === 'bald';
+
+                creatorStarterAppliedRef.current = true;
+                if (!looksUninitialized) {
+                    return prev;
+                }
+
+                return {
+                    ...prev,
+                    ...BODY_PRESETS.average,
+                    ...OUTFIT_PRESETS.peasant,
+                    bodyType: 'male',
+                    bodyVariant: 'average',
+                    hairStyle: 'crew',
+                    hairColor: '#2b1d16',
+                    skinColor: '#d8b89a',
+                    eyeColor: '#3c5e8f',
+                    scleraColor: '#f2f4f7',
+                    pupilColor: '#111111',
+                    lipColor: '#c79b84',
+                    shirtColor: '#6f4e37',
+                    shirtColor2: '#caa472',
+                    pantsColor: '#3b2d24',
+                    bootsColor: '#2a1b14',
+                    timeOfDay: 16.8,
+                    isAutoTime: false,
+                    equipment: {
+                        ...prev.equipment,
+                        ...(OUTFIT_PRESETS.peasant.equipment ?? {}),
+                    },
+                };
+            });
         }
 
         if (gameState === 'MENU') {
-            handleEnterWorld('dev');
+            enterCreatorOnlyMode();
             return;
         }
 
-        if (gameState === 'PLAYING' && activeScene !== 'dev') {
-            handleEnterWorld('dev');
-        }
-    }, [isCharacterCreatorMode, gameState, activeScene, handleEnterWorld]);
+    }, [isCharacterCreatorMode, gameState, enterCreatorOnlyMode]);
 
     const handleInteractionUpdate = (text: string | null, prog: number | null) => { 
         setInteractionText(text); 
@@ -428,13 +833,73 @@ export const Game: React.FC = () => {
         if (!target) hideChakraHoverArrow();
     }, [hideChakraHoverArrow]);
 
+    const decrementInventorySlot = React.useCallback((slotIndex: number, itemName: string) => {
+        setInventory(prev => {
+            const current = prev[slotIndex];
+            if (!current || current.name !== itemName) return prev;
+
+            const next = [...prev];
+            if (current.count <= 1) {
+                next[slotIndex] = null;
+            } else {
+                next[slotIndex] = {
+                    ...current,
+                    count: current.count - 1,
+                };
+            }
+            return next;
+        });
+    }, [setInventory]);
+
+    const handleHotbarSlotSelect = React.useCallback((slotIndex: number) => {
+        const item = inventory[slotIndex];
+
+        if (slotIndex === 8 && item?.name === 'Potion of Healing') {
+            const amount = ITEM_DATA[item.name]?.stats?.healthBonus ?? 0;
+            if (amount > 0 && config.stats.health < config.stats.maxHealth) {
+                setConfig(prev => ({
+                    ...prev,
+                    stats: {
+                        ...prev.stats,
+                        health: Math.min(prev.stats.maxHealth, prev.stats.health + amount),
+                    },
+                }));
+                decrementInventorySlot(slotIndex, item.name);
+                setNotification('Drank Potion of Healing');
+            } else {
+                setNotification('Health is already full');
+            }
+            return;
+        }
+
+        if (slotIndex === 9 && item?.name === 'Mana Potion') {
+            const amount = ITEM_DATA[item.name]?.stats?.manaBonus ?? 0;
+            if (amount > 0 && config.stats.mana < config.stats.maxMana) {
+                setConfig(prev => ({
+                    ...prev,
+                    stats: {
+                        ...prev.stats,
+                        mana: Math.min(prev.stats.maxMana, prev.stats.mana + amount),
+                    },
+                }));
+                decrementInventorySlot(slotIndex, item.name);
+                setNotification('Drank Mana Potion');
+            } else {
+                setNotification('Mana is already full');
+            }
+            return;
+        }
+
+        setSelectedSlot(slotIndex);
+    }, [config.stats.health, config.stats.mana, config.stats.maxHealth, config.stats.maxMana, decrementInventorySlot, inventory, setConfig, setNotification, setSelectedSlot]);
+
     // Sync hotbar selection with character selected item
     React.useEffect(() => {
         const selectedItem = inventory[selectedSlot];
         if (selectedItem) {
             // Check if it's a weapon/tool
             const isWeapon = [
-                'Sword', 'Axe', 'Pickaxe', 'Knife', 'Halberd', 
+                'Sword', 'Axe', 'Pickaxe', 'Shovel', 'Knife', 'Halberd',
                 'Staff', 'Fishing Pole', 'Bow'
             ].includes(selectedItem.name);
             
@@ -553,9 +1018,25 @@ export const Game: React.FC = () => {
         setIsEnemiesModalOpen(true);
     };
 
-    const handleOpenStandaloneCC = React.useCallback(() => {
-        window.open(`${import.meta.env.BASE_URL}standalone_cc/index.html`, '_blank', 'noopener,noreferrer');
+    const handleOpenCharacterCreator = React.useCallback(() => {
+        setIsCharacterCreatorModalOpen(true);
     }, []);
+
+    const handleCloseCharacterCreator = React.useCallback(() => {
+        setIsCharacterCreatorModalOpen(false);
+    }, []);
+
+    React.useEffect(() => {
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== window.location.origin) return;
+            if (event.data?.type !== 'sairon:close-character-creator') return;
+
+            handleCloseCharacterCreator();
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [handleCloseCharacterCreator]);
 
     const onSelectStructure = (type: any) => {
         environmentState.setActiveStructure(type);
@@ -610,6 +1091,8 @@ export const Game: React.FC = () => {
         chakraSidebarVisibleRef.current = false;
         chakraHoverTargetRef.current = null;
         hideChakraHoverArrow();
+
+
         // Bind game callbacks here if needed, or rely on game observing state?
         // The previous implementation bound callbacks to the game instance.
         // We should replicate that or ensure the game instance reads from context/props updates.
@@ -619,6 +1102,7 @@ export const Game: React.FC = () => {
         // Scene initializes Game.
         
         game.inputManager.onToggleInventory = uiState.toggleInventory;
+        game.inputManager.onToggleItemCatalog = uiState.toggleItemCatalog;
         game.inputManager.onToggleKeybinds = uiState.toggleKeybinds;
         game.inputManager.onToggleQuestLog = uiState.toggleQuestLog;
         game.inputManager.onToggleBuilderLog = uiState.toggleBuilderLog;
@@ -658,6 +1142,26 @@ export const Game: React.FC = () => {
         game.onBuildingTypeChange = (type: any) => environmentState.setActiveStructure(type);
         game.onBiomeUpdate = (b: any) => environmentState.setCurrentBiome(b);
         game.onBuildLog = (message: string) => uiState.addBuilderLog(message);
+        game.onFirepitBuilt = () => {
+            console.log('[Game.tsx] onFirepitBuilt called, tutorialStep:', tutorialStep);
+            if (tutorialStep === 2) {
+                setTutorialStep(3);
+                setNotification('Firepit built! Wild pigs appear nearby!');
+                // Spawn 3 pigs near player
+                if (gameInstance.current) {
+                    const playerPos = gameInstance.current.player.mesh.position;
+                    for (let i = 0; i < 3; i++) {
+                        const spawnPos = new THREE.Vector3(
+                            playerPos.x + 5 + Math.random() * 8,
+                            0,
+                            playerPos.z + 5 + Math.random() * 8
+                        );
+                        gameInstance.current.entityManager.spawnAnimalGroup('pig', 1, gameInstance.current.sceneManager.currentEnvironment, spawnPos);
+                    }
+                }
+            }
+        };
+        game.onWrongTool = (message: string) => setNotification(message);
         
         game.onDialogueTrigger = (content: string | DialogueContent) => setDialogue(content);
         game.onTradeTrigger = () => uiState.setIsTradeOpen(true);
@@ -843,16 +1347,14 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
-    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest';
+    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest' && activeScene !== 'loop';
     const showCreatorPanel = isCharacterCreatorMode && gameState === 'PLAYING';
 
     // Auth gate: if Supabase is configured and user is not logged in, block access
     if (isSupabaseEnabled && !isAuthLoading && !user) {
         return (
-            <div className="w-full h-full flex flex-col items-center justify-start">
-                <div className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative">
-                    <AuthGate />
-                </div>
+            <div className="absolute inset-0 overflow-hidden">
+                <AuthGate />
             </div>
         );
     }
@@ -860,7 +1362,7 @@ export const Game: React.FC = () => {
     // Auth loading spinner while session is being restored
     if (isSupabaseEnabled && isAuthLoading) {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-[#080c14]">
+            <div className="w-full h-full min-h-0 flex items-center justify-center bg-[#080c14]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
                     <p className="text-slate-500 text-xs uppercase tracking-widest">Loading…</p>
@@ -871,7 +1373,7 @@ export const Game: React.FC = () => {
 
     if (isSupabaseEnabled && user && !isSaveLoaded) {
         return (
-            <div className="w-full h-full flex items-center justify-center bg-[#080c14]">
+            <div className="w-full h-full min-h-0 flex items-center justify-center bg-[#080c14]">
                 <div className="flex flex-col items-center gap-4">
                     <div className="w-8 h-8 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
                     <p className="text-slate-500 text-xs uppercase tracking-widest">Loading character data…</p>
@@ -881,26 +1383,31 @@ export const Game: React.FC = () => {
     }
 
     return (
-        <div className="w-full h-full flex flex-col items-center justify-start">
-            <div ref={viewportRef} className="w-full flex-1 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
+        <div className="relative w-full h-full min-h-0 overflow-hidden flex flex-col items-center justify-start">
+            <div ref={viewportRef} className="w-full flex-1 min-h-0 bg-black border-x border-t border-white/10 shadow-2xl overflow-hidden relative group">
                 <div className="absolute inset-0">
+                    {isCharacterCreatorMode && (
+                        <div className="absolute inset-0 overflow-hidden bg-[#081122] pointer-events-none">
+                            <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_50%_30%,rgba(59,130,246,0.16),transparent_34%),radial-gradient(circle_at_50%_65%,rgba(14,165,233,0.12),transparent_42%),linear-gradient(to_bottom,#081122_0%,#050913_100%)]" />
+                            <div className="absolute inset-0 z-10 flex items-center justify-center px-8 pointer-events-auto">
+                                <div className="w-full max-w-[min(980px,100vw)] h-full min-h-0">
+                                    <PlayerPreview config={config} manualInput={manualInput} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {gameState === 'MENU' ? (
                         <>
                             {isCharacterCreatorMode ? (
-                                <div className="absolute inset-0 z-[100] flex items-center justify-center bg-[#080c14]">
-                                    <div className="text-center">
-                                        <p className="text-[10px] text-emerald-400 uppercase tracking-[0.45em] font-bold mb-3">Character Setup</p>
-                                        <h2 className="text-2xl font-black tracking-tight text-white">Preparing Character Creator…</h2>
-                                        <p className="mt-3 text-slate-400 text-xs uppercase tracking-[0.2em]">Please wait</p>
-                                    </div>
-                                </div>
+                                <div className="absolute inset-0 z-[100] pointer-events-none bg-[#080c14]" />
                             ) : (
                                 <MainMenu
                                     activeScene={activeScene}
                                     onSceneChange={setActiveScene}
                                     onStart={handleEnterWorld}
                                     onShowEnemies={onShowEnemies}
-                                    onOpenStandaloneCC={handleOpenStandaloneCC}
+                                    onOpenCharacterCreator={handleOpenCharacterCreator}
                                     isMobile={isMobileDevice}
                                     showVideoBackground={true}
                                 />
@@ -962,6 +1469,7 @@ export const Game: React.FC = () => {
                                                     return next;
                                                 });
                                             }}
+                                            onBenchUnitPurchased={handleBenchUnitPurchased}
                                         />
                                     ) : activeScene === 'mp' ? (
                                         <MPTestScene 
@@ -969,13 +1477,32 @@ export const Game: React.FC = () => {
                                             manualInput={manualInput}
                                             initialInventory={inventory}
                                             onInventoryUpdate={setInventory}
-                                            onSlotSelect={setSelectedSlot}
+                                            onSlotSelect={handleHotbarSlotSelect}
                                             onInteractionUpdate={handleInteractionUpdate}
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
                                                 handleEnvironmentReady();
                                                 scheduleVisualLoadingDone();
                                             }}
+                                            onToggleQuestLog={uiState.toggleQuestLog}
+                                            showGrid={showGrid}
+                                            isCombatActive={isCombatActive}
+                                        />
+                                    ) : activeScene === 'starter' ? (
+                                        <Starter
+                                            activeScene={activeScene}
+                                            config={config}
+                                            manualInput={manualInput}
+                                            initialInventory={inventory}
+                                            onInventoryUpdate={setInventory}
+                                            onSlotSelect={handleHotbarSlotSelect}
+                                            onInteractionUpdate={handleInteractionUpdate}
+                                            onGameReady={onGameReady}
+                                            onEnvironmentReady={() => {
+                                                handleEnvironmentReady();
+                                                scheduleVisualLoadingDone();
+                                            }}
+                                            onToggleWorldMap={handleMapToggle}
                                             onToggleQuestLog={uiState.toggleQuestLog}
                                             showGrid={showGrid}
                                             isCombatActive={isCombatActive}
@@ -987,7 +1514,7 @@ export const Game: React.FC = () => {
                                             manualInput={manualInput}
                                             initialInventory={inventory}
                                             onInventoryUpdate={setInventory}
-                                            onSlotSelect={setSelectedSlot}
+                                            onSlotSelect={handleHotbarSlotSelect}
                                             onInteractionUpdate={handleInteractionUpdate}
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
@@ -1006,7 +1533,7 @@ export const Game: React.FC = () => {
                                             manualInput={manualInput}
                                             initialInventory={inventory}
                                             onInventoryUpdate={setInventory}
-                                            onSlotSelect={setSelectedSlot}
+                                            onSlotSelect={handleHotbarSlotSelect}
                                             onInteractionUpdate={handleInteractionUpdate}
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
@@ -1025,7 +1552,7 @@ export const Game: React.FC = () => {
                                             manualInput={manualInput}
                                             initialInventory={inventory}
                                             onInventoryUpdate={setInventory}
-                                            onSlotSelect={setSelectedSlot}
+                                            onSlotSelect={handleHotbarSlotSelect}
                                             onInteractionUpdate={handleInteractionUpdate}
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
@@ -1044,7 +1571,7 @@ export const Game: React.FC = () => {
                                             manualInput={manualInput}
                                             initialInventory={inventory}
                                             onInventoryUpdate={setInventory}
-                                            onSlotSelect={setSelectedSlot}
+                                            onSlotSelect={handleHotbarSlotSelect}
                                             onInteractionUpdate={handleInteractionUpdate}
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
@@ -1065,6 +1592,13 @@ export const Game: React.FC = () => {
                                                 scheduleVisualLoadingDone();
                                             }}
                                         />
+                                    ) : activeScene === 'loop' ? (
+                                        <Loop
+                                            onReady={() => {
+                                                handleEnvironmentReady();
+                                                scheduleVisualLoadingDone();
+                                            }}
+                                        />
                                     ) : (
                                         <DevScene 
                                             activeScene={activeScene}
@@ -1072,7 +1606,7 @@ export const Game: React.FC = () => {
                                             manualInput={manualInput}
                                             initialInventory={inventory}
                                             onInventoryUpdate={setInventory}
-                                            onSlotSelect={setSelectedSlot}
+                                            onSlotSelect={handleHotbarSlotSelect}
                                             onInteractionUpdate={handleInteractionUpdate}
                                             onGameReady={onGameReady}
                                             onEnvironmentReady={() => {
@@ -1132,7 +1666,7 @@ export const Game: React.FC = () => {
                                         inventory={inventory}
                                         bench={bench}
                                         selectedSlot={selectedSlot}
-                                        onSelectSlot={setSelectedSlot}
+                                        onSelectSlot={handleHotbarSlotSelect}
                                         interactionText={interactionText}
                                         interactionProgress={interactionProgress}
                                         showGrid={showGrid}
@@ -1195,16 +1729,151 @@ export const Game: React.FC = () => {
                             
                             <DialogueOverlay dialogue={dialogue} onClose={onCloseDialogue} onSelectChoice={onDialogueChoice} />
                             <MobileControls game={gameInstance.current} />
+                            <PickupNotifications />
 
-                            {gameLoopHudState && (
-                                <div className="absolute top-4 right-4 z-[90] bg-black/65 border border-white/15 rounded-xl px-3 py-2 backdrop-blur-sm text-[10px] uppercase tracking-wide text-white/80 pointer-events-none">
-                                    <div className="font-bold text-cyan-300">Campaign</div>
-                                    <div>Phase: {gameLoopHudState.phase}</div>
-                                    <div>Day: {gameLoopHudState.day}</div>
-                                    <div>Gold: {gameLoopHudState.gold} · Heirlooms: {gameLoopHudState.heirlooms}</div>
-                                    <div>Chests: {gameLoopHudState.supplyChests}</div>
-                                    <div>Roster: {gameLoopHudState.rosterCount} · Party: {gameLoopHudState.partyCount}</div>
-                                    {gameLoopHudState.activeMissionTitle && <div>Mission: {gameLoopHudState.activeMissionTitle}</div>}
+                            {gameState === 'PLAYING' && isDevChatOpen && !isMobileDevice && (
+                                <div className="fixed bottom-6 left-6 z-[130] w-[420px] max-w-[calc(100vw-3rem)]">
+                                    <div className="overflow-hidden rounded-2xl border border-white/10 bg-slate-950/92 shadow-2xl backdrop-blur-md">
+                                        <div className="flex items-center justify-between border-b border-white/10 bg-black/30 px-4 py-3">
+                                            <div>
+                                                <div className="text-[10px] font-black uppercase tracking-[0.35em] text-cyan-300">Dev Chat</div>
+                                                <div className="text-[10px] text-slate-500">Enter command, Esc to close</div>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsDevChatOpen(false);
+                                                    setDevChatInput('');
+                                                }}
+                                                className="rounded-full border border-white/10 px-2 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-300 transition hover:border-white/30 hover:text-white"
+                                            >
+                                                Close
+                                            </button>
+                                        </div>
+                                        <div className="max-h-56 overflow-y-auto space-y-2 px-4 py-3 text-sm">
+                                            {devChatMessages.map((message, index) => (
+                                                <div
+                                                    key={`${message.type}-${index}`}
+                                                    className={`rounded-xl px-3 py-2 ${message.type === 'system' ? 'bg-white/5 text-slate-300' : message.type === 'command' ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20' : 'bg-cyan-500/10 text-cyan-200 border border-cyan-500/20'}`}
+                                                >
+                                                    {message.content}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <form onSubmit={handleDevChatSubmit} className="border-t border-white/10 p-3">
+                                            <input
+                                                ref={devChatInputRef}
+                                                value={devChatInput}
+                                                onChange={(e) => setDevChatInput(e.target.value)}
+                                                placeholder="/tut1co"
+                                                className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20"
+                                            />
+                                        </form>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tutorial Panel */}
+                            {(() => {
+                                const stickCount = inventory.filter(i => i?.name === 'Stick').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                const stoneCount = inventory.filter(i => i?.name === 'Stone').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                const porkCount = inventory.filter(i => i?.name === 'Pork' || i?.name === 'Porkchop').reduce((sum, i) => sum + (i?.count || 0), 0);
+
+                                if (tutorialStep === 1) {
+                                    const stickProgress = Math.min(100, (stickCount / 8) * 100);
+                                    const stoneProgress = Math.min(100, (stoneCount / 15) * 100);
+                                    const totalProgress = (stickProgress + stoneProgress) / 2;
+                                    const tutorial1Complete = stickCount >= 8 && stoneCount >= 15;
+
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-amber-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-amber-400 text-xs uppercase tracking-wider mb-2">Tutorial 1/3</div>
+                                            <div className="text-sm font-medium">Gather Resources</div>
+                                            <div className="text-xs text-stone-400 mt-1">
+                                                <span className={stickCount >= 8 ? 'text-green-400' : 'text-amber-300'}>{stickCount}/8</span> Sticks · <span className={stoneCount >= 15 ? 'text-green-400' : 'text-amber-300'}>{stoneCount}/15</span> Stone
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className={`h-full transition-all duration-300 ${tutorial1Complete ? 'bg-green-500' : 'bg-amber-500/50'}`} style={{ width: `${totalProgress}%` }} />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Chop trees for sticks, mine rocks for stone</div>
+                                        </div>
+                                    );
+                                } else if (tutorialStep === 2) {
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-emerald-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-emerald-400 text-xs uppercase tracking-wider mb-2">Tutorial 2/3</div>
+                                            <div className="text-sm font-medium">Build a Firepit</div>
+                                            <div className="text-xs text-stone-400 mt-1">
+                                                Press <span className="text-amber-300">B</span> to open builder, select <span className="text-amber-300">🔥 Firepit</span>, and place it
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className="h-full bg-emerald-500/50 w-0 animate-pulse" />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Cost: 2 Sticks + 3 Stone</div>
+                                        </div>
+                                    );
+                                } else if (tutorialStep === 3) {
+                                    const porkProgress = Math.min(100, (porkCount / 10) * 100);
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-red-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-red-400 text-xs uppercase tracking-wider mb-2">Tutorial 3/3</div>
+                                            <div className="text-sm font-medium">Gather Porkchops</div>
+                                            <div className="text-xs text-stone-400 mt-1">
+                                                <span className={porkCount >= 10 ? 'text-green-400' : 'text-amber-300'}>{porkCount}/10</span> Porkchops
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className={`h-full transition-all duration-300 ${porkCount >= 10 ? 'bg-green-500' : 'bg-red-500/50'}`} style={{ width: `${porkProgress}%` }} />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Kill pigs and skin them for meat</div>
+                                        </div>
+                                    );
+                                } else if (tutorialStep === 4) {
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-green-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-green-400 text-xs uppercase tracking-wider mb-2">Tutorial Complete!</div>
+                                            <div className="text-sm font-medium">You gathered enough meat</div>
+                                            <div className="text-xs text-stone-400 mt-1">
+                                                You can now explore freely
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className="h-full bg-green-500 w-full" />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Press B to build, explore the world</div>
+                                        </div>
+                                    );
+                                } else {
+                                    return null;
+                                }
+                            })()}
+
+                            {isCharacterCreatorModalOpen && (
+                                <div
+                                    className="absolute inset-0 z-[260] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-3"
+                                    onClick={handleCloseCharacterCreator}
+                                >
+                                    <div
+                                        className="relative size-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#050913] shadow-[0_0_80px_rgba(15,23,42,0.75)]"
+                                        onClick={(event) => event.stopPropagation()}
+                                    >
+                                        <div className="absolute right-4 top-4 z-20 flex items-center gap-3">
+                                            <span className="rounded-full border border-white/10 bg-black/50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 backdrop-blur-sm">
+                                                Character Creator
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={handleCloseCharacterCreator}
+                                                className="h-10 w-10 rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:bg-black/80"
+                                                aria-label="Close character creator"
+                                            >
+                                                <span className="text-lg leading-none">×</span>
+                                            </button>
+                                        </div>
+                                        <iframe
+                                            title="Character Creator"
+                                            src={`${import.meta.env.BASE_URL}standalone_cc/index.html`}
+                                            className="h-full w-full border-0"
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </>
@@ -1214,7 +1883,7 @@ export const Game: React.FC = () => {
             
             {gameState === 'PLAYING' && notification && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4">
-                    <div className="bg-blue-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl border border-blue-400/50">
+                    <div className="bg-red-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl border border-red-400/50">
                         {notification}
                     </div>
                 </div>
