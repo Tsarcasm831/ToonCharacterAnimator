@@ -608,11 +608,9 @@ export class Game {
         singleBiomeEnv.onLogPickedUp = () => {
             this.player.addItem('Wood', 1, true);
         };
-        singleBiomeEnv.getStoneDropCount = () => this.getStoneDropCountForEquippedPickaxe();
-    }
-
-    private getStoneDropCountForEquippedPickaxe(): number {
-        return 5;
+        singleBiomeEnv.onStoneMined = () => {
+            this.player.addItem('Stone', 5, true);
+        };
     }
 
     spawnAnimal(type: string, count: number) {

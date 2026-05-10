@@ -9,9 +9,7 @@ import { calculateBounds, isPointInPolygon, landCoordsToWorld } from '../../../g
 import { PlayerUtils } from '../../../game/player/PlayerUtils';
 
 // Lazy load heavy modal components
-const loadInventoryModal = () => import('./InventoryModal').then(m => ({ default: m.InventoryModal }));
-const InventoryModal = lazy(loadInventoryModal);
-const ItemCatalogModal = lazy(() => import('./ItemCatalogModal').then(m => ({ default: m.ItemCatalogModal })));
+const InventoryModal = lazy(() => import('./InventoryModal').then(m => ({ default: m.InventoryModal })));
 const TradeModal = lazy(() => import('./TradeModal').then(m => ({ default: m.TradeModal })));
 const ForgeModal = lazy(() => import('./ForgeModal').then(m => ({ default: m.ForgeModal })));
 const KeybindsModal = lazy(() => import('./KeybindsModal').then(m => ({ default: m.KeybindsModal })));
@@ -46,7 +44,6 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({ onEnvironmentReady }
 
     const {
         isInventoryOpen, toggleInventory,
-        isItemCatalogOpen, toggleItemCatalog,
         isTradeOpen, setIsTradeOpen,
         isShopkeeperChatOpen, setIsShopkeeperChatOpen,
         isForgeOpen, setIsForgeOpen,
@@ -74,23 +71,6 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({ onEnvironmentReady }
     const { setIsCombatActive } = combatState;
 
     const isLand = activeScene === 'land';
-
-    React.useEffect(() => {
-        if (typeof window === 'undefined') return;
-
-        const preload = () => {
-            void loadInventoryModal();
-        };
-
-        if ('requestIdleCallback' in window) {
-            const idleId = window.requestIdleCallback(preload, { timeout: 2000 });
-            return () => window.cancelIdleCallback(idleId);
-        }
-
-        const timeoutId = globalThis.setTimeout(preload, 500);
-        return () => globalThis.clearTimeout(timeoutId);
-    }, []);
-
     const equipSlotMap: Record<string, string> = {
         'Shirt': 'torso',
         'Quilted Armor': 'torso',
@@ -112,7 +92,6 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({ onEnvironmentReady }
         'Sword': 'weapon',
         'Axe': 'weapon',
         'Pickaxe': 'weapon',
-        'Shovel': 'weapon',
         'Knife': 'weapon',
         'Halberd': 'weapon',
         'Staff': 'weapon',
@@ -298,10 +277,10 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({ onEnvironmentReady }
     return (
         <Suspense fallback={null}>
             {isInventoryOpen && (
-              <InventoryModal
+              <InventoryModal 
                 isOpen={isInventoryOpen}
                 config={config}
-                inventory={inventory}
+                inventory={inventory} 
                 onClose={toggleInventory}
                 onInventoryChange={setInventory}
                 equipmentSlots={equipmentSlots}
@@ -312,12 +291,6 @@ export const GlobalModals: React.FC<GlobalModalsProps> = ({ onEnvironmentReady }
                 slotLayouts={slotLayouts}
                 onUpdateSlotLayouts={updateSlotLayouts}
               />
-            )}
-            {isItemCatalogOpen && (
-                <ItemCatalogModal
-                    isOpen={isItemCatalogOpen}
-                    onClose={toggleItemCatalog}
-                />
             )}
             {isTradeOpen && (
               <TradeModal 

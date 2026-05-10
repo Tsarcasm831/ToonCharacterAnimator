@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { SwordBuilder } from './weapons/SwordBuilder';
 import { AxeBuilder } from './weapons/AxeBuilder';
 import { PickaxeBuilder } from './weapons/PickaxeBuilder';
-import { ShovelBuilder } from './weapons/ShovelBuilder';
 import { KnifeBuilder } from './weapons/KnifeBuilder';
 import { HalberdBuilder } from './weapons/HalberdBuilder';
 import { FishingPoleBuilder } from './weapons/FishingPoleBuilder';
@@ -51,10 +50,6 @@ export function updateHeldItem(
             break;
         case 'Pickaxe':
             newItem = PickaxeBuilder.build(woodMat, metalMat);
-            parts.rightHandMount.add(newItem);
-            break;
-        case 'Shovel':
-            newItem = ShovelBuilder.build();
             parts.rightHandMount.add(newItem);
             break;
         case 'Knife':

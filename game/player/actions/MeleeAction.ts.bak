@@ -189,26 +189,19 @@ export class MeleeAction extends BaseAction {
         if (!canChop) return;
 
         const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion).normalize();
-        playerForward.y = 0;
-        const hitRange = 2.4;
+        playerForward.y = 0; 
+        const hitRange = 2.0;
 
         let closest: THREE.Object3D | null = null;
-        let closestImpactPoint = new THREE.Vector3();
         let minDist = Infinity;
-        const obstacleBox = new THREE.Box3();
 
         for (const obs of environment.obstacles) {
             if (obs.userData.type === 'hard' && !obs.userData.type?.includes('creature')) {
-                if (obs.userData.material === 'stone' && item !== 'Pickaxe') continue;
-
-                obs.updateMatrixWorld(true);
-                obstacleBox.setFromObject(obs);
-                if (obstacleBox.isEmpty()) continue;
-
-                const impactPoint = obstacleBox.clampPoint(playerPos, new THREE.Vector3());
-
-                const dx = impactPoint.x - playerPos.x;
-                const dz = impactPoint.z - playerPos.z;
+                const obsPos = new THREE.Vector3();
+                obs.getWorldPosition(obsPos);
+                
+                const dx = obsPos.x - playerPos.x;
+                const dz = obsPos.z - playerPos.z;
                 const distXZ = Math.sqrt(dx * dx + dz * dz);
 
                 if (distXZ < hitRange) {
@@ -219,16 +212,17 @@ export class MeleeAction extends BaseAction {
                         if (distXZ < minDist) {
                             minDist = distXZ;
                             closest = obs;
-                            closestImpactPoint.copy(impactPoint);
                         }
                     }
                 }
             }
         }
 
-        if (closest) {
-             const impactPos = playerPos.clone().lerp(closestImpactPoint, 0.5);
-             impactPos.y += 1.1;
+        if (closest) { 
+             const obsPos = new THREE.Vector3();
+             (closest as THREE.Object3D).getWorldPosition(obsPos);
+             const impactPos = playerPos.clone().lerp(obsPos, 0.5);
+             impactPos.y += 1.1; 
 
              const materialType = environment.damageObstacle(closest, 1);
              

@@ -199,8 +199,6 @@ export class Game {
                 this.player.addItem('Wood', 8, true);
             };
             this.entityManager.initDevEntities(this.sceneManager.environment, this.config);
-        } else if (activeScene === 'starter' || activeScene === 'singleBiome') {
-            this.setupSingleBiomeLogPickup();
         } else if (activeScene === 'town') {
             this.setupTownScene();
         } else if (activeScene === 'town2' || activeScene === 'gameLoop') {
@@ -524,9 +522,6 @@ export class Game {
         if (sceneName === 'town2' || sceneName === 'gameLoop') {
             this.setupTown2Scene();
         }
-        if (sceneName === 'starter' || sceneName === 'singleBiome') {
-            this.setupSingleBiomeLogPickup();
-        }
 
         if (!isInit && sceneName !== 'singleBiome' && sceneName !== 'starter') {
             this.scheduleEnvironmentReady(sceneName);
@@ -600,19 +595,6 @@ export class Game {
         const town2Env = this.sceneManager.town2Environment;
         if (!town2Env) return;
         this.entityManager.initTown2Entities(town2Env, this.config);
-    }
-
-    private setupSingleBiomeLogPickup() {
-        const singleBiomeEnv = this.sceneManager.singleBiomeEnvironment;
-        if (!singleBiomeEnv) return;
-        singleBiomeEnv.onLogPickedUp = () => {
-            this.player.addItem('Wood', 1, true);
-        };
-        singleBiomeEnv.getStoneDropCount = () => this.getStoneDropCountForEquippedPickaxe();
-    }
-
-    private getStoneDropCountForEquippedPickaxe(): number {
-        return 5;
     }
 
     spawnAnimal(type: string, count: number) {
@@ -755,7 +737,6 @@ export class Game {
 
         this.particleManager.update(delta);
         this.doorManager.update(delta);
-        let cameraCollisionObstacles: THREE.Object3D[] = [];
         
         // Removed looping over all obstacles to find doors and updating them here.
         // The doorManager.update(delta) above already updates all registered doors.
@@ -794,8 +775,7 @@ export class Game {
             // if we really wanted to, but the spread syntax is the main issue.
             // A better way is to cache the combined array and only update it when obstacles or doors change.
             const combinedObstacles = [...currentEnv.obstacles, ...this.doorManager.getDoorObjects()];
-            cameraCollisionObstacles = combinedObstacles;
-
+            
             this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities, false, combinedObstacles);
             
             // Restore original input values
@@ -824,7 +804,7 @@ export class Game {
         }
 
         // 2. Update Camera Position (AFTER player has moved to prevent jitter)
-        this.cameraManager.updatePosition(this.sceneManager.activeScene, cameraCollisionObstacles);
+        this.cameraManager.updatePosition(this.sceneManager.activeScene);
 
         this.soundManager.update(this.player, delta, currentEnv);
         
@@ -894,11 +874,6 @@ export class Game {
                 }
             }
         } else if (this.player.canSkin) this.onInteractionUpdate?.('Press F to Skin', null);
-        else if (this.player.pickupTarget) {
-            const itemName = this.player.pickupTarget.userData.pickupItem ?? 'Item';
-            const label = this.player.pickupTarget.userData.interactionLabel ?? `Press F to Pick Up ${itemName}`;
-            this.onInteractionUpdate?.(label, null);
-        }
         else {
             const target = this.player.interactableTarget;
             if (target) {

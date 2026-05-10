@@ -28,9 +28,6 @@ export class PlayerInteraction {
         // Set the interactable target on the player
         player.interactableTarget = interactableTarget;
 
-        const pickupTarget = this.getPickupTargetNearby(player, obstacles);
-        player.pickupTarget = pickupTarget;
-
         // Interaction
         const isFreshInteract = input.interact && !player.isInteracting;
         if (isFreshInteract) {
@@ -56,14 +53,8 @@ export class PlayerInteraction {
             if (player.canSkin && !player.isSkinning && !player.isPickingUp) {
                 player.isSkinning = true;
                 player.skinningTimer = 0;
-            } else if (pickupTarget && !player.isSkinning && !player.isPickingUp) {
-                const itemName = pickupTarget.userData.pickupItem;
-                const count = pickupTarget.userData.pickupCount ?? 1;
-                if (itemName && player.addItem(itemName, count, true)) {
-                    player.isPickingUp = true;
-                    pickupTarget.userData.onPickup?.();
-                    player.pickupTarget = null;
-                }
+            } else if (!player.isSkinning && !player.isPickingUp) {
+                player.isPickingUp = true;
             }
         }
 
@@ -136,22 +127,6 @@ export class PlayerInteraction {
             if (dist < minDist) { 
                 minDist = dist;
                 best = it;
-            }
-        }
-        return best;
-    }
-
-    private static getPickupTargetNearby(player: Player, obstacles: THREE.Object3D[]): THREE.Object3D | null {
-        const pickups = obstacles.filter(o => o.userData.pickupItem);
-        let best = null;
-        let minDist = 1.6;
-
-        for (const pickup of pickups) {
-            pickup.getWorldPosition(this._tempVec);
-            const dist = player.mesh.position.distanceTo(this._tempVec);
-            if (dist < minDist) {
-                minDist = dist;
-                best = pickup;
             }
         }
         return best;
