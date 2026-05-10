@@ -21,6 +21,7 @@ import { CameraManager } from '../managers/CameraManager';
 import { LevelGenerator } from '../builder/LevelGenerator';
 import { DoorManager } from '../environment/DoorManager';
 import { Door } from '../environment/objects/Door';
+import { GameLoopManager } from '../gameLoop';
 
 export interface DialogueChoice {
     id: string;
@@ -50,6 +51,7 @@ export class Game {
     public combatSystem: CombatSystem;
     public cameraManager: CameraManager;
     public doorManager: DoorManager;
+    public gameLoopManager: GameLoopManager;
 
     public inputManager: InputManager;
     private soundManager: SoundManager;
@@ -135,10 +137,42 @@ export class Game {
             this.onBuildLog?.(msg);
         };
 
+        this.builderManager.onCheckCost = (cost) => {
+            const inventory = this.player.inventory.items;
+            for (const [itemName, requiredAmount] of Object.entries(cost)) {
+                const totalAmount = inventory.filter(i => i?.name === itemName).reduce((sum, i) => sum + (i?.count || 0), 0);
+                if (totalAmount < requiredAmount) {
+                    console.log(`Insufficient ${itemName}: need ${requiredAmount}, have ${totalAmount}`);
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        this.builderManager.onDeductCost = (cost) => {
+            const inventory = this.player.inventory.items;
+            for (const [itemName, requiredAmount] of Object.entries(cost)) {
+                let remainingToDeduct = requiredAmount;
+                for (let i = inventory.length - 1; i >= 0; i--) {
+                    const item = inventory[i];
+                    if (item?.name === itemName) {
+                        const toDeduct = Math.min(item.count, remainingToDeduct);
+                        item.count -= toDeduct;
+                        remainingToDeduct -= toDeduct;
+                        if (item.count <= 0) {
+                            inventory.splice(i, 1);
+                        }
+                        if (remainingToDeduct <= 0) break;
+                    }
+                }
+            }
+            this.player.inventory.setItems(inventory);
+        };
+
         this.player = new Player(this.renderManager.scene, this.soundManager);
         Object.assign(this.player.config, initialConfig);
         this.player.inventory.setItems(initialInventory);
-        
+
         this.cameraManager = new CameraManager(this.renderManager, this.player);
 
         this.sceneManager = new SceneManager(
@@ -161,6 +195,8 @@ export class Game {
             // Forward to UI if needed, or handle logs
             console.log(`[Combat] ${msg}`);
         };
+
+        this.gameLoopManager = new GameLoopManager();
 
         // Connect turn-based events
         this.combatSystem.onTurnChanged = (unit) => {
@@ -195,13 +231,15 @@ export class Game {
                 this.player.addItem('Wood', 8, true);
             };
             this.entityManager.initDevEntities(this.sceneManager.environment, this.config);
+        } else if (activeScene === 'starter' || activeScene === 'singleBiome') {
+            this.setupSingleBiomeLogPickup();
         } else if (activeScene === 'town') {
             this.setupTownScene();
-        } else if (activeScene === 'town2') {
+        } else if (activeScene === 'town2' || activeScene === 'gameLoop') {
             this.setupTown2Scene();
         }
         
-        if (activeScene !== 'singleBiome') {
+        if (activeScene !== 'singleBiome' && activeScene !== 'starter') {
             this.scheduleEnvironmentReady(activeScene);
         }
 
@@ -214,12 +252,12 @@ export class Game {
         this._onMouseDown = this.onMouseDown.bind(this);
         this._onMouseUp = this.onMouseUp.bind(this);
         this._onContextMenu = this.onContextMenu.bind(this);
-        
+
         document.addEventListener('pointerlockchange', this._onPointerLockChange);
-        window.addEventListener('mousemove', this._onMouseMove);
-        window.addEventListener('mousedown', this._onMouseDown);
-        window.addEventListener('mouseup', this._onMouseUp);
-        window.addEventListener('contextmenu', this._onContextMenu);
+        window.addEventListener('mousemove', this._onMouseMove, { passive: true });
+        window.addEventListener('mousedown', this._onMouseDown, { passive: true });
+        window.addEventListener('mouseup', this._onMouseUp, { passive: true });
+        window.addEventListener('contextmenu', this._onContextMenu, { passive: false });
         
         this.animate = this.animate.bind(this);
         
@@ -301,6 +339,7 @@ export class Game {
     }
 
     private onMouseDown(e: MouseEvent) {
+        // Only handle combat and first-person - let OrbitControls handle everything else
         if (this.cameraManager.isFirstPerson && document.pointerLockElement !== this.renderManager.renderer.domElement) {
             this.renderManager.renderer.domElement.requestPointerLock();
         }
@@ -310,19 +349,24 @@ export class Game {
     }
 
     private onMouseMove(e: MouseEvent) {
+        // Only handle combat and first-person - let OrbitControls handle everything else
         if (this.sceneManager.activeScene === 'combat') {
             this.combatManager.handleMouseMove(e, this.sceneManager.combatEnvironment);
         }
-        this.cameraManager.handleMouseMove(e);
+        if (this.cameraManager.isFirstPerson) {
+            this.cameraManager.handleMouseMove(e);
+        }
     }
 
     private onMouseUp(e: MouseEvent) {
+        // Only handle combat - let OrbitControls handle everything else
         if (this.sceneManager.activeScene === 'combat') {
             this.combatManager.handleMouseUp(e, this.sceneManager.combatEnvironment);
         }
     }
-    
+
     private onContextMenu(e: MouseEvent) {
+        // Only handle combat - let OrbitControls handle right-click rotation for other scenes
         if (this.sceneManager.activeScene === 'combat') {
             e.preventDefault();
             this.combatManager.handleContextMenu(e);
@@ -467,12 +511,12 @@ export class Game {
         this.entityManager.spawnCombatEncounter(enemyType, enemyCount, arena, reservedCells);
 
         const enemies = [...this.entityManager.imps];
-        if (enemies.length === 0) {
+        if (friendlyEntities.length === 0 || enemies.length === 0) {
             this.combatInitialized = false;
             return false;
         }
 
-        this.combatSystem.initializeCombat(this.player, friendlyEntities, enemies);
+        this.combatSystem.initializeCombat(null, friendlyEntities, enemies, arena);
         this.combatInitialized = true;
         this.combatManager.setCombatActive(true);
         return true;
@@ -509,11 +553,14 @@ export class Game {
         if (sceneName === 'town') {
             this.setupTownScene();
         }
-        if (sceneName === 'town2') {
+        if (sceneName === 'town2' || sceneName === 'gameLoop') {
             this.setupTown2Scene();
         }
+        if (sceneName === 'starter' || sceneName === 'singleBiome') {
+            this.setupSingleBiomeLogPickup();
+        }
 
-        if (!isInit && sceneName !== 'singleBiome') {
+        if (!isInit && sceneName !== 'singleBiome' && sceneName !== 'starter') {
             this.scheduleEnvironmentReady(sceneName);
         }
     }
@@ -585,6 +632,22 @@ export class Game {
         const town2Env = this.sceneManager.town2Environment;
         if (!town2Env) return;
         this.entityManager.initTown2Entities(town2Env, this.config);
+    }
+
+    private setupSingleBiomeLogPickup() {
+        const singleBiomeEnv = this.sceneManager.singleBiomeEnvironment;
+        if (!singleBiomeEnv) return;
+        singleBiomeEnv.onLogPickedUp = () => {
+            this.player.addItem('Wood', 1, true);
+        };
+        singleBiomeEnv.getStoneDropCount = () => this.getStoneDropCountForEquippedPickaxe();
+        singleBiomeEnv.onAddToInventory = (itemName, count) => {
+            this.player.addItem(itemName, count, true);
+        };
+    }
+
+    private getStoneDropCountForEquippedPickaxe(): number {
+        return 5;
     }
 
     spawnAnimal(type: string, count: number) {
@@ -727,6 +790,7 @@ export class Game {
 
         this.particleManager.update(delta);
         this.doorManager.update(delta);
+        let cameraCollisionObstacles: THREE.Object3D[] = [];
         
         // Removed looping over all obstacles to find doors and updating them here.
         // The doorManager.update(delta) above already updates all registered doors.
@@ -765,7 +829,8 @@ export class Game {
             // if we really wanted to, but the spread syntax is the main issue.
             // A better way is to cache the combined array and only update it when obstacles or doors change.
             const combinedObstacles = [...currentEnv.obstacles, ...this.doorManager.getDoorObjects()];
-            
+            cameraCollisionObstacles = combinedObstacles;
+
             this.player.update(delta, playerInput, this.renderManager.camera.position, cameraRotation, currentEnv, this.particleManager, currentEntities, false, combinedObstacles);
             
             // Restore original input values
@@ -794,7 +859,7 @@ export class Game {
         }
 
         // 2. Update Camera Position (AFTER player has moved to prevent jitter)
-        this.cameraManager.updatePosition(this.sceneManager.activeScene);
+        this.cameraManager.updatePosition(this.sceneManager.activeScene, cameraCollisionObstacles);
 
         this.soundManager.update(this.player, delta, currentEnv);
         
@@ -864,6 +929,11 @@ export class Game {
                 }
             }
         } else if (this.player.canSkin) this.onInteractionUpdate?.('Press F to Skin', null);
+        else if (this.player.pickupTarget) {
+            const itemName = this.player.pickupTarget.userData.pickupItem ?? 'Item';
+            const label = this.player.pickupTarget.userData.interactionLabel ?? `Press F to Pick Up ${itemName}`;
+            this.onInteractionUpdate?.(label, null);
+        }
         else {
             const target = this.player.interactableTarget;
             if (target) {
@@ -883,6 +953,7 @@ export class Game {
         }
         if (this.player.inventory.isDirty) { this.onInventoryUpdate?.([...this.player.inventory.items]); this.player.inventory.isDirty = false; }
         this.renderManager.render();
+        this.gameLoopManager.update(delta);
         this.onUpdate?.(delta);
     }
 }

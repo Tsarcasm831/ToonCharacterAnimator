@@ -148,6 +148,14 @@ export class ObjectFactory {
         return RockFactory.createRockFormation(position, scale);
     }
 
+    static createMudClump(position: THREE.Vector3, scale: number = 1.0) {
+        if (!RockFactory) {
+            console.error("ObjectFactory: RockFactory is undefined!");
+            return { group: undefined, obstacle: undefined };
+        }
+        return RockFactory.createMudClump(position, scale);
+    }
+
     // Debris / Destruction
     static createDebrisChunk(position: THREE.Vector3, material: THREE.Material) {
         return DebrisFactory.createDebrisChunk(position, material);

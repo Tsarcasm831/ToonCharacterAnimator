@@ -83,7 +83,7 @@ function createWeapon(config: WeaponConfig = weaponConfig): THREE.Group {
         handleMat
     );
     handle.rotation.z = -Math.PI / 2;
-    handle.position.x = handleLength * 0.08;
+    handle.position.x = handleLength * -0.15;
     handle.castShadow = true;
     group.add(handle);
 
@@ -91,7 +91,7 @@ function createWeapon(config: WeaponConfig = weaponConfig): THREE.Group {
         new THREE.SphereGeometry(config.pommelSize * scale, 8, 6),
         guardMat
     );
-    pommel.position.x = -handleLength * 0.48;
+    pommel.position.x = -handleLength * 0.71;
     pommel.scale.set(1.0, 0.75, 0.75);
     pommel.castShadow = true;
     group.add(pommel);
@@ -101,12 +101,12 @@ function createWeapon(config: WeaponConfig = weaponConfig): THREE.Group {
         guardMat
     );
     socket.rotation.z = Math.PI / 2;
-    socket.position.x = handleLength * 0.48;
+    socket.position.x = handleLength * 0.25;
     socket.castShadow = true;
     group.add(socket);
 
     const blade = makeBlade(config, metalMat, scale);
-    blade.position.x = handleLength * 0.62;
+    blade.position.x = handleLength * 0.39;
     blade.rotation.z = -Math.PI / 2;
     blade.castShadow = true;
     blade.receiveShadow = true;
@@ -116,7 +116,7 @@ function createWeapon(config: WeaponConfig = weaponConfig): THREE.Group {
         new THREE.DodecahedronGeometry(config.bladeWidth * scale * 0.16, 0),
         mudMat
     );
-    mudClump.position.set(handleLength * 0.71, -config.bladeWidth * scale * 0.18, config.bladeThickness * scale * 1.6);
+    mudClump.position.set(handleLength * 0.48, -config.bladeWidth * scale * 0.18, config.bladeThickness * scale * 1.6);
     mudClump.scale.set(1.3, 0.45, 0.7);
     mudClump.rotation.set(0.2, 0.3, -0.35);
     group.add(mudClump);

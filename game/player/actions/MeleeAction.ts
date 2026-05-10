@@ -71,6 +71,14 @@ export class MeleeAction extends BaseAction {
             this.isAxeSwing = true;
             this.axeSwingTimer = 0;
             this.hasHit = false;
+            const item = this.player.config.selectedItem;
+            if ((item === 'Axe' || item === 'Pickaxe' || item === 'Shovel' || item === 'Sword') && this.soundManager?.playWeaponSwing) {
+                setTimeout(() => {
+                    if (this.soundManager?.playWeaponSwing) {
+                        this.soundManager.playWeaponSwing();
+                    }
+                }, 300);
+            }
         }
     }
 
@@ -230,8 +238,8 @@ export class MeleeAction extends BaseAction {
              const impactPos = playerPos.clone().lerp(closestImpactPoint, 0.5);
              impactPos.y += 1.1;
 
-             const materialType = environment.damageObstacle(closest, 1);
-             
+             const materialType = environment.damageObstacle(closest, 1, item);
+
              if (materialType === 'wood') {
                  particleManager.emit(impactPos, 12, 'wood');
                  // Play wood chop sound
@@ -240,6 +248,14 @@ export class MeleeAction extends BaseAction {
                  }
              } else if (materialType === 'stone') {
                  particleManager.emit(impactPos, 15, 'spark');
+                 if (item === 'Pickaxe' && this.soundManager?.playStoneDink) {
+                     this.soundManager.playStoneDink();
+                 }
+             } else if (materialType === 'mud') {
+                 particleManager.emit(impactPos, 10, 'wood');
+                 if (this.soundManager?.playStoneDink) {
+                     this.soundManager.playStoneDink();
+                 }
              }
         }
     }

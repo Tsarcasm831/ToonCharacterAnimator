@@ -43,6 +43,7 @@ export class InputManager {
     onToggleQuestLog?: () => void;
     onToggleBuilderLog?: () => void;
     onConfirmBuild?: () => void;
+    onCancelBuild?: () => void;
     onTeleportToTown?: () => void;
 
     constructor(initialBindings: KeyBindingMap = DEFAULT_KEYBINDINGS) {
@@ -176,6 +177,16 @@ export class InputManager {
     private handleMouseDown(e: MouseEvent) {
         if (this.isBlocked) return;
         if ((e.target as HTMLElement).closest('button, input, select, .no-capture, .builder-log-container')) return;
+        if (this.isBuilding && e.button === 0) {
+            e.preventDefault();
+            this.onConfirmBuild?.();
+            return;
+        }
+        if (this.isBuilding && e.button === 2) {
+            e.preventDefault();
+            this.onCancelBuild?.();
+            return;
+        }
         this.isMouseDown = true;
         this.mouseButton = e.button;
     }

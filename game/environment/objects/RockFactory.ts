@@ -226,4 +226,52 @@ export class RockFactory {
             return { group: undefined, obstacle: undefined };
         }
     }
+
+    static createMudClump(position: THREE.Vector3, scale: number = 1.0) {
+        try {
+            const group = new THREE.Group();
+            group.position.copy(position);
+            group.rotation.y = Math.random() * Math.PI * 2;
+
+            const clump = new THREE.Group();
+            clump.userData = { type: 'hard', material: 'mud', structureType: 'mud_clump' };
+            group.add(clump);
+
+            const mudMat = new THREE.MeshStandardMaterial({
+                color: 0x5d4037,
+                roughness: 0.95,
+                metalness: 0.0,
+                flatShading: true
+            });
+
+            const mudGeo = new THREE.DodecahedronGeometry(1, 0);
+            const mudGeo2 = new THREE.DodecahedronGeometry(0.7, 0);
+            const mudGeo3 = new THREE.DodecahedronGeometry(0.5, 0);
+
+            const mounds = [
+                { geo: mudGeo, pos: [0, 0.3, 0], scale: [1.0, 0.6, 0.9], rot: [0.1, 0.3, -0.05] },
+                { geo: mudGeo2, pos: [-0.4, 0.25, 0.2], scale: [0.8, 0.5, 0.7], rot: [-0.15, -0.4, 0.1] },
+                { geo: mudGeo2, pos: [0.5, 0.2, -0.15], scale: [0.7, 0.45, 0.65], rot: [0.2, 0.5, -0.12] },
+                { geo: mudGeo3, pos: [-0.2, 0.5, 0.3], scale: [0.6, 0.4, 0.5], rot: [0.25, 0.2, -0.08] },
+                { geo: mudGeo3, pos: [0.3, 0.45, -0.25], scale: [0.55, 0.35, 0.48], rot: [-0.1, -0.3, 0.15] },
+            ];
+
+            mounds.forEach((cfg) => {
+                const mesh = new THREE.Mesh(cfg.geo, mudMat);
+                mesh.position.set(cfg.pos[0] * scale, cfg.pos[1] * scale, cfg.pos[2] * scale);
+                mesh.scale.set(cfg.scale[0] * scale, cfg.scale[1] * scale, cfg.scale[2] * scale);
+                mesh.rotation.set(cfg.rot[0], cfg.rot[1], cfg.rot[2]);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                clump.add(mesh);
+            });
+
+            clump.scale.set(1.0, 1.0, 0.9 + Math.random() * 0.2);
+
+            return { group, obstacle: clump };
+        } catch (e) {
+            console.error("RockFactory: Error creating mud clump", e);
+            return { group: undefined, obstacle: undefined };
+        }
+    }
 }

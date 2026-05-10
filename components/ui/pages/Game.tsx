@@ -933,6 +933,7 @@ export const Game: React.FC = () => {
         game.onBuildingTypeChange = (type: any) => environmentState.setActiveStructure(type);
         game.onBiomeUpdate = (b: any) => environmentState.setCurrentBiome(b);
         game.onBuildLog = (message: string) => uiState.addBuilderLog(message);
+        game.onWrongTool = (message: string) => setNotification(message);
         
         game.onDialogueTrigger = (content: string | DialogueContent) => setDialogue(content);
         game.onTradeTrigger = () => uiState.setIsTradeOpen(true);
@@ -1501,56 +1502,86 @@ export const Game: React.FC = () => {
                             <DialogueOverlay dialogue={dialogue} onClose={onCloseDialogue} onSelectChoice={onDialogueChoice} />
                             <MobileControls game={gameInstance.current} />
 
-                            {gameLoopHudState && (
-                                <div className="absolute top-4 right-4 z-[90] bg-black/65 border border-white/15 rounded-xl px-3 py-2 backdrop-blur-sm text-[10px] uppercase tracking-wide text-white/80 pointer-events-none">
-                                    <div className="font-bold text-cyan-300">Campaign</div>
-                                    <div>Phase: {gameLoopHudState.phase}</div>
-                                    <div>Day: {gameLoopHudState.day}</div>
-                                    <div>Gold: {gameLoopHudState.gold} · Heirlooms: {gameLoopHudState.heirlooms}</div>
-                                    <div>Chests: {gameLoopHudState.supplyChests}</div>
-                                    <div>Roster: {gameLoopHudState.rosterCount} · Party: {gameLoopHudState.partyCount}</div>
-                                    {gameLoopHudState.activeMissionTitle && <div>Mission: {gameLoopHudState.activeMissionTitle}</div>}
+                            {/* Tutorial Panel */}
+                            {(() => {
+                                const stickCount = inventory.filter(i => i?.name === 'Stick').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                const stoneCount = inventory.filter(i => i?.name === 'Stone').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                const tutorial1Complete = stickCount >= 8 && stoneCount >= 15;
+                                const tutorialStep = tutorial1Complete ? 2 : 1;
+
+                                if (tutorialStep === 1) {
+                                    const stickProgress = Math.min(100, (stickCount / 8) * 100);
+                                    const stoneProgress = Math.min(100, (stoneCount / 15) * 100);
+                                    const totalProgress = (stickProgress + stoneProgress) / 2;
+
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-amber-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-amber-400 text-xs uppercase tracking-wider mb-2">Tutorial 1/2</div>
+                                            <div className="text-sm font-medium">Gather Resources</div>
+                                            <div className="text-xs text-stone-400 mt-1">
+                                                <span className={stickCount >= 8 ? 'text-green-400' : 'text-amber-300'}>{stickCount}/8</span> Sticks · <span className={stoneCount >= 15 ? 'text-green-400' : 'text-amber-300'}>{stoneCount}/15</span> Stone
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className={`h-full transition-all duration-300 ${tutorial1Complete ? 'bg-green-500' : 'bg-amber-500/50'}`} style={{ width: `${totalProgress}%` }} />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Chop trees for sticks, mine rocks for stone</div>
+                                        </div>
+                                    );
+                                } else {
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-emerald-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-emerald-400 text-xs uppercase tracking-wider mb-2">Tutorial 2/2</div>
+                                            <div className="text-sm font-medium">Build a Firepit</div>
+                                            <div className="text-xs text-stone-400 mt-1">
+                                                Press <span className="text-amber-300">B</span> to open builder, select <span className="text-amber-300">🔥 Firepit</span>, and place it
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className="h-full bg-emerald-500/50 w-0 animate-pulse" />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Cost: 8 Sticks + 15 Stone</div>
+                                        </div>
+                                    );
+                                }
+                            })()}
+
+                            {isCharacterCreatorModalOpen && (
+                                <div
+                                    className="absolute inset-0 z-[260] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-3"
+                                    onClick={handleCloseCharacterCreator}
+                                >
+                                    <div
+                                        className="relative size-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#050913] shadow-[0_0_80px_rgba(15,23,42,0.75)]"
+                                        onClick={(event) => event.stopPropagation()}
+                                    >
+                                        <div className="absolute right-4 top-4 z-20 flex items-center gap-3">
+                                            <span className="rounded-full border border-white/10 bg-black/50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 backdrop-blur-sm">
+                                                Character Creator
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={handleCloseCharacterCreator}
+                                                className="h-10 w-10 rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:bg-black/80"
+                                                aria-label="Close character creator"
+                                            >
+                                                <span className="text-lg leading-none">×</span>
+                                            </button>
+                                        </div>
+                                        <iframe
+                                            title="Character Creator"
+                                            src={`${import.meta.env.BASE_URL}standalone_cc/index.html`}
+                                            className="h-full w-full border-0"
+                                        />
+                                    </div>
                                 </div>
                             )}
                         </>
                     )}
                 </div>
             </div>
-
-            {isCharacterCreatorModalOpen && (
-                <div
-                    className="absolute inset-0 z-[260] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-3"
-                    onClick={handleCloseCharacterCreator}
-                >
-                    <div
-                        className="relative size-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#050913] shadow-[0_0_80px_rgba(15,23,42,0.75)]"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <div className="absolute right-4 top-4 z-20 flex items-center gap-3">
-                            <span className="rounded-full border border-white/10 bg-black/50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 backdrop-blur-sm">
-                                Character Creator
-                            </span>
-                            <button
-                                type="button"
-                                onClick={handleCloseCharacterCreator}
-                                className="h-10 w-10 rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:bg-black/80"
-                                aria-label="Close character creator"
-                            >
-                                <span className="text-lg leading-none">×</span>
-                            </button>
-                        </div>
-                        <iframe
-                            title="Character Creator"
-                            src={`${import.meta.env.BASE_URL}standalone_cc/index.html`}
-                            className="h-full w-full border-0"
-                        />
-                    </div>
-                </div>
-            )}
             
             {gameState === 'PLAYING' && notification && (
                 <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] animate-in fade-in slide-in-from-top-4">
-                    <div className="bg-blue-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl border border-blue-400/50">
+                    <div className="bg-red-600 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-2xl border border-red-400/50">
                         {notification}
                     </div>
                 </div>

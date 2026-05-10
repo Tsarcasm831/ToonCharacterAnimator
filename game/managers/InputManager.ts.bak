@@ -34,6 +34,7 @@ export class InputManager {
     onToggleHands?: () => void;
     onToggleSkeletonMode?: () => void;
     onToggleInventory?: () => void;
+    onToggleItemCatalog?: () => void;
     onToggleFirstPerson?: () => void;
     onToggleBuilder?: () => void;
     onToggleKeybinds?: () => void;
@@ -116,9 +117,14 @@ export class InputManager {
         if (this.isBlocked) return;
 
         // Store key state
-        this.keys[e.code] = true; 
+        this.keys[e.code] = true;
 
         // Handle Triggers (One-shot actions)
+        if (e.code === 'KeyI' && e.shiftKey) {
+            e.preventDefault();
+            this.onToggleItemCatalog?.();
+            return;
+        }
         if (this.checkTrigger(e.code, InputCommand.ToggleInventory)) this.onToggleInventory?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleQuestLog)) this.onToggleQuestLog?.();
         if (this.checkTrigger(e.code, InputCommand.ToggleWorldMap)) this.onToggleWorldMap?.();
@@ -170,8 +176,6 @@ export class InputManager {
     private handleMouseDown(e: MouseEvent) {
         if (this.isBlocked) return;
         if ((e.target as HTMLElement).closest('button, input, select, .no-capture, .builder-log-container')) return;
-        // Don't handle mouse events on canvas - let OrbitControls handle them
-        if ((e.target as HTMLElement).tagName === 'CANVAS') return;
         this.isMouseDown = true;
         this.mouseButton = e.button;
     }
@@ -183,8 +187,6 @@ export class InputManager {
 
     private handleMouseMove(e: MouseEvent) {
         if (this.isBlocked) return;
-        // Don't handle mouse events on canvas - let OrbitControls handle them
-        if ((e.target as HTMLElement).tagName === 'CANVAS') return;
         // Convert to Normalized Device Coordinates (NDC)
         // x: -1 to 1, y: 1 to -1
         this.mousePosition.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -241,7 +243,7 @@ export class InputManager {
             leftHandWave: !!(this.isCommandActive(InputCommand.LeftHandWave) || this.manualInput.leftHandWave),
             summon: !!(this.isCommandActive(InputCommand.Summon) || this.manualInput.summon),
             toggleBuilder: !!(this.isCommandActive(InputCommand.ToggleBuilder)),
-            rotateGhost: !!(this.isCommandActive(InputCommand.RotateGhost)), 
+            rotateGhost: !!(this.isCommandActive(InputCommand.RotateGhost) && this.isBuilding),
             fireball: !!(this.isCommandActive(InputCommand.Fireball) && !this.isBuilding)
         };
     }

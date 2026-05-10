@@ -6,7 +6,7 @@ export type ActiveScene = 'dev' | 'starter' | 'land' | 'combat' | 'mp' | 'single
 
 const validPages: PageType[] = ['home', 'game', 'music', 'about', 'shop'];
 const validScenes: ActiveScene[] = ['dev', 'starter', 'land', 'combat', 'mp', 'singleBiome', 'town', 'town2', 'tdgame', 'roguelike', 'gameLoop', 'darkest', 'loop'];
-const defaultScene: ActiveScene = 'town2';
+const defaultScene: ActiveScene = 'starter';
 
 function parseHashState(): { page: PageType; scene: ActiveScene } {
   const hash = window.location.hash.replace(/^#/, '');

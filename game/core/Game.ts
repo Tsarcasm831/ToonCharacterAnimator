@@ -98,6 +98,7 @@ export class Game {
     public onBuildLog?: (message: string) => void;
     public onEnvironmentReady?: () => void;
     public onUpdate?: (dt: number) => void;
+    public onWrongTool?: (message: string) => void;
     public onEnterTown?: () => void;
     public onEnterTown2?: () => void;
     public onNpcInteraction?: (context: { scene: SceneType; target: any }) => NpcInteractionResponse | null | undefined;
@@ -137,10 +138,42 @@ export class Game {
             this.onBuildLog?.(msg);
         };
 
+        this.builderManager.onCheckCost = (cost) => {
+            const inventory = this.player.inventory.items;
+            for (const [itemName, requiredAmount] of Object.entries(cost)) {
+                const totalAmount = inventory.filter(i => i?.name === itemName).reduce((sum, i) => sum + (i?.count || 0), 0);
+                if (totalAmount < requiredAmount) {
+                    console.log(`Insufficient ${itemName}: need ${requiredAmount}, have ${totalAmount}`);
+                    return false;
+                }
+            }
+            return true;
+        };
+
+        this.builderManager.onDeductCost = (cost) => {
+            const inventory = this.player.inventory.items;
+            for (const [itemName, requiredAmount] of Object.entries(cost)) {
+                let remainingToDeduct = requiredAmount;
+                for (let i = inventory.length - 1; i >= 0; i--) {
+                    const item = inventory[i];
+                    if (item?.name === itemName) {
+                        const toDeduct = Math.min(item.count, remainingToDeduct);
+                        item.count -= toDeduct;
+                        remainingToDeduct -= toDeduct;
+                        if (item.count <= 0) {
+                            inventory.splice(i, 1);
+                        }
+                        if (remainingToDeduct <= 0) break;
+                    }
+                }
+            }
+            this.player.inventory.setItems(inventory);
+        };
+
         this.player = new Player(this.renderManager.scene, this.soundManager);
         Object.assign(this.player.config, initialConfig);
         this.player.inventory.setItems(initialInventory);
-        
+
         this.cameraManager = new CameraManager(this.renderManager, this.player);
 
         this.sceneManager = new SceneManager(
@@ -280,6 +313,7 @@ export class Game {
         this.inputManager.onToggleBuilder = () => this.toggleBuilder();
         this.inputManager.onToggleGrid = () => this.sceneManager.currentEnvironment?.toggleWorldGrid();
         this.inputManager.onConfirmBuild = () => this.handleConfirmBuild();
+        this.inputManager.onCancelBuild = () => this.handleCancelBuild();
         this.inputManager.onToggleWorldMap = () => {
             this.onToggleWorldMapCallback?.(this.player.mesh.position.clone());
         };
@@ -609,6 +643,18 @@ export class Game {
             this.player.addItem('Wood', 1, true);
         };
         singleBiomeEnv.getStoneDropCount = () => this.getStoneDropCountForEquippedPickaxe();
+        singleBiomeEnv.onAddToInventory = (itemName, count) => {
+            this.player.addItem(itemName, count, true);
+        };
+        singleBiomeEnv.onOreCrumbling = () => {
+            this.soundManager?.playOreCrumbling();
+        };
+        singleBiomeEnv.onMudDug = () => {
+            this.soundManager?.playStoneDink();
+        };
+        singleBiomeEnv.onWrongTool = (message) => {
+            this.onWrongTool?.(message);
+        };
     }
 
     private getStoneDropCountForEquippedPickaxe(): number {
@@ -651,6 +697,8 @@ export class Game {
         if (timeSinceSlotSelect >= this.slotSelectProtection && currentTime - this.lastBuildTime >= this.buildCooldown) {
             const currentEnv = this.sceneManager.currentEnvironment;
             if (currentEnv) {
+                const shouldBuild = this.builderManager.selectPlacementLocation();
+                if (!shouldBuild) return;
                 this.builderManager.build(currentEnv);
                 this.lastBuildTime = currentTime;
                 if (this.showObstacleHitboxes) {
@@ -663,6 +711,11 @@ export class Game {
                 }
             }
         }
+    }
+
+    private handleCancelBuild() {
+        if (!this.isBuilding) return;
+        this.builderManager.cancelPlacement();
     }
     
     private onPointerLockChange() { 

@@ -15,12 +15,6 @@ export class SoundManager {
     private prevIsGrounded = true;
     private prevJumpVelocity = 0;
 
-    // Audio buffer cache
-    private weaponSwingBuffer: AudioBuffer | null = null;
-    private oreHitBuffer: AudioBuffer | null = null;
-    private treeHitBuffer: AudioBuffer | null = null;
-    private oreCrumblingBuffer: AudioBuffer | null = null;
-
     constructor() {
         if (typeof window !== 'undefined') {
             const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
@@ -36,19 +30,6 @@ export class SoundManager {
     private ensureContext() {
         if (this.ctx && this.ctx.state === 'suspended') {
             this.ctx.resume().catch(() => {});
-        }
-    }
-
-    private async loadAudioBuffer(url: string): Promise<AudioBuffer | null> {
-        if (!this.ctx) return null;
-        try {
-            const response = await fetch(url);
-            if (!response.ok) return null;
-            const arrayBuffer = await response.arrayBuffer();
-            return await this.ctx.decodeAudioData(arrayBuffer);
-        } catch (e) {
-            console.error('Failed to load audio:', url, e);
-            return null;
         }
     }
 
@@ -363,91 +344,48 @@ export class SoundManager {
         osc.stop(t + 0.8);
     }
 
-    async playWoodChop() {
+    playWoodChop() {
         if (!this.ctx || !this.masterGain) return;
         this.ensureContext();
-
-        if (!this.treeHitBuffer) {
-            this.treeHitBuffer = await this.loadAudioBuffer('/assets/sounds/tree_hit.mp3');
+        const t = this.ctx.currentTime;
+        
+        // Sharp impact noise
+        const bufferSize = this.ctx.sampleRate * 0.05; // 50ms
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            data[i] = (Math.random() - 0.5) * 2;
         }
-
-        if (!this.treeHitBuffer) return;
-
-        const source = this.ctx.createBufferSource();
-        source.buffer = this.treeHitBuffer;
-        const gain = this.ctx.createGain();
-        source.connect(gain);
-        gain.connect(this.masterGain);
-
-        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
-
-        source.start(this.ctx.currentTime);
-    }
-
-    async playWeaponSwing() {
-        if (!this.ctx || !this.masterGain) return;
-        this.ensureContext();
-
-        if (!this.weaponSwingBuffer) {
-            this.weaponSwingBuffer = await this.loadAudioBuffer('/assets/sounds/weapon_swing_h.mp3');
-        }
-
-        if (!this.weaponSwingBuffer) return;
-
-        const source = this.ctx.createBufferSource();
-        source.buffer = this.weaponSwingBuffer;
-        const gain = this.ctx.createGain();
-        source.connect(gain);
-        gain.connect(this.masterGain);
-
-        gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
-
-        source.start(this.ctx.currentTime);
-    }
-
-    async playStoneDink() {
-        if (!this.ctx || !this.masterGain) return;
-        this.ensureContext();
-
-        if (!this.oreHitBuffer) {
-            this.oreHitBuffer = await this.loadAudioBuffer('/assets/sounds/ore_hit.mp3');
-        }
-
-        if (!this.oreHitBuffer) return;
-
-        const source = this.ctx.createBufferSource();
-        source.buffer = this.oreHitBuffer;
-        const gain = this.ctx.createGain();
-        source.connect(gain);
-        gain.connect(this.masterGain);
-
-        gain.gain.setValueAtTime(0.25, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
-
-        source.start(this.ctx.currentTime);
-    }
-
-    async playOreCrumbling() {
-        if (!this.ctx || !this.masterGain) return;
-        this.ensureContext();
-
-        if (!this.oreCrumblingBuffer) {
-            this.oreCrumblingBuffer = await this.loadAudioBuffer('/assets/sounds/ore_crumbling.mp3');
-        }
-
-        if (!this.oreCrumblingBuffer) return;
-
-        const source = this.ctx.createBufferSource();
-        source.buffer = this.oreCrumblingBuffer;
-        const gain = this.ctx.createGain();
-        source.connect(gain);
-        gain.connect(this.masterGain);
-
-        gain.gain.setValueAtTime(0.35, this.ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
-
-        source.start(this.ctx.currentTime);
+        
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+        const noiseFilter = this.ctx.createBiquadFilter();
+        const noiseGain = this.ctx.createGain();
+        
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.masterGain);
+        
+        // Sharp impact filter
+        noiseFilter.type = 'highpass';
+        noiseFilter.frequency.setValueAtTime(800, t);
+        noiseGain.gain.setValueAtTime(0.4, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.06);
+        
+        // Wood resonance (low thud)
+        const thud = this.ctx.createOscillator();
+        thud.type = 'square';
+        thud.frequency.setValueAtTime(120, t);
+        thud.frequency.exponentialRampToValueAtTime(60, t + 0.15);
+        const thudGain = this.ctx.createGain();
+        thudGain.gain.setValueAtTime(0.3, t);
+        thudGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+        thud.connect(thudGain).connect(this.masterGain);
+        
+        // Start all sounds
+        noise.start(t);
+        noise.stop(t + 0.1);
+        thud.start(t);
+        thud.stop(t + 0.2);
     }
 }

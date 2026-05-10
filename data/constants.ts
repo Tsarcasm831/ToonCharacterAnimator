@@ -170,3 +170,13 @@ export const ITEM_IMAGES: Record<string, string> = {
   'Scrap Metal': '/assets/images/items/scrap_metal.png',
   'Wood': '/assets/images/items/wood_logs.png'
 };
+
+export interface BuildingCost {
+  'Stick'?: number;
+  'Stone'?: number;
+  'Wood'?: number;
+}
+
+export const BUILDING_COSTS: Record<string, BuildingCost> = {
+  'firepit': { 'Stick': 8, 'Stone': 15 },
+};

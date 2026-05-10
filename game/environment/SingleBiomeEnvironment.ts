@@ -18,6 +18,15 @@ interface RockFormationData {
     basePosition: THREE.Vector3;
 }
 
+interface MudClumpData {
+    id: string;
+    group: THREE.Object3D;
+    obstacle: THREE.Object3D;
+    health: number;
+    shudderTimer: number;
+    basePosition: THREE.Vector3;
+}
+
 export class SingleBiomeEnvironment {
     public group: THREE.Group;
     private scene: THREE.Scene;
@@ -30,6 +39,7 @@ export class SingleBiomeEnvironment {
     private trees: Map<string, TreeData> = new Map();
     private looseLogs: THREE.Mesh[] = [];
     private rockFormations: Map<string, RockFormationData> = new Map();
+    private mudClumps: Map<string, MudClumpData> = new Map();
     private pickupObjects: THREE.Object3D[] = [];
     private grassTuftMesh: THREE.InstancedMesh | null = null;
     private circularWallGroups: THREE.Object3D[] = [];
@@ -40,6 +50,8 @@ export class SingleBiomeEnvironment {
     private static readonly ROCK_FORMATION_COUNT = 26;
     private static readonly ROCK_HEALTH = 10;
     private static readonly DEFAULT_ROCK_STONE_YIELD = 5;
+    private static readonly MUD_CLUMP_COUNT = 20;
+    private static readonly MUD_CLUMP_HEALTH = 3;
     private static readonly PICKUP_SCATTER_COUNT = 120;
     private static readonly GRASS_TUFT_COUNT = 2600;
     private static readonly SPAWN_ATTEMPT_MULTIPLIER = 10;
@@ -48,6 +60,10 @@ export class SingleBiomeEnvironment {
     public hiveController: HiveMindController | null = null;
     public onLogPickedUp?: () => void;
     public getStoneDropCount?: () => number;
+    public onAddToInventory?: (itemName: string, count: number) => void;
+    public onOreCrumbling?: () => void;
+    public onMudDug?: () => void;
+    public onWrongTool?: (message: string) => void;
 
     constructor(scene: THREE.Scene) {
         this.scene = scene;
@@ -259,6 +275,7 @@ export class SingleBiomeEnvironment {
         // Spawn trees within the land polygon
         this.spawnTrees(worldPoints, bounds);
         this.spawnRockFormations(worldPoints, bounds);
+        this.spawnMudClumps(worldPoints, bounds);
         this.spawnPickupScatter(worldPoints, bounds);
         this.spawnGrassTufts(worldPoints, bounds);
 
@@ -309,6 +326,17 @@ export class SingleBiomeEnvironment {
                 }
             }
         });
+
+        this.mudClumps.forEach(mudClump => {
+            if (mudClump.shudderTimer > 0) {
+                mudClump.shudderTimer -= dt;
+                const offset = Math.sin(mudClump.shudderTimer * 50) * 0.04;
+                mudClump.group.position.x = mudClump.basePosition.x + offset;
+                if (mudClump.shudderTimer <= 0) {
+                    mudClump.group.position.copy(mudClump.basePosition);
+                }
+            }
+        });
     }
 
     // Interface methods for compatibility with Player/Game
@@ -316,9 +344,14 @@ export class SingleBiomeEnvironment {
         return this.currentBiome;
     }
 
-    damageObstacle(obj: THREE.Object3D, amount: number): string | null {
+    damageObstacle(obj: THREE.Object3D, amount: number, selectedItem?: string): string | null {
         const rock = this.rockFormations.get(obj.uuid);
         if (rock) {
+            // Only allow pickaxe for rocks
+            if (selectedItem !== 'Pickaxe') {
+                this.onWrongTool?.('Use a Pickaxe to mine rocks');
+                return null;
+            }
             rock.health -= amount;
             rock.shudderTimer = 0.25;
 
@@ -327,13 +360,41 @@ export class SingleBiomeEnvironment {
                 this.rockFormations.delete(obj.uuid);
                 this.group.remove(rock.group);
                 this.spawnRockStoneDrops(rock.basePosition, this.getStoneDropCount?.() ?? SingleBiomeEnvironment.DEFAULT_ROCK_STONE_YIELD);
+                this.onOreCrumbling?.();
             }
 
             return 'stone';
         }
 
+        const mudClump = this.mudClumps.get(obj.uuid);
+        if (mudClump) {
+            // Only allow digging with shovel
+            if (selectedItem !== 'Shovel') {
+                this.onWrongTool?.('Use a Shovel to dig mud');
+                return null;
+            }
+            mudClump.health -= amount;
+            mudClump.shudderTimer = 0.25;
+
+            if (mudClump.health <= 0) {
+                this.obstacles = this.obstacles.filter(obstacle => obstacle.uuid !== obj.uuid);
+                this.mudClumps.delete(obj.uuid);
+                this.group.remove(mudClump.group);
+                this.spawnMudDrops(mudClump.basePosition);
+                this.onMudDug?.();
+            }
+
+            return 'mud';
+        }
+
         const tree = this.trees.get(obj.uuid);
         if (!tree) {
+            return null;
+        }
+
+        // Only allow axe for trees
+        if (selectedItem !== 'Axe') {
+            this.onWrongTool?.('Use an Axe to chop trees');
             return null;
         }
 
@@ -354,6 +415,12 @@ export class SingleBiomeEnvironment {
                 const stump = ObjectFactory.createStump(tree.basePosition, tree.group.quaternion, trunkMaterial);
                 this.group.add(stump);
                 this.obstacles.push(stump);
+            }
+
+            // Drop sticks directly to inventory
+            const stickDropCount = 8;
+            if (this.onAddToInventory) {
+                this.onAddToInventory('Stick', stickDropCount);
             }
         }
 
@@ -578,6 +645,34 @@ export class SingleBiomeEnvironment {
         }
     }
 
+    private spawnMudClumps(worldPoints: number[][], bounds: ReturnType<typeof calculateBounds>) {
+        let spawned = 0;
+        const maxAttempts = SingleBiomeEnvironment.MUD_CLUMP_COUNT * SingleBiomeEnvironment.SPAWN_ATTEMPT_MULTIPLIER;
+
+        for (let attempt = 0; attempt < maxAttempts && spawned < SingleBiomeEnvironment.MUD_CLUMP_COUNT; attempt++) {
+            const pos = this.getRandomPointInLand(worldPoints, bounds);
+            if (!pos) continue;
+
+            const scale = 0.8 + Math.random() * 0.4;
+            const result = ObjectFactory.createMudClump(pos, scale);
+
+            if (result && result.group && result.obstacle) {
+                this.prepareDenseStaticObject(result.group, false);
+                this.group.add(result.group);
+                this.obstacles.push(result.obstacle);
+                this.mudClumps.set(result.obstacle.uuid, {
+                    id: result.obstacle.uuid,
+                    group: result.group,
+                    obstacle: result.obstacle,
+                    health: SingleBiomeEnvironment.MUD_CLUMP_HEALTH,
+                    shudderTimer: 0,
+                    basePosition: result.group.position.clone()
+                });
+                spawned += 1;
+            }
+        }
+    }
+
     private spawnPickupScatter(worldPoints: number[][], bounds: ReturnType<typeof calculateBounds>) {
         let spawned = 0;
         const maxAttempts = SingleBiomeEnvironment.PICKUP_SCATTER_COUNT * SingleBiomeEnvironment.SPAWN_ATTEMPT_MULTIPLIER;
@@ -597,13 +692,14 @@ export class SingleBiomeEnvironment {
 
     private spawnRockStoneDrops(center: THREE.Vector3, count: number) {
         const dropCount = Math.max(0, Math.floor(count));
-        for (let i = 0; i < dropCount; i += 1) {
-            const angle = (i / Math.max(1, dropCount)) * Math.PI * 2 + Math.random() * 0.45;
-            const radius = 0.35 + Math.random() * 0.75;
-            const x = center.x + Math.cos(angle) * radius;
-            const z = center.z + Math.sin(angle) * radius;
-            const pos = new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
-            this.addPickupObject(ObjectFactory.createPickupRock(pos));
+        if (this.onAddToInventory) {
+            this.onAddToInventory('Stone', dropCount);
+        }
+    }
+
+    private spawnMudDrops(center: THREE.Vector3) {
+        if (this.onAddToInventory) {
+            this.onAddToInventory('Mud', 2);
         }
     }
 

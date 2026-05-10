@@ -267,7 +267,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                 {item && (
                     <>
                         {itemImage ? (
-                            <img src={itemImage} alt={item.name} loading="lazy" decoding="async" className="h-full w-full object-contain p-1" />
+                            <img src={itemImage} alt={item.name} decoding="async" className="h-full w-full object-contain p-1" />
                         ) : (
                             <span className="text-2xl drop-shadow-md filter">{ITEM_ICONS[item.name] || '📦'}</span>
                         )}
@@ -332,7 +332,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
 
                     {/* Top Section: Equipment & Paper Doll */}
                     <div
-                        className="h-[min(38vh,330px)] min-h-[260px] shrink-0 relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1c1917] to-[#0c0a09] border border-[#292524] m-1 mb-0 shadow-inner overflow-hidden"
+                        className="h-[min(42vh,380px)] min-h-[320px] shrink-0 relative bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#1c1917] to-[#0c0a09] border border-[#292524] m-1 mb-0 shadow-inner"
                         onMouseMove={handleSlotDrag}
                         onMouseUp={handleSlotDragEnd}
                         onMouseLeave={handleSlotDragEnd}

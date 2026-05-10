@@ -125,7 +125,7 @@ export const ItemCatalogModal: React.FC<ItemCatalogModalProps> = ({ isOpen, onCl
                                     <div className="flex gap-3">
                                         <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-white/10 bg-black/40 text-2xl">
                                             {image ? (
-                                                <img src={image} alt="" loading="lazy" className="h-full w-full object-cover" />
+                                                <img src={image} alt="" className="h-full w-full object-cover" />
                                             ) : (
                                                 <span>{ITEM_ICONS[item.name] ?? '?'}</span>
                                             )}
