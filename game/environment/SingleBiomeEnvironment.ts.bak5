@@ -347,21 +347,6 @@ export class SingleBiomeEnvironment {
         return this.getBaseTerrainHeightAt(pond.x, pond.z) - Math.min(0.34, pond.depth * 0.24);
     }
 
-    public getWaterSurfaceAt(x: number, z: number): number | null {
-        let bestSurface: number | null = null;
-        for (const pond of SingleBiomeEnvironment.PONDS) {
-            const dx = x - pond.x;
-            const dz = z - pond.z;
-            if ((dx * dx + dz * dz) > pond.radius * pond.radius) continue;
-
-            const surfaceY = this.getPondWaterSurfaceY(pond);
-            if (bestSurface === null || surfaceY > bestSurface) {
-                bestSurface = surfaceY;
-            }
-        }
-        return bestSurface;
-    }
-
     private getWaterDepthAt(x: number, z: number): number {
         let waterDepth = 0;
 
@@ -706,7 +691,6 @@ export class SingleBiomeEnvironment {
         const x = worldMinX + Math.random() * (worldMaxX - worldMinX);
         const z = worldMinZ + Math.random() * (worldMaxZ - worldMinZ);
         if (!isPointInPolygon(x, z, worldPoints)) return null;
-        if (!PlayerUtils.isWithinBounds(new THREE.Vector3(x, 0, z), 3.0)) return null;
         if (this.getWaterDepthAt(x, z) > 0.05) return null;
 
         return new THREE.Vector3(x, this.raycastTerrainHeight(x, z), z);

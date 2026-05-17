@@ -12,7 +12,7 @@ export class PlayerInteraction {
         // Picking Up
         if (player.isPickingUp) {
             player.pickUpTime += dt;
-            if (player.pickUpTime > 0.9) { 
+            if (player.pickUpTime > 1.2) { 
                 player.isPickingUp = false; 
                 player.pickUpTime = 0; 
             }
@@ -62,9 +62,6 @@ export class PlayerInteraction {
                 if (itemName && player.addItem(itemName, count, true)) {
                     player.isPickingUp = true;
                     pickupTarget.userData.onPickup?.();
-                    window.dispatchEvent(new CustomEvent('pickup-item', {
-                        detail: { itemName, count }
-                    }));
                     player.pickupTarget = null;
                 }
             }

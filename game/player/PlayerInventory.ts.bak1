@@ -38,27 +38,6 @@ export class PlayerInventory {
             }
         }
 
-        // If we were trying to protect the hotbar but the bag is full, fall back
-        // to the whole inventory instead of silently losing the pickup.
-        if (skipHotbar && startIndex > 0) {
-            for (let i = 0; i < startIndex; i++) {
-                const slot = this.items[i];
-                if (slot && slot.name === itemName) {
-                    slot.count += count;
-                    this.isDirty = true;
-                    return true;
-                }
-            }
-
-            for (let i = 0; i < startIndex; i++) {
-                if (this.items[i] === null) {
-                    this.items[i] = { name: itemName, count };
-                    this.isDirty = true;
-                    return true;
-                }
-            }
-        }
-
         return false;
     }
 

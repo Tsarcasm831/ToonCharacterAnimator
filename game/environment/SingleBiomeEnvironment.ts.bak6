@@ -347,21 +347,6 @@ export class SingleBiomeEnvironment {
         return this.getBaseTerrainHeightAt(pond.x, pond.z) - Math.min(0.34, pond.depth * 0.24);
     }
 
-    public getWaterSurfaceAt(x: number, z: number): number | null {
-        let bestSurface: number | null = null;
-        for (const pond of SingleBiomeEnvironment.PONDS) {
-            const dx = x - pond.x;
-            const dz = z - pond.z;
-            if ((dx * dx + dz * dz) > pond.radius * pond.radius) continue;
-
-            const surfaceY = this.getPondWaterSurfaceY(pond);
-            if (bestSurface === null || surfaceY > bestSurface) {
-                bestSurface = surfaceY;
-            }
-        }
-        return bestSurface;
-    }
-
     private getWaterDepthAt(x: number, z: number): number {
         let waterDepth = 0;
 

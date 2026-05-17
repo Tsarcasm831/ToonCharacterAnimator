@@ -12,7 +12,7 @@ export class PlayerInteraction {
         // Picking Up
         if (player.isPickingUp) {
             player.pickUpTime += dt;
-            if (player.pickUpTime > 0.9) { 
+            if (player.pickUpTime > 1.2) { 
                 player.isPickingUp = false; 
                 player.pickUpTime = 0; 
             }
@@ -62,9 +62,6 @@ export class PlayerInteraction {
                 if (itemName && player.addItem(itemName, count, true)) {
                     player.isPickingUp = true;
                     pickupTarget.userData.onPickup?.();
-                    window.dispatchEvent(new CustomEvent('pickup-item', {
-                        detail: { itemName, count }
-                    }));
                     player.pickupTarget = null;
                 }
             }
@@ -86,20 +83,10 @@ export class PlayerInteraction {
                     const skinRewards = this.getSkinRewards(skinnableTarget);
                     if (skinRewards.length > 0) {
                         for (const reward of skinRewards) {
-                            if (player.addItem(reward.itemName, reward.count, true)) {
-                                window.dispatchEvent(new CustomEvent('pickup-item', {
-                                    detail: { itemName: reward.itemName, count: reward.count }
-                                }));
-                            } else {
-                                console.warn('[PlayerInteraction] Failed to add skin reward:', reward);
-                            }
+                            player.addItem(reward.itemName, reward.count, true);
                         }
                     } else {
-                        if (player.addItem('Fur')) {
-                            window.dispatchEvent(new CustomEvent('pickup-item', {
-                                detail: { itemName: 'Fur', count: 1 }
-                            }));
-                        }
+                        player.addItem('Fur'); 
                     }
 
                     // Mark as harvested so it can't be skinned again

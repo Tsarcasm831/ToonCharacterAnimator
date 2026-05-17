@@ -32,30 +32,12 @@ export class Pig {
     private readonly collisionSize = new THREE.Vector3(1.0, 0.9, 1.5);
     private stuckTimer: number = 0;
     private lastStuckPos: THREE.Vector3 = new THREE.Vector3();
-    private readonly groundOffset: number;
-    private readonly animationPhase: number;
-    private readonly bodyScale: THREE.Vector3;
-    private readonly skinColor: THREE.Color;
+    private readonly groundOffset: number = 0.38;
 
     constructor(scene: THREE.Scene, initialPos: THREE.Vector3) {
         this.scene = scene;
         this.position.copy(initialPos);
         this.lastStuckPos.copy(this.position);
-        this.animationPhase = Math.random() * Math.PI * 2;
-        this.stateTimer = Math.random() * 6;
-        this.walkTime = Math.random() * Math.PI * 2;
-        this.moveSpeedVal = 1.55 + Math.random() * 0.55;
-        this.bodyScale = new THREE.Vector3(
-            0.9 + Math.random() * 0.22,
-            0.86 + Math.random() * 0.2,
-            0.9 + Math.random() * 0.28
-        );
-        this.groundOffset = 0.11 * this.bodyScale.y;
-        this.skinColor = new THREE.Color(0xd6b9aa).offsetHSL(
-            (Math.random() - 0.5) * 0.035,
-            (Math.random() - 0.5) * 0.08,
-            (Math.random() - 0.5) * 0.11
-        );
 
         // --- VISUAL OVERHAUL ---
         // Instead of calling ObjectFactory, we build a custom pig here to match the image
@@ -64,7 +46,6 @@ export class Pig {
         this.group = new THREE.Group();
         this.group.add(pigData.group);
         this.model = pigData;
-        this.model.group.scale.copy(this.bodyScale);
 
         // Keep the hitbox separate from the visual model so any collision/debug
         // visibility toggles cannot accidentally hide the pig mesh itself.
@@ -73,8 +54,7 @@ export class Pig {
             new THREE.BoxGeometry(0.9, 1.2, 1.7),
             new THREE.MeshBasicMaterial({ visible: false })
         );
-        hitboxMesh.position.y = 0.58 * this.bodyScale.y;
-        hitboxMesh.scale.copy(this.bodyScale);
+        hitboxMesh.position.y = 0.8;
         this.hitbox.add(hitboxMesh);
         this.group.add(this.hitbox);
         this.hitbox.userData = { type: 'creature', parent: this };
@@ -88,7 +68,7 @@ export class Pig {
 
         // Health Bar Setup
         this.healthBarGroup = new THREE.Group();
-        this.healthBarGroup.position.set(0, 1.45 * this.bodyScale.y, 0);
+        this.healthBarGroup.position.set(0, 1.8, 0); // Raised slightly higher for new model
         
         const bg = new THREE.Mesh(
             new THREE.PlaneGeometry(1.0, 0.15),
@@ -125,8 +105,8 @@ export class Pig {
     private buildPigModel() {
         const pigGroup = new THREE.Group();
         
-        // Slightly varied color per pig, still in the same muddy/pale family.
-        const skinColor = this.skinColor.getHex();
+        // Colors derived from the image
+        const skinColor = 0xE0C8C0; // Pale pinkish-beige
         const hoofColor = 0x3D2E25; // Dark muddy brown
         const eyeColor = 0x1a1a1a;
         
@@ -268,7 +248,7 @@ export class Pig {
 
             if (this.position.distanceTo(this.lastStuckPos) < 0.001) {
                 this.stuckTimer += dt;
-                if (this.stuckTimer > 1.5) { this.findPatrolPoint(); this.stuckTimer = 0; this.stateTimer = this.animationPhase % 1.5; }
+                if (this.stuckTimer > 1.5) { this.findPatrolPoint(); this.stuckTimer = 0; this.stateTimer = 0; }
             } else {
                 this.stuckTimer = 0;
                 this.lastStuckPos.copy(this.position);
@@ -278,10 +258,8 @@ export class Pig {
             this.lastStuckPos.copy(this.position);
         }
 
-        // Only sample the terrain mesh for footing. Rocks/trees remain collision obstacles,
-        // but they are not walkable platforms for the pig's body height.
-        const groundObstacles = environment?.obstacles?.filter((obs: THREE.Object3D) => obs.userData?.type === 'ground') ?? [];
-        this.position.y = PlayerUtils.getGroundHeight(this.position, { torsoWidth: 1 } as any, groundObstacles) + this.groundOffset;
+        // Match the player by sampling the actual visual ground mesh when available.
+        this.position.y = PlayerUtils.getGroundHeight(this.position, { torsoWidth: 1 } as any, environment?.obstacles) + this.groundOffset;
         this.group.position.copy(this.position);
         this.group.rotation.y = this.rotationY;
         this.updateHealthBarFacing();
@@ -301,7 +279,7 @@ export class Pig {
         if (!parts) return; // Safety check
 
         if (currentSpeed > 0) {
-            const legSwing = Math.sin(this.walkTime * 8.0 + this.animationPhase) * 0.5;
+            const legSwing = Math.sin(this.walkTime * 8.0) * 0.5;
 
             if(parts.legFR) parts.legFR.rotation.x = legSwing;
             if(parts.legBL) parts.legBL.rotation.x = legSwing;
@@ -309,17 +287,16 @@ export class Pig {
             if(parts.legBR) parts.legBR.rotation.x = -legSwing;
             
             if(parts.head) parts.head.rotation.x = 0;
-            if(parts.body) parts.body.rotation.z = Math.cos(this.walkTime * 8.0 + this.animationPhase) * 0.05; 
+            if(parts.body) parts.body.rotation.z = Math.cos(this.walkTime * 8.0) * 0.05; 
 
         } else {
             if(parts.head) {
-                const idleTimer = this.stateTimer + this.animationPhase;
-                parts.head.rotation.x = (idleTimer > 4.5 && idleTimer < 8.5) 
-                    ? 0.3 + (Math.sin(idleTimer * 10.0) * 0.05) 
+                parts.head.rotation.x = (this.stateTimer > 4.5 && this.stateTimer < 8.5) 
+                    ? 0.3 + (Math.sin(this.stateTimer * 10.0) * 0.05) 
                     : 0;
             }
             
-            const breath = Math.sin(this.stateTimer * 3.0 + this.animationPhase) * 0.01;
+            const breath = Math.sin(this.stateTimer * 3.0) * 0.01;
             if(parts.body) {
                 parts.body.scale.set(1 + breath, 1 + breath, 1 + breath);
                 parts.body.rotation.z = 0;

@@ -20,7 +20,6 @@ export class PlayerModel {
     private bodyMorpher: BodyMorpher;
     private equipmentManager: EquipmentManager;
     private hairSimulation: HairSimulation;
-    private readonly waterClipPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
     
     // Damage flash tracking
     private damageFlashTimer: number = 0;
@@ -232,22 +231,6 @@ export class PlayerModel {
                      }
                 }
             }
-        });
-    }
-
-    setWaterline(surfaceY: number | null) {
-        const clippingPlanes = surfaceY === null
-            ? null
-            : [this.waterClipPlane.set(new THREE.Vector3(0, -1, 0), surfaceY)];
-
-        this.group.traverse((obj) => {
-            if (!(obj instanceof THREE.Mesh) || !obj.material) return;
-            const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
-            materials.forEach((material) => {
-                material.clippingPlanes = clippingPlanes;
-                material.clipShadows = clippingPlanes !== null;
-                material.needsUpdate = true;
-            });
         });
     }
 

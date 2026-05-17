@@ -250,7 +250,7 @@ export class MeleeAction extends BaseAction {
         }
 
         const item = this.player.config.selectedItem;
-        const canChop = item === 'Axe' || item === 'Pickaxe' || item === 'Shovel' || item === 'Halberd';
+        const canChop = item === 'Axe' || item === 'Pickaxe' || item === 'Halberd';
         if (!canChop) return;
 
         const hitRange = 2.4;

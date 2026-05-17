@@ -18,11 +18,6 @@ export class MeleeAction extends BaseAction {
     // Sound manager
     private soundManager: any;
 
-    // Cached per-frame refs so punch combo handler can access them
-    private cachedParticleManager: ParticleManager | null = null;
-    private cachedEntities: any[] = [];
-    private punchHasHit: boolean = false;
-
     constructor(player: any, onAttackHit?: (type: string, count: number) => void, soundManager?: any) {
         super(player);
         this.onAttackHit = onAttackHit;
@@ -52,8 +47,6 @@ export class MeleeAction extends BaseAction {
     }
 
     update(dt: number, environment?: any, particleManager?: ParticleManager, entities?: any[]): void {
-        if (particleManager) this.cachedParticleManager = particleManager;
-        if (entities) this.cachedEntities = entities;
         if (this.isAxeSwing) {
             this.updateAxeSwing(dt, environment!, particleManager!, entities!);
         }
@@ -70,7 +63,6 @@ export class MeleeAction extends BaseAction {
         this.hasHit = false;
         this.isPunch = false;
         this.punchTimer = 0;
-        this.punchHasHit = false;
         this.comboChain = 0;
     }
 
@@ -130,28 +122,6 @@ export class MeleeAction extends BaseAction {
         }
     }
 
-    private checkEntityHits(playerPos: THREE.Vector3, damage: number, entities: any[], particleManager: ParticleManager, hitRange: number = 2.5): number {
-        const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion).normalize();
-        playerForward.y = 0;
-        let hitCount = 0;
-        for (const ent of entities) {
-            if (!ent || ent.isDead) continue;
-            const entPos: THREE.Vector3 = ent.group ? ent.group.position : ent.position;
-            const toEnt = new THREE.Vector3().subVectors(entPos, playerPos);
-            toEnt.y = 0;
-            const dist = toEnt.length();
-            if (dist < hitRange) {
-                const dot = dist > 0.01 ? playerForward.dot(toEnt.normalize()) : 1;
-                if (dot > 0.3) {
-                    ent.takeDamage(damage);
-                    hitCount++;
-                    particleManager.emit(entPos.clone().add(new THREE.Vector3(0, 0.8, 0)), 10, 'spark');
-                }
-            }
-        }
-        return hitCount;
-    }
-
     private checkChoppingImpact(environment: any, particleManager: ParticleManager, entities: any[]): void {
         this.player.model.group.updateMatrixWorld(true);
 
@@ -169,76 +139,49 @@ export class MeleeAction extends BaseAction {
             dealer = this.player.model.parts.rightHand;
         }
 
+        if (!dealer) return;
+
+        const tempBox1 = new THREE.Box3();
+        const tempBox2 = new THREE.Box3();
+        tempBox1.setFromObject(dealer);
+        tempBox1.expandByScalar(0.25);
+
         let hitCount = 0;
 
-        const getHitboxTargets = (ent: any): THREE.Object3D[] => {
-            if (!ent) return [];
-            if (typeof ent.getHitboxParts === 'function') {
-                const parts = ent.getHitboxParts();
-                if (Array.isArray(parts) && parts.length > 0) {
-                    return parts;
-                }
-            }
-            if (ent.hitbox) return [ent.hitbox];
-            if (ent.model?.group) return [ent.model.group];
-            if (ent.group) return [ent.group];
-            return [];
-        };
+        for (const ent of entities) {
+            if (ent && !ent.isDead) {
+                // Check distance first to avoid expensive hitbox checks
+                const dist = playerPos.distanceTo(ent.group ? ent.group.position : ent.position);
+                if (dist < 4.5) {
+                    let hit = false;
+                    
+                    let hitboxParts: THREE.Object3D[] = [];
+                    if (typeof ent.getHitboxParts === 'function') {
+                        hitboxParts = ent.getHitboxParts();
+                    } else if (ent.hitbox) {
+                        hitboxParts = ent.hitbox.children;
+                    }
 
-        const hitEntities = new Set<any>();
-
-        if (dealer) {
-            const tempBox1 = new THREE.Box3();
-            const tempBox2 = new THREE.Box3();
-            tempBox1.setFromObject(dealer);
-            tempBox1.expandByScalar(0.25);
-
-            for (const ent of entities) {
-                if (ent && !ent.isDead) {
-                    const dist = playerPos.distanceTo(ent.group ? ent.group.position : ent.position);
-                    if (dist < 4.5) {
-                        let hit = false;
-
-                        const hitboxTargets = getHitboxTargets(ent);
-                        for (const target of hitboxTargets) {
-                            target.updateMatrixWorld(true);
-                            tempBox2.setFromObject(target);
-                            if (!tempBox2.isEmpty() && tempBox1.intersectsBox(tempBox2)) {
+                    for (const part of hitboxParts) {
+                        if (part instanceof THREE.Mesh) {
+                            part.updateMatrixWorld(true);
+                            tempBox2.setFromObject(part);
+                            if (tempBox1.intersectsBox(tempBox2)) {
                                 hit = true;
                                 break;
                             }
                         }
-
-                        if (hit) {
-                            ent.takeDamage(damage);
-                            hitEntities.add(ent);
-                            hitCount++;
-                            const impactPoint = new THREE.Vector3();
-                            tempBox1.getCenter(impactPoint);
-                            particleManager.emit(impactPoint, 10, 'spark');
-                        }
                     }
-                }
-            }
-        }
 
-        // Fallback: direction+distance check for entities not caught by box intersection
-        // (handles cases where weapon mesh world matrix is stale or hitbox hasn't rendered yet)
-        const fallbackRange = 2.2;
-        const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion).normalize();
-        playerForward.y = 0;
-        for (const ent of entities) {
-            if (!ent || ent.isDead || hitEntities.has(ent)) continue;
-            const entPos: THREE.Vector3 = ent.group ? ent.group.position : ent.position;
-            const toEnt = new THREE.Vector3().subVectors(entPos, playerPos);
-            toEnt.y = 0;
-            const dist = toEnt.length();
-            if (dist < fallbackRange) {
-                const dot = dist > 0.01 ? playerForward.dot(toEnt.normalize()) : 1;
-                if (dot > 0.3) {
-                    ent.takeDamage(damage);
-                    hitCount++;
-                    particleManager.emit(entPos.clone().add(new THREE.Vector3(0, 0.8, 0)), 10, 'spark');
+                    if (hit) {
+                        ent.takeDamage(damage);
+                        hitCount++;
+                        const impactPoint = new THREE.Vector3();
+                        tempBox1.getCenter(impactPoint);
+                        // Emit blood/flesh effect for entities, wood for objects is handled below
+                        particleManager.emit(impactPoint, 10, 'spark'); 
+                        // Don't return here - we want to hit multiple entities
+                    }
                 }
             }
         }
@@ -250,9 +193,11 @@ export class MeleeAction extends BaseAction {
         }
 
         const item = this.player.config.selectedItem;
-        const canChop = item === 'Axe' || item === 'Pickaxe' || item === 'Shovel' || item === 'Halberd';
+        const canChop = item === 'Axe' || item === 'Pickaxe' || item === 'Halberd';
         if (!canChop) return;
 
+        const playerForward = new THREE.Vector3(0, 0, 1).applyQuaternion(this.player.mesh.quaternion).normalize();
+        playerForward.y = 0;
         const hitRange = 2.4;
 
         let closest: THREE.Object3D | null = null;
@@ -367,42 +312,19 @@ export class MeleeAction extends BaseAction {
             this.player.locomotion.applyForwardImpulse(dt, 2.5, obstacles);
         }
 
-        // Apply punch entity damage at the impact frame of each combo hit
-        const impactFrames = [0.15, 0.75, 1.35];
-        const impactDone = [0.25, 0.85, 1.45];
-        const chain = this.comboChain - 1;
-        if (!this.punchHasHit && t > impactFrames[chain] && t < impactDone[chain]) {
-            if (this.cachedEntities.length > 0 && this.cachedParticleManager) {
-                const hitCount = this.checkEntityHits(
-                    this.player.mesh.position,
-                    1,
-                    this.cachedEntities,
-                    this.cachedParticleManager,
-                    2.0
-                );
-                if (hitCount > 0 && this.onAttackHit) {
-                    this.onAttackHit('punch', hitCount);
-                }
-            }
-            this.punchHasHit = true;
-        }
-
         const punch1Dur = 0.6;
         const punch2Dur = 1.2;
         const punch3Dur = 1.8;
         const isHolding = input.attack1 || false;
 
         if (this.comboChain === 1 && t > punch1Dur) {
-            this.punchHasHit = false;
             if (isHolding) this.comboChain = 2;
             else { this.isPunch = false; this.punchTimer = 0; }
         } else if (this.comboChain === 2 && t > punch2Dur) {
-            this.punchHasHit = false;
             if (isHolding) this.comboChain = 3;
             else { this.isPunch = false; this.punchTimer = 0; }
         } else if (this.comboChain === 3 && t > punch3Dur) {
             this.isPunch = false;
-            this.punchHasHit = false;
             this.comboChain = 1;
             this.punchTimer = 0;
         }

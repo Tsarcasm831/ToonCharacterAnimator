@@ -528,7 +528,6 @@ export class EntityManager {
         this.rogues = [];
         this.warlocks = [];
         this.combatArchers = [];
-        this.trackedDeadEntities.clear();
     }
 
     /**
@@ -789,8 +788,6 @@ export class EntityManager {
             if (visible && entity instanceof HumanoidEntity) {
                 entity.updateStatBars(cameraPosition, isCombatActive);
             }
-
-            this.handleEntityDeath(entity, environment, onEntityDeath);
         });
         
         // Hide non-scene entities
@@ -885,35 +882,6 @@ export class EntityManager {
         } else if (entity.update) {
             entity.update(delta, environment as any, playerTargets, skipAnimation);
         }
-    }
-
-    private handleEntityDeath(entity: any, environment: any | null, onEntityDeath?: (entityType: string) => void) {
-        if (!entity?.isDead || this.trackedDeadEntities.has(entity)) return;
-
-        this.trackedDeadEntities.add(entity);
-        const entityType = entity.constructor?.name?.toLowerCase?.() ?? 'entity';
-        onEntityDeath?.(entityType);
-
-        const drops = typeof entity.getDeathDrops === 'function'
-            ? entity.getDeathDrops()
-            : entity.group?.userData?.deathDrops ?? entity.hitbox?.userData?.deathDrops ?? [];
-
-        if (!Array.isArray(drops) || typeof environment?.spawnItemDrop !== 'function') return;
-
-        const basePosition = (entity.group?.position ?? entity.position ?? new THREE.Vector3()).clone();
-        drops.forEach((drop: any, index: number) => {
-            const itemName = drop?.itemName ?? drop?.name;
-            const count = Math.max(1, Math.floor(drop?.count ?? 1));
-            if (!itemName) return;
-
-            const angle = (index / Math.max(1, drops.length)) * Math.PI * 2;
-            const dropPosition = basePosition.clone().add(new THREE.Vector3(
-                Math.cos(angle) * 0.7,
-                0,
-                Math.sin(angle) * 0.7
-            ));
-            environment.spawnItemDrop(itemName, count, dropPosition);
-        });
     }
 
     private getEnemyTargets(sceneName: string, sceneEntities?: any[]): { position: THREE.Vector3, isDead?: boolean }[] {

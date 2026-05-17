@@ -43,7 +43,6 @@ export class RenderManager {
         // Shadow Performance Optimization
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.localClippingEnabled = true;
         container.appendChild(this.renderer.domElement);
 
         // Controls Setup

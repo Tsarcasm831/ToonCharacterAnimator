@@ -132,20 +132,19 @@ export class LightingManager {
         const sunZ = 20;
 
         this.sunLight.target.position.set(anchorX, 0, anchorZ);
-        const shadowSunY = Math.max(sunY, 35);
-        this.sunLight.position.set(anchorX + sunX, anchorY + shadowSunY, anchorZ + sunZ);
+        this.sunLight.position.set(anchorX + sunX, sunY, anchorZ + sunZ);
         this.sunLight.target.updateMatrixWorld();
 
-        const lightIntensity = Math.max(0.35, sunAltitude * 0.8 + 0.1);
+        const lightIntensity = Math.max(0, sunAltitude * 0.8 + 0.1);
         this.sunLight.intensity = lightIntensity;
         
-        this.sunLight.castShadow = true;
+        this.sunLight.castShadow = sunAltitude > 0.28;
 
         if (sunAltitude > 0 && sunAltitude < 0.2) {
             this.sunLight.color.setHSL(0.08, 0.8, 0.7);
         } else if (sunAltitude <= 0) {
             this.sunLight.color.setHSL(0.6, 0.4, 0.3);
-            this.sunLight.intensity = 0.35;
+            this.sunLight.intensity = 0.1;
         } else {
             this.sunLight.color.set(0xffffff);
         }

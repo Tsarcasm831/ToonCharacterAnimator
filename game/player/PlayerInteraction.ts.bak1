@@ -12,7 +12,7 @@ export class PlayerInteraction {
         // Picking Up
         if (player.isPickingUp) {
             player.pickUpTime += dt;
-            if (player.pickUpTime > 0.9) { 
+            if (player.pickUpTime > 1.2) { 
                 player.isPickingUp = false; 
                 player.pickUpTime = 0; 
             }
@@ -62,9 +62,6 @@ export class PlayerInteraction {
                 if (itemName && player.addItem(itemName, count, true)) {
                     player.isPickingUp = true;
                     pickupTarget.userData.onPickup?.();
-                    window.dispatchEvent(new CustomEvent('pickup-item', {
-                        detail: { itemName, count }
-                    }));
                     player.pickupTarget = null;
                 }
             }
@@ -83,24 +80,7 @@ export class PlayerInteraction {
                 if (player.skinningTimer >= player.maxSkinningTime) {
                     player.isSkinning = false;
                     player.skinningTimer = 0;
-                    const skinRewards = this.getSkinRewards(skinnableTarget);
-                    if (skinRewards.length > 0) {
-                        for (const reward of skinRewards) {
-                            if (player.addItem(reward.itemName, reward.count, true)) {
-                                window.dispatchEvent(new CustomEvent('pickup-item', {
-                                    detail: { itemName: reward.itemName, count: reward.count }
-                                }));
-                            } else {
-                                console.warn('[PlayerInteraction] Failed to add skin reward:', reward);
-                            }
-                        }
-                    } else {
-                        if (player.addItem('Fur')) {
-                            window.dispatchEvent(new CustomEvent('pickup-item', {
-                                detail: { itemName: 'Fur', count: 1 }
-                            }));
-                        }
-                    }
+                    player.addItem('Fur'); 
 
                     // Mark as harvested so it can't be skinned again
                     if (skinnableTarget) {
@@ -125,30 +105,6 @@ export class PlayerInteraction {
         } else {
             player.skinningProgress = 0;
         }
-    }
-
-    private static getSkinRewards(target: THREE.Object3D | null): { itemName: string; count: number }[] {
-        if (!target) return [];
-
-        const entityRoot = target.parent?.userData.type === 'creature' ? target.parent : target;
-        const rewards = entityRoot.userData.skinRewards ?? target.userData.skinRewards ?? entityRoot.userData.skinReward ?? target.userData.skinReward;
-
-        if (Array.isArray(rewards)) {
-            return rewards
-                .map((reward: any) => ({
-                    itemName: reward?.itemName ?? reward?.name,
-                    count: Math.max(0, Math.floor(reward?.count ?? 0))
-                }))
-                .filter((reward: { itemName: string; count: number }) => !!reward.itemName && reward.count > 0);
-        }
-
-        if (rewards && typeof rewards === 'object') {
-            const itemName = rewards.itemName ?? rewards.name;
-            const count = Math.max(0, Math.floor(rewards.count ?? 0));
-            return itemName && count > 0 ? [{ itemName, count }] : [];
-        }
-
-        return [];
     }
 
     private static readonly _tempVec = new THREE.Vector3();

@@ -421,7 +421,6 @@ export const Game: React.FC = () => {
     const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
     const [tutorialStep, setTutorialStep] = React.useState(1);
     const tutorialStepRef = React.useRef(1);
-    const tutorialThreePigSpawnedRef = React.useRef(false);
     const chakraNodeLegendSignatureRef = React.useRef('');
 
     // Auto-advance tutorial from step 1 to step 2 when resources are gathered
@@ -443,12 +442,6 @@ export const Game: React.FC = () => {
         tutorialStepRef.current = tutorialStep;
     }, [tutorialStep]);
 
-    React.useEffect(() => {
-        if (tutorialStep !== 3) {
-            tutorialThreePigSpawnedRef.current = false;
-        }
-    }, [tutorialStep]);
-
     // Track porkchop inventory for tutorial step 3
     React.useEffect(() => {
         if (tutorialStep === 3 && activeScene === 'starter') {
@@ -459,29 +452,6 @@ export const Game: React.FC = () => {
             }
         }
     }, [tutorialStep, inventory, activeScene]);
-
-    React.useEffect(() => {
-        if (tutorialStep !== 3 || activeScene !== 'starter' || tutorialThreePigSpawnedRef.current) return;
-        if (!gameInstance.current?.player?.mesh || !gameInstance.current?.entityManager) return;
-
-        tutorialThreePigSpawnedRef.current = true;
-        const playerPos = gameInstance.current.player.mesh.position;
-        const environment = gameInstance.current.sceneManager.currentEnvironment;
-        console.log('[Game.tsx] Spawning tutorial quest 3 pigs near player at position:', playerPos);
-        console.log('[Game.tsx] Environment:', environment);
-        console.log('[Game.tsx] EntityManager:', gameInstance.current.entityManager);
-
-        for (let i = 0; i < 3; i++) {
-            const spawnPos = new THREE.Vector3(
-                playerPos.x + 5 + Math.random() * 8,
-                0,
-                playerPos.z + 5 + Math.random() * 8
-            );
-            console.log('[Game.tsx] Spawning pig', i + 1, 'at:', spawnPos);
-            gameInstance.current.entityManager.spawnAnimalGroup('pig', 1, environment, spawnPos);
-            console.log('[Game.tsx] Pig', i + 1, 'spawned. Total pigs:', gameInstance.current.entityManager.pigs.length);
-        }
-    }, [tutorialStep, activeScene, gameInstance]);
 
     const chakraSidebarVisibleRef = React.useRef(false);
     const chakraHoverTargetRef = React.useRef<ChakraSidebarHoverTarget | null>(null);
@@ -1129,6 +1099,26 @@ export const Game: React.FC = () => {
                 console.log('[Game.tsx] Advancing from tutorial step 2 to 3');
                 setTutorialStep(3);
                 setNotification('Firepit built! Wild pigs appear nearby!');
+                // Spawn 3 pigs near player
+                if (gameInstance.current) {
+                    const playerPos = gameInstance.current.player.mesh.position;
+                    const environment = gameInstance.current.sceneManager.currentEnvironment;
+                    console.log('[Game.tsx] Spawning 3 pigs near player at position:', playerPos);
+                    console.log('[Game.tsx] Environment:', environment);
+                    console.log('[Game.tsx] EntityManager:', gameInstance.current.entityManager);
+                    for (let i = 0; i < 3; i++) {
+                        const spawnPos = new THREE.Vector3(
+                            playerPos.x + 5 + Math.random() * 8,
+                            0,
+                            playerPos.z + 5 + Math.random() * 8
+                        );
+                        console.log('[Game.tsx] Spawning pig', i + 1, 'at:', spawnPos);
+                        gameInstance.current.entityManager.spawnAnimalGroup('pig', 1, environment, spawnPos);
+                        console.log('[Game.tsx] Pig', i + 1, 'spawned. Total pigs:', gameInstance.current.entityManager.pigs.length);
+                    }
+                } else {
+                    console.log('[Game.tsx] gameInstance.current is null, cannot spawn pigs');
+                }
             } else {
                 console.log('[Game.tsx] onFirepitBuilt called but tutorialStep is not 2, it is:', tutorialStepRef.current);
             }
@@ -1197,7 +1187,6 @@ export const Game: React.FC = () => {
         game.onAttackHit = (type: string, count: number) => {
             addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
         };
-
         game.onEnterTown = () => {
             setIsEnvironmentBuilt(false);
             setIsVisualLoadingDone(false);

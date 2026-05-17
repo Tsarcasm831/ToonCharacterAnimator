@@ -194,10 +194,6 @@ export class Player {
         this.model.group.rotation.y = this.locomotion.rotationY;
 
         this.model.update(dt, this.locomotion.velocity);
-        const waterSurfaceY = typeof environment?.getWaterSurfaceAt === 'function'
-            ? environment.getWaterSurfaceAt(this.locomotion.position.x, this.locomotion.position.z)
-            : null;
-        this.model.setWaterline(waterSurfaceY);
         
         // 2. State Logic
         this.status.update(dt);

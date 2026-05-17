@@ -12,7 +12,7 @@ export class PlayerInteraction {
         // Picking Up
         if (player.isPickingUp) {
             player.pickUpTime += dt;
-            if (player.pickUpTime > 0.9) { 
+            if (player.pickUpTime > 1.2) { 
                 player.isPickingUp = false; 
                 player.pickUpTime = 0; 
             }

@@ -31,7 +31,6 @@ export class SingleBiomeEnvironment {
     public group: THREE.Group;
     private scene: THREE.Scene;
     private mesh: THREE.Mesh | null = null;
-    private pondWaterMeshes: THREE.Mesh[] = [];
     public obstacles: THREE.Object3D[] = [];
     private landPoints: number[][] | null = null;
     private lightingManager: LightingManager;
@@ -41,7 +40,6 @@ export class SingleBiomeEnvironment {
     private looseLogs: THREE.Mesh[] = [];
     private rockFormations: Map<string, RockFormationData> = new Map();
     private mudClumps: Map<string, MudClumpData> = new Map();
-    private mudGroundPatches: THREE.Object3D[] = [];
     private pickupObjects: THREE.Object3D[] = [];
     private grassTuftMesh: THREE.InstancedMesh | null = null;
     private circularWallGroups: THREE.Object3D[] = [];
@@ -52,20 +50,12 @@ export class SingleBiomeEnvironment {
     private static readonly ROCK_FORMATION_COUNT = 26;
     private static readonly ROCK_HEALTH = 6;
     private static readonly DEFAULT_ROCK_STONE_YIELD = 5;
-    private static readonly MUD_CLUMP_COUNT = 36;
+    private static readonly MUD_CLUMP_COUNT = 20;
     private static readonly MUD_CLUMP_HEALTH = 6;
     private static readonly PICKUP_SCATTER_COUNT = 120;
     private static readonly GRASS_TUFT_COUNT = 2600;
     private static readonly SPAWN_ATTEMPT_MULTIPLIER = 10;
     private static readonly LOG_PICKUP_RANGE = 2.2;
-    private static readonly PONDS = [
-        { x: 8, z: 6, radius: 4.5, depth: 1.8 },
-        { x: -22, z: -14, radius: 5.2, depth: 1.5 },
-        { x: 26, z: -10, radius: 4.2, depth: 1.4 }
-    ];
-    private readonly terrainRaycaster = new THREE.Raycaster();
-    private readonly terrainRayOrigin = new THREE.Vector3();
-    private readonly terrainRayDirection = new THREE.Vector3(0, -1, 0);
 
     public hiveController: HiveMindController | null = null;
     public onLogPickedUp?: () => void;
@@ -147,8 +137,6 @@ export class SingleBiomeEnvironment {
             this.hiveController = null;
         }
 
-        this.clearPonds();
-
         this.group.traverse((child) => {
             if (child instanceof THREE.Mesh) {
                 child.geometry.dispose();
@@ -173,7 +161,6 @@ export class SingleBiomeEnvironment {
         this.lightingManager.dispose();
         this.worldGrid.dispose();
         PlayerUtils.setCustomLandPolygon(null); // Clear constraint
-        PlayerUtils.setCustomTerrainSamplers(null);
     }
 
     private build() {
@@ -183,7 +170,6 @@ export class SingleBiomeEnvironment {
         // Dispose existing mesh if any
         if (this.mesh) {
             this.clearDynamicObjects();
-            this.clearPonds();
             this.group.remove(this.mesh);
             this.mesh.geometry.dispose();
             if (Array.isArray(this.mesh.material)) {
@@ -230,7 +216,8 @@ export class SingleBiomeEnvironment {
             const zPos = startZ + z * step;
             for (let x = 0; x < vertsX; x += 1) {
                 const xPos = startX + x * step;
-                const yPos = this.getTerrainHeightAt(xPos, zPos);
+                // Flat terrain for now
+                const yPos = 0;
                 
                 const idx = v * 3;
                 positions[idx] = xPos;
@@ -287,12 +274,6 @@ export class SingleBiomeEnvironment {
         
         this.group.add(this.mesh);
         this.obstacles.push(this.mesh);
-        this.buildPonds();
-
-        PlayerUtils.setCustomTerrainSamplers(
-            (x, z) => this.getTerrainHeightAt(x, z),
-            (x, z) => this.getWaterDepthAt(x, z)
-        );
 
         // Spawn trees within the land polygon
         this.spawnTrees(worldPoints, bounds);
@@ -315,107 +296,6 @@ export class SingleBiomeEnvironment {
         this.lightingManager.setSkySphereRadius(skyRadius);
         const shadowCoverage = THREE.MathUtils.clamp(landRadius * 0.45, 80, 150);
         this.lightingManager.setShadowCoverage(shadowCoverage);
-    }
-
-    private getBaseTerrainHeightAt(x: number, z: number): number {
-        const broadHill = Math.sin(x * 0.032) * 0.82 + Math.cos(z * 0.03) * 0.68;
-        const crossHill = Math.sin((x + z) * 0.021) * 0.48;
-        const diagonalRoll = Math.cos((x - z) * 0.026 + 0.8) * 0.38;
-        const fineRoll = Math.sin(x * 0.082 + 1.7) * Math.cos(z * 0.072 - 0.4) * 0.28;
-        return broadHill + crossHill + diagonalRoll + fineRoll;
-    }
-
-    private getTerrainHeightAt(x: number, z: number): number {
-        let height = this.getBaseTerrainHeightAt(x, z);
-
-        for (const pond of SingleBiomeEnvironment.PONDS) {
-            const dx = x - pond.x;
-            const dz = z - pond.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist >= pond.radius) continue;
-
-            const normalized = dist / pond.radius;
-            const smoothBasin = (1 - normalized * normalized);
-            const rimBlend = smoothBasin * smoothBasin;
-            height -= pond.depth * rimBlend;
-        }
-
-        return height;
-    }
-
-    private getPondWaterSurfaceY(pond: { x: number; z: number; radius: number; depth: number }): number {
-        return this.getBaseTerrainHeightAt(pond.x, pond.z) - Math.min(0.34, pond.depth * 0.24);
-    }
-
-    public getWaterSurfaceAt(x: number, z: number): number | null {
-        let bestSurface: number | null = null;
-        for (const pond of SingleBiomeEnvironment.PONDS) {
-            const dx = x - pond.x;
-            const dz = z - pond.z;
-            if ((dx * dx + dz * dz) > pond.radius * pond.radius) continue;
-
-            const surfaceY = this.getPondWaterSurfaceY(pond);
-            if (bestSurface === null || surfaceY > bestSurface) {
-                bestSurface = surfaceY;
-            }
-        }
-        return bestSurface;
-    }
-
-    private getWaterDepthAt(x: number, z: number): number {
-        let waterDepth = 0;
-
-        for (const pond of SingleBiomeEnvironment.PONDS) {
-            const dx = x - pond.x;
-            const dz = z - pond.z;
-            const dist = Math.sqrt(dx * dx + dz * dz);
-            if (dist >= pond.radius) continue;
-
-            const terrainY = this.getTerrainHeightAt(x, z);
-            const surfaceY = this.getPondWaterSurfaceY(pond);
-            waterDepth = Math.max(waterDepth, surfaceY - terrainY);
-        }
-
-        return Math.max(0, waterDepth);
-    }
-
-    private buildPonds() {
-        this.clearPonds();
-
-        for (const pond of SingleBiomeEnvironment.PONDS) {
-            const waterRadius = pond.radius * 0.86;
-            const waterGeometry = new THREE.CircleGeometry(waterRadius, 48);
-            const waterMaterial = new THREE.MeshPhysicalMaterial({
-                color: 0x2d9be8,
-                roughness: 0.18,
-                metalness: 0.0,
-                transparent: true,
-                opacity: 0.62,
-                transmission: 0.15,
-                side: THREE.DoubleSide,
-                depthWrite: false
-            });
-            const water = new THREE.Mesh(waterGeometry, waterMaterial);
-            water.rotation.x = -Math.PI / 2;
-            water.position.set(pond.x, this.getPondWaterSurfaceY(pond) + 0.025, pond.z);
-            water.receiveShadow = false;
-            water.name = 'starter_pond_water';
-            this.group.add(water);
-            this.pondWaterMeshes.push(water);
-        }
-    }
-
-    private clearPonds() {
-        this.pondWaterMeshes.forEach(water => {
-            this.group.remove(water);
-            water.geometry.dispose();
-            if (Array.isArray(water.material)) {
-                water.material.forEach(material => material.dispose());
-            } else {
-                water.material.dispose();
-            }
-        });
-        this.pondWaterMeshes = [];
     }
 
     update(dt: number, config: PlayerConfig, playerPos: THREE.Vector3) {
@@ -614,7 +494,7 @@ export class SingleBiomeEnvironment {
             const mid = v1.clone().add(v2).multiplyScalar(0.5);
             const dir = v2.clone().sub(v1);
             const rotation = Math.atan2(dir.y, dir.x) + Math.PI / 2;
-            const y = this.raycastTerrainHeight(mid.x, mid.y);
+            const y = PlayerUtils.getTerrainHeight(mid.x, mid.y);
             const { group, obstacle } = ObjectFactory.createWall(new THREE.Vector3(mid.x, y, mid.y), rotation);
             group.scale.setScalar(wallScale);
             this.group.add(group);
@@ -650,16 +530,6 @@ export class SingleBiomeEnvironment {
             this.group.remove(formation.group);
         });
         this.rockFormations.clear();
-
-        this.mudClumps.forEach(mud => {
-            this.group.remove(mud.group);
-        });
-        this.mudClumps.clear();
-
-        this.mudGroundPatches.forEach(patch => {
-            this.group.remove(patch);
-        });
-        this.mudGroundPatches = [];
 
         this.pickupObjects.forEach(pickup => {
             this.group.remove(pickup);
@@ -706,27 +576,14 @@ export class SingleBiomeEnvironment {
         const x = worldMinX + Math.random() * (worldMaxX - worldMinX);
         const z = worldMinZ + Math.random() * (worldMaxZ - worldMinZ);
         if (!isPointInPolygon(x, z, worldPoints)) return null;
-        if (!PlayerUtils.isWithinBounds(new THREE.Vector3(x, 0, z), 3.0)) return null;
-        if (this.getWaterDepthAt(x, z) > 0.05) return null;
 
-        return new THREE.Vector3(x, this.raycastTerrainHeight(x, z), z);
+        return new THREE.Vector3(x, PlayerUtils.getTerrainHeight(x, z), z);
     }
 
-    private raycastTerrainHeight(x: number, z: number): number {
-        if (!this.mesh) return this.getTerrainHeightAt(x, z);
-
-        this.terrainRayOrigin.set(x, 120, z);
-        this.terrainRaycaster.set(this.terrainRayOrigin, this.terrainRayDirection);
-        this.terrainRaycaster.far = 260;
-        const hits = this.terrainRaycaster.intersectObject(this.mesh, false);
-        return hits[0]?.point.y ?? this.getTerrainHeightAt(x, z);
-    }
-
-    private prepareDenseStaticObject(object: THREE.Object3D, castShadows: boolean, receiveShadows: boolean = false) {
+    private prepareDenseStaticObject(object: THREE.Object3D, castShadows: boolean) {
         object.traverse(child => {
             if (child instanceof THREE.Mesh) {
                 child.castShadow = castShadows;
-                child.receiveShadow = receiveShadows;
                 child.frustumCulled = true;
                 child.updateMatrix();
                 child.matrixAutoUpdate = false;
@@ -749,7 +606,7 @@ export class SingleBiomeEnvironment {
 
             if (result && result.group && result.trunk) {
                 const leaves = 'leaves' in result ? result.leaves : undefined;
-                this.prepareDenseStaticObject(result.group, true);
+                this.prepareDenseStaticObject(result.group, false);
                 this.group.add(result.group);
                 this.obstacles.push(result.trunk);
                 this.trees.set(result.trunk.uuid, {
@@ -778,7 +635,7 @@ export class SingleBiomeEnvironment {
             const result = ObjectFactory.createRockFormation(pos, scale);
 
             if (result && result.group && result.obstacle) {
-                this.prepareDenseStaticObject(result.group, true, true);
+                this.prepareDenseStaticObject(result.group, false);
                 this.group.add(result.group);
                 this.obstacles.push(result.obstacle);
                 this.rockFormations.set(result.obstacle.uuid, {
@@ -806,12 +663,7 @@ export class SingleBiomeEnvironment {
             const result = ObjectFactory.createMudClump(pos, scale);
 
             if (result && result.group && result.obstacle) {
-                const groundPatch = this.createMudGroundPatch(pos, scale);
-                this.prepareDenseStaticObject(groundPatch, false, true);
-                this.group.add(groundPatch);
-                this.mudGroundPatches.push(groundPatch);
-
-                this.prepareDenseStaticObject(result.group, true, true);
+                this.prepareDenseStaticObject(result.group, false);
                 this.group.add(result.group);
                 this.obstacles.push(result.obstacle);
                 this.mudClumps.set(result.obstacle.uuid, {
@@ -825,52 +677,6 @@ export class SingleBiomeEnvironment {
                 spawned += 1;
             }
         }
-    }
-
-    private createMudGroundPatch(position: THREE.Vector3, scale: number) {
-        const group = new THREE.Group();
-        group.position.copy(position);
-        group.position.y += 0.018;
-        group.rotation.y = Math.random() * Math.PI * 2;
-
-        const wetMud = new THREE.MeshStandardMaterial({
-            color: 0x2b1a12,
-            roughness: 0.72,
-            metalness: 0.0,
-            polygonOffset: true,
-            polygonOffsetFactor: -1,
-            polygonOffsetUnits: -1
-        });
-        const rimMud = new THREE.MeshStandardMaterial({
-            color: 0x6b4a32,
-            roughness: 0.95,
-            metalness: 0.0,
-            flatShading: true
-        });
-
-        const depression = new THREE.Mesh(
-            new THREE.CylinderGeometry(1.45 * scale, 1.25 * scale, 0.025, 24),
-            wetMud
-        );
-        depression.scale.set(1.15, 1, 0.62);
-        depression.receiveShadow = true;
-        group.add(depression);
-
-        const rimGeo = new THREE.DodecahedronGeometry(0.16 * scale, 0);
-        for (let i = 0; i < 14; i += 1) {
-            const angle = (i / 14) * Math.PI * 2 + Math.random() * 0.18;
-            const radiusX = 1.25 * scale + Math.random() * 0.22;
-            const radiusZ = 0.72 * scale + Math.random() * 0.12;
-            const clod = new THREE.Mesh(rimGeo, rimMud);
-            clod.position.set(Math.cos(angle) * radiusX, 0.035, Math.sin(angle) * radiusZ);
-            clod.scale.set(1.2 + Math.random() * 0.7, 0.22 + Math.random() * 0.16, 0.75 + Math.random() * 0.45);
-            clod.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
-            clod.castShadow = true;
-            clod.receiveShadow = true;
-            group.add(clod);
-        }
-
-        return group;
     }
 
     private spawnPickupScatter(worldPoints: number[][], bounds: ReturnType<typeof calculateBounds>) {
@@ -901,46 +707,6 @@ export class SingleBiomeEnvironment {
         if (this.onAddToInventory) {
             this.onAddToInventory('Mud', 2);
         }
-    }
-
-    public spawnItemDrop(itemName: string, count: number, position: THREE.Vector3) {
-        const dropCount = Math.max(1, Math.floor(count));
-        const group = new THREE.Group();
-        const dropPos = position.clone();
-        dropPos.y = this.raycastTerrainHeight(dropPos.x, dropPos.z) + 0.08;
-        group.position.copy(dropPos);
-        group.rotation.y = Math.random() * Math.PI * 2;
-
-        const color = itemName === 'Porkchop'
-            ? 0xb83a3a
-            : itemName === 'Leather'
-                ? 0x8a5a2b
-                : itemName === 'Bone Fragments'
-                    ? 0xd8d0bd
-                    : 0xf5f5f5;
-        const material = new THREE.MeshStandardMaterial({ color, roughness: 0.82 });
-        const geometry = itemName === 'Bone Fragments'
-            ? new THREE.BoxGeometry(0.16, 0.08, 0.36)
-            : new THREE.BoxGeometry(0.34, 0.12, 0.28);
-
-        const visiblePieces = Math.min(3, dropCount);
-        for (let i = 0; i < visiblePieces; i += 1) {
-            const mesh = new THREE.Mesh(geometry, material);
-            mesh.position.set((Math.random() - 0.5) * 0.28, 0.08 + i * 0.025, (Math.random() - 0.5) * 0.28);
-            mesh.rotation.set(Math.random() * 0.35, Math.random() * Math.PI, Math.random() * 0.35);
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            group.add(mesh);
-        }
-
-        group.userData = {
-            type: 'pickup',
-            pickupItem: itemName,
-            pickupCount: dropCount,
-            interactionLabel: `Press F to Pick Up ${itemName}`
-        };
-
-        this.addPickupObject(group);
     }
 
     private spawnGrassTufts(worldPoints: number[][], bounds: ReturnType<typeof calculateBounds>) {

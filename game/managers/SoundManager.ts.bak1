@@ -109,9 +109,6 @@ export class SoundManager {
     }
 
     private getTerrainAt(pos: THREE.Vector3, environment?: any): string {
-        const waterDepth = PlayerUtils.getWaterDepth(pos.x, pos.z);
-        if (waterDepth > 0.1) return 'Water';
-
         // 0. Check Environment specific biome (e.g. SingleBiomeEnvironment)
         if (environment && environment.getBiomeAt) {
              const biome = environment.getBiomeAt(pos);
@@ -123,6 +120,10 @@ export class SoundManager {
              // Default fallback for single biome if it doesn't specify type
              return 'Grass';
         }
+
+        // 1. Check Water (Pond)
+        const pondDepth = PlayerUtils.getTerrainHeight(pos.x, pos.z);
+        if (pondDepth < -0.1) return 'Water';
 
         // 2. Check Biome Grid Tile
         const biomeSize = ENV_CONSTANTS.BIOME_SIZE;

@@ -42,10 +42,6 @@ export class PlayerLocomotion {
     update(dt: number, input: PlayerInput, cameraAngle: number, obstacles: THREE.Object3D[], isInCombat: boolean = false) {
         // 1. Handle Ground & Gravity
         const pos = this.position;
-        if (!PlayerUtils.isWithinBounds(pos)) {
-            this.position.copy(PlayerUtils.constrainToBounds(pos));
-            this.previousPosition.copy(this.position);
-        }
         // Use getLandingHeight to avoid snapping to overhead obstacles (lintels)
         let groundHeight = PlayerUtils.getLandingHeight(pos, this.player.config, obstacles);
         const waterDepth = PlayerUtils.getWaterDepth(pos.x, pos.z);

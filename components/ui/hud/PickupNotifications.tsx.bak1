@@ -36,9 +36,6 @@ export const PickupNotifications: React.FC = () => {
       case 'Stone': return '🪨';
       case 'Mud': return '🟫';
       case 'Wood': return '🪵';
-      case 'Porkchop': return '🥩';
-      case 'Leather': return '🧵';
-      case 'Bone Fragments': return '🦴';
       default: return '📦';
     }
   };
@@ -49,9 +46,6 @@ export const PickupNotifications: React.FC = () => {
       case 'Stone': return 'text-gray-400';
       case 'Mud': return 'text-amber-800';
       case 'Wood': return 'text-amber-700';
-      case 'Porkchop': return 'text-rose-400';
-      case 'Leather': return 'text-amber-700';
-      case 'Bone Fragments': return 'text-stone-300';
       default: return 'text-white';
     }
   };
