@@ -29,7 +29,6 @@ interface ControlPanelProps {
     canRedo: boolean;
     movementMode?: 'idle' | 'walk' | 'run';
     handleMovementToggle?: () => void;
-    applyMovementMode?: (mode: 'idle' | 'walk' | 'run') => void;
     zoomLevel?: number;
     onBackToMainMenu?: () => void;
     onPanelStateChange?: (state: { isOpen: boolean; activeTab: TabKey; isMobileLayout: boolean }) => void;
@@ -52,8 +51,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     onRedo,
     canUndo,
     canRedo,
-    movementMode,
-    applyMovementMode,
     onPanelStateChange,
     onBackToMainMenu,
     onResetToBaseCharacter
@@ -285,8 +282,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                         triggerAction={triggerAction}
                                         onExport={onExport}
                                         onSpawnAnimals={onSpawnAnimals}
-                                        movementMode={movementMode}
-                                        applyMovementMode={applyMovementMode}
                                     />
                                 )}
 

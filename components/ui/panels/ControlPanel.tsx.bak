@@ -27,8 +27,6 @@ interface ControlPanelProps {
     onRedo: () => void;
     canUndo: boolean;
     canRedo: boolean;
-    movementMode?: 'idle' | 'walk' | 'run';
-    applyMovementMode?: (mode: 'idle' | 'walk' | 'run') => void;
     mode?: 'full' | 'userCreator';
     forceOpen?: boolean;
     onSaveCharacter?: () => Promise<void>;
@@ -52,8 +50,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     onRedo,
     canUndo,
     canRedo,
-    movementMode,
-    applyMovementMode,
     mode = 'full',
     forceOpen = false,
     onSaveCharacter,
@@ -269,8 +265,6 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
                                         triggerAction={triggerAction}
                                         onExport={onExport}
                                         onSpawnAnimals={onSpawnAnimals}
-                                        movementMode={movementMode}
-                                        applyMovementMode={applyMovementMode}
                                     />
                                 )}
 

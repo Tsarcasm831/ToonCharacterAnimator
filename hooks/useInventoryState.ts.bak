@@ -15,6 +15,11 @@ const getInitialInventory = (): (InventoryItem | null)[] => {
   // Starter equipment
   inv[13] = { name: 'Sword', count: 1 };
   
+  // Random loot
+  inv[20] = { name: 'Bone Dust', count: 5 };
+  inv[21] = { name: 'Scrap Metal', count: 12 };
+  inv[22] = { name: 'Wood', count: 300 };
+  
   return inv;
 };
 

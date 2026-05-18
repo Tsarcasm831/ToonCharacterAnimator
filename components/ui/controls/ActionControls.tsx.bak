@@ -3,8 +3,6 @@ import React from 'react';
 import { PlayerInput, PlayerConfig } from '../../../types';
 import { Button, ToggleButton } from '../panels/CommonControls';
 
-type MovementMode = 'idle' | 'walk' | 'run';
-
 interface ActionControlsProps {
     manualInput: Partial<PlayerInput>;
     config?: PlayerConfig;
@@ -15,8 +13,6 @@ interface ActionControlsProps {
     triggerAction: (key: keyof PlayerInput) => void;
     onExport: () => void;
     onSpawnAnimals: () => void;
-    movementMode?: MovementMode;
-    applyMovementMode?: (mode: MovementMode) => void;
 }
 
 export const ActionControls: React.FC<ActionControlsProps> = ({
@@ -28,9 +24,7 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
     handleDeathToggle,
     triggerAction,
     onExport,
-    onSpawnAnimals,
-    movementMode = 'idle',
-    applyMovementMode,
+    onSpawnAnimals
 }) => {
     const toggleInput = (key: keyof PlayerInput) => {
         setManualInput(prev => ({ ...prev, [key]: !prev[key] }));
@@ -62,17 +56,11 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
                     </div>
                 )}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
                 <ToggleButton 
-                    label="Walk"
-                    isActive={movementMode === 'walk'}
-                    onClick={() => applyMovementMode?.(movementMode === 'walk' ? 'idle' : 'walk')}
-                    activeColor="blue"
-                />
-                <ToggleButton 
-                    label="Run"
-                    isActive={movementMode === 'run'}
-                    onClick={() => applyMovementMode?.(movementMode === 'run' ? 'idle' : 'run')}
+                    label={manualInput.isRunning ? 'Running' : 'Walk / Run'}
+                    isActive={!!manualInput.isRunning}
+                    onClick={() => toggleInput('isRunning')}
                     activeColor="blue"
                 />
                 <ToggleButton 
@@ -81,19 +69,11 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
                     onClick={() => toggleInput('combat')}
                     activeColor="orange"
                 />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
                 <ToggleButton 
                     label={isDeadUI ? 'Resurrect' : 'Die / Ragdoll'}
                     isActive={isDeadUI}
                     onClick={handleDeathToggle}
                     activeColor="red"
-                />
-                <ToggleButton 
-                    label={manualInput.crouch ? 'Crouching' : 'Crouch'}
-                    isActive={!!manualInput.crouch}
-                    onClick={() => toggleInput('crouch')}
-                    activeColor="blue"
                 />
                 <button 
                     type="button"
@@ -138,7 +118,7 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
 
             <div className="grid grid-cols-3 gap-2">
                 <Button onClick={() => triggerAction('attack1')} className="hover:text-red-600 hover:border-red-200">Punch</Button>
-                <Button onClick={() => triggerAction('attack2')} className="hover:text-amber-600 hover:border-amber-200">Get Hit</Button>
+                <Button onClick={() => triggerAction('attack2')} className="hover:text-red-600 hover:border-red-200">Swing</Button>
                 <Button onClick={() => triggerAction('interact')} className="hover:text-blue-600 hover:border-blue-200">Interact</Button>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -155,16 +135,13 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
                 </Button>
             </div>
             
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1">
                 <Button 
                     onClick={() => triggerAction('summon')} 
                     className={`flex justify-center gap-2 ${config?.selectedItem ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'hover:bg-purple-50 hover:text-purple-600 hover:border-purple-200'}`}
                     disabled={!!config?.selectedItem}
                 >
-                    <span>✨ Summon</span>
-                </Button>
-                <Button onClick={() => triggerAction('fireball')} className="hover:bg-orange-50 hover:text-orange-600 hover:border-orange-200 flex justify-center gap-2">
-                    <span>🔥 Fireball</span>
+                    <span>✨ Summon (L)</span>
                 </Button>
             </div>
 

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PlayerConfig, InventoryItem, ItemData } from '../../../types';
-import { ITEM_ICONS, ITEM_IMAGES, ITEM_DATA, CRAFTING_RECIPES, CraftingRecipe } from '../../../data/constants';
+import { ITEM_ICONS, ITEM_IMAGES, ITEM_DATA } from '../../../data/constants';
 import { PlayerPreview } from '../previews/PlayerPreview';
 import { ItemTooltip } from '../hud/ItemTooltip';
 
@@ -21,10 +21,7 @@ interface InventoryModalProps {
     slotLayouts?: Record<string, any>;
 }
 
-const TABS = ['INVENTORY', 'CRAFTING', 'COSMETICS', 'QUEST ITEMS'];
-
-const CRAFTING_CATEGORIES = ['all', 'armor', 'weapons', 'materials'] as const;
-type CraftingCategory = typeof CRAFTING_CATEGORIES[number];
+const TABS = ['INVENTORY', 'COSMETICS', 'QUEST ITEMS'];
 
 // --- Mapping Logic ---
 
@@ -78,8 +75,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     onUpdateSlotLayouts, slotLayouts
 }) => {
     const [activeTab, setActiveTab] = useState('INVENTORY');
-    const [craftingCategory, setCraftingCategory] = useState<CraftingCategory>('all');
-    const [craftFeedback, setCraftFeedback] = useState<{ msg: string; ok: boolean } | null>(null);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [draggedItem, setDraggedItem] = useState<InventoryItem | null>(null);
     const [isEditMode, setIsEditMode] = useState(false);
@@ -233,154 +228,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
     const handleMouseLeave = useCallback(() => {
         setHoveredItem(null);
     }, []);
-
-    const getIngredientCount = useCallback((name: string): number => {
-        return inventory.reduce((sum, item) => item?.name === name ? sum + item.count : sum, 0);
-    }, [inventory]);
-
-    const canCraft = useCallback((recipe: CraftingRecipe): boolean => {
-        return recipe.ingredients.every(ing => getIngredientCount(ing.name) >= ing.count);
-    }, [getIngredientCount]);
-
-    const handleCraft = useCallback((recipe: CraftingRecipe) => {
-        if (!canCraft(recipe)) return;
-        const newInv = [...inventory];
-        for (const ing of recipe.ingredients) {
-            let remaining = ing.count;
-            for (let i = 0; i < newInv.length && remaining > 0; i++) {
-                const slot = newInv[i];
-                if (slot?.name === ing.name) {
-                    const take = Math.min(slot.count, remaining);
-                    remaining -= take;
-                    newInv[i] = slot.count - take > 0 ? { ...slot, count: slot.count - take } : null;
-                }
-            }
-        }
-        const existingIdx = newInv.findIndex(s => s?.name === recipe.result);
-        if (existingIdx !== -1 && newInv[existingIdx]) {
-            newInv[existingIdx] = { ...newInv[existingIdx]!, count: newInv[existingIdx]!.count + recipe.resultCount };
-        } else {
-            const emptyIdx = newInv.findIndex(s => s === null);
-            if (emptyIdx !== -1) {
-                newInv[emptyIdx] = { name: recipe.result, count: recipe.resultCount };
-            } else {
-                setCraftFeedback({ msg: 'Inventory is full!', ok: false });
-                setTimeout(() => setCraftFeedback(null), 2000);
-                return;
-            }
-        }
-        onInventoryChange(newInv);
-        setCraftFeedback({ msg: `Crafted ${recipe.result}!`, ok: true });
-        setTimeout(() => setCraftFeedback(null), 2000);
-    }, [canCraft, inventory, onInventoryChange]);
-
-    const renderCraftingTab = () => {
-        const filtered = craftingCategory === 'all'
-            ? CRAFTING_RECIPES
-            : CRAFTING_RECIPES.filter(r => r.category === craftingCategory);
-
-        return (
-            <div className="flex flex-col h-full gap-3">
-                {/* Category filter */}
-                <div className="flex gap-1.5 shrink-0">
-                    {CRAFTING_CATEGORIES.map(cat => (
-                        <button
-                            key={cat}
-                            type="button"
-                            onClick={() => setCraftingCategory(cat)}
-                            className={`px-3 py-1 text-[10px] font-bold tracking-wider uppercase border transition-colors rounded-sm ${
-                                craftingCategory === cat
-                                    ? 'bg-amber-800/60 border-amber-600/60 text-amber-300'
-                                    : 'bg-black/40 border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-500'
-                            }`}
-                        >
-                            {cat}
-                        </button>
-                    ))}
-                    {craftFeedback && (
-                        <span className={`ml-auto text-[11px] font-bold self-center px-3 ${
-                            craftFeedback.ok ? 'text-green-400' : 'text-red-400'
-                        }`}>
-                            {craftFeedback.msg}
-                        </span>
-                    )}
-                </div>
-
-                {/* Recipe list */}
-                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                    <div className="flex flex-col gap-2">
-                        {filtered.map(recipe => {
-                            const craftable = canCraft(recipe);
-                            const resultIcon = ITEM_IMAGES[recipe.result];
-                            const resultEmoji = ITEM_ICONS[recipe.result] || '📦';
-                            return (
-                                <div
-                                    key={recipe.result}
-                                    className={`flex items-center gap-4 p-3 border rounded-sm transition-colors ${
-                                        craftable
-                                            ? 'bg-stone-900/60 border-amber-800/50 hover:border-amber-600/70 hover:bg-stone-800/60'
-                                            : 'bg-black/30 border-stone-800/40 opacity-60'
-                                    }`}
-                                >
-                                    {/* Result icon */}
-                                    <div className="flex-shrink-0 w-12 h-12 border border-stone-700 bg-black/40 flex items-center justify-center overflow-hidden">
-                                        {resultIcon
-                                            ? <img src={resultIcon} alt={recipe.result} className="w-full h-full object-contain p-1" />
-                                            : <span className="text-2xl">{resultEmoji}</span>
-                                        }
-                                    </div>
-
-                                    {/* Recipe info */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-baseline gap-2 mb-1">
-                                            <span className="text-sm font-bold text-stone-100">{recipe.result}</span>
-                                            {recipe.resultCount > 1 && (
-                                                <span className="text-[10px] text-stone-500">×{recipe.resultCount}</span>
-                                            )}
-                                            <span className={`ml-auto text-[10px] uppercase tracking-wider font-bold ${
-                                                recipe.category === 'armor' ? 'text-blue-400/70' :
-                                                recipe.category === 'weapons' ? 'text-red-400/70' : 'text-amber-400/70'
-                                            }`}>{recipe.category}</span>
-                                        </div>
-                                        <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-                                            {recipe.ingredients.map(ing => {
-                                                const have = getIngredientCount(ing.name);
-                                                const met = have >= ing.count;
-                                                const ingEmoji = ITEM_ICONS[ing.name] || '📦';
-                                                return (
-                                                    <span key={ing.name} className={`text-[11px] flex items-center gap-1 ${
-                                                        met ? 'text-green-400' : 'text-red-400'
-                                                    }`}>
-                                                        <span>{ingEmoji}</span>
-                                                        <span>{ing.name}</span>
-                                                        <span className="font-mono">{have}/{ing.count}</span>
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    {/* Craft button */}
-                                    <button
-                                        type="button"
-                                        disabled={!craftable}
-                                        onClick={() => handleCraft(recipe)}
-                                        className={`flex-shrink-0 px-4 py-2 text-[11px] font-bold uppercase tracking-wider border transition-colors ${
-                                            craftable
-                                                ? 'bg-amber-900/50 border-amber-700/60 text-amber-300 hover:bg-amber-800/70 hover:border-amber-500 cursor-pointer'
-                                                : 'bg-stone-900/40 border-stone-700/30 text-stone-600 cursor-not-allowed'
-                                        }`}
-                                    >
-                                        Craft
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-            </div>
-        );
-    };
 
     const handleResizeHandleMouseDown = (e: React.MouseEvent, slotId: string) => {
         e.stopPropagation();
@@ -603,7 +450,7 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                          <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#4a3b2a] to-transparent" />
                     </div>
 
-                    {/* Bottom Section: Main Inventory Grid or Crafting */}
+                    {/* Bottom Section: Main Inventory Grid */}
                     <div className="bg-[#0f0e0d] p-3 flex-1 min-h-0 border border-[#292524] m-1 mt-0 relative overflow-y-auto custom-scrollbar shadow-inner">
                         {activeTab === 'INVENTORY' ? (
                             <div className="grid grid-cols-[repeat(10,clamp(2.5rem,5vw,3.5rem))] auto-rows-[clamp(2.5rem,5vw,3.5rem)] gap-1 justify-center content-start">
@@ -612,8 +459,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
                                     <div key={`empty-${i}`} className="h-[clamp(2.5rem,5vw,3.5rem)] w-[clamp(2.5rem,5vw,3.5rem)] bg-black/20 border border-stone-800/30 border-dashed rounded-sm" />
                                 ))}
                             </div>
-                        ) : activeTab === 'CRAFTING' ? (
-                            renderCraftingTab()
                         ) : (
                             <div className="flex items-center justify-center h-full text-stone-600 italic">
                                 Nothing in {activeTab.toLowerCase()}...

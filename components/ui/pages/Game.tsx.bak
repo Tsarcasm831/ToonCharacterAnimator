@@ -420,18 +420,34 @@ export const Game: React.FC = () => {
     const [chakraConnectionLegend, setChakraConnectionLegend] = React.useState<ChakraDebuggerSidebarEntry[]>([]);
     const [showChakraNodeSidebar, setShowChakraNodeSidebar] = React.useState(false);
     const [tutorialStep, setTutorialStep] = React.useState(1);
+    const tutorialStepRef = React.useRef(1);
+    const tutorialThreePigSpawnedRef = React.useRef(false);
     const chakraNodeLegendSignatureRef = React.useRef('');
 
     // Auto-advance tutorial from step 1 to step 2 when resources are gathered
     React.useEffect(() => {
+        console.log('[Game.tsx] Tutorial Step 1 useEffect running. Current step:', tutorialStep, 'Active scene:', activeScene);
         if (tutorialStep === 1 && activeScene === 'starter') {
             const stickCount = inventory.filter(i => i?.name === 'Stick').reduce((sum, i) => sum + (i?.count || 0), 0);
             const stoneCount = inventory.filter(i => i?.name === 'Stone').reduce((sum, i) => sum + (i?.count || 0), 0);
+            console.log('[Game.tsx] Stick count:', stickCount, 'Stone count:', stoneCount);
             if (stickCount >= 8 && stoneCount >= 15) {
+                console.log('[Game.tsx] Advancing tutorial to step 2');
                 setTutorialStep(2);
             }
         }
     }, [tutorialStep, inventory, activeScene]);
+
+    // Keep ref in sync with state
+    React.useEffect(() => {
+        tutorialStepRef.current = tutorialStep;
+    }, [tutorialStep]);
+
+    React.useEffect(() => {
+        if (tutorialStep !== 3) {
+            tutorialThreePigSpawnedRef.current = false;
+        }
+    }, [tutorialStep]);
 
     // Track porkchop inventory for tutorial step 3
     React.useEffect(() => {
@@ -444,64 +460,29 @@ export const Game: React.FC = () => {
         }
     }, [tutorialStep, inventory, activeScene]);
 
-    // Check for firepit when environment is built (for pre-placed firepits)
-    const firepitCheckedRef = React.useRef(false);
     React.useEffect(() => {
-        if (tutorialStep !== 2 || !isEnvironmentBuilt || !gameInstance.current || firepitCheckedRef.current || activeScene !== 'starter') return;
+        if (tutorialStep !== 3 || activeScene !== 'starter' || tutorialThreePigSpawnedRef.current) return;
+        if (!gameInstance.current?.player?.mesh || !gameInstance.current?.entityManager) return;
 
-        const game = gameInstance.current;
-        const scene = game.renderManager?.scene;
-        if (!scene) return;
+        tutorialThreePigSpawnedRef.current = true;
+        const playerPos = gameInstance.current.player.mesh.position;
+        const environment = gameInstance.current.sceneManager.currentEnvironment;
+        console.log('[Game.tsx] Spawning tutorial quest 3 pigs near player at position:', playerPos);
+        console.log('[Game.tsx] Environment:', environment);
+        console.log('[Game.tsx] EntityManager:', gameInstance.current.entityManager);
 
-        let found = false;
-        let foundMethod = '';
-        scene.traverse((obj: any) => {
-            if (found) return;
-            // Check userData structureType (set by BuilderManager when built)
-            if (obj.userData?.structureType === 'firepit' || obj.parent?.userData?.structureType === 'firepit') {
-                found = true;
-                foundMethod = 'structureType';
-            }
-            // Check for fire mesh flag (set by Firepit class)
-            if (obj.userData?.isFire) {
-                found = true;
-                foundMethod = 'isFire flag';
-            }
-            // Check for point lights with fire color (firepit has orange point light)
-            if (obj.isPointLight && obj.color?.getHex() === 0xff6600) {
-                found = true;
-                foundMethod = 'point light';
-            }
-            // Check for emissive materials (fire cone)
-            if (obj.material?.emissive && obj.material.emissiveIntensity > 0) {
-                const emissiveColor = obj.material.emissive.getHex();
-                if (emissiveColor === 0xff2200 || emissiveColor === 0xff5500) {
-                    found = true;
-                    foundMethod = 'emissive material';
-                }
-            }
-        });
-
-        firepitCheckedRef.current = true;
-
-        if (found) {
-            console.log('[Game.tsx] Firepit detected in environment via', foundMethod, ', advancing tutorial to step 3');
-            setTutorialStep(3);
-            setNotification('Firepit detected! Wild pigs appear nearby!');
-            // Spawn 3 pigs near player
-            const playerPos = game.player.mesh.position;
-            for (let i = 0; i < 3; i++) {
-                const spawnPos = new THREE.Vector3(
-                    playerPos.x + 5 + Math.random() * 8,
-                    0,
-                    playerPos.z + 5 + Math.random() * 8
-                );
-                game.entityManager.spawnAnimalGroup('pig', 1, game.sceneManager.currentEnvironment, spawnPos);
-            }
-        } else {
-            console.log('[Game.tsx] No firepit found in environment, will wait for onFirepitBuilt callback');
+        for (let i = 0; i < 3; i++) {
+            const spawnPos = new THREE.Vector3(
+                playerPos.x + 5 + Math.random() * 8,
+                0,
+                playerPos.z + 5 + Math.random() * 8
+            );
+            console.log('[Game.tsx] Spawning pig', i + 1, 'at:', spawnPos);
+            gameInstance.current.entityManager.spawnAnimalGroup('pig', 1, environment, spawnPos);
+            console.log('[Game.tsx] Pig', i + 1, 'spawned. Total pigs:', gameInstance.current.entityManager.pigs.length);
         }
-    }, [tutorialStep, isEnvironmentBuilt, activeScene]);
+    }, [tutorialStep, activeScene, gameInstance]);
+
     const chakraSidebarVisibleRef = React.useRef(false);
     const chakraHoverTargetRef = React.useRef<ChakraSidebarHoverTarget | null>(null);
     const chakraArrowPathRef = React.useRef<SVGPathElement | null>(null);
@@ -1143,22 +1124,13 @@ export const Game: React.FC = () => {
         game.onBiomeUpdate = (b: any) => environmentState.setCurrentBiome(b);
         game.onBuildLog = (message: string) => uiState.addBuilderLog(message);
         game.onFirepitBuilt = () => {
-            console.log('[Game.tsx] onFirepitBuilt called, tutorialStep:', tutorialStep);
-            if (tutorialStep === 2) {
+            console.log('[Game.tsx] onFirepitBuilt called, tutorialStep:', tutorialStepRef.current);
+            if (tutorialStepRef.current === 2) {
+                console.log('[Game.tsx] Advancing from tutorial step 2 to 3');
                 setTutorialStep(3);
                 setNotification('Firepit built! Wild pigs appear nearby!');
-                // Spawn 3 pigs near player
-                if (gameInstance.current) {
-                    const playerPos = gameInstance.current.player.mesh.position;
-                    for (let i = 0; i < 3; i++) {
-                        const spawnPos = new THREE.Vector3(
-                            playerPos.x + 5 + Math.random() * 8,
-                            0,
-                            playerPos.z + 5 + Math.random() * 8
-                        );
-                        gameInstance.current.entityManager.spawnAnimalGroup('pig', 1, gameInstance.current.sceneManager.currentEnvironment, spawnPos);
-                    }
-                }
+            } else {
+                console.log('[Game.tsx] onFirepitBuilt called but tutorialStep is not 2, it is:', tutorialStepRef.current);
             }
         };
         game.onWrongTool = (message: string) => setNotification(message);
@@ -1225,6 +1197,7 @@ export const Game: React.FC = () => {
         game.onAttackHit = (type: string, count: number) => {
             addCombatLog(`${type.charAt(0).toUpperCase() + type.slice(1)} struck for damage!`, 'damage');
         };
+
         game.onEnterTown = () => {
             setIsEnvironmentBuilt(false);
             setIsVisualLoadingDone(false);
@@ -1809,7 +1782,7 @@ export const Game: React.FC = () => {
                                             <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
                                                 <div className="h-full bg-emerald-500/50 w-0 animate-pulse" />
                                             </div>
-                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Cost: 2 Sticks + 3 Stone</div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Cost: 8 Sticks + 15 Stone</div>
                                         </div>
                                     );
                                 } else if (tutorialStep === 3) {

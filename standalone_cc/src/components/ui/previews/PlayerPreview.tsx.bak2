@@ -1189,12 +1189,9 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         sceneRef.current = scene;
         rendererRef.current = renderer;
 
-        let lastTime = performance.now();
         const animate = () => {
             frameIdRef.current = requestAnimationFrame(animate);
-            const now = performance.now();
-            const dt = Math.min((now - lastTime) / 1000, 0.05);
-            lastTime = now;
+            const dt = 0.016;
             const input = inputRef.current;
             const actionState = actionStateRef.current;
 
@@ -1441,7 +1438,7 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
                     actionState.isSummoning ||
                     actionState.isWaving ||
                     actionState.isLeftHandWaving;
-                const damp = 1 - Math.pow(0.001, dt);
+                const damp = 0.1;
 
                 if (actionState.isFireballCasting) {
                     FireballAction.animate(mockPlayer, parts, dt, damp);

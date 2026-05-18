@@ -175,7 +175,6 @@ function App() {
         setManualInput={setManualInput}
         handleDeathToggle={handleDeathToggle}
         movementMode={movementMode}
-        applyMovementMode={applyMovementMode}
         handleMovementToggle={handleMovementToggle}
         triggerAction={triggerAction}
         onExport={() => console.log('Export model')}

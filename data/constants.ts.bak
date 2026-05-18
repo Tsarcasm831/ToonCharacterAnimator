@@ -125,12 +125,7 @@ export const ITEM_ICONS: Record<string, string> = {
   'Stone': '🪨',
   'Coal': '🌑',
   'Potion of Healing': '🧪',
-  'Mana Potion': '🧪',
-  'Grass': '🌿',
-  'Rope': '🪢',
-  'Leather Shirt': '👕',
-  'Wooden Sword': '🗡️',
-  'Wooden Shoes': '🥿'
+  'Mana Potion': '🧪'
 };
 
 export const ITEM_DATA: Record<string, ItemData> = {
@@ -166,13 +161,7 @@ export const ITEM_DATA: Record<string, ItemData> = {
   'Helm': { name: 'Helm', description: 'A basic head protection.', type: 'armor', rarity: 'common', stats: { defense: 4 } },
   'Gold Ring': { name: 'Gold Ring', description: 'A simple band of gold.', type: 'accessory', rarity: 'uncommon' },
   'Bone Dust': { name: 'Bone Dust', description: 'Fine white powder from old bones.', type: 'material', rarity: 'common' },
-  'Scrap Metal': { name: 'Scrap Metal', description: 'Rusted bits of iron and steel.', type: 'material', rarity: 'common' },
-  'Grass': { name: 'Grass', description: 'Dry grass strands. Bundle enough together to twist into rope.', type: 'material', rarity: 'common' },
-  'Rope': { name: 'Rope', description: 'Twisted grass rope. Useful for binding and crafting.', type: 'material', rarity: 'common' },
-  'Leather Shirt': { name: 'Leather Shirt', description: 'A simple shirt stitched from cured hide.', type: 'armor', rarity: 'common', stats: { defense: 6 } },
-  'Leather Pants': { name: 'Leather Pants', description: 'Tough trousers cut from cured leather.', type: 'armor', rarity: 'common', stats: { defense: 5 } },
-  'Wooden Sword': { name: 'Wooden Sword', description: 'A training sword carved from hardwood.', type: 'weapon', rarity: 'common', stats: { damage: 8 } },
-  'Wooden Shoes': { name: 'Wooden Shoes', description: 'Rough shoes lashed together from wood and rope.', type: 'armor', rarity: 'common', stats: { defense: 2 } }
+  'Scrap Metal': { name: 'Scrap Metal', description: 'Rusted bits of iron and steel.', type: 'material', rarity: 'common' }
 };
 
 export const ITEM_IMAGES: Record<string, string> = {
@@ -188,13 +177,7 @@ export const ITEM_IMAGES: Record<string, string> = {
   'Leather': '/assets/images/items/new/raw_leather.png',
   'Bone Dust': '/assets/images/items/bone_dust.png',
   'Scrap Metal': '/assets/images/items/scrap_metal.png',
-  'Wood': '/assets/images/items/wood_logs.png',
-  'Grass': '/assets/images/items/new/grass.png',
-  'Rope': '/assets/images/items/new/rope.png',
-  'Leather Shirt': '/assets/images/items/new/leather_shirt.png',
-  'Leather Pants': '/assets/images/items/new/leather_pants.png',
-  'Wooden Sword': '/assets/images/items/new/wooden_sword.png',
-  'Wooden Shoes': '/assets/images/items/new/wooden_shoes.png'
+  'Wood': '/assets/images/items/wood_logs.png'
 };
 
 export interface BuildingCost {
@@ -206,43 +189,3 @@ export interface BuildingCost {
 export const BUILDING_COSTS: Record<string, BuildingCost> = {
   'firepit': { 'Stick': 8, 'Stone': 15 },
 };
-
-export interface CraftingRecipe {
-  result: string;
-  resultCount: number;
-  ingredients: { name: string; count: number }[];
-  category: 'armor' | 'weapons' | 'materials';
-}
-
-export const CRAFTING_RECIPES: CraftingRecipe[] = [
-  {
-    result: 'Rope',
-    resultCount: 1,
-    ingredients: [{ name: 'Grass', count: 5 }],
-    category: 'materials',
-  },
-  {
-    result: 'Leather Shirt',
-    resultCount: 1,
-    ingredients: [{ name: 'Leather', count: 10 }],
-    category: 'armor',
-  },
-  {
-    result: 'Leather Pants',
-    resultCount: 1,
-    ingredients: [{ name: 'Leather', count: 8 }],
-    category: 'armor',
-  },
-  {
-    result: 'Wooden Sword',
-    resultCount: 1,
-    ingredients: [{ name: 'Wood', count: 4 }],
-    category: 'weapons',
-  },
-  {
-    result: 'Wooden Shoes',
-    resultCount: 1,
-    ingredients: [{ name: 'Rope', count: 2 }, { name: 'Wood', count: 2 }],
-    category: 'weapons',
-  },
-];

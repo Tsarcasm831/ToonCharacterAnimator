@@ -449,13 +449,37 @@ export const Game: React.FC = () => {
         }
     }, [tutorialStep]);
 
-    // Track porkchop inventory for tutorial step 3
+    // Track porkchop inventory for tutorial step 3 -> advance to quest 4
     React.useEffect(() => {
         if (tutorialStep === 3 && activeScene === 'starter') {
             const porkCount = inventory.filter(i => i?.name === 'Pork' || i?.name === 'Porkchop').reduce((sum, i) => sum + (i?.count || 0), 0);
             if (porkCount >= 10) {
                 setTutorialStep(4);
-                setNotification('Tutorial complete! You gathered enough porkchops.');
+                setNotification('Porkchops gathered! Open Inventory → Crafting to make leather gear.');
+            }
+        }
+    }, [tutorialStep, inventory, activeScene]);
+
+    // Quest 4: craft leather shirt (10 leather) + leather pants (8 leather)
+    React.useEffect(() => {
+        if (tutorialStep === 4 && activeScene === 'starter') {
+            const shirtCount = inventory.filter(i => i?.name === 'Leather Shirt').reduce((sum, i) => sum + (i?.count || 0), 0);
+            const pantsCount = inventory.filter(i => i?.name === 'Leather Pants').reduce((sum, i) => sum + (i?.count || 0), 0);
+            if (shirtCount >= 1 && pantsCount >= 1) {
+                setTutorialStep(5);
+                setNotification('Leather gear crafted! Now craft a Wooden Sword and Wooden Shoes.');
+            }
+        }
+    }, [tutorialStep, inventory, activeScene]);
+
+    // Quest 5: craft wooden sword (4 wood) + wooden shoes (2 rope + 2 wood)
+    React.useEffect(() => {
+        if (tutorialStep === 5 && activeScene === 'starter') {
+            const swordCount = inventory.filter(i => i?.name === 'Wooden Sword').reduce((sum, i) => sum + (i?.count || 0), 0);
+            const shoesCount = inventory.filter(i => i?.name === 'Wooden Shoes').reduce((sum, i) => sum + (i?.count || 0), 0);
+            if (swordCount >= 1 && shoesCount >= 1) {
+                setTutorialStep(6);
+                setNotification('Tutorial complete! You are ready to explore the world.');
             }
         }
     }, [tutorialStep, inventory, activeScene]);
@@ -896,6 +920,18 @@ export const Game: React.FC = () => {
             setConfig(prev => ({ ...prev, selectedItem: null }));
         }
     }, [selectedSlot, inventory]);
+
+    const [movementMode, setMovementMode] = React.useState<'idle' | 'walk' | 'run'>('idle');
+
+    const applyMovementMode = React.useCallback((mode: 'idle' | 'walk' | 'run') => {
+        setMovementMode(mode);
+        setManualInput(prev => ({
+            ...prev,
+            x: 0,
+            y: mode === 'idle' ? 0 : -1,
+            isRunning: mode === 'run',
+        }));
+    }, [setManualInput]);
 
     const triggerAction = (key: keyof typeof manualInput) => {
         setManualInput(prev => ({ ...prev, [key]: true }));
@@ -1679,6 +1715,8 @@ export const Game: React.FC = () => {
                                     onRedo={redo}
                                     canUndo={canUndo}
                                     canRedo={canRedo}
+                                    movementMode={movementMode}
+                                    applyMovementMode={applyMovementMode}
                                     mode={isCharacterCreatorMode ? 'userCreator' : 'full'}
                                     forceOpen={isCharacterCreatorMode}
                                     onSaveCharacter={isCharacterCreatorMode ? handleSaveCharacterToCloud : undefined}
@@ -1801,10 +1839,62 @@ export const Game: React.FC = () => {
                                         </div>
                                     );
                                 } else if (tutorialStep === 4) {
+                                    const leatherCount = inventory.filter(i => i?.name === 'Leather').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                    const shirtCount = inventory.filter(i => i?.name === 'Leather Shirt').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                    const pantsCount = inventory.filter(i => i?.name === 'Leather Pants').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                    const shirtDone = shirtCount >= 1;
+                                    const pantsDone = pantsCount >= 1;
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-amber-700/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-amber-400 text-xs uppercase tracking-wider mb-2">Quest 4/5 — Craft Leather Gear</div>
+                                            <div className="text-sm font-medium mb-1">Open Inventory → Crafting</div>
+                                            <div className="text-xs text-stone-400 flex flex-col gap-0.5">
+                                                <span className={shirtDone ? 'text-green-400' : 'text-amber-300'}>
+                                                    {shirtDone ? '✓' : '○'} Leather Shirt (10 Leather) — {shirtDone ? 'done' : `${leatherCount} leather`}
+                                                </span>
+                                                <span className={pantsDone ? 'text-green-400' : 'text-amber-300'}>
+                                                    {pantsDone ? '✓' : '○'} Leather Pants (8 Leather) — {pantsDone ? 'done' : ''}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className={`h-full transition-all duration-300 ${
+                                                    shirtDone && pantsDone ? 'bg-green-500' : 'bg-amber-500/50'
+                                                }`} style={{ width: `${((shirtDone ? 50 : 0) + (pantsDone ? 50 : 0))}%` }} />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Kill pigs for leather, then open Crafting tab</div>
+                                        </div>
+                                    );
+                                } else if (tutorialStep === 5) {
+                                    const woodCount = inventory.filter(i => i?.name === 'Wood').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                    const grassCount = inventory.filter(i => i?.name === 'Grass').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                    const ropeCount = inventory.filter(i => i?.name === 'Rope').reduce((sum, i) => sum + (i?.count || 0), 0);
+                                    const swordDone = inventory.filter(i => i?.name === 'Wooden Sword').reduce((sum, i) => sum + (i?.count || 0), 0) >= 1;
+                                    const shoesDone = inventory.filter(i => i?.name === 'Wooden Shoes').reduce((sum, i) => sum + (i?.count || 0), 0) >= 1;
+                                    return (
+                                        <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-lime-700/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
+                                            <div className="font-bold text-lime-400 text-xs uppercase tracking-wider mb-2">Quest 5/5 — Craft Wooden Gear</div>
+                                            <div className="text-sm font-medium mb-1">Open Inventory → Crafting</div>
+                                            <div className="text-xs text-stone-400 flex flex-col gap-0.5">
+                                                <span className={swordDone ? 'text-green-400' : 'text-amber-300'}>
+                                                    {swordDone ? '✓' : '○'} Wooden Sword (4 Wood) — {swordDone ? 'done' : `${woodCount} wood`}
+                                                </span>
+                                                <span className={shoesDone ? 'text-green-400' : 'text-amber-300'}>
+                                                    {shoesDone ? '✓' : '○'} Wooden Shoes (2 Rope + 2 Wood) — {shoesDone ? 'done' : `${ropeCount} rope / ${grassCount} grass`}
+                                                </span>
+                                            </div>
+                                            <div className="mt-2 h-1 bg-stone-800 rounded-full overflow-hidden">
+                                                <div className={`h-full transition-all duration-300 ${
+                                                    swordDone && shoesDone ? 'bg-green-500' : 'bg-lime-500/50'
+                                                }`} style={{ width: `${((swordDone ? 50 : 0) + (shoesDone ? 50 : 0))}%` }} />
+                                            </div>
+                                            <div className="text-[10px] text-stone-500 mt-1.5 italic">Craft Rope from 5 Grass, then craft shoes</div>
+                                        </div>
+                                    );
+                                } else if (tutorialStep === 6) {
                                     return (
                                         <div className="absolute top-4 right-4 z-[90] bg-black/70 border border-green-600/30 rounded-xl px-4 py-3 backdrop-blur-md text-white/90 pointer-events-none shadow-lg shadow-black/40">
                                             <div className="font-bold text-green-400 text-xs uppercase tracking-wider mb-2">Tutorial Complete!</div>
-                                            <div className="text-sm font-medium">You gathered enough meat</div>
+                                            <div className="text-sm font-medium">All quests finished</div>
                                             <div className="text-xs text-stone-400 mt-1">
                                                 You can now explore freely
                                             </div>
@@ -1819,37 +1909,38 @@ export const Game: React.FC = () => {
                                 }
                             })()}
 
-                            {isCharacterCreatorModalOpen && (
-                                <div
-                                    className="absolute inset-0 z-[260] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-3"
-                                    onClick={handleCloseCharacterCreator}
-                                >
-                                    <div
-                                        className="relative size-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#050913] shadow-[0_0_80px_rgba(15,23,42,0.75)]"
-                                        onClick={(event) => event.stopPropagation()}
-                                    >
-                                        <div className="absolute right-4 top-4 z-20 flex items-center gap-3">
-                                            <span className="rounded-full border border-white/10 bg-black/50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 backdrop-blur-sm">
-                                                Character Creator
-                                            </span>
-                                            <button
-                                                type="button"
-                                                onClick={handleCloseCharacterCreator}
-                                                className="h-10 w-10 rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:bg-black/80"
-                                                aria-label="Close character creator"
-                                            >
-                                                <span className="text-lg leading-none">×</span>
-                                            </button>
-                                        </div>
-                                        <iframe
-                                            title="Character Creator"
-                                            src={`${import.meta.env.BASE_URL}standalone_cc/index.html`}
-                                            className="h-full w-full border-0"
-                                        />
-                                    </div>
-                                </div>
-                            )}
                         </>
+                    )}
+
+                    {isCharacterCreatorModalOpen && (
+                        <div
+                            className="absolute inset-0 z-[260] flex items-center justify-center bg-black/80 backdrop-blur-md p-2 md:p-3"
+                            onClick={handleCloseCharacterCreator}
+                        >
+                            <div
+                                className="relative size-full overflow-hidden rounded-[1.5rem] border border-white/10 bg-[#050913] shadow-[0_0_80px_rgba(15,23,42,0.75)]"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                <div className="absolute right-4 top-4 z-20 flex items-center gap-3">
+                                    <span className="rounded-full border border-white/10 bg-black/50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.3em] text-slate-300 backdrop-blur-sm">
+                                        Character Creator
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={handleCloseCharacterCreator}
+                                        className="h-10 w-10 rounded-full border border-white/10 bg-black/60 text-white transition-colors hover:bg-black/80"
+                                        aria-label="Close character creator"
+                                    >
+                                        <span className="text-lg leading-none">×</span>
+                                    </button>
+                                </div>
+                                <iframe
+                                    title="Character Creator"
+                                    src={`${import.meta.env.BASE_URL}standalone_cc/index.html`}
+                                    className="h-full w-full border-0"
+                                />
+                            </div>
+                        </div>
                     )}
                 </div>
             </div>
