@@ -44,11 +44,6 @@ export class SingleBiomeEnvironment {
     private mudGroundPatches: THREE.Object3D[] = [];
     private pickupObjects: THREE.Object3D[] = [];
     private grassTuftMesh: THREE.InstancedMesh | null = null;
-    private grassClumpMesh: THREE.InstancedMesh | null = null;
-    private grassClumpPositions: THREE.Vector3[] = [];
-    private grassClumpAlive: boolean[] = [];
-    private static readonly GRASS_CLUMP_COUNT = 300;
-    private static readonly GRASS_CLUMP_PICKUP_RANGE = 2.2;
     private circularWallGroups: THREE.Object3D[] = [];
     private circularWallCenters: THREE.Vector2[] = [];
     private currentBiome: { name: string, color: string, type: string } = { name: 'Grass', color: '#4ade80', type: 'Grass' };
@@ -60,7 +55,6 @@ export class SingleBiomeEnvironment {
     private static readonly MUD_CLUMP_COUNT = 36;
     private static readonly MUD_CLUMP_HEALTH = 6;
     private static readonly PICKUP_SCATTER_COUNT = 120;
-    private static readonly GRASS_PICKUP_YIELD = 2;
     private static readonly GRASS_TUFT_COUNT = 2600;
     private static readonly SPAWN_ATTEMPT_MULTIPLIER = 10;
     private static readonly LOG_PICKUP_RANGE = 2.2;
@@ -176,7 +170,6 @@ export class SingleBiomeEnvironment {
         this.rockFormations.clear();
         this.pickupObjects = [];
         this.disposeGrassTufts();
-        this.disposeGrassClumps();
         this.lightingManager.dispose();
         this.worldGrid.dispose();
         PlayerUtils.setCustomLandPolygon(null); // Clear constraint
@@ -307,7 +300,6 @@ export class SingleBiomeEnvironment {
         this.spawnMudClumps(worldPoints, bounds);
         this.spawnPickupScatter(worldPoints, bounds);
         this.spawnGrassTufts(worldPoints, bounds);
-        this.spawnGrassClumps(worldPoints, bounds);
 
         if (this.circularWallCenters.length > 0) {
             this.clearCircularWalls();
@@ -674,8 +666,6 @@ export class SingleBiomeEnvironment {
         });
         this.pickupObjects = [];
 
-        this.disposeGrassClumps();
-
         this.looseLogs.forEach(log => {
             this.group.remove(log);
         });
@@ -951,134 +941,6 @@ export class SingleBiomeEnvironment {
         };
 
         this.addPickupObject(group);
-    }
-
-    private spawnGrassClumps(worldPoints: number[][], bounds: ReturnType<typeof calculateBounds>) {
-        this.disposeGrassClumps();
-
-        const count = SingleBiomeEnvironment.GRASS_CLUMP_COUNT;
-        const dummy = new THREE.Object3D();
-        const color = new THREE.Color();
-
-        // Geometry: a fat cluster of cone blades
-        const geo = new THREE.ConeGeometry(0.12, 1.0, 4);
-        geo.translate(0, 0.5, 0);
-        const mat = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            roughness: 0.88,
-            flatShading: true,
-            vertexColors: true,
-            side: THREE.DoubleSide,
-        });
-        // Each visual clump = 6 blades merged into one instanced slot
-        // We use BLADES_PER_CLUMP instances per clump position
-        const BLADES = 6;
-        const totalInstances = count * BLADES;
-        const mesh = new THREE.InstancedMesh(geo, mat, totalInstances);
-        mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-        mesh.castShadow = false;
-        mesh.receiveShadow = false;
-        mesh.frustumCulled = false;
-
-        this.grassClumpPositions = [];
-        this.grassClumpAlive = [];
-
-        const maxAttempts = count * SingleBiomeEnvironment.SPAWN_ATTEMPT_MULTIPLIER;
-        let spawned = 0;
-
-        for (let attempt = 0; attempt < maxAttempts && spawned < count; attempt++) {
-            const pos = this.getRandomPointInLand(worldPoints, bounds);
-            if (!pos) continue;
-
-            const clumpIdx = spawned;
-            this.grassClumpPositions.push(pos.clone());
-            this.grassClumpAlive.push(true);
-
-            for (let b = 0; b < BLADES; b++) {
-                const instanceIdx = clumpIdx * BLADES + b;
-                const angle = (b / BLADES) * Math.PI * 2 + Math.random() * 0.5;
-                const dist = Math.random() * 0.18;
-                dummy.position.set(
-                    pos.x + Math.cos(angle) * dist,
-                    pos.y,
-                    pos.z + Math.sin(angle) * dist
-                );
-                dummy.rotation.set(
-                    (Math.random() - 0.5) * 0.35,
-                    Math.random() * Math.PI * 2,
-                    (Math.random() - 0.5) * 0.35
-                );
-                const h = 0.28 + Math.random() * 0.22;
-                const w = 0.55 + Math.random() * 0.55;
-                dummy.scale.set(w, h, w);
-                dummy.updateMatrix();
-                mesh.setMatrixAt(instanceIdx, dummy.matrix);
-                color.setHSL(0.27 + Math.random() * 0.06, 0.55 + Math.random() * 0.25, 0.28 + Math.random() * 0.14);
-                mesh.setColorAt(instanceIdx, color);
-            }
-            spawned++;
-        }
-
-        mesh.count = spawned * BLADES;
-        mesh.instanceMatrix.needsUpdate = true;
-        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-        this.group.add(mesh);
-        this.grassClumpMesh = mesh;
-    }
-
-    private disposeGrassClumps() {
-        if (!this.grassClumpMesh) return;
-        this.group.remove(this.grassClumpMesh);
-        this.grassClumpMesh.geometry.dispose();
-        if (Array.isArray(this.grassClumpMesh.material)) {
-            this.grassClumpMesh.material.forEach(m => m.dispose());
-        } else {
-            this.grassClumpMesh.material.dispose();
-        }
-        this.grassClumpMesh = null;
-        this.grassClumpPositions = [];
-        this.grassClumpAlive = [];
-    }
-
-    public updateGrassClumpInteraction(playerPos: THREE.Vector3, pickupPressed: boolean): { label: string | null; progress: number | null } {
-        if (!this.grassClumpMesh || this.grassClumpPositions.length === 0) return { label: null, progress: null };
-
-        const range = SingleBiomeEnvironment.GRASS_CLUMP_PICKUP_RANGE;
-        let nearestIdx = -1;
-        let nearestDist = range;
-
-        for (let i = 0; i < this.grassClumpPositions.length; i++) {
-            if (!this.grassClumpAlive[i]) continue;
-            const d = playerPos.distanceTo(this.grassClumpPositions[i]);
-            if (d < nearestDist) {
-                nearestDist = d;
-                nearestIdx = i;
-            }
-        }
-
-        if (nearestIdx === -1) return { label: null, progress: null };
-
-        if (pickupPressed) {
-            this.grassClumpAlive[nearestIdx] = false;
-            const BLADES = 6;
-            const dummy = new THREE.Object3D();
-            dummy.position.set(0, -9999, 0);
-            dummy.scale.setScalar(0);
-            dummy.updateMatrix();
-            for (let b = 0; b < BLADES; b++) {
-                this.grassClumpMesh.setMatrixAt(nearestIdx * BLADES + b, dummy.matrix);
-            }
-            this.grassClumpMesh.instanceMatrix.needsUpdate = true;
-            if (this.onAddToInventory) {
-                this.onAddToInventory('Grass', SingleBiomeEnvironment.GRASS_PICKUP_YIELD);
-            }
-            return { label: null, progress: null };
-        }
-
-        return {
-            label: 'Press F to Gather Grass',
-            progress: 1 - nearestDist / range,
-        };
     }
 
     private spawnGrassTufts(worldPoints: number[][], bounds: ReturnType<typeof calculateBounds>) {

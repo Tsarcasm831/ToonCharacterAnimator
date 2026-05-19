@@ -973,20 +973,6 @@ export class Game {
             const label = this.player.pickupTarget.userData.interactionLabel ?? `Press F to Pick Up ${itemName}`;
             this.onInteractionUpdate?.(label, null);
         }
-        else if (this.sceneManager.activeScene === 'starter' || this.sceneManager.activeScene === 'singleBiome') {
-            const singleBiomeEnv = this.sceneManager.singleBiomeEnvironment;
-            if (singleBiomeEnv) {
-                const playerPos = this.player.mesh.position;
-                const grassResult = singleBiomeEnv.updateGrassClumpInteraction(playerPos, !!input.isPickingUp);
-                if (grassResult.label) {
-                    this.onInteractionUpdate?.(grassResult.label, grassResult.progress);
-                } else {
-                    this.onInteractionUpdate?.(null, null);
-                }
-            } else {
-                this.onInteractionUpdate?.(null, null);
-            }
-        }
         else {
             const target = this.player.interactableTarget;
             if (target) {

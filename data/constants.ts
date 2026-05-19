@@ -190,7 +190,7 @@ export const ITEM_IMAGES: Record<string, string> = {
   'Scrap Metal': '/assets/images/items/scrap_metal.png',
   'Wood': '/assets/images/items/wood_logs.png',
   'Grass': '/assets/images/items/new/grass.png',
-  'Rope': '/assets/images/items/new/rope.png',
+  'Rope': '/assets/images/items/new/grass_rope.png',
   'Leather Shirt': '/assets/images/items/new/leather_shirt.png',
   'Leather Pants': '/assets/images/items/new/leather_pants.png',
   'Wooden Sword': '/assets/images/items/new/wooden_sword.png',
