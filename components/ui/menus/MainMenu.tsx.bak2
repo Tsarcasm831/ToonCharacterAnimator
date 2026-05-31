@@ -23,7 +23,6 @@ const sceneOptions: Array<{ id: ActiveScene; label: string; activeClassName?: st
     { id: 'town', label: 'Town Scene' },
     { id: 'town2', label: 'Town 2 Scene' },
     { id: 'tdgame', label: 'Top Down Game' },
-    { id: 'defense', label: 'Defense Scene', activeClassName: 'bg-cyan-500 border-cyan-300' },
     { id: 'singleBiome', label: 'Single Biome' },
     { id: 'roguelike', label: 'Roguelike Scene' },
     { id: 'darkest', label: 'Darkest Clone' },

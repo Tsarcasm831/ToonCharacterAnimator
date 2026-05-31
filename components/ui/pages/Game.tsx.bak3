@@ -7,7 +7,6 @@ import SingleBiomeScene from '../../SingleBiomeScene';
 import TownScene from '../../TownScene';
 import Town2Scene from '../../Town2Scene';
 import TDGameScene from '../../TDGameScene';
-import Defense from '../../Defense';
 import RoguelikeScene from '../../RoguelikeScene';
 import DarkestScene from '../../DarkestScene';
 import Loop from '../../Loop';
@@ -612,7 +611,7 @@ export const Game: React.FC = () => {
     React.useEffect(() => {
         if (gameState !== 'LOADING') return;
         if (!shouldMountScene) return;
-        if (activeScene !== 'roguelike' && activeScene !== 'defense') return;
+        if (activeScene !== 'roguelike') return;
 
         setIsEnvironmentBuilt(true);
         scheduleVisualLoadingDone();
@@ -1357,7 +1356,7 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
-    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'defense' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest' && activeScene !== 'loop';
+    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest' && activeScene !== 'loop';
     const showCreatorPanel = isCharacterCreatorMode && gameState === 'PLAYING';
 
     // Auth gate: if Supabase is configured and user is not logged in, block access
@@ -1592,14 +1591,6 @@ export const Game: React.FC = () => {
                                             onToggleQuestLog={uiState.toggleQuestLog}
                                             showGrid={showGrid}
                                             isCombatActive={isCombatActive}
-                                        />
-                                    ) : activeScene === 'defense' ? (
-                                        <Defense
-                                            config={config}
-                                            onReady={() => {
-                                                handleEnvironmentReady();
-                                                scheduleVisualLoadingDone();
-                                            }}
                                         />
                                     ) : activeScene === 'roguelike' ? (
                                         <RoguelikeScene />

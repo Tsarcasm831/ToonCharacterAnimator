@@ -1,5 +1,5 @@
 
-export type ActiveScene = 'dev' | 'starter' | 'land' | 'combat' | 'world' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'defense' | 'roguelike' | 'gameLoop' | 'darkest' | 'loop';
+export type ActiveScene = 'dev' | 'starter' | 'land' | 'combat' | 'world' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'roguelike' | 'gameLoop' | 'darkest' | 'loop';
 
 export type BodyVariant = 'average' | 'muscular' | 'slim' | 'heavy';
 export type OutfitType = 'nude' | 'naked' | 'peasant' | 'warrior' | 'noble';

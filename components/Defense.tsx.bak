@@ -1,0 +1,427 @@
+import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { RenderManager } from '../game/core/RenderManager';
+import { PlayerModel } from '../game/model/PlayerModel';
+import type { PlayerConfig } from '../types';
+
+interface DefenseProps {
+  config: PlayerConfig;
+  onReady?: () => void;
+}
+
+type CharacterMarker = {
+  x: number;
+  z: number;
+  rot: number;
+  scale: number;
+  tint: string;
+  team: 'player' | 'enemy';
+};
+
+type DefenseUnit = {
+  group: THREE.Group;
+  team: 'player' | 'enemy';
+  target: THREE.Vector3;
+  speed: number;
+};
+
+type DefenseSceneObjects = {
+  playerUnits: DefenseUnit[];
+  enemyUnits: DefenseUnit[];
+  walkablePlane: THREE.Mesh;
+};
+
+const enemyMarkers: CharacterMarker[] = [
+  { x: -9, z: -28, rot: 0.05, scale: 0.82, tint: '#f97316', team: 'enemy' },
+  { x: 0, z: -30.5, rot: -0.04, scale: 0.86, tint: '#ef4444', team: 'enemy' },
+  { x: 9, z: -27.5, rot: 0.1, scale: 0.82, tint: '#facc15', team: 'enemy' },
+];
+
+const playerMarkers: CharacterMarker[] = [
+  { x: -12, z: 16, rot: Math.PI, scale: 1.05, tint: '#fed7aa', team: 'player' },
+  { x: 0, z: 17.2, rot: Math.PI, scale: 0.98, tint: '#d9f99d', team: 'player' },
+  { x: 12, z: 15.7, rot: Math.PI, scale: 1.08, tint: '#bfdbfe', team: 'player' },
+];
+
+const walkableBounds = {
+  minX: -26,
+  maxX: 26,
+  minZ: -36,
+  maxZ: 22,
+};
+
+function clampWalkTarget(point: THREE.Vector3) {
+  return new THREE.Vector3(
+    THREE.MathUtils.clamp(point.x, walkableBounds.minX, walkableBounds.maxX),
+    0.08,
+    THREE.MathUtils.clamp(point.z, walkableBounds.minZ, walkableBounds.maxZ)
+  );
+}
+
+function createSelectionMarker() {
+  const marker = new THREE.Group();
+
+  const cone = new THREE.Mesh(
+    new THREE.ConeGeometry(0.42, 0.9, 4),
+    new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.92 })
+  );
+  cone.rotation.x = Math.PI;
+  cone.position.y = 0.46;
+  marker.add(cone);
+
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.62, 0.035, 8, 40),
+    new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.78 })
+  );
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = -2.2;
+  marker.add(ring);
+
+  marker.visible = false;
+  return marker;
+}
+
+function findDefenseUnit(object: THREE.Object3D | null): DefenseUnit | null {
+  let current: THREE.Object3D | null = object;
+  while (current) {
+    if (current.userData.defenseUnit) {
+      return current.userData.defenseUnit as DefenseUnit;
+    }
+    current = current.parent;
+  }
+  return null;
+}
+
+function makeMaterial(color: number, roughness = 0.82) {
+  return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.04 });
+}
+
+function addBox(
+  scene: THREE.Scene,
+  size: [number, number, number],
+  position: [number, number, number],
+  color: number
+) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), makeMaterial(color));
+  mesh.position.set(...position);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  return mesh;
+}
+
+function addRamp(
+  scene: THREE.Scene,
+  width: number,
+  length: number,
+  height: number,
+  position: THREE.Vector3,
+  rotationY: number,
+  color: number
+) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-length / 2, 0);
+  shape.lineTo(length / 2, 0);
+  shape.lineTo(length / 2, height);
+  shape.lineTo(-length / 2, 0);
+
+  const geometry = new THREE.ExtrudeGeometry(shape, {
+    depth: width,
+    bevelEnabled: false,
+  });
+  geometry.center();
+  geometry.rotateY(Math.PI / 2);
+
+  const ramp = new THREE.Mesh(geometry, makeMaterial(color));
+  ramp.position.copy(position);
+  ramp.rotation.y = rotationY;
+  ramp.castShadow = true;
+  ramp.receiveShadow = true;
+  scene.add(ramp);
+  return ramp;
+}
+
+function addCharacter(scene: THREE.Scene, baseConfig: PlayerConfig, marker: CharacterMarker, index: number): DefenseUnit {
+  const characterConfig: PlayerConfig = {
+    ...baseConfig,
+    tintColor: marker.tint,
+    shirtColor: index % 2 === 0 ? marker.tint : baseConfig.shirtColor,
+    shirtColor2: index % 2 === 0 ? '#1f2937' : marker.tint,
+    pantsColor: index % 3 === 0 ? '#1f2937' : baseConfig.pantsColor,
+    selectedItem: index % 2 === 0 ? 'Sword' : baseConfig.selectedItem,
+    equipment: {
+      ...baseConfig.equipment,
+      shirt: true,
+      pants: true,
+      shoes: true,
+      ...(index % 2 === 0 ? { shield: true } : {}),
+    },
+  };
+
+  const model = new PlayerModel(characterConfig);
+  model.sync(characterConfig, true);
+  model.group.position.set(marker.x, 0.08, marker.z);
+  model.group.rotation.y = marker.rot;
+  model.group.scale.setScalar(marker.scale);
+  model.group.userData.defenseCharacter = true;
+  model.group.userData.baseY = model.group.position.y;
+  model.group.userData.defenseTeam = marker.team;
+  model.group.traverse((object) => {
+    object.castShadow = true;
+    object.receiveShadow = true;
+  });
+
+  const unit: DefenseUnit = {
+    group: model.group,
+    team: marker.team,
+    target: model.group.position.clone(),
+    speed: marker.team === 'player' ? 7.5 : 0,
+  };
+
+  model.group.userData.defenseUnit = unit;
+  model.group.traverse((object) => {
+    object.userData.defenseUnit = unit;
+    object.userData.defenseTeam = marker.team;
+  });
+
+  scene.add(model.group);
+  return unit;
+}
+
+function addDefenseScene(scene: THREE.Scene, config: PlayerConfig): DefenseSceneObjects {
+  scene.background = new THREE.Color(0x09111a);
+  scene.fog = new THREE.Fog(0x09111a, 70, 135);
+
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(82, 96),
+    makeMaterial(0x18212b, 0.92)
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.02;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  const walkablePlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(walkableBounds.maxX - walkableBounds.minX, walkableBounds.maxZ - walkableBounds.minZ),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.001, depthWrite: false })
+  );
+  walkablePlane.rotation.x = -Math.PI / 2;
+  walkablePlane.position.set(
+    (walkableBounds.minX + walkableBounds.maxX) / 2,
+    0.04,
+    (walkableBounds.minZ + walkableBounds.maxZ) / 2
+  );
+  walkablePlane.userData.hitType = 'ground';
+  scene.add(walkablePlane);
+
+  addBox(scene, [40, 0.9, 12], [0, 0.45, -28.8], 0x344052);
+  addBox(scene, [58, 0.8, 18], [0, 0.4, 16.4], 0x27313f);
+  addBox(scene, [8, 13, 12], [-22, 6.5, -32], 0x4a5568);
+  addBox(scene, [10, 16, 13], [23, 8, -32], 0x525f74);
+  addBox(scene, [4.2, 3.2, 3.8], [-14, 1.6, -26.4], 0x3b4658);
+  addBox(scene, [5.2, 3.5, 4.2], [15, 1.75, -26.8], 0x3f4a5d);
+  addBox(scene, [4.5, 1.8, 3.2], [-16, 0.9, -8], 0x334155);
+  addBox(scene, [5, 1.5, 3], [16, 0.75, 2], 0x334155);
+  addBox(scene, [3.5, 1.4, 3.5], [-6, 0.7, 6], 0x334155);
+
+  addRamp(scene, 9, 28, 4.5, new THREE.Vector3(-21, 1.3, -9), -0.35, 0x2f3948);
+  addRamp(scene, 9, 28, 4.2, new THREE.Vector3(23, 1.35, -8), 0.35, 0x2f3948);
+
+  const bridgeLine = new THREE.Mesh(
+    new THREE.BoxGeometry(42, 0.08, 0.12),
+    new THREE.MeshBasicMaterial({ color: 0xb8c4d6, transparent: true, opacity: 0.5 })
+  );
+  bridgeLine.position.set(0, 1.05, -35.2);
+  scene.add(bridgeLine);
+
+  const laneLines = new THREE.Group();
+  const lineMaterial = new THREE.LineBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.16 });
+  for (let z = -32; z <= 20; z += 8) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-25, 0.045, z),
+      new THREE.Vector3(25, 0.045, z),
+    ]);
+    laneLines.add(new THREE.Line(geometry, lineMaterial));
+  }
+  for (let x = -24; x <= 24; x += 8) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x, 0.045, -34),
+      new THREE.Vector3(x, 0.045, 21),
+    ]);
+    laneLines.add(new THREE.Line(geometry, lineMaterial));
+  }
+  scene.add(laneLines);
+
+  const enemyUnits = enemyMarkers.map((marker, index) => addCharacter(scene, config, marker, index));
+  const playerUnits = playerMarkers.map((marker, index) => {
+    const unit = addCharacter(scene, config, marker, index + enemyMarkers.length);
+    unit.target.copy(unit.group.position);
+    return unit;
+  });
+
+  return { playerUnits, enemyUnits, walkablePlane };
+}
+
+const Defense: React.FC<DefenseProps> = ({ config, onReady }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const initialConfigRef = useRef(config);
+  const onReadyRef = useRef(onReady);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const renderManager = new RenderManager(container);
+    renderManager.setBaseLightingEnabled(false);
+    renderManager.camera.fov = 46;
+    renderManager.camera.position.set(0, 31, 50);
+    renderManager.camera.updateProjectionMatrix();
+    renderManager.controls.target.set(0, 1.8, -9);
+    renderManager.controls.enablePan = true;
+    renderManager.controls.enableZoom = true;
+    renderManager.controls.enableRotate = true;
+    renderManager.controls.update();
+
+    const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x111827, 1.2);
+    renderManager.scene.add(hemi);
+
+    const key = new THREE.DirectionalLight(0xffffff, 2.3);
+    key.position.set(-12, 26, 18);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.left = -45;
+    key.shadow.camera.right = 45;
+    key.shadow.camera.top = 35;
+    key.shadow.camera.bottom = -35;
+    renderManager.scene.add(key);
+
+    const rim = new THREE.DirectionalLight(0x7dd3fc, 0.9);
+    rim.position.set(24, 18, -18);
+    renderManager.scene.add(rim);
+
+    const sceneObjects = addDefenseScene(renderManager.scene, initialConfigRef.current);
+    const selectionMarker = createSelectionMarker();
+    renderManager.scene.add(selectionMarker);
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    let selectedUnit: DefenseUnit | null = sceneObjects.playerUnits[0] ?? null;
+    let selectedUnitIndex = selectedUnit ? 0 : -1;
+
+    const selectUnit = (unit: DefenseUnit | null) => {
+      if (!unit || unit.team !== 'player') return;
+      selectedUnit = unit;
+      selectedUnitIndex = sceneObjects.playerUnits.indexOf(unit);
+      selectionMarker.visible = true;
+    };
+
+    const cycleUnit = () => {
+      if (sceneObjects.playerUnits.length === 0) return;
+      selectedUnitIndex = (selectedUnitIndex + 1 + sceneObjects.playerUnits.length) % sceneObjects.playerUnits.length;
+      selectUnit(sceneObjects.playerUnits[selectedUnitIndex]);
+    };
+
+    selectUnit(selectedUnit);
+    onReadyRef.current?.();
+
+    let frame = 0;
+    const startTime = performance.now();
+    let lastFrameTime = startTime;
+
+    const animate = () => {
+      const now = performance.now();
+      const elapsed = (now - startTime) / 1000;
+      const dt = Math.min((now - lastFrameTime) / 1000, 0.05);
+      lastFrameTime = now;
+      for (const unit of sceneObjects.playerUnits) {
+        const deltaToTarget = unit.target.clone().sub(unit.group.position);
+        deltaToTarget.y = 0;
+        const distance = deltaToTarget.length();
+        if (distance > 0.05) {
+          const step = Math.min(distance, unit.speed * dt);
+          const direction = deltaToTarget.normalize();
+          unit.group.position.addScaledVector(direction, step);
+          unit.group.rotation.y = Math.atan2(direction.x, direction.z);
+        }
+      }
+
+      if (selectedUnit) {
+        selectionMarker.position.set(
+          selectedUnit.group.position.x,
+          selectedUnit.group.position.y + 3.15,
+          selectedUnit.group.position.z
+        );
+        selectionMarker.rotation.y += 0.035;
+      }
+
+      renderManager.scene.traverse((object) => {
+        if (object.userData.defenseCharacter) {
+          object.position.y = object.userData.baseY + Math.sin(elapsed * 1.4 + object.position.x * 0.2) * 0.025;
+        }
+      });
+      renderManager.render();
+      frame = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    const handleResize = () => renderManager.resize();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement | null)?.closest('input, textarea, select, .no-capture')) return;
+      if (event.key !== 'Tab') return;
+      event.preventDefault();
+      cycleUnit();
+    };
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.button !== 0) return;
+
+      const rect = renderManager.renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, renderManager.camera);
+
+      const unitIntersections = raycaster.intersectObjects(
+        [...sceneObjects.playerUnits, ...sceneObjects.enemyUnits].map((unit) => unit.group),
+        true
+      );
+
+      if (unitIntersections.length > 0) {
+        const clickedUnit = findDefenseUnit(unitIntersections[0].object);
+        if (clickedUnit?.team === 'player') {
+          selectUnit(clickedUnit);
+          return;
+        }
+        if (clickedUnit?.team === 'enemy' && selectedUnit) {
+          console.log('[Defense] Enemy selected as target:', clickedUnit.group.position);
+          return;
+        }
+      }
+
+      const groundIntersections = raycaster.intersectObject(sceneObjects.walkablePlane, false);
+      if (groundIntersections.length > 0 && selectedUnit) {
+        selectedUnit.target.copy(clampWalkTarget(groundIntersections[0].point));
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('keydown', handleKeyDown, { passive: false });
+    renderManager.renderer.domElement.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDown);
+      renderManager.renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
+      cancelAnimationFrame(frame);
+      renderManager.dispose();
+    };
+  }, []);
+
+  return <div ref={containerRef} className="w-full h-full" onContextMenu={(event) => event.preventDefault()} />;
+};
+
+export default Defense;
