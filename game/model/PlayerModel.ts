@@ -170,6 +170,12 @@ export class PlayerModel {
         this.originalEmissiveColors.clear();
     }
 
+    resetDamageFlash() {
+        // Immediately stop flash timer and revert
+        this.damageFlashTimer = 0;
+        this.revertDamageFlash();
+    }
+
     updateHeldItem(itemName: string | null) {
         this.equipmentManager.updateHeldItem(itemName);
     }

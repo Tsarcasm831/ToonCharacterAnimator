@@ -12,6 +12,8 @@ export class LightingManager {
     private shadowCoverage = 90;
     
     private cycleTimer: number = 0;
+    /** Sky horizon color override; null = use the computed atmospheric color. */
+    public horizonOverride: number | null = 0x000000;
     private readonly CYCLE_DURATION = 600; 
     private readonly DAY_RATIO = 0.6;
 
@@ -175,7 +177,10 @@ export class LightingManager {
                 sunColor.setHex(0x90caf9);
             }
 
-            bottomColor.setHex(0x000000); 
+            // Default keeps the original dark-horizon look; scenes with bright
+            // daylight fog (e.g. the RPG vale) set horizonOverride = null to
+            // use the atmospheric horizon color computed above.
+            if (this.horizonOverride !== null) bottomColor.setHex(this.horizonOverride);
 
             uniforms.topColor.value.copy(topColor);
             uniforms.bottomColor.value.copy(bottomColor);

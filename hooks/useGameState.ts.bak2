@@ -2,10 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { PageType } from '../components/ui/menus/Navigation';
 
 export type GameState = 'MENU' | 'LOADING' | 'READY' | 'PLAYING';
-export type ActiveScene = 'dev' | 'starter' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'defense' | 'roguelike' | 'gameLoop' | 'darkest' | 'loop' | 'rpg';
+export type ActiveScene = 'dev' | 'starter' | 'land' | 'combat' | 'mp' | 'singleBiome' | 'town' | 'town2' | 'tdgame' | 'defense' | 'roguelike' | 'gameLoop' | 'darkest' | 'loop';
 
 const validPages: PageType[] = ['home', 'game', 'music', 'about', 'shop'];
-const validScenes: ActiveScene[] = ['dev', 'starter', 'land', 'combat', 'mp', 'singleBiome', 'town', 'town2', 'tdgame', 'defense', 'roguelike', 'gameLoop', 'darkest', 'loop', 'rpg'];
+const validScenes: ActiveScene[] = ['dev', 'starter', 'land', 'combat', 'mp', 'singleBiome', 'town', 'town2', 'tdgame', 'defense', 'roguelike', 'gameLoop', 'darkest', 'loop'];
 const defaultScene: ActiveScene = 'starter';
 
 function parseHashState(): { page: PageType; scene: ActiveScene } {

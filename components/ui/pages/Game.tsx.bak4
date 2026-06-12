@@ -11,7 +11,6 @@ import Defense from '../../Defense';
 import RoguelikeScene from '../../RoguelikeScene';
 import DarkestScene from '../../DarkestScene';
 import Loop from '../../Loop';
-import RPGScene from '../../../RPG/RPGScene';
 import { useGlobalState } from '../../../contexts/GlobalContext';
 import { isSupabaseEnabled } from '../../../lib/supabase';
 import { signIn, signUp } from '../../../lib/auth';
@@ -1358,7 +1357,7 @@ export const Game: React.FC = () => {
 
     const isSystemReady = isEnvironmentBuilt && isVisualLoadingDone;
 
-    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'defense' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest' && activeScene !== 'loop' && activeScene !== 'rpg';
+    const showGlobalHUD = !isCharacterCreatorMode && !isHUDDisabled && activeScene !== 'combat' && activeScene !== 'defense' && activeScene !== 'roguelike' && activeScene !== 'gameLoop' && activeScene !== 'darkest' && activeScene !== 'loop';
     const showCreatorPanel = isCharacterCreatorMode && gameState === 'PLAYING';
 
     // Auth gate: if Supabase is configured and user is not logged in, block access
@@ -1618,13 +1617,6 @@ export const Game: React.FC = () => {
                                                 scheduleVisualLoadingDone();
                                             }}
                                         />
-                                    ) : activeScene === 'rpg' ? (
-                                        <RPGScene
-                                            onReady={() => {
-                                                handleEnvironmentReady();
-                                                scheduleVisualLoadingDone();
-                                            }}
-                                        />
                                     ) : (
                                         <DevScene 
                                             activeScene={activeScene}
@@ -1803,7 +1795,7 @@ export const Game: React.FC = () => {
 
                             {/* Tutorial Panel */}
                             {(() => {
-                                if (activeScene === 'defense' || activeScene === 'rpg') return null;
+                                if (activeScene === 'defense') return null;
                                 const stickCount = inventory.filter(i => i?.name === 'Stick').reduce((sum, i) => sum + (i?.count || 0), 0);
                                 const stoneCount = inventory.filter(i => i?.name === 'Stone').reduce((sum, i) => sum + (i?.count || 0), 0);
                                 const porkCount = inventory.filter(i => i?.name === 'Pork' || i?.name === 'Porkchop').reduce((sum, i) => sum + (i?.count || 0), 0);

@@ -1,8 +1,13 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RenderManager } from '../game/core/RenderManager';
 import { PlayerModel } from '../game/model/PlayerModel';
+import { PunchAction } from '../game/animator/actions/PunchAction';
+import { WeaponAction } from '../game/animator/actions/WeaponAction';
+import { IdleAction } from '../game/animator/actions/IdleAction';
+import { MovementAction } from '../game/animator/actions/MovementAction';
 import type { PlayerConfig } from '../types';
+import { DEFAULT_CONFIG } from '../types';
 
 interface DefenseProps {
   config: PlayerConfig;
@@ -20,11 +25,36 @@ type CharacterMarker = {
   team: Team;
 };
 
+type UnitState = 'idle' | 'moving' | 'attackingGate' | 'attackingUnit' | 'advancing' | 'dead';
+
 type DefenseUnit = {
   group: THREE.Group;
   team: Team;
   target: THREE.Vector3;
+  finalTarget?: THREE.Vector3; // Ultimate destination when pathing around obstacles
   speed: number;
+  state: UnitState;
+  id: string;
+  radius: number;
+  isMoving: boolean;
+  walkCycle: number;
+  attackCooldown: number;
+  health: number;
+  maxHealth: number;
+  healthBar?: {
+    bg: THREE.Mesh;
+    fill: THREE.Mesh;
+    container: THREE.Group;
+    unitId: string;
+  };
+  model: PlayerModel;
+  attackTimer: number;
+  isAttacking: boolean;
+  config: PlayerConfig;
+  deathTimer?: number;
+  isDead?: boolean;
+  damageDealt?: number;
+  name?: string;
 };
 
 type RectBlocker = {
@@ -34,11 +64,33 @@ type RectBlocker = {
   maxZ: number;
 };
 
+type GridCell = {
+  occupiedBy: string | null;
+  blocked: boolean;
+  height: number;
+};
+
 type DefenseSceneObjects = {
   playerUnits: DefenseUnit[];
   enemyUnits: DefenseUnit[];
   walkablePlane: THREE.Mesh;
   blockers: RectBlocker[];
+  walkableMeshes: THREE.Object3D[];
+  grid: Map<string, GridCell>;
+  gate: {
+    health: number;
+    maxHealth: number;
+    isBroken: boolean;
+    position: THREE.Vector3;
+    radius: number;
+    mesh?: THREE.Mesh;
+    blockers: RectBlocker[];
+  };
+  towerTops: {
+    position: THREE.Vector3;
+    radius: number;
+    height: number;
+  }[];
 };
 
 const gridCellSize = 0.8;
@@ -52,6 +104,103 @@ const walkableBounds = {
   maxZ: 24,
 };
 
+const cameraPanSpeed = 12;
+const cameraBounds = {
+  minX: -35,
+  maxX: 35,
+  minZ: -50,
+  maxZ: 32,
+};
+
+const UNIT_MAX_HEALTH = 100;
+
+const unitNames = ['Ash', 'Blade', 'Cinder', 'Drake', 'Ember', 'Frost', 'Gale', 'Hawk', 'Iron', 'Jade'];
+const enemyNames = ['Grunt', 'Scout', 'Raider', 'Marauder', 'Savage', 'Brute', 'Slasher', 'Stalker', 'Hunter', 'Reaver'];
+
+const ENEMY_BASE_CONFIGS: PlayerConfig[] = [
+  {
+    ...DEFAULT_CONFIG,
+    bodyType: 'male', bodyVariant: 'muscular', outfit: 'peasant',
+    skinColor: '#8a6040', hairColor: '#1a1a1a', hairStyle: 'bald',
+    shirtColor: '#3a2a1a', shirtColor2: '#1f1408', pantsColor: '#2d1f10',
+    bootsColor: '#1a1008',
+    selectedItem: 'Axe', weaponStance: 'side',
+    equipment: {
+      ...DEFAULT_CONFIG.equipment,
+      shirt: true, pants: true, shoes: true,
+      leatherArmor: true, bracers: true, belt: true, mask: true,
+    },
+  },
+  {
+    ...DEFAULT_CONFIG,
+    bodyType: 'male', bodyVariant: 'heavy', outfit: 'peasant',
+    skinColor: '#6b4226', hairColor: '#2d1a00', hairStyle: 'crew',
+    shirtColor: '#4a3020', shirtColor2: '#2a1a0a', pantsColor: '#3a2810',
+    bootsColor: '#1a1008',
+    selectedItem: 'Axe', weaponStance: 'side',
+    equipment: {
+      ...DEFAULT_CONFIG.equipment,
+      shirt: true, pants: true, shoes: true,
+      heavyLeatherArmor: true, shoulders: true, bracers: true, belt: true,
+    },
+  },
+  {
+    ...DEFAULT_CONFIG,
+    bodyType: 'male', bodyVariant: 'average', outfit: 'peasant',
+    skinColor: '#a0522d', hairColor: '#3d2b1f', hairStyle: 'crew',
+    shirtColor: '#1a1a1a', shirtColor2: '#0d0d0d', pantsColor: '#2a2a2a',
+    bootsColor: '#0d0d0d',
+    selectedItem: 'Knife', weaponStance: 'side',
+    equipment: {
+      ...DEFAULT_CONFIG.equipment,
+      shirt: true, pants: true, shoes: true,
+      leatherArmor: true, hood: true, bracers: true, belt: true,
+    },
+  },
+];
+
+const FRIENDLY_BASE_CONFIGS: PlayerConfig[] = [
+  {
+    ...DEFAULT_CONFIG,
+    bodyType: 'male', bodyVariant: 'muscular', outfit: 'warrior',
+    skinColor: '#ffdbac', hairColor: '#c8a264', hairStyle: 'crew',
+    shirtColor: '#2c5282', shirtColor2: '#1a365d', pantsColor: '#2d3748',
+    bootsColor: '#1a202c',
+    selectedItem: 'Sword', weaponStance: 'side',
+    equipment: {
+      ...DEFAULT_CONFIG.equipment,
+      shirt: true, pants: true, shoes: true,
+      plateMail: true, helm: true, shield: true, bracers: true, belt: true, cape: true,
+    },
+  },
+  {
+    ...DEFAULT_CONFIG,
+    bodyType: 'female', bodyVariant: 'average', outfit: 'warrior',
+    skinColor: '#f0c896', hairColor: '#8b4513', hairStyle: 'crew',
+    shirtColor: '#276749', shirtColor2: '#1c4532', pantsColor: '#2f855a',
+    bootsColor: '#1a202c',
+    selectedItem: 'Bow', weaponStance: 'side',
+    equipment: {
+      ...DEFAULT_CONFIG.equipment,
+      shirt: true, pants: true, shoes: true,
+      leatherArmor: true, hood: true, bracers: true, belt: true, cape: true,
+    },
+  },
+  {
+    ...DEFAULT_CONFIG,
+    bodyType: 'male', bodyVariant: 'average', outfit: 'warrior',
+    skinColor: '#ffe0bd', hairColor: '#d4a017', hairStyle: 'crew',
+    shirtColor: '#744210', shirtColor2: '#5a3000', pantsColor: '#744210',
+    bootsColor: '#2d1b0a',
+    selectedItem: 'Sword', weaponStance: 'side',
+    equipment: {
+      ...DEFAULT_CONFIG.equipment,
+      shirt: true, pants: true, shoes: true,
+      quiltedArmor: true, shoulders: true, bracers: true, belt: true,
+    },
+  },
+];
+
 const enemyMarkers: CharacterMarker[] = [
   { x: -10, z: -33, rot: 0.04, scale: 0.86, tint: '#f97316', team: 'enemy' },
   { x: 0, z: -36, rot: -0.02, scale: 0.9, tint: '#ef4444', team: 'enemy' },
@@ -63,6 +212,17 @@ const playerMarkers: CharacterMarker[] = [
   { x: 0, z: 14, rot: Math.PI, scale: 0.98, tint: '#d9f99d', team: 'player' },
   { x: 8, z: 12, rot: Math.PI, scale: 1.08, tint: '#bfdbfe', team: 'player' },
 ];
+
+let unitIdCounter = 0;
+function generateUnitId(): string {
+  return `unit_${++unitIdCounter}_${Date.now()}`;
+}
+
+function getGridKey(x: number, z: number): string {
+  const gx = Math.round(x / gridCellSize);
+  const gz = Math.round(z / gridCellSize);
+  return `${gx},${gz}`;
+}
 
 function makeMaterial(color: number, roughness = 0.82) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness: 0.04 });
@@ -108,7 +268,141 @@ function isBlocked(point: THREE.Vector3, blockers: RectBlocker[]) {
   ));
 }
 
-function snapToGrid(point: THREE.Vector3, blockers: RectBlocker[]) {
+function isPositionBlockedWithRadius(pos: THREE.Vector3, radius: number, blockers: RectBlocker[]): boolean {
+  // Check bounds with radius
+  if (pos.x - radius < walkableBounds.minX || pos.x + radius > walkableBounds.maxX) return true;
+  if (pos.z - radius < walkableBounds.minZ || pos.z + radius > walkableBounds.maxZ) return true;
+  
+  // Check if in gate (gate is walkable)
+  if (isInGate(pos)) return false;
+  
+  // Check each blocker with radius - use circle-rectangle collision
+  for (const blocker of blockers) {
+    // Find closest point on rectangle to circle center
+    const closestX = Math.max(blocker.minX, Math.min(pos.x, blocker.maxX));
+    const closestZ = Math.max(blocker.minZ, Math.min(pos.z, blocker.maxZ));
+    
+    // Calculate distance from closest point to circle center
+    const distX = pos.x - closestX;
+    const distZ = pos.z - closestZ;
+    const distSq = distX * distX + distZ * distZ;
+    
+    // If distance is less than radius, there's a collision
+    if (distSq < radius * radius) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+function isPathClear(
+  from: THREE.Vector3,
+  to: THREE.Vector3,
+  radius: number,
+  blockers: RectBlocker[]
+): boolean {
+  // Check if direct path between points is clear
+  const direction = to.clone().sub(from).normalize();
+  const distance = from.distanceTo(to);
+  const steps = Math.ceil(distance / 0.3); // Check every 0.3 units
+  
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const checkPoint = from.clone().lerp(to, t);
+    if (isPositionBlockedWithRadius(checkPoint, radius, blockers)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function findPathAroundObstacles(
+  start: THREE.Vector3,
+  target: THREE.Vector3,
+  radius: number,
+  blockers: RectBlocker[],
+  grid: Map<string, GridCell>,
+  excludeUnitId?: string
+): THREE.Vector3 | null {
+  // If direct path is clear, go straight there
+  if (isPathClear(start, target, radius, blockers)) {
+    return target;
+  }
+  
+  // Try to find a waypoint around the obstacle
+  // Strategy: try points at increasing distances perpendicular to the obstacle
+  const direction = target.clone().sub(start).normalize();
+  const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x); // 90 degree rotation
+  
+  // Find the approximate distance to the blocking obstacle
+  let blockedAt = 0.5;
+  for (let d = 0.5; d < start.distanceTo(target); d += 0.5) {
+    const checkPoint = start.clone().addScaledVector(direction, d);
+    if (isPositionBlockedWithRadius(checkPoint, radius, blockers)) {
+      blockedAt = d;
+      break;
+    }
+  }
+  
+  // Try waypoints at various offsets from the blocking point
+  const blockingPoint = start.clone().addScaledVector(direction, blockedAt);
+  
+  // Try different angles and distances
+  const testAngles = [30, 60, 90, 120, 150, -30, -60, -90, -120, -150];
+  const testDistances = [2, 3, 4, 5];
+  
+  let bestWaypoint: THREE.Vector3 | null = null;
+  let bestScore = Infinity;
+  
+  for (const angleDeg of testAngles) {
+    for (const dist of testDistances) {
+      const angleRad = (angleDeg * Math.PI) / 180;
+      
+      // Create rotation matrix for this angle around Y axis
+      const cos = Math.cos(angleRad);
+      const sin = Math.sin(angleRad);
+      const rotatedDir = new THREE.Vector3(
+        direction.x * cos - direction.z * sin,
+        0,
+        direction.x * sin + direction.z * cos
+      );
+      
+      const waypoint = blockingPoint.clone().addScaledVector(rotatedDir, dist);
+      waypoint.x = THREE.MathUtils.clamp(waypoint.x, walkableBounds.minX, walkableBounds.maxX);
+      waypoint.z = THREE.MathUtils.clamp(waypoint.z, walkableBounds.minZ, walkableBounds.maxZ);
+      
+      // Check if waypoint is valid
+      if (isPositionBlockedWithRadius(waypoint, radius, blockers)) continue;
+      if (isCellOccupied(waypoint, grid, excludeUnitId)) continue;
+      
+      // Check if we can reach the waypoint
+      if (!isPathClear(start, waypoint, radius, blockers)) continue;
+      
+      // Check if we can get closer to target from this waypoint
+      const progressFromWaypoint = isPathClear(waypoint, target, radius, blockers);
+      
+      // Score: prefer waypoints that have clear path to target, then closest to target
+      const distToTarget = waypoint.distanceTo(target);
+      const score = (progressFromWaypoint ? 0 : 1000) + distToTarget;
+      
+      if (score < bestScore) {
+        bestScore = score;
+        bestWaypoint = waypoint;
+      }
+    }
+  }
+  
+  // If we found a good waypoint, snap it to grid
+  if (bestWaypoint) {
+    return snapToGrid(bestWaypoint, blockers, grid, excludeUnitId);
+  }
+  
+  // Fallback: use snapToGrid to find any valid nearby point toward target
+  return snapToGrid(target, blockers, grid, excludeUnitId);
+}
+
+function snapToGrid(point: THREE.Vector3, blockers: RectBlocker[], grid: Map<string, GridCell>, excludeUnitId?: string) {
   const snapped = new THREE.Vector3(
     Math.round(point.x / gridCellSize) * gridCellSize,
     0.08,
@@ -118,7 +412,7 @@ function snapToGrid(point: THREE.Vector3, blockers: RectBlocker[]) {
   snapped.x = THREE.MathUtils.clamp(snapped.x, walkableBounds.minX, walkableBounds.maxX);
   snapped.z = THREE.MathUtils.clamp(snapped.z, walkableBounds.minZ, walkableBounds.maxZ);
 
-  if (!isBlocked(snapped, blockers)) return snapped;
+  if (!isBlocked(snapped, blockers) && !isCellOccupied(snapped, grid, excludeUnitId)) return snapped;
 
   const searchRadiusCells = 5;
   for (let radius = 1; radius <= searchRadiusCells; radius += 1) {
@@ -130,12 +424,62 @@ function snapToGrid(point: THREE.Vector3, blockers: RectBlocker[]) {
           0.08,
           snapped.z + dz * gridCellSize
         );
-        if (!isBlocked(candidate, blockers)) return candidate;
+        if (!isBlocked(candidate, blockers) && !isCellOccupied(candidate, grid, excludeUnitId)) return candidate;
       }
     }
   }
 
   return null;
+}
+
+function isCellOccupied(point: THREE.Vector3, grid: Map<string, GridCell>, excludeUnitId?: string): boolean {
+  const key = getGridKey(point.x, point.z);
+  const cell = grid.get(key);
+  if (!cell) return false;
+  if (cell.blocked) return true;
+  if (cell.occupiedBy && cell.occupiedBy !== excludeUnitId) return true;
+  return false;
+}
+
+function updateUnitGridPosition(unit: DefenseUnit, grid: Map<string, GridCell>) {
+  const oldKey = unit.group.userData.gridKey as string | undefined;
+  const newKey = getGridKey(unit.group.position.x, unit.group.position.z);
+  
+  if (oldKey && oldKey !== newKey) {
+    const oldCell = grid.get(oldKey);
+    if (oldCell && oldCell.occupiedBy === unit.id) {
+      oldCell.occupiedBy = null;
+    }
+  }
+  
+  let cell = grid.get(newKey);
+  if (!cell) {
+    cell = { occupiedBy: null, blocked: false, height: 0 };
+    grid.set(newKey, cell);
+  }
+  cell.occupiedBy = unit.id;
+  unit.group.userData.gridKey = newKey;
+}
+
+function clearUnitGridPosition(unit: DefenseUnit, grid: Map<string, GridCell>) {
+  const key = unit.group.userData.gridKey as string | undefined;
+  if (key) {
+    const cell = grid.get(key);
+    if (cell && cell.occupiedBy === unit.id) {
+      cell.occupiedBy = null;
+    }
+  }
+}
+
+function getGroundHeightAt(x: number, z: number, raycaster: THREE.Raycaster, walkableMeshes: THREE.Object3D[]): number {
+  const origin = new THREE.Vector3(x, 100, z);
+  const down = new THREE.Vector3(0, -1, 0);
+  raycaster.set(origin, down);
+  const hits = raycaster.intersectObjects(walkableMeshes, true);
+  if (hits.length > 0) {
+    return hits[0].point.y;
+  }
+  return 0.08;
 }
 
 function createSelectionMarker() {
@@ -159,6 +503,179 @@ function createSelectionMarker() {
 
   marker.visible = false;
   return marker;
+}
+
+function createHealthBar(team: Team, unitId: string): DefenseUnit['healthBar'] {
+  const container = new THREE.Group();
+  container.renderOrder = 10;
+  
+  const bgGeometry = new THREE.PlaneGeometry(0.8, 0.12);
+  const bgMaterial = new THREE.MeshBasicMaterial({ 
+    color: 0x000000, 
+    transparent: true, 
+    opacity: 0.6,
+    depthTest: true,  // Respect depth - don't show through walls
+    depthWrite: false,
+  });
+  const bg = new THREE.Mesh(bgGeometry, bgMaterial);
+  bg.renderOrder = 10;
+  
+  const fillGeometry = new THREE.PlaneGeometry(0.76, 0.08);
+  const fillColor = team === 'player' ? 0x22c55e : 0xef4444;
+  const fillMaterial = new THREE.MeshBasicMaterial({ 
+    color: fillColor,
+    depthTest: true,  // Respect depth - don't show through walls
+    depthWrite: false,
+  });
+  const fill = new THREE.Mesh(fillGeometry, fillMaterial);
+  fill.renderOrder = 11;
+  fill.position.x = -0.38;
+  fill.geometry.translate(0.38, 0, 0);
+  
+  container.add(bg);
+  container.add(fill);
+  
+  return { bg, fill, container, unitId };
+}
+
+function updateHealthBar(unit: DefenseUnit, camera?: THREE.Camera) {
+  if (!unit.healthBar || !camera) return;
+  
+  // Hide health bar if unit is dead
+  if (unit.health <= 0) {
+    unit.healthBar.container.visible = false;
+    return;
+  }
+  unit.healthBar.container.visible = true;
+  
+  // Update health fill
+  const healthPercent = Math.max(0, unit.health / unit.maxHealth);
+  unit.healthBar.fill.scale.x = healthPercent;
+  
+  // Get unit world position
+  const worldPos = new THREE.Vector3();
+  unit.group.getWorldPosition(worldPos);
+  
+  // Position health bar above unit
+  unit.healthBar.container.position.set(
+    worldPos.x,
+    worldPos.y + 2.8,
+    worldPos.z
+  );
+  
+  // Billboard toward camera
+  unit.healthBar.container.lookAt(camera.position);
+}
+
+function createClickIndicator(): THREE.Group {
+  const container = new THREE.Group();
+  
+  const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.9 });
+  const curveMaterial = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.7 });
+  
+  // Create three curling arrows
+  for (let i = 0; i < 3; i++) {
+    const arrowGroup = new THREE.Group();
+    const angle = (i * 120) * (Math.PI / 180);
+    arrowGroup.rotation.y = angle;
+    
+    // Curved path using small segments
+    const curvePoints: THREE.Vector3[] = [];
+    for (let t = 0; t <= 1; t += 0.1) {
+      const radius = 0.6 * (1 - t);
+      const height = 0.3 * Math.sin(t * Math.PI);
+      const x = Math.cos(t * Math.PI * 0.5) * radius;
+      const z = Math.sin(t * Math.PI * 0.5) * radius;
+      curvePoints.push(new THREE.Vector3(x, height, z));
+    }
+    
+    // Create curve mesh
+    const curveGeometry = new THREE.TubeGeometry(
+      new THREE.CatmullRomCurve3(curvePoints),
+      8,
+      0.03,
+      6,
+      false
+    );
+    const curveMesh = new THREE.Mesh(curveGeometry, curveMaterial);
+    arrowGroup.add(curveMesh);
+    
+    // Arrow head at the center
+    const headGeometry = new THREE.ConeGeometry(0.1, 0.25, 4);
+    const headMesh = new THREE.Mesh(headGeometry, arrowMaterial);
+    headMesh.rotation.x = -Math.PI / 2;
+    headMesh.position.set(0, 0.1, 0);
+    arrowGroup.add(headMesh);
+    
+    container.add(arrowGroup);
+  }
+  
+  // Center ring
+  const ringGeometry = new THREE.RingGeometry(0.15, 0.2, 16);
+  const ringMesh = new THREE.Mesh(ringGeometry, new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.6, side: THREE.DoubleSide }));
+  ringMesh.rotation.x = -Math.PI / 2;
+  ringMesh.position.y = 0.05;
+  container.add(ringMesh);
+  
+  container.visible = false;
+  return container;
+}
+
+type ActiveClickIndicator = {
+  group: THREE.Group;
+  startTime: number;
+  duration: number;
+  startY: number;
+};
+
+let globalClickIndicator: THREE.Group | null = null;
+let activeClickIndicators: ActiveClickIndicator[] = [];
+
+function showClickIndicator(position: THREE.Vector3, scene?: THREE.Scene) {
+  if (!globalClickIndicator || !scene) return;
+  
+  const indicator = globalClickIndicator.clone();
+  indicator.position.copy(position);
+  indicator.position.y += 0.5;
+  indicator.visible = true;
+  scene.add(indicator);
+  
+  activeClickIndicators.push({
+    group: indicator,
+    startTime: performance.now(),
+    duration: 1000, // 1 second animation
+    startY: indicator.position.y,
+  });
+}
+
+function updateClickIndicators(dt: number) {
+  const now = performance.now();
+  
+  for (let i = activeClickIndicators.length - 1; i >= 0; i--) {
+    const indicator = activeClickIndicators[i];
+    const elapsed = now - indicator.startTime;
+    const progress = elapsed / indicator.duration;
+    
+    if (progress >= 1) {
+      indicator.group.parent?.remove(indicator.group);
+      activeClickIndicators.splice(i, 1);
+      continue;
+    }
+    
+    // Animate: rise up, scale down, fade out
+    indicator.group.position.y = indicator.startY + progress * 0.5;
+    indicator.group.rotation.y += dt * 3;
+    
+    const scale = 1 - progress * 0.3;
+    indicator.group.scale.setScalar(scale);
+    
+    // Fade out children
+    indicator.group.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+        child.material.opacity = 0.9 * (1 - progress);
+      }
+    });
+  }
 }
 
 function findDefenseUnit(object: THREE.Object3D | null): DefenseUnit | null {
@@ -207,7 +724,7 @@ function addGrid(scene: THREE.Scene, blockers: RectBlocker[]) {
   scene.add(group);
 }
 
-function addWall(scene: THREE.Scene, blockers: RectBlocker[]) {
+function addWall(scene: THREE.Scene, blockers: RectBlocker[], walkableMeshes: THREE.Object3D[], gateRef: { current: DefenseSceneObjects['gate'] }) {
   const wallHeight = 3.2;
   const wallDepth = 1.4;
   const wallColor = 0x475569;
@@ -217,21 +734,55 @@ function addWall(scene: THREE.Scene, blockers: RectBlocker[]) {
   addBox(scene, [3.8, 4.5, 1.8], [-gateHalfWidth - 1.8, 2.25, wallZ], 0x5b677a);
   addBox(scene, [3.8, 4.5, 1.8], [gateHalfWidth + 1.8, 2.25, wallZ], 0x5b677a);
 
-  const gate = addBox(scene, [gateHalfWidth * 2, 2.4, 0.35], [0, 1.2, wallZ + 0.65], 0x4b2f20);
-  gate.rotation.x = -0.16;
+  const gateMesh = addBox(scene, [gateHalfWidth * 2, 2.4, 0.35], [0, 1.2, wallZ + 0.65], 0x4b2f20);
+  gateMesh.rotation.x = -0.16;
+  gateMesh.userData.isGate = true;
 
+  // Gate blockers that will be removed when gate is broken
+  const gateBlockers: RectBlocker[] = [];
+  addRectBlocker(gateBlockers, -gateHalfWidth - 1.8, wallZ, 3.8, 2.1);
+  addRectBlocker(gateBlockers, gateHalfWidth + 1.8, wallZ, 3.8, 2.1);
+
+  gateRef.current = {
+    health: 100,
+    maxHealth: 100,
+    isBroken: false,
+    position: new THREE.Vector3(0, 0, wallZ + 0.65),
+    radius: gateHalfWidth,
+    mesh: gateMesh,
+    blockers: gateBlockers,
+  };
+
+  // Add wall blockers (not gate)
   addRectBlocker(blockers, -16, wallZ, 24, wallDepth + 0.35);
   addRectBlocker(blockers, 16, wallZ, 24, wallDepth + 0.35);
-  addRectBlocker(blockers, -gateHalfWidth - 1.8, wallZ, 3.8, 2.1);
-  addRectBlocker(blockers, gateHalfWidth + 1.8, wallZ, 3.8, 2.1);
+  // Note: gate blockers are separate and managed by gate object
 }
 
-function addWatchtower(scene: THREE.Scene, blockers: RectBlocker[], x: number, z: number, mirror: 1 | -1) {
+function addWatchtower(
+  scene: THREE.Scene,
+  blockers: RectBlocker[],
+  walkableMeshes: THREE.Object3D[],
+  towerTops: DefenseSceneObjects['towerTops'],
+  x: number,
+  z: number,
+  mirror: 1 | -1
+) {
   const tower = new THREE.Group();
   scene.add(tower);
 
-  addBox(tower, [5, 5.4, 5], [x, 2.7, z], 0x334155);
-  addBox(tower, [6.4, 0.55, 6.4], [x, 5.68, z], 0x64748b);
+  const towerBase = addBox(tower, [5, 5.4, 5], [x, 2.7, z], 0x334155);
+  towerBase.userData.isTowerWall = true;
+
+  const platform = addBox(tower, [6.4, 0.55, 6.4], [x, 5.68, z], 0x64748b);
+  platform.userData.isWalkable = true;
+  walkableMeshes.push(platform);
+
+  towerTops.push({
+    position: new THREE.Vector3(x, 5.68, z),
+    radius: 3.2,
+    height: 5.68,
+  });
 
   const railColor = 0x94a3b8;
   addBox(tower, [6.6, 0.55, 0.35], [x, 6.25, z - 3.1], railColor);
@@ -239,14 +790,24 @@ function addWatchtower(scene: THREE.Scene, blockers: RectBlocker[], x: number, z
   addBox(tower, [0.35, 0.55, 6.6], [x - 3.1, 6.25, z], railColor);
   addBox(tower, [0.35, 0.55, 6.6], [x + 3.1, 6.25, z], railColor);
 
-  const stepCount = 9;
-  const stepWidth = 3.6;
-  const stepDepth = 0.75;
+  const stepCount = 12;
+  const stepWidth = 1.2;
+  const stepDepth = 0.6;
+  const stairStartX = x + mirror * 4.5;
+  const stairStartZ = z + 1.5;
+  const stairEndX = x + mirror * 1.5;
+  const stairEndZ = z + 0.5;
+  
   for (let i = 0; i < stepCount; i += 1) {
     const t = i / (stepCount - 1);
-    const stepX = x + mirror * (3.6 + t * 5.2);
-    const stepZ = z + 1.8 + t * 1.4;
-    addBox(tower, [stepWidth, 0.22 + t * 0.26, stepDepth], [stepX, 0.11 + t * 2.65, stepZ], 0x526071);
+    const stepX = stairStartX + (stairEndX - stairStartX) * t;
+    const stepZ = stairStartZ + (stairEndZ - stairStartZ) * t;
+    const stepY = 0.05 + t * 5.4;
+    const stepMesh = addBox(tower, [stepWidth, 0.15, stepDepth], [stepX, stepY, stepZ], 0x526071);
+    stepMesh.userData.isWalkable = true;
+    stepMesh.userData.isStair = true;
+    stepMesh.userData.stairHeight = stepY;
+    walkableMeshes.push(stepMesh);
   }
 
   addRectBlocker(blockers, x, z, 5.2, 5.2);
@@ -272,17 +833,6 @@ function addCharacter(scene: THREE.Scene, baseConfig: PlayerConfig, marker: Char
   const characterConfig: PlayerConfig = {
     ...baseConfig,
     tintColor: marker.tint,
-    shirtColor: index % 2 === 0 ? marker.tint : baseConfig.shirtColor,
-    shirtColor2: index % 2 === 0 ? '#1f2937' : marker.tint,
-    pantsColor: index % 3 === 0 ? '#1f2937' : baseConfig.pantsColor,
-    selectedItem: index % 2 === 0 ? 'Sword' : baseConfig.selectedItem,
-    equipment: {
-      ...baseConfig.equipment,
-      shirt: true,
-      pants: true,
-      shoes: true,
-      ...(index % 2 === 0 ? { shield: true } : {}),
-    },
   };
 
   const model = new PlayerModel(characterConfig);
@@ -298,8 +848,25 @@ function addCharacter(scene: THREE.Scene, baseConfig: PlayerConfig, marker: Char
     group: model.group,
     team: marker.team,
     target: model.group.position.clone(),
-    speed: marker.team === 'player' ? 7.5 : 0,
+    speed: marker.team === 'player' ? 7.5 : 3.5,
+    state: 'idle',
+    id: generateUnitId(),
+    radius: 0.35,
+    isMoving: false,
+    walkCycle: 0,
+    attackCooldown: 0,
+    health: UNIT_MAX_HEALTH,
+    maxHealth: UNIT_MAX_HEALTH,
+    model,
+    attackTimer: 0,
+    isAttacking: false,
+    config: characterConfig,
+    damageDealt: 0,
+    name: marker.team === 'player' ? unitNames[index % unitNames.length] : enemyNames[index % enemyNames.length],
   };
+  
+  unit.healthBar = createHealthBar(marker.team, unit.id);
+  scene.add(unit.healthBar.container);
 
   model.group.userData.defenseUnit = unit;
   model.group.traverse((object) => {
@@ -313,8 +880,406 @@ function addCharacter(scene: THREE.Scene, baseConfig: PlayerConfig, marker: Char
   return unit;
 }
 
+function updateUnitAnimation(unit: DefenseUnit, dt: number) {
+  // Handle death animation
+  if (unit.state === 'dead' || unit.health <= 0) {
+    if (!unit.isDead) {
+      unit.isDead = true;
+      unit.state = 'dead';
+      unit.deathTimer = 0;
+      unit.isMoving = false;
+      unit.isAttacking = false;
+    }
+    
+    // Animate death - fall to ground over ~1 second
+    unit.deathTimer = (unit.deathTimer || 0) + dt;
+    const deathDuration = 1.0;
+    const progress = Math.min(unit.deathTimer / deathDuration, 1.0);
+    
+    // Rotate to lying position (on back)
+    const targetRotationX = -Math.PI / 2; // Lying on back
+    unit.group.rotation.x = THREE.MathUtils.lerp(0, targetRotationX, progress);
+    
+    // Lower to ground
+    const groundY = unit.group.userData.baseY || 0.08;
+    unit.group.position.y = THREE.MathUtils.lerp(groundY + 1.5, groundY - 0.3, progress);
+    
+    // Hide health bar immediately on death
+    if (unit.healthBar) {
+      unit.healthBar.container.visible = false;
+    }
+    
+    return; // Don't play other animations when dead
+  }
+  
+  // Update attack timer and trigger attack animations
+  if (unit.isAttacking) {
+    unit.attackTimer += dt;
+    const attackDuration = 0.8;
+    
+    // Create mock player object for action system
+    const mockPlayer = {
+      config: unit.config,
+      model: unit.model,
+      parts: unit.model.parts,
+      combat: { punchTimer: unit.attackTimer, isCombatStance: true },
+      locomotion: { walkTime: unit.walkCycle, isMoving: unit.isMoving },
+      isCombatStance: true,
+      isJumping: false,
+    };
+    
+    const damp = 15 * dt;
+    
+    // Use punch action for attack animation
+    PunchAction.animate(mockPlayer, unit.model.parts, dt, damp, unit.isMoving);
+    
+    // End attack animation after duration
+    if (unit.attackTimer >= attackDuration) {
+      unit.isAttacking = false;
+      unit.attackTimer = 0;
+    }
+  } else if (unit.isMoving) {
+    // Create mock player with forward movement input (unit always faces target)
+    const mockPlayer = {
+      config: unit.config,
+      model: unit.model,
+      parts: unit.model.parts,
+      combat: { isCombatStance: true },
+      locomotion: { 
+        walkTime: unit.walkCycle, 
+        isMoving: true,
+        isCrouching: false,
+        lastStepCount: unit.group.userData.lastStepCount || 0,
+        didStep: false,
+      },
+      isCombatStance: true,
+      isJumping: false,
+      locomotionCadenceScale: 0.8, // Slightly slower for tactical movement
+    };
+    
+    // Always use forward walking since unit rotates to face target
+    const input = { 
+      x: 0, 
+      y: -1, 
+      isRunning: false,
+      jump: false,
+      isDead: false,
+      isPickingUp: false,
+      attack1: false,
+      attack2: false,
+      interact: false,
+      combat: false,
+      toggleFirstPerson: false,
+      wave: false,
+      leftHandWave: false,
+      summon: false,
+      toggleBuilder: false,
+      rotateGhost: false,
+      fireball: false,
+      crouch: false,
+    };
+    const damp = 12 * dt;
+    
+    // Use proper MovementAction for walk animation
+    MovementAction.animate(mockPlayer, unit.model.parts, dt, damp, input, false);
+    
+    // Store walkTime back to unit
+    unit.walkCycle = mockPlayer.locomotion.walkTime;
+    unit.group.userData.lastStepCount = mockPlayer.locomotion.lastStepCount;
+    
+    // Maintain Y position from ground height
+    unit.group.position.y = unit.group.userData.baseY;
+  } else {
+    // Idle animation
+    const mockPlayer = {
+      config: unit.config,
+      model: unit.model,
+      parts: unit.model.parts,
+      combat: { isCombatStance: true },
+      locomotion: { walkTime: unit.walkCycle, isMoving: false },
+      isCombatStance: true,
+      isJumping: false,
+    };
+    
+    const damp = 10 * dt;
+    IdleAction.animate(mockPlayer, unit.model.parts, damp, false);
+    
+    // Reset walk cycle when idle
+    unit.walkCycle = 0;
+    unit.group.position.y = unit.group.userData.baseY;
+  }
+  
+  updateHealthBar(unit);
+}
+
+function hasLineOfSight(
+  from: THREE.Vector3,
+  to: THREE.Vector3,
+  blockers: RectBlocker[],
+  fromUnitRadius: number
+): boolean {
+  // Check if line between from and to intersects any blockers
+  const direction = to.clone().sub(from).normalize();
+  const distance = from.distanceTo(to);
+  const steps = Math.ceil(distance / 0.5); // Check every 0.5 units
+  
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const checkPoint = from.clone().lerp(to, t);
+    
+    // Check if this point is inside any blocker (with unit radius buffer)
+    for (const blocker of blockers) {
+      if (
+        checkPoint.x >= blocker.minX - fromUnitRadius &&
+        checkPoint.x <= blocker.maxX + fromUnitRadius &&
+        checkPoint.z >= blocker.minZ - fromUnitRadius &&
+        checkPoint.z <= blocker.maxZ + fromUnitRadius
+      ) {
+        return false; // Line of sight blocked
+      }
+    }
+  }
+  
+  return true;
+}
+
+function updateFriendlyAI(
+  unit: DefenseUnit,
+  dt: number,
+  enemyUnits: DefenseUnit[],
+  gate: DefenseSceneObjects['gate'],
+  blockers: RectBlocker[],
+  grid: Map<string, GridCell>,
+  raycaster: THREE.Raycaster,
+  walkableMeshes: THREE.Object3D[]
+) {
+  if (unit.attackCooldown > 0) {
+    unit.attackCooldown -= dt;
+  }
+  
+  // Only chase enemies if gate is broken OR enemy has already breached (inside base)
+  const enemyHasBreached = enemyUnits.some(e => e.health > 0 && e.state !== 'dead' && e.group.position.z > wallZ + 5);
+  const shouldChase = gate.isBroken || enemyHasBreached;
+  
+  // Find nearest enemy that we should interact with
+  const targetableEnemies = enemyUnits.filter(e => {
+    if (e.health <= 0 || e.state === 'dead') return false;
+    // If gate is intact and enemy is outside, don't target unless they breached
+    if (!gate.isBroken && e.group.position.z <= wallZ + 5) return false;
+    return true;
+  });
+  
+  const nearestEnemy = targetableEnemies
+    .sort((a, b) => a.group.position.distanceTo(unit.group.position) - b.group.position.distanceTo(unit.group.position))[0];
+  
+  if (nearestEnemy && shouldChase) {
+    const distToEnemy = unit.group.position.distanceTo(nearestEnemy.group.position);
+    const attackRange = 2.5;
+    
+    if (distToEnemy <= attackRange) {
+      unit.state = 'attackingUnit';
+      unit.isMoving = false;
+      unit.target.copy(unit.group.position);
+      unit.group.lookAt(nearestEnemy.group.position.x, unit.group.position.y, nearestEnemy.group.position.z);
+      
+      if (unit.attackCooldown <= 0) {
+        const damage = 15;
+        nearestEnemy.health -= damage;
+        unit.damageDealt = (unit.damageDealt || 0) + damage;
+        unit.attackCooldown = 1.0; // 1 second between attacks as requested
+        unit.isAttacking = true;
+        unit.attackTimer = 0;
+        
+        // Trigger enemy damage flash
+        nearestEnemy.model.flashDamage();
+        
+        if (nearestEnemy.health <= 0 && nearestEnemy.state !== 'dead') {
+          nearestEnemy.state = 'dead';
+          nearestEnemy.isDead = true;
+          nearestEnemy.deathTimer = 0;
+          clearUnitGridPosition(nearestEnemy, grid);
+        }
+      }
+    } else {
+      unit.state = 'advancing';
+      const targetPos = nearestEnemy.group.position.clone();
+      const direction = targetPos.clone().sub(unit.group.position).normalize();
+      const stopDistance = 2.0;
+      targetPos.sub(direction.multiplyScalar(stopDistance));
+      
+      // Use pathfinding to get around obstacles
+      const pathTarget = findPathAroundObstacles(
+        unit.group.position,
+        targetPos,
+        unit.radius,
+        blockers,
+        grid,
+        unit.id
+      );
+      
+      if (pathTarget) {
+        pathTarget.y = getGroundHeightAt(pathTarget.x, pathTarget.z, raycaster, walkableMeshes);
+        unit.target.copy(pathTarget);
+        unit.isMoving = true;
+      }
+    }
+  } else if (enemyHasBreached) {
+    // If enemies breached but we can't target them (shouldn't happen), still move toward them
+    const breachedEnemy = enemyUnits.find(e => e.health > 0 && e.state !== 'dead' && e.group.position.z > wallZ + 5);
+    if (breachedEnemy) {
+      unit.state = 'advancing';
+      const pathTarget = findPathAroundObstacles(
+        unit.group.position,
+        breachedEnemy.group.position.clone(),
+        unit.radius,
+        blockers,
+        grid,
+        unit.id
+      );
+      if (pathTarget) {
+        pathTarget.y = getGroundHeightAt(pathTarget.x, pathTarget.z, raycaster, walkableMeshes);
+        unit.target.copy(pathTarget);
+        unit.isMoving = true;
+      }
+    }
+  } else {
+    // Gate intact, no breach - hold position (don't get stuck behind wall)
+    unit.state = 'idle';
+    unit.isMoving = false;
+    unit.target.copy(unit.group.position);
+  }
+}
+
+function updateEnemyAI(
+  unit: DefenseUnit,
+  dt: number,
+  gate: DefenseSceneObjects['gate'],
+  playerUnits: DefenseUnit[],
+  blockers: RectBlocker[],
+  grid: Map<string, GridCell>,
+  raycaster: THREE.Raycaster,
+  walkableMeshes: THREE.Object3D[]
+) {
+  if (unit.attackCooldown > 0) {
+    unit.attackCooldown -= dt;
+  }
+  
+  const distanceToGate = unit.group.position.distanceTo(gate.position);
+  const attackRange = gate.radius + unit.radius + 0.5;
+  
+  const nearestPlayer = playerUnits
+    .filter(p => p.health > 0 && p.state !== 'dead' && p.group.position.distanceTo(unit.group.position) < 8)
+    .sort((a, b) => a.group.position.distanceTo(unit.group.position) - b.group.position.distanceTo(unit.group.position))[0];
+  
+  if (!gate.isBroken && distanceToGate <= attackRange) {
+    unit.state = 'attackingGate';
+    unit.isMoving = false;
+    unit.target.copy(unit.group.position);
+    
+    if (unit.attackCooldown <= 0) {
+      gate.health -= 8;
+      unit.attackCooldown = 1.0; // 1 second between attacks
+      unit.isAttacking = true;
+      unit.attackTimer = 0;
+      
+      if (gate.health <= 0) {
+        gate.isBroken = true;
+        gate.health = 0;
+        // Remove gate mesh and blockers
+        if (gate.mesh) {
+          gate.mesh.parent?.remove(gate.mesh);
+          gate.mesh.visible = false;
+        }
+        // Remove gate blockers from scene blockers
+        gate.blockers.forEach(gb => {
+          const idx = blockers.findIndex(b => 
+            b.minX === gb.minX && b.maxX === gb.maxX && 
+            b.minZ === gb.minZ && b.maxZ === gb.maxZ
+          );
+          if (idx >= 0) blockers.splice(idx, 1);
+        });
+      }
+    }
+  } else if (nearestPlayer && nearestPlayer.health > 0 && nearestPlayer.group.position.distanceTo(unit.group.position) < 3) {
+    unit.state = 'attackingUnit';
+    unit.target.copy(unit.group.position);
+    unit.group.lookAt(nearestPlayer.group.position.x, unit.group.position.y, nearestPlayer.group.position.z);
+    
+    // Check line of sight before attacking (can't attack through walls)
+    const canSeePlayer = hasLineOfSight(
+      unit.group.position,
+      nearestPlayer.group.position,
+      blockers,
+      unit.radius
+    );
+    
+    // Attack player unit only if we can see them
+    if (unit.attackCooldown <= 0 && canSeePlayer) {
+      const damage = 10;
+      nearestPlayer.health -= damage;
+      unit.damageDealt = (unit.damageDealt || 0) + damage;
+      unit.attackCooldown = 1.0;
+      unit.isAttacking = true;
+      unit.attackTimer = 0;
+      nearestPlayer.model.flashDamage();
+      
+      if (nearestPlayer.health <= 0 && nearestPlayer.state !== 'dead') {
+        nearestPlayer.state = 'dead';
+        nearestPlayer.isDead = true;
+        nearestPlayer.deathTimer = 0;
+        clearUnitGridPosition(nearestPlayer, grid);
+      }
+    } else if (!canSeePlayer) {
+      // Can't see player - try to move to get line of sight using pathfinding
+      unit.state = 'advancing';
+      unit.isMoving = true;
+      const pathTarget = findPathAroundObstacles(
+        unit.group.position,
+        nearestPlayer.group.position.clone(),
+        unit.radius,
+        blockers,
+        grid,
+        unit.id
+      );
+      if (pathTarget) {
+        pathTarget.y = getGroundHeightAt(pathTarget.x, pathTarget.z, raycaster, walkableMeshes);
+        unit.target.copy(pathTarget);
+      }
+    }
+  } else if (!gate.isBroken) {
+    unit.state = 'advancing';
+    // Use pathfinding to gate - this helps when gate is behind cover
+    const gateTarget = gate.position.clone();
+    gateTarget.x += (Math.random() - 0.5) * 2;
+    const pathTarget = findPathAroundObstacles(
+      unit.group.position,
+      gateTarget,
+      unit.radius,
+      blockers,
+      grid,
+      unit.id
+    );
+    if (pathTarget) {
+      unit.target.copy(pathTarget);
+      unit.isMoving = true;
+    }
+  } else {
+    unit.state = 'advancing';
+    const nearestPlayerPos = playerUnits[0]?.group.position;
+    if (nearestPlayerPos) {
+      unit.target.copy(nearestPlayerPos);
+      unit.isMoving = true;
+    }
+  }
+}
+
 function addDefenseScene(scene: THREE.Scene, config: PlayerConfig): DefenseSceneObjects {
   const blockers: RectBlocker[] = [];
+  const walkableMeshes: THREE.Object3D[] = [];
+  const grid = new Map<string, GridCell>();
+  const towerTops: DefenseSceneObjects['towerTops'] = [];
+  const gateRef: { current: DefenseSceneObjects['gate'] } = { current: null as unknown as DefenseSceneObjects['gate'] };
+  
   scene.background = new THREE.Color(0x0b1118);
   scene.fog = new THREE.Fog(0x0b1118, 76, 150);
 
@@ -325,7 +1290,9 @@ function addDefenseScene(scene: THREE.Scene, config: PlayerConfig): DefenseScene
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, -0.02, (walkableBounds.minZ + walkableBounds.maxZ) / 2);
   ground.receiveShadow = true;
+  ground.userData.isWalkable = true;
   scene.add(ground);
+  walkableMeshes.push(ground);
 
   const walkablePlane = new THREE.Mesh(
     new THREE.PlaneGeometry(walkableBounds.maxX - walkableBounds.minX, walkableBounds.maxZ - walkableBounds.minZ),
@@ -337,22 +1304,505 @@ function addDefenseScene(scene: THREE.Scene, config: PlayerConfig): DefenseScene
   walkablePlane.userData.hitType = 'ground';
   scene.add(walkablePlane);
 
-  addWall(scene, blockers);
-  addWatchtower(scene, blockers, -21, wallZ + 0.5, 1);
-  addWatchtower(scene, blockers, 21, wallZ + 0.5, -1);
+  addWall(scene, blockers, walkableMeshes, gateRef);
+  addWatchtower(scene, blockers, walkableMeshes, towerTops, -21, wallZ + 0.5, 1);
+  addWatchtower(scene, blockers, walkableMeshes, towerTops, 21, wallZ + 0.5, -1);
   addCoverAndSupplies(scene, blockers);
   addGrid(scene, blockers);
 
-  const enemyUnits = enemyMarkers.map((marker, index) => addCharacter(scene, config, marker, index));
-  const playerUnits = playerMarkers.map((marker, index) => addCharacter(scene, config, marker, index + enemyMarkers.length));
+  const enemyUnits = enemyMarkers.map((marker, index) => addCharacter(scene, ENEMY_BASE_CONFIGS[index % ENEMY_BASE_CONFIGS.length], marker, index));
+  const playerUnits = playerMarkers.map((marker, index) => addCharacter(scene, { ...FRIENDLY_BASE_CONFIGS[index % FRIENDLY_BASE_CONFIGS.length], ...config, tintColor: marker.tint }, marker, index + enemyMarkers.length));
 
-  return { playerUnits, enemyUnits, walkablePlane, blockers };
+  playerUnits.forEach(unit => updateUnitGridPosition(unit, grid));
+  enemyUnits.forEach(unit => updateUnitGridPosition(unit, grid));
+
+  return { 
+    playerUnits, 
+    enemyUnits, 
+    walkablePlane, 
+    blockers, 
+    walkableMeshes, 
+    grid,
+    gate: gateRef.current,
+    towerTops,
+  };
+}
+
+// ─── NPC CATALOGUE ────────────────────────────────────────────────────────────
+type NpcEntry = {
+  name: string;
+  faction: 'enemy' | 'friendly';
+  role: string;
+  description: string;
+  weapon: string;
+  primaryColor: string;
+  secondaryColor: string;
+  stats: {
+    hp: number; str: number; dex: number; def: number;
+    eva: number; dmg: number; soak: number; atkSpd: number; range: number;
+    chakra: number; mana: number;
+  };
+  traits: string[];
+  equipment: string[];
+};
+
+const NPC_CATALOGUE: NpcEntry[] = [
+  // ── ENEMIES ──────────────────────────────────────────────────────────────────
+  {
+    name: 'Archer', faction: 'enemy', role: 'Ranged · Scout',
+    description: 'A swift scout who picks off targets from distance. Wears leather and a hood, keeping to the treeline.',
+    weapon: 'Bow', primaryColor: '#2e7d32', secondaryColor: '#1b5e20',
+    stats: { hp:90, str:8, dex:16, def:8, eva:14, dmg:18, soak:1, atkSpd:0.8, range:4.0, chakra:40, mana:0 },
+    traits: ['Ranged Attack','Kite & Retreat','High Dexterity'],
+    equipment: ['Leather Armor','Hood','Bracers','Belt'],
+  },
+  {
+    name: 'Assassin', faction: 'enemy', role: 'Melee · Stealth',
+    description: 'Cloaked in black, the Assassin stalks prey with precision. Extremely evasive; near-impossible to pin down.',
+    weapon: 'Knife', primaryColor: '#000000', secondaryColor: '#1a1a1a',
+    stats: { hp:80, str:7, dex:18, def:6, eva:20, dmg:22, soak:0, atkSpd:1.2, range:1.0, chakra:50, mana:0 },
+    traits: ['Stalk AI','High Evasion','Backstab','Mask & Hood'],
+    equipment: ['Mask','Hood','Shoulders','Bracers','Belt'],
+  },
+  {
+    name: 'Bandit', faction: 'enemy', role: 'Melee · Brawler',
+    description: 'A ruthless street fighter who attacks in packs. Unpredictable body type; may be masked or hooded.',
+    weapon: 'Axe', primaryColor: '#4a4a4a', secondaryColor: '#2d2d2d',
+    stats: { hp:100, str:10, dex:10, def:8, eva:8, dmg:12, soak:2, atkSpd:0.9, range:1.0, chakra:30, mana:0 },
+    traits: ['Patrol AI','Random Variant','Leather Armor (50%)','Mask (40%)'],
+    equipment: ['Shirt','Pants','Belt','Hood (50%)','Mask (40%)'],
+  },
+  {
+    name: 'Barbarian', faction: 'enemy', role: 'Melee · Bruiser',
+    description: 'Tribal warrior clad in heavy leather. Shares Berserker AI but hits with controlled ferocity and wears shoulder armor.',
+    weapon: 'Axe', primaryColor: '#7a4a27', secondaryColor: '#5a2f15',
+    stats: { hp:155, str:17, dex:10, def:8, eva:6, dmg:23, soak:4, atkSpd:0.8, range:1.0, chakra:45, mana:0 },
+    traits: ['Heavy Build','Shoulder Armor','High Strength','Rage Combo'],
+    equipment: ['Shoulders','Heavy Leather Armor','Bracers','Belt'],
+  },
+  {
+    name: 'Berserker', faction: 'enemy', role: 'Melee · Berserker',
+    description: 'A screaming wall of muscle in blood-red. Once enraged, nothing short of death stops its advance.',
+    weapon: 'Axe', primaryColor: '#8b0000', secondaryColor: '#4a2020',
+    stats: { hp:160, str:18, dex:8, def:6, eva:4, dmg:25, soak:4, atkSpd:0.7, range:1.0, chakra:40, mana:0 },
+    traits: ['Rage State','Combo Attacks','Highest HP of melee','Heavy Leather (50%)'],
+    equipment: ['Shirt','Pants','Bracers','Belt','Shoulders (50%)'],
+  },
+  {
+    name: 'Homura', faction: 'enemy', role: 'Melee · Elite Assassin',
+    description: 'A named elite — female, olive-green tactical vest, silver belt, with red-tipped hair. Stats exceed a standard Assassin.',
+    weapon: 'Knife', primaryColor: '#556b2f', secondaryColor: '#1a1a1a',
+    stats: { hp:150, str:7, dex:18, def:6, eva:20, dmg:25, soak:0, atkSpd:1.2, range:1.0, chakra:50, mana:0 },
+    traits: ['Named NPC','Elite Stats','Female Body','Stalk AI','Unarmed fallback'],
+    equipment: ['Belt','Shirt','Pants','Shoes'],
+  },
+  {
+    name: 'Mage', faction: 'enemy', role: 'Ranged · Spellcaster',
+    description: 'A pale-skinned scholar dressed entirely in black robes. Casts fireballs and projectile spells from a safe distance.',
+    weapon: 'Spells', primaryColor: '#000000', secondaryColor: '#111111',
+    stats: { hp:85, str:6, dex:10, def:5, eva:10, dmg:20, soak:0, atkSpd:0.6, range:3.0, chakra:100, mana:50 },
+    traits: ['Projectile Spells','Black Robe & Cape','Low HP','High Chakra'],
+    equipment: ['Robe','Cape','Belt'],
+  },
+  {
+    name: 'Rogue', faction: 'enemy', role: 'Melee · Shadow',
+    description: 'Stealthy knife-fighter who stalks from the shadows. Can be male or female, always masked and cloaked.',
+    weapon: 'Knife', primaryColor: '#1a1a1a', secondaryColor: '#0d0d0d',
+    stats: { hp:95, str:9, dex:15, def:7, eva:16, dmg:16, soak:1, atkSpd:1.1, range:1.0, chakra:60, mana:0 },
+    traits: ['Stalk State','Leather Armor','Mask & Hood','Cape','High Attack Speed'],
+    equipment: ['Mask','Hood','Leather Armor','Bracers','Cape','Belt'],
+  },
+  {
+    name: 'Sorcerer', faction: 'enemy', role: 'Ranged · Arcane',
+    description: 'A blue-robed sorcerer variant of the Warlock. Wears mage hat and projects arctic-blue arcane blasts.',
+    weapon: 'Spells', primaryColor: '#1f3c88', secondaryColor: '#14213d',
+    stats: { hp:95, str:7, dex:11, def:6, eva:11, dmg:24, soak:1, atkSpd:0.6, range:3.5, chakra:95, mana:85 },
+    traits: ['Mage Hat','Blue Robe','Cape','High Mana','Arcane Spells'],
+    equipment: ['Robe','Mage Hat','Cape','Bracers'],
+  },
+  {
+    name: 'Toby', faction: 'enemy', role: 'Ranged · Named Archer',
+    description: 'A named archer with Carolina Blue & Gold colors. Wears brown leather armor with gold bracers and belt — slightly above standard archer stats.',
+    weapon: 'Bow', primaryColor: '#4B9CD3', secondaryColor: '#2d3e2d',
+    stats: { hp:120, str:8, dex:16, def:8, eva:14, dmg:18, soak:1, atkSpd:0.8, range:4.0, chakra:40, mana:0 },
+    traits: ['Named NPC','Gold Trim','Elevated HP','Leather Armor'],
+    equipment: ['Leather Armor','Bracers','Belt'],
+  },
+  {
+    name: 'Warlock', faction: 'enemy', role: 'Ranged · Dark Magic',
+    description: 'A dark sorcerer in deep-purple robes and mage hat. Can be male or female; casts curses and dark projectiles.',
+    weapon: 'Dark Spells', primaryColor: '#1a0a2e', secondaryColor: '#6b21a8',
+    stats: { hp:100, str:8, dex:12, def:6, eva:12, dmg:22, soak:1, atkSpd:0.5, range:3.0, chakra:80, mana:40 },
+    traits: ['Dark Robe','Mage Hat','Hood','Mask','Cape','Slowest Attack Speed'],
+    equipment: ['Robe','Mage Hat','Hood','Mask','Bracers','Cape','Belt'],
+  },
+  {
+    name: 'Wizard', faction: 'enemy', role: 'Ranged · Arcane Scholar',
+    description: 'Slate-grey robes and silver-trimmed mage hat. Warlock variant focused on arcane mastery; highest mana pool of any unit.',
+    weapon: 'Spells', primaryColor: '#334155', secondaryColor: '#93c5fd',
+    stats: { hp:90, str:6, dex:10, def:6, eva:10, dmg:23, soak:1, atkSpd:0.5, range:3.5, chakra:105, mana:95 },
+    traits: ['Highest Mana','Mage Hat','Grey Robe','Cape','Slowest Attack Speed'],
+    equipment: ['Robe','Mage Hat','Cape','Bracers'],
+  },
+  // ── FRIENDLIES ────────────────────────────────────────────────────────────────
+  {
+    name: 'Bard', faction: 'friendly', role: 'Support · Performer',
+    description: 'A charismatic purple-robed performer who bolsters allies with song. Usually female; wears no mage hat but carries vibrant flair.',
+    weapon: 'None', primaryColor: '#7b2cbf', secondaryColor: '#3c1642',
+    stats: { hp:100, str:8, dex:13, def:9, eva:11, dmg:13, soak:2, atkSpd:0.9, range:3.0, chakra:75, mana:55 },
+    traits: ['Support AI','Purple Robe','Cape','Rally Nearby Allies'],
+    equipment: ['Robe','Cape','Belt','Bracers'],
+  },
+  {
+    name: 'Blacksmith', faction: 'friendly', role: 'Civilian · Craftsman',
+    description: 'A heavy-built town craftsman wearing a leather apron. Not a combatant — services weapons and armor for the party.',
+    weapon: 'Hammer', primaryColor: '#3e2723', secondaryColor: '#1a1a1a',
+    stats: { hp:120, str:12, dex:12, def:10, eva:8, dmg:15, soak:2, atkSpd:1.0, range:1.5, chakra:60, mana:0 },
+    traits: ['Civilian NPC','Blacksmith Apron','Heavy Build','Town Service'],
+    equipment: ['Blacksmith Apron','Bracers','Belt','Shirt','Pants'],
+  },
+  {
+    name: 'Cleric', faction: 'friendly', role: 'Support · Healer',
+    description: 'A golden-robed healer who sustains the party. Often female; wears holy white robes with gold trim and a mage hat.',
+    weapon: 'None', primaryColor: '#f5f5f5', secondaryColor: '#ffd700',
+    stats: { hp:110, str:10, dex:10, def:12, eva:6, dmg:14, soak:3, atkSpd:0.6, range:3.0, chakra:70, mana:60 },
+    traits: ['Healer','White & Gold Robe','Mage Hat','Support AI'],
+    equipment: ['Robe','Mage Hat','Cape','Belt','Bracers'],
+  },
+  {
+    name: 'Druid', faction: 'friendly', role: 'Support · Nature Magic',
+    description: 'An earth-toned nature mage who wears a forest hood and olive-green robe. Ranger variant with nature spells and higher mana.',
+    weapon: 'None', primaryColor: '#556b2f', secondaryColor: '#3f5d32',
+    stats: { hp:110, str:9, dex:12, def:10, eva:10, dmg:15, soak:2, atkSpd:0.8, range:3.5, chakra:85, mana:70 },
+    traits: ['Nature Magic','Hood','Green Robe','Cape','High Chakra'],
+    equipment: ['Hood','Robe','Cape','Belt'],
+  },
+  {
+    name: 'Knight', faction: 'friendly', role: 'Melee · Heavy Tank',
+    description: 'A fully-armoured plate knight with shield. Muscular or heavy build, always helmeted — the most defensive melee unit.',
+    weapon: 'Sword', primaryColor: '#37474f', secondaryColor: '#263238',
+    stats: { hp:150, str:16, dex:8, def:18, eva:2, dmg:16, soak:6, atkSpd:0.7, range:1.0, chakra:40, mana:0 },
+    traits: ['Plate Mail','Shield','Helm','Highest Defense','Duel AI'],
+    equipment: ['Helm','Shoulders','Shield','Plate Mail','Bracers','Cape','Belt'],
+  },
+  {
+    name: 'Low-Level City Guard', faction: 'friendly', role: 'Melee · Town Defender',
+    description: 'The backbone of city defence. Average build with quilted armour and a halberd. Uses Hero stats as a baseline.',
+    weapon: 'Halberd', primaryColor: '#4a3728', secondaryColor: '#718096',
+    stats: { hp:120, str:12, dex:12, def:10, eva:8, dmg:15, soak:2, atkSpd:1.0, range:1.5, chakra:60, mana:0 },
+    traits: ['Quilted Armor','Helm','Shoulder','Patrol AI','Duel Stance'],
+    equipment: ['Helm','Shoulders','Quilted Armor','Bracers','Belt'],
+  },
+  {
+    name: 'Monk', faction: 'friendly', role: 'Melee · Martial Artist',
+    description: 'Barefoot brawler in orange robes. No shield, no shoes — pure speed and flurry strikes. Highest attack speed of all units.',
+    weapon: 'Unarmed', primaryColor: '#ff8c00', secondaryColor: '#8b4513',
+    stats: { hp:115, str:11, dex:17, def:8, eva:18, dmg:20, soak:1, atkSpd:1.3, range:1.0, chakra:90, mana:30 },
+    traits: ['Unarmed','Flurry Combo','No Shoes','Fastest Attack Speed','High Evasion'],
+    equipment: ['Robe','Belt'],
+  },
+  {
+    name: 'Paladin', faction: 'friendly', role: 'Melee · Holy Warrior',
+    description: 'Wheat-and-gold holy knight with plate armour and shield. Can self-heal mid-combat; among the most durable frontliners.',
+    weapon: 'Sword', primaryColor: '#f5f5dc', secondaryColor: '#daa520',
+    stats: { hp:140, str:14, dex:9, def:16, eva:4, dmg:18, soak:5, atkSpd:0.6, range:1.0, chakra:60, mana:40 },
+    traits: ['Shield','Plate Mail','Helm','Self-Heal','Cape','Duel AI'],
+    equipment: ['Helm','Shoulders','Shield','Plate Mail','Bracers','Cape','Belt'],
+  },
+  {
+    name: 'Ranger', faction: 'friendly', role: 'Ranged · Forest Protector',
+    description: 'Agile forest ranger in green leather and a cape. Can be male or female; keeps enemies at range and repositions constantly.',
+    weapon: 'Bow', primaryColor: '#2e8b57', secondaryColor: '#556b2f',
+    stats: { hp:105, str:11, dex:14, def:10, eva:12, dmg:16, soak:2, atkSpd:0.9, range:4.0, chakra:50, mana:0 },
+    traits: ['Ranged','Hood','Leather Armor','Reposition AI','Cape'],
+    equipment: ['Hood','Leather Armor','Bracers','Cape','Belt'],
+  },
+  {
+    name: 'Sentinel', faction: 'friendly', role: 'Melee · Iron Wall',
+    description: 'Full-plate fortress of a soldier. Masked, helmeted, shield-bearer — highest defense and soak in the game at the cost of almost zero evasion.',
+    weapon: 'Sword', primaryColor: '#4682b4', secondaryColor: '#2f4f4f',
+    stats: { hp:130, str:13, dex:7, def:22, eva:1, dmg:12, soak:8, atkSpd:0.5, range:1.0, chakra:40, mana:0 },
+    traits: ['Highest Defense','Highest Soak','Shield','Plate Mail','Mask','Guard AI'],
+    equipment: ['Helm','Shoulders','Shield','Plate Mail','Mask','Bracers','Cape','Belt'],
+  },
+  {
+    name: 'Shopkeeper', faction: 'friendly', role: 'Civilian · Merchant',
+    description: 'A purple-robed female shopkeeper who runs the town market. Non-combatant; provides gear and consumables between missions.',
+    weapon: 'None', primaryColor: '#6a4c93', secondaryColor: '#4a2f7a',
+    stats: { hp:120, str:12, dex:12, def:10, eva:8, dmg:15, soak:2, atkSpd:1.0, range:1.5, chakra:60, mana:0 },
+    traits: ['Civilian NPC','Female Body','Purple Robe','Town Service'],
+    equipment: ['Robe','Cape','Belt','Shirt','Pants'],
+  },
+];
+
+const STAT_MAX: Record<string, number> = {
+  hp: 160, str: 18, dex: 18, def: 22, eva: 20, dmg: 25, soak: 8, chakra: 105, mana: 95,
+};
+
+function CatStatBar({ label, value, maxVal, color }: { label: string; value: number; maxVal: number; color: string }) {
+  const pct = Math.round(Math.max(0, Math.min(100, (value / maxVal) * 100)));
+  return (
+    <div className="flex items-center gap-2 group">
+      <div className="w-14 text-[9px] text-slate-500 uppercase tracking-wider text-right shrink-0 group-hover:text-slate-300 transition-colors">{label}</div>
+      <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color} transition-all duration-300`} style={{ width: `${pct}%` }} />
+      </div>
+      <div className="w-6 text-[9px] text-slate-400 text-right font-mono shrink-0">{value}</div>
+    </div>
+  );
+}
+
+function NpcCard({ entry, selected, onClick }: { entry: NpcEntry; selected: boolean; onClick: () => void }) {
+  const isEnemy = entry.faction === 'enemy';
+  const borderColor = selected
+    ? (isEnemy ? 'border-red-400' : 'border-cyan-400')
+    : (isEnemy ? 'border-red-700/30' : 'border-cyan-700/30');
+  const bgColor = selected
+    ? (isEnemy ? 'bg-red-900/40' : 'bg-cyan-900/30')
+    : 'bg-slate-900/50 hover:bg-slate-800/60';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all duration-150 ${borderColor} ${bgColor}`}
+    >
+      <div className="flex items-center gap-2.5">
+        <div
+          className="w-8 h-8 rounded-md shrink-0 flex items-center justify-center text-sm font-black border border-white/10"
+          style={{ background: `linear-gradient(135deg, ${entry.primaryColor}cc, ${entry.secondaryColor}99)` }}
+        >
+          <span className="text-white" style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9)' }}>
+            {entry.name.charAt(0)}
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs font-bold text-white truncate">{entry.name}</div>
+          <div className="text-[9px] text-slate-400 truncate">{entry.role}</div>
+        </div>
+        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isEnemy ? 'bg-red-400' : 'bg-emerald-400'}`} />
+      </div>
+    </button>
+  );
+}
+
+function NpcDetailPanel({ entry }: { entry: NpcEntry }) {
+  const isEnemy = entry.faction === 'enemy';
+  const accentText = isEnemy ? 'text-red-300' : 'text-cyan-300';
+  const accentBorder = isEnemy ? 'border-red-500/30' : 'border-cyan-500/30';
+  const barColor = isEnemy ? 'bg-red-500' : 'bg-cyan-500';
+
+  return (
+    <div className="flex flex-col h-full overflow-y-auto">
+      {/* Hero banner */}
+      <div
+        className="relative px-7 py-6 shrink-0"
+        style={{
+          background: `linear-gradient(135deg, ${entry.primaryColor}33 0%, ${entry.secondaryColor}22 100%)`,
+          borderBottom: `1px solid ${isEnemy ? 'rgba(239,68,68,0.2)' : 'rgba(34,211,238,0.2)'}`,
+        }}
+      >
+        <div className="flex items-start gap-5">
+          {/* Large avatar */}
+          <div
+            className="w-20 h-20 rounded-2xl shrink-0 flex items-center justify-center text-4xl font-black border border-white/10 shadow-lg"
+            style={{ background: `linear-gradient(135deg, ${entry.primaryColor}ee, ${entry.secondaryColor}bb)` }}
+          >
+            <span className="text-white" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.9)' }}>
+              {entry.name.charAt(0)}
+            </span>
+          </div>
+          <div className="flex-1 pt-1">
+            <div className={`text-2xl font-black uppercase tracking-widest ${accentText}`}>{entry.name}</div>
+            <div className="text-sm text-slate-400 mt-0.5">{entry.role}</div>
+            <div className={`mt-2 inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+              isEnemy ? 'bg-red-900/60 text-red-300 border border-red-700/40' : 'bg-cyan-900/60 text-cyan-300 border border-cyan-700/40'
+            }`}>
+              {isEnemy ? 'Enemy' : 'Friendly'}
+            </div>
+          </div>
+        </div>
+        <p className="mt-4 text-sm text-slate-300 leading-relaxed">{entry.description}</p>
+      </div>
+
+      <div className="flex-1 px-7 py-5 space-y-6">
+        {/* Combat Stats */}
+        <div>
+          <div className={`text-[10px] font-bold uppercase tracking-widest mb-3 ${accentText}`}>Combat Statistics</div>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-1.5">
+            <CatStatBar label="HP" value={entry.stats.hp} maxVal={STAT_MAX.hp} color="bg-emerald-500" />
+            <CatStatBar label="DMG" value={entry.stats.dmg} maxVal={STAT_MAX.dmg} color="bg-red-500" />
+            <CatStatBar label="STR" value={entry.stats.str} maxVal={STAT_MAX.str} color="bg-orange-500" />
+            <CatStatBar label="DEX" value={entry.stats.dex} maxVal={STAT_MAX.dex} color="bg-yellow-400" />
+            <CatStatBar label="DEF" value={entry.stats.def} maxVal={STAT_MAX.def} color="bg-blue-500" />
+            <CatStatBar label="EVA" value={entry.stats.eva} maxVal={STAT_MAX.eva} color="bg-violet-400" />
+            <CatStatBar label="SOAK" value={entry.stats.soak} maxVal={STAT_MAX.soak} color="bg-slate-400" />
+            <CatStatBar label="CHAKRA" value={entry.stats.chakra} maxVal={STAT_MAX.chakra} color="bg-teal-400" />
+            <CatStatBar label="MANA" value={entry.stats.mana} maxVal={STAT_MAX.mana} color="bg-purple-400" />
+          </div>
+        </div>
+
+        {/* Numeric summary grid */}
+        <div className={`grid grid-cols-4 gap-2 py-3 px-4 rounded-xl border ${accentBorder} bg-slate-900/40`}>
+          {([
+            ['HP', entry.stats.hp],
+            ['STR', entry.stats.str],
+            ['DEX', entry.stats.dex],
+            ['DEF', entry.stats.def],
+            ['EVA', entry.stats.eva],
+            ['DMG', entry.stats.dmg],
+            ['SOAK', entry.stats.soak],
+            ['ATK SPD', entry.stats.atkSpd.toFixed(1)],
+            ['RANGE', entry.stats.range.toFixed(1)],
+            ['CHAKRA', entry.stats.chakra],
+            ['MANA', entry.stats.mana],
+            ['WEAPON', entry.weapon],
+          ] as [string, string | number][]).map(([k, v]) => (
+            <div key={k} className="flex flex-col items-center py-2 px-1">
+              <div className="text-[8px] text-slate-500 uppercase tracking-wider">{k}</div>
+              <div className="text-sm font-bold text-white mt-0.5">{v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Traits */}
+        <div>
+          <div className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${accentText}`}>Traits & Behaviours</div>
+          <div className="flex flex-wrap gap-1.5">
+            {entry.traits.map(t => (
+              <span key={t} className={`text-[10px] px-2 py-1 rounded-md border font-medium ${
+                isEnemy
+                  ? 'bg-red-950/50 border-red-700/30 text-red-200'
+                  : 'bg-cyan-950/50 border-cyan-700/30 text-cyan-200'
+              }`}>{t}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Equipment */}
+        <div>
+          <div className={`text-[10px] font-bold uppercase tracking-widest mb-2 ${accentText}`}>Typical Equipment</div>
+          <div className="flex flex-wrap gap-1.5">
+            {entry.equipment.map(e => (
+              <span key={e} className="text-[10px] px-2 py-1 rounded-md border bg-slate-800/60 border-slate-600/40 text-slate-300 font-medium">{e}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const Defense: React.FC<DefenseProps> = ({ config, onReady }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const initialConfigRef = useRef(config);
   const onReadyRef = useRef(onReady);
+  const [battleStarted, setBattleStarted] = useState(false);
+  const [gateHealthPercent, setGateHealthPercent] = useState(100);
+  const [waveMessage, setWaveMessage] = useState<string | null>(null);
+  const [waveComplete, setWaveComplete] = useState(false);
+  const [waveResult, setWaveResult] = useState<'victory' | 'defeat' | null>(null);
+  const sceneObjectsRef = useRef<DefenseSceneObjects | null>(null);
+  const renderManagerRef = useRef<RenderManager | null>(null);
+  const battleStartedRef = useRef(false);
+  const [showRosterModal, setShowRosterModal] = useState(false);
+  const [selectedNpc, setSelectedNpc] = useState<NpcEntry>(NPC_CATALOGUE[0]);
+  
+  useEffect(() => {
+    battleStartedRef.current = battleStarted;
+  }, [battleStarted]);
+  
+  const resetWave = (sceneObjects: DefenseSceneObjects, scene: THREE.Scene) => {
+    // Reset player units
+    sceneObjects.playerUnits.forEach((unit, i) => {
+      unit.health = UNIT_MAX_HEALTH;
+      unit.group.visible = true;
+      unit.group.position.set(playerMarkers[i].x, 0.08, playerMarkers[i].z);
+      unit.group.rotation.set(0, playerMarkers[i].rot, 0); // Reset all rotation including death rotation
+      unit.target.copy(unit.group.position);
+      unit.state = 'idle';
+      unit.isMoving = false;
+      unit.isAttacking = false;
+      unit.isDead = false;
+      unit.deathTimer = undefined;
+      unit.attackCooldown = 0;
+      unit.attackTimer = 0;
+      unit.walkCycle = 0;
+      unit.damageDealt = 0;
+      unit.finalTarget = undefined;
+      // Clear any damage flash effect and force material update
+      unit.model.resetDamageFlash();
+      // Ensure all materials are reset to default
+      unit.model.group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.material) {
+          const mat = obj.material as THREE.MeshStandardMaterial;
+          if (mat.emissive) {
+            mat.emissive.setHex(0x000000);
+            mat.emissiveIntensity = 0;
+          }
+        }
+      });
+      updateUnitGridPosition(unit, sceneObjects.grid);
+    });
+    
+    // Reset enemy units
+    sceneObjects.enemyUnits.forEach((unit, i) => {
+      unit.health = UNIT_MAX_HEALTH;
+      unit.group.visible = true;
+      unit.group.position.set(enemyMarkers[i].x, 0.08, enemyMarkers[i].z);
+      unit.group.rotation.set(0, enemyMarkers[i].rot, 0); // Reset all rotation including death rotation
+      unit.target.copy(unit.group.position);
+      unit.state = 'idle';
+      unit.isMoving = false;
+      unit.isAttacking = false;
+      unit.isDead = false;
+      unit.deathTimer = undefined;
+      unit.attackCooldown = 0;
+      unit.attackTimer = 0;
+      unit.walkCycle = 0;
+      unit.damageDealt = 0;
+      unit.finalTarget = undefined;
+      // Clear any damage flash effect and force material update
+      unit.model.resetDamageFlash();
+      // Ensure all materials are reset to default
+      unit.model.group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.material) {
+          const mat = obj.material as THREE.MeshStandardMaterial;
+          if (mat.emissive) {
+            mat.emissive.setHex(0x000000);
+            mat.emissiveIntensity = 0;
+          }
+        }
+      });
+      updateUnitGridPosition(unit, sceneObjects.grid);
+    });
+    
+    // Reset gate if it was broken
+    if (sceneObjects.gate.isBroken) {
+      sceneObjects.gate.isBroken = false;
+      sceneObjects.gate.health = sceneObjects.gate.maxHealth;
+      // Re-add gate mesh if removed
+      if (sceneObjects.gate.mesh && !sceneObjects.gate.mesh.parent) {
+        scene.add(sceneObjects.gate.mesh);
+        sceneObjects.gate.mesh.visible = true;
+      }
+      // Re-add gate blockers
+      sceneObjects.gate.blockers.forEach(gb => {
+        const exists = sceneObjects.blockers.some(b => 
+          b.minX === gb.minX && b.maxX === gb.maxX && 
+          b.minZ === gb.minZ && b.maxZ === gb.maxZ
+        );
+        if (!exists) sceneObjects.blockers.push(gb);
+      });
+    }
+    
+    setGateHealthPercent(100);
+    setBattleStarted(false);
+    setWaveMessage(null);
+    setWaveComplete(false);
+    setWaveResult(null);
+    sceneObjectsRef.current = null;
+  };
 
   useEffect(() => {
     onReadyRef.current = onReady;
@@ -363,6 +1813,7 @@ const Defense: React.FC<DefenseProps> = ({ config, onReady }) => {
     if (!container) return;
 
     const renderManager = new RenderManager(container);
+    renderManagerRef.current = renderManager;
     renderManager.setBaseLightingEnabled(false);
     renderManager.camera.fov = 45;
     renderManager.camera.position.set(0, 34, 52);
@@ -393,11 +1844,18 @@ const Defense: React.FC<DefenseProps> = ({ config, onReady }) => {
     const sceneObjects = addDefenseScene(renderManager.scene, initialConfigRef.current);
     const selectionMarker = createSelectionMarker();
     renderManager.scene.add(selectionMarker);
+    
+    // Initialize click indicator
+    globalClickIndicator = createClickIndicator();
+    const showClickIndicatorAt = (pos: THREE.Vector3) => showClickIndicator(pos, renderManager.scene);
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     let selectedUnit: DefenseUnit | null = sceneObjects.playerUnits[0] ?? null;
     let selectedUnitIndex = selectedUnit ? 0 : -1;
+    
+    const keys: Record<string, boolean> = {};
+    const cameraTarget = renderManager.controls.target.clone();
 
     const selectUnit = (unit: DefenseUnit | null) => {
       if (!unit || unit.team !== 'player') return;
@@ -419,21 +1877,213 @@ const Defense: React.FC<DefenseProps> = ({ config, onReady }) => {
     const startTime = performance.now();
     let lastFrameTime = startTime;
 
+    const updateCameraPan = (dt: number) => {
+      const move = new THREE.Vector3();
+      if (keys['KeyW']) move.z -= 1;
+      if (keys['KeyS']) move.z += 1;
+      if (keys['KeyA']) move.x -= 1;
+      if (keys['KeyD']) move.x += 1;
+      
+      if (move.lengthSq() > 0) {
+        // Transform movement by camera orientation (Y rotation only, keep flat)
+        const camera = renderManager.camera;
+        const cameraDirection = new THREE.Vector3();
+        camera.getWorldDirection(cameraDirection);
+        cameraDirection.y = 0;
+        cameraDirection.normalize();
+        
+        const cameraRight = new THREE.Vector3();
+        cameraRight.crossVectors(cameraDirection, new THREE.Vector3(0, 1, 0)).normalize();
+        
+        // Calculate world-space movement
+        const worldMove = new THREE.Vector3();
+        worldMove.addScaledVector(cameraDirection, -move.z); // W moves forward
+        worldMove.addScaledVector(cameraRight, move.x); // A/D moves left/right
+        worldMove.normalize().multiplyScalar(cameraPanSpeed * dt);
+        
+        camera.position.x += worldMove.x;
+        camera.position.z += worldMove.z;
+        cameraTarget.x += worldMove.x;
+        cameraTarget.z += worldMove.z;
+        
+        camera.position.x = THREE.MathUtils.clamp(camera.position.x, cameraBounds.minX, cameraBounds.maxX);
+        camera.position.z = THREE.MathUtils.clamp(camera.position.z, cameraBounds.minZ, cameraBounds.maxZ);
+        cameraTarget.x = THREE.MathUtils.clamp(cameraTarget.x, cameraBounds.minX, cameraBounds.maxX);
+        cameraTarget.z = THREE.MathUtils.clamp(cameraTarget.z, cameraBounds.minZ, cameraBounds.maxZ);
+        
+        renderManager.controls.target.copy(cameraTarget);
+        renderManager.controls.update();
+      }
+    };
+
     const animate = () => {
       const now = performance.now();
       const elapsed = (now - startTime) / 1000;
       const dt = Math.min((now - lastFrameTime) / 1000, 0.05);
       lastFrameTime = now;
 
+      updateCameraPan(dt);
+      updateClickIndicators(dt);
+
       for (const unit of sceneObjects.playerUnits) {
+        if (battleStartedRef.current && unit.health > 0) {
+          updateFriendlyAI(unit, dt, sceneObjects.enemyUnits, sceneObjects.gate, sceneObjects.blockers, sceneObjects.grid, raycaster, sceneObjects.walkableMeshes);
+        }
+        
         const deltaToTarget = unit.target.clone().sub(unit.group.position);
         deltaToTarget.y = 0;
         const distance = deltaToTarget.length();
-        if (distance > 0.05) {
+        
+        const wasMoving = unit.isMoving;
+        unit.isMoving = distance > 0.05;
+        
+        // Check if we reached an intermediate waypoint and need to continue to final destination
+        if (!unit.isMoving && wasMoving && unit.finalTarget) {
+          const finalTarget = unit.finalTarget;
+          unit.finalTarget = undefined; // Clear it so we don't loop
+          
+          // Pathfind from current position to final destination
+          const nextPathTarget = findPathAroundObstacles(
+            unit.group.position,
+            finalTarget,
+            unit.radius,
+            sceneObjects.blockers,
+            sceneObjects.grid,
+            unit.id
+          );
+          
+          if (nextPathTarget) {
+            nextPathTarget.y = getGroundHeightAt(nextPathTarget.x, nextPathTarget.z, raycaster, sceneObjects.walkableMeshes);
+            
+            // If we still can't reach final destination directly, store it again
+            if (nextPathTarget.distanceTo(finalTarget) > 0.5) {
+              unit.finalTarget = finalTarget.clone();
+            }
+            
+            unit.target.copy(nextPathTarget);
+            unit.isMoving = true;
+          }
+        }
+        
+        if (unit.isMoving) {
           const step = Math.min(distance, unit.speed * dt);
           const direction = deltaToTarget.normalize();
-          unit.group.position.addScaledVector(direction, step);
-          unit.group.rotation.y = Math.atan2(direction.x, direction.z);
+          
+          const nextPos = unit.group.position.clone().addScaledVector(direction, step);
+          
+          // Check collision with blockers using unit radius
+          const wouldCollide = isPositionBlockedWithRadius(nextPos, unit.radius, sceneObjects.blockers);
+          
+          if (!wouldCollide) {
+            const targetGridKey = getGridKey(nextPos.x, nextPos.z);
+            const targetCell = sceneObjects.grid.get(targetGridKey);
+            
+            // Check if cell is occupied by another unit
+            if (!targetCell?.occupiedBy || targetCell.occupiedBy === unit.id) {
+              unit.group.position.addScaledVector(direction, step);
+              unit.group.rotation.y = Math.atan2(direction.x, direction.z);
+              
+              const groundHeight = getGroundHeightAt(unit.group.position.x, unit.group.position.z, raycaster, sceneObjects.walkableMeshes);
+              unit.group.userData.baseY = groundHeight;
+            } else {
+              // Another unit is blocking - stop but keep trying to path
+              unit.isMoving = false;
+            }
+          } else {
+            // Wall/obstacle blocking - stop movement
+            unit.isMoving = false;
+            unit.finalTarget = undefined; // Clear any pending final destination
+            unit.target.copy(unit.group.position); // Clear target to stop trying
+          }
+        }
+        
+        updateUnitGridPosition(unit, sceneObjects.grid);
+        updateUnitAnimation(unit, dt);
+        updateHealthBar(unit, renderManager.camera);
+      }
+
+      if (battleStartedRef.current) {
+        for (const unit of sceneObjects.enemyUnits) {
+          // Only run AI and movement for living units
+          if (unit.health > 0 && unit.state !== 'dead') {
+            updateEnemyAI(unit, dt, sceneObjects.gate, sceneObjects.playerUnits, sceneObjects.blockers, sceneObjects.grid, raycaster, sceneObjects.walkableMeshes);
+            
+            const deltaToTarget = unit.target.clone().sub(unit.group.position);
+            deltaToTarget.y = 0;
+            const distance = deltaToTarget.length();
+            
+            unit.isMoving = distance > 0.05 && unit.state !== 'attackingGate';
+            
+            if (unit.isMoving) {
+              const step = Math.min(distance, unit.speed * dt);
+              const direction = deltaToTarget.normalize();
+              
+              const nextPos = unit.group.position.clone().addScaledVector(direction, step);
+              
+              // Check collision with blockers using unit radius
+              const wouldCollide = isPositionBlockedWithRadius(nextPos, unit.radius, sceneObjects.blockers);
+              
+              if (!wouldCollide) {
+                const targetGridKey = getGridKey(nextPos.x, nextPos.z);
+                const targetCell = sceneObjects.grid.get(targetGridKey);
+                
+                // Check if cell is occupied by another unit
+                if (!targetCell?.occupiedBy || targetCell.occupiedBy === unit.id) {
+                  unit.group.position.addScaledVector(direction, step);
+                  unit.group.rotation.y = Math.atan2(direction.x, direction.z);
+                  
+                  const groundHeight = getGroundHeightAt(unit.group.position.x, unit.group.position.z, raycaster, sceneObjects.walkableMeshes);
+                  unit.group.userData.baseY = groundHeight;
+                } else {
+                  unit.isMoving = false;
+                }
+              } else {
+                // Hit a wall - stop and try to path around if attacking gate
+                unit.isMoving = false;
+                if (unit.state !== 'attackingGate') {
+                  unit.target.copy(unit.group.position);
+                }
+              }
+            }
+            
+            updateUnitGridPosition(unit, sceneObjects.grid);
+          }
+          
+          // Always update animation (including death animation for dead units)
+          updateUnitAnimation(unit, dt);
+          updateHealthBar(unit, renderManager.camera);
+        }
+        
+        const healthPercent = Math.round((sceneObjects.gate.health / sceneObjects.gate.maxHealth) * 100);
+        if (healthPercent !== gateHealthPercent) {
+          setGateHealthPercent(healthPercent);
+        }
+        
+        // Check for wave end - require battle to have started and wave not already complete
+        if (!battleStartedRef.current || waveComplete) return;
+        
+        // Count living units (health > 0 and not in dead state)
+        const livingPlayers = sceneObjects.playerUnits.filter(u => u.health > 0 && u.state !== 'dead').length;
+        const livingEnemies = sceneObjects.enemyUnits.filter(u => u.health > 0 && u.state !== 'dead').length;
+        
+        // Trigger wave end when one side is completely eliminated
+        if (livingPlayers === 0 && livingEnemies > 0) {
+          setWaveResult('defeat');
+          setWaveMessage('DEFEAT');
+          setWaveComplete(true);
+          setBattleStarted(false);
+          sceneObjectsRef.current = sceneObjects;
+        } else if (livingEnemies === 0 && livingPlayers > 0) {
+          setWaveResult('victory');
+          setWaveMessage('VICTORY');
+          setWaveComplete(true);
+          setBattleStarted(false);
+          sceneObjectsRef.current = sceneObjects;
+        }
+      } else {
+        for (const unit of sceneObjects.enemyUnits) {
+          updateUnitAnimation(unit, dt);
+          updateHealthBar(unit, renderManager.camera);
         }
       }
 
@@ -446,12 +2096,6 @@ const Defense: React.FC<DefenseProps> = ({ config, onReady }) => {
         selectionMarker.rotation.y += 0.035;
       }
 
-      renderManager.scene.traverse((object) => {
-        if (object.userData.defenseCharacter) {
-          object.position.y = object.userData.baseY + Math.sin(elapsed * 1.4 + object.position.x * 0.2) * 0.025;
-        }
-      });
-
       renderManager.render();
       frame = requestAnimationFrame(animate);
     };
@@ -461,9 +2105,21 @@ const Defense: React.FC<DefenseProps> = ({ config, onReady }) => {
     const handleResize = () => renderManager.resize();
     const handleKeyDown = (event: KeyboardEvent) => {
       if ((event.target as HTMLElement | null)?.closest('input, textarea, select, .no-capture')) return;
-      if (event.key !== 'Tab') return;
-      event.preventDefault();
-      cycleUnit();
+      
+      keys[event.code] = true;
+      
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        cycleUnit();
+      }
+      if (event.key === 'g' || event.key === 'G') {
+        event.preventDefault();
+        setShowRosterModal(prev => !prev);
+      }
+    };
+    
+    const handleKeyUp = (event: KeyboardEvent) => {
+      keys[event.code] = false;
     };
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -491,29 +2147,306 @@ const Defense: React.FC<DefenseProps> = ({ config, onReady }) => {
         }
       }
 
-      const groundIntersections = raycaster.intersectObject(sceneObjects.walkablePlane, false);
-      if (groundIntersections.length > 0 && selectedUnit) {
-        const target = snapToGrid(groundIntersections[0].point, sceneObjects.blockers);
+      // Raycast against all walkable meshes for proper elevation detection
+      const meshIntersections = raycaster.intersectObjects(sceneObjects.walkableMeshes, true);
+      if (meshIntersections.length > 0 && selectedUnit) {
+        const clickedPoint = meshIntersections[0].point;
+        const groundHeight = clickedPoint.y;
+        
+        const target = snapToGrid(clickedPoint, sceneObjects.blockers, sceneObjects.grid, selectedUnit.id);
         if (target) {
-          selectedUnit.target.copy(target);
+          target.y = groundHeight;
+          
+          // Use pathfinding to get around obstacles
+          const pathTarget = findPathAroundObstacles(
+            selectedUnit.group.position,
+            target,
+            selectedUnit.radius,
+            sceneObjects.blockers,
+            sceneObjects.grid,
+            selectedUnit.id
+          );
+          
+          if (pathTarget) {
+            pathTarget.y = getGroundHeightAt(pathTarget.x, pathTarget.z, raycaster, sceneObjects.walkableMeshes);
+            
+            // If pathfinding gave us a waypoint (not the final target), store final destination
+            if (pathTarget.distanceTo(target) > 0.5) {
+              selectedUnit.finalTarget = target.clone();
+            } else {
+              selectedUnit.finalTarget = undefined;
+            }
+            
+            selectedUnit.target.copy(pathTarget);
+            selectedUnit.isMoving = true;
+            
+            // Show click indicator at the final destination (not the intermediate waypoint)
+            showClickIndicatorAt(target);
+          }
         }
       }
     };
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('keydown', handleKeyDown, { passive: false });
+    window.addEventListener('keyup', handleKeyUp, { passive: false });
     renderManager.renderer.domElement.addEventListener('pointerdown', handlePointerDown);
 
     return () => {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
       renderManager.renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       cancelAnimationFrame(frame);
       renderManager.dispose();
     };
   }, []);
 
-  return <div ref={containerRef} className="w-full h-full" onContextMenu={(event) => event.preventDefault()} />;
+  return (
+    <div className="relative w-full h-full" onContextMenu={(event) => event.preventDefault()}>
+      <div ref={containerRef} className="w-full h-full" />
+      
+      {/* Start Button / Wave Status */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[100]">
+        {!battleStarted ? (
+          <button
+            type="button"
+            onClick={() => setBattleStarted(true)}
+            className="px-8 py-3 bg-red-600 hover:bg-red-500 text-white font-bold text-sm uppercase tracking-widest rounded-lg border border-red-400/50 shadow-lg shadow-red-900/50 transition-all duration-200 hover:scale-105 active:scale-95"
+          >
+            START
+          </button>
+        ) : (
+          <div className="px-6 py-2 bg-amber-600/90 text-white font-bold text-xs uppercase tracking-widest rounded-lg border border-amber-400/50 shadow-lg">
+            WAVE ACTIVE
+          </div>
+        )}
+      </div>
+      
+      {/* Gate Health Bar */}
+      {battleStarted && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-[100] w-48">
+          <div className="bg-black/70 border border-amber-600/30 rounded-lg px-3 py-2 backdrop-blur-md">
+            <div className="flex justify-between text-[10px] uppercase tracking-wider text-amber-300 mb-1">
+              <span>Gate Integrity</span>
+              <span>{gateHealthPercent}%</span>
+            </div>
+            <div className="h-2 bg-stone-800 rounded-full overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-300 ${
+                  gateHealthPercent > 50 ? 'bg-amber-500' : gateHealthPercent > 25 ? 'bg-orange-500' : 'bg-red-500'
+                }`} 
+                style={{ width: `${gateHealthPercent}%` }} 
+              />
+            </div>
+            {gateHealthPercent <= 0 && (
+              <div className="text-[10px] text-red-400 text-center mt-1 font-bold">GATE BREACHED</div>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Wave Complete Stats Screen */}
+      {waveComplete && sceneObjectsRef.current && (
+        <div className="absolute inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-md">
+          <div className={`w-[480px] max-h-[80vh] overflow-y-auto rounded-2xl border-2 shadow-2xl ${
+            waveResult === 'victory'
+              ? 'bg-emerald-900/90 border-emerald-500/50 shadow-emerald-900/50'
+              : 'bg-red-900/90 border-red-500/50 shadow-red-900/50'
+          }`}>
+            {/* Header */}
+            <div className="px-8 pt-6 pb-4 text-center border-b border-white/10">
+              <div className={`text-3xl font-black uppercase tracking-widest ${
+                waveResult === 'victory' ? 'text-emerald-300' : 'text-red-300'
+              }`}>
+                {waveResult === 'victory' ? 'VICTORY' : 'DEFEAT'}
+              </div>
+              <div className="text-sm text-white/70 mt-1">
+                {waveResult === 'victory' ? 'All enemies defeated' : 'All friendly units lost'}
+              </div>
+            </div>
+            
+            {/* Stats */}
+            <div className="px-6 py-4 space-y-4">
+              {/* Player Units */}
+              <div>
+                <div className="text-xs font-bold text-cyan-300 uppercase tracking-wider mb-2">Friendly Units</div>
+                <div className="space-y-1">
+                  {sceneObjectsRef.current.playerUnits.map((unit, i) => (
+                    <div key={unit.id} className="flex items-center justify-between px-3 py-2 bg-black/30 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${unit.state === 'dead' ? 'bg-red-500' : 'bg-emerald-500'}`} />
+                        <span className="text-sm text-white font-medium">{unit.name || `Unit ${i + 1}`}</span>
+                        <span className={`text-xs ${unit.state === 'dead' ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {unit.state === 'dead' ? '(KIA)' : '(Survived)'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-300">
+                        DMG: <span className="text-amber-300 font-bold">{unit.damageDealt || 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Enemy Units */}
+              <div>
+                <div className="text-xs font-bold text-orange-300 uppercase tracking-wider mb-2">Enemy Forces</div>
+                <div className="space-y-1">
+                  {sceneObjectsRef.current.enemyUnits.map((unit, i) => (
+                    <div key={unit.id} className="flex items-center justify-between px-3 py-2 bg-black/30 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${unit.state === 'dead' ? 'bg-red-500' : 'bg-orange-500'}`} />
+                        <span className="text-sm text-white font-medium">{unit.name || `Enemy ${i + 1}`}</span>
+                        <span className={`text-xs ${unit.state === 'dead' ? 'text-red-400' : 'text-orange-400'}`}>
+                          {unit.state === 'dead' ? '(KIA)' : '(Alive)'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-300">
+                        DMG: <span className="text-amber-300 font-bold">{unit.damageDealt || 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* MVP */}
+              {(() => {
+                const allUnits = [...sceneObjectsRef.current.playerUnits, ...sceneObjectsRef.current.enemyUnits];
+                const mvp = allUnits.sort((a, b) => (b.damageDealt || 0) - (a.damageDealt || 0))[0];
+                if (mvp && (mvp.damageDealt || 0) > 0) {
+                  return (
+                    <div className="pt-2 border-t border-white/10">
+                      <div className="text-xs font-bold text-amber-300 uppercase tracking-wider text-center mb-2">
+                        Top Damage Dealer
+                      </div>
+                      <div className="flex items-center justify-center gap-3 px-4 py-2 bg-amber-900/30 rounded-lg border border-amber-500/30">
+                        <span className="text-amber-200 font-bold">{mvp.name}</span>
+                        <span className="text-amber-400 text-sm">({mvp.team === 'player' ? 'Friendly' : 'Enemy'})</span>
+                        <span className="text-amber-300 font-bold text-lg">{mvp.damageDealt} DMG</span>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+            
+            {/* Continue Button */}
+            <div className="px-8 pb-6 pt-2">
+              <button
+                type="button"
+                onClick={() => resetWave(sceneObjectsRef.current!, renderManagerRef.current?.scene || new THREE.Scene())}
+                className={`w-full py-3 font-bold text-sm uppercase tracking-widest rounded-lg border transition-all duration-200 hover:scale-[1.02] active:scale-95 ${
+                  waveResult === 'victory'
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-400/50 shadow-lg shadow-emerald-900/50'
+                    : 'bg-red-600 hover:bg-red-500 text-white border-red-400/50 shadow-lg shadow-red-900/50'
+                }`}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* NPC Catalogue Modal (G key) */}
+      {showRosterModal && (
+        <div
+          className="absolute inset-0 z-[300] flex items-center justify-center bg-black/85 backdrop-blur-sm"
+          onClick={() => setShowRosterModal(false)}
+        >
+          <div
+            className="relative w-[95vw] max-w-[1340px] h-[88vh] flex flex-col rounded-2xl border border-slate-700/50 bg-[#0a0e14] shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-7 py-4 border-b border-slate-700/50 bg-slate-900/60 shrink-0">
+              <div className="flex items-center gap-4">
+                <div className="text-lg font-black uppercase tracking-widest text-white">Unit Compendium</div>
+                <div className="flex items-center gap-3 text-[10px] uppercase tracking-wider">
+                  <span className="flex items-center gap-1.5 text-red-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 inline-block" />
+                    {NPC_CATALOGUE.filter(e => e.faction === 'enemy').length} Enemy
+                  </span>
+                  <span className="flex items-center gap-1.5 text-cyan-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block" />
+                    {NPC_CATALOGUE.filter(e => e.faction === 'friendly').length} Friendly
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-700/50 hover:bg-slate-600/70 text-slate-400 hover:text-white transition-colors text-xs font-bold"
+                onClick={() => setShowRosterModal(false)}
+              >✕</button>
+            </div>
+
+            {/* Body: sidebar list + detail panel */}
+            <div className="flex flex-1 overflow-hidden">
+
+              {/* Left sidebar — scrollable unit list */}
+              <div className="w-64 shrink-0 border-r border-slate-700/40 overflow-y-auto bg-slate-900/30">
+                {/* Enemies section */}
+                <div className="px-3 pt-4 pb-1">
+                  <div className="text-[9px] font-bold text-red-400 uppercase tracking-widest px-1 mb-2">Enemy Units</div>
+                  <div className="space-y-1">
+                    {NPC_CATALOGUE.filter(e => e.faction === 'enemy').map(entry => (
+                      <NpcCard
+                        key={entry.name}
+                        entry={entry}
+                        selected={selectedNpc.name === entry.name}
+                        onClick={() => setSelectedNpc(entry)}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {/* Friendlies section */}
+                <div className="px-3 pt-4 pb-4">
+                  <div className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest px-1 mb-2">Friendly Units</div>
+                  <div className="space-y-1">
+                    {NPC_CATALOGUE.filter(e => e.faction === 'friendly').map(entry => (
+                      <NpcCard
+                        key={entry.name}
+                        entry={entry}
+                        selected={selectedNpc.name === entry.name}
+                        onClick={() => setSelectedNpc(entry)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right — detail panel */}
+              <div className="flex-1 overflow-hidden">
+                <NpcDetailPanel entry={selectedNpc} />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-7 py-2.5 border-t border-slate-700/40 bg-slate-900/50 flex justify-between items-center shrink-0">
+              <div className="text-[9px] text-slate-600 uppercase tracking-wider">Press G or click outside to close · {NPC_CATALOGUE.length} units total</div>
+              <button
+                type="button"
+                className="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-colors"
+                onClick={() => setShowRosterModal(false)}
+              >Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Controls Hint */}
+      <div className="absolute bottom-4 left-4 z-[100] bg-black/50 border border-white/10 rounded-lg px-3 py-2 backdrop-blur-md">
+        <div className="text-[10px] text-slate-400 uppercase tracking-wider space-y-1">
+          <div><span className="text-cyan-400">WASD</span> Pan Camera</div>
+          <div><span className="text-cyan-400">TAB</span> Select Unit</div>
+          <div><span className="text-cyan-400">Click</span> Move / Select</div>
+          <div><span className="text-cyan-400">G</span> Unit Roster</div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default Defense;
