@@ -100,7 +100,11 @@ export class PlayerLocomotion {
                 this.jumpVelocity = this.jumpPower * jumpPowerMod;
                 this.jumpTimer = 0;
             } else {
-                this.position.y = groundHeight;
+                // Only snap to ground if significantly different (prevents bounce on objects)
+                const heightDiff = Math.abs(this.position.y - groundHeight);
+                if (heightDiff > 0.05) {
+                    this.position.y = groundHeight;
+                }
             }
         }
 

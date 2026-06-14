@@ -66,7 +66,7 @@ export const ItemSlot: React.FC<ItemSlotProps> = ({
     <div
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      className={`relative ${SLOT_SIZES[size]} rounded-lg border flex items-center justify-center select-none transition-all duration-150 group ${
+      className={`relative ${SLOT_SIZES[size]} rounded-lg border flex items-center justify-center select-none transition-all duration-150 group/slot ${
         item
           ? `bg-slate-800/80 ${rarityBorder} ${onClick || onDoubleClick ? 'cursor-pointer hover:bg-slate-700/80 hover:brightness-110' : ''}`
           : `bg-slate-900/60 border-dashed border-slate-700/60 ${onClick ? 'cursor-pointer hover:bg-slate-800/40' : ''}`
@@ -91,7 +91,7 @@ export const ItemSlot: React.FC<ItemSlotProps> = ({
           )}
 
           {showTooltip && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 hidden group-hover:block z-[400] pointer-events-none">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-52 hidden group-hover/slot:block z-[400] pointer-events-none">
               <div className="bg-slate-950/95 border border-slate-700 rounded-xl p-3 shadow-2xl text-left">
                 <div className={`text-sm font-black leading-tight ${rarityColor}`}>{item.name}</div>
                 {def && (

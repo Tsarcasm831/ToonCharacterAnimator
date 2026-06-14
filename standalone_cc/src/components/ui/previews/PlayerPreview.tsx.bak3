@@ -1126,14 +1126,9 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
 
     useEffect(() => {
         if (!containerRef.current) return;
-        const container = containerRef.current;
 
-        // Purge any stale canvases left behind by a previous mount (HMR /
-        // StrictMode remounts) so only one preview canvas ever exists here.
-        Array.from(container.querySelectorAll('canvas')).forEach((c) => c.remove());
-
-        const width = container.clientWidth;
-        const height = container.clientHeight;
+        const width = containerRef.current.clientWidth;
+        const height = containerRef.current.clientHeight;
 
         const scene = new THREE.Scene();
         scene.background = null; 
@@ -1147,13 +1142,11 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         renderer.setSize(width, height);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFShadowMap; 
-        renderer.domElement.style.position = 'absolute';
-        renderer.domElement.style.inset = '0';
-        renderer.domElement.style.width = '100%';
-        renderer.domElement.style.height = '100%';
-        container.appendChild(renderer.domElement);
+        containerRef.current.appendChild(renderer.domElement);
         renderer.domElement.style.touchAction = 'none';
-        const eventSurface = renderer.domElement;
+        const eventSurface = containerRef.current;
+        if (!eventSurface) return;
+        eventSurface.style.touchAction = 'none';
         const handleContextMenu = (event: MouseEvent) => event.preventDefault();
         eventSurface.addEventListener('contextmenu', handleContextMenu);
 
@@ -1542,10 +1535,10 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
             }
 
             eventSurface.removeEventListener('contextmenu', handleContextMenu);
-            renderer.domElement.remove();
-            renderer.dispose();
-            if (rendererRef.current === renderer) rendererRef.current = null;
-            if (sceneRef.current === scene) sceneRef.current = null;
+            if (rendererRef.current && containerRef.current) {
+                containerRef.current.removeChild(rendererRef.current.domElement);
+                rendererRef.current.dispose();
+            }
         };
     }, []);
 
@@ -1560,5 +1553,5 @@ export const PlayerPreview: React.FC<PlayerPreviewProps> = ({ config, manualInpu
         inputRef.current = manualInput ?? {};
     }, [manualInput]);
 
-    return <div ref={containerRef} className="relative w-full h-full" />;
+    return <div ref={containerRef} className="w-full h-full" />;
 };

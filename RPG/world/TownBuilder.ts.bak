@@ -250,20 +250,18 @@ function buildFountain(group: THREE.Group, addObstacle: AddObstacle, position: T
     addObstacle(basin);
 
     const water = new THREE.Mesh(
-        new THREE.CylinderGeometry(2.55, 2.75, 0.02, 24),
+        new THREE.CylinderGeometry(2.55, 2.75, 0.16, 24),
         new THREE.MeshStandardMaterial({
-            color: 0x4fb3d9,
-            roughness: 0.08,
-            metalness: 0.3,
-            emissive: 0x2a6b8a,
-            emissiveIntensity: 0.35,
+            color: 0x5ba4c7,
+            roughness: 0.15,
+            metalness: 0.1,
+            emissive: 0x16384a,
+            emissiveIntensity: 0.5,
             transparent: true,
-            opacity: 0.6,
-            depthWrite: false,
-            side: THREE.DoubleSide,
+            opacity: 0.9,
         })
     );
-    water.position.y = 0.68;
+    water.position.y = 0.72;
     water.receiveShadow = true;
     water.name = 'rpg_fountain_water'; // RPGWorld.update animates this.
     fountain.add(water);
@@ -290,13 +288,12 @@ function buildFountain(group: THREE.Group, addObstacle: AddObstacle, position: T
         new THREE.CylinderGeometry(0.05, 0.09, 1.7, 10),
         new THREE.MeshStandardMaterial({
             color: 0x9fd4ef,
-            roughness: 0.05,
-            metalness: 0.1,
+            roughness: 0.1,
+            metalness: 0,
             emissive: 0x4a7e9c,
-            emissiveIntensity: 0.3,
+            emissiveIntensity: 0.4,
             transparent: true,
-            opacity: 0.4,
-            depthWrite: false,
+            opacity: 0.85,
         })
     );
     jet.position.y = 2.1;

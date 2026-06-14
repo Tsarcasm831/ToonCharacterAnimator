@@ -274,6 +274,9 @@ export class MeleeAction extends BaseAction {
                 const dz = impactPoint.z - playerPos.z;
                 const distXZ = Math.sqrt(dx * dx + dz * dz);
 
+                // Skip if too close to avoid zero-vector normalization issues
+                if (distXZ < 0.01) continue;
+
                 if (distXZ < hitRange) {
                     const dirToObs = new THREE.Vector3(dx, 0, dz).normalize();
                     const dot = playerForward.dot(dirToObs);

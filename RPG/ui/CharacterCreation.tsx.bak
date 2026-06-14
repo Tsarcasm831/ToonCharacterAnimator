@@ -138,7 +138,7 @@ export const CharacterCreation: React.FC<CharacterCreationProps> = ({ onComplete
 
   return (
     <div
-      className="absolute inset-0 z-[150] flex"
+      className="fixed inset-0 z-[150] flex"
       style={{
         background: 'radial-gradient(ellipse at center, rgb(15 23 42) 0%, rgb(2 6 23) 70%, rgb(0 0 0) 100%)',
       }}

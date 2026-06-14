@@ -170,9 +170,9 @@ export const RPG_NPCS: RPGNpcDef[] = [
       speed: 0.9,
       waypoints: [
         [4, -116],
-        [-12, -112],
-        [-6, -100],
-        [14, -108],
+        [-8, -120],
+        [-2, -130],
+        [10, -122],
       ],
     },
     dialogue: {
